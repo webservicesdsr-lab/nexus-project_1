@@ -1,0 +1,140 @@
+/* Kingdom Nexus - Auth Page (v2) */
+
+body {
+  background: #ffffff;
+  font-family: "Poppins", "Segoe UI", sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+/* Container */
+.knx-auth-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  position: relative;
+  padding: 40px 20px;
+}
+
+/* Back to Home link */
+.knx-back-home {
+  position: absolute;
+  top: 25px;
+  left: 25px;
+  color: #666;
+  font-size: 15px;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+.knx-back-home:hover {
+  color: #225638;
+}
+
+/* Card */
+.knx-auth-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 40px 35px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+/* Title */
+.knx-auth-card h2 {
+  font-size: 26px;
+  color: #333;
+  margin-bottom: 25px;
+  font-weight: 700;
+}
+
+/* Input group */
+.knx-input-group {
+  position: relative;
+  margin-bottom: 18px;
+}
+
+.knx-input-group input {
+  width: 100%;
+  padding: 10px 15px;
+  border: 1.5px solid #ddd;
+  border-radius: 25px;
+  font-size: 15px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.knx-input-group input:focus {
+  border-color: #225638;
+}
+
+/* Options (Remember / Forgot) */
+.knx-auth-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 5px 0 18px;
+  font-size: 14px;
+}
+
+.knx-auth-options label {
+  color: #555;
+}
+
+.knx-auth-options a {
+  color: #225638;
+  text-decoration: none;
+  font-weight: 500;
+}
+.knx-auth-options a:hover {
+  text-decoration: underline;
+}
+
+/* Button */
+.knx-btn {
+  background: #225638;
+  color: #fff;
+  border: none;
+  border-radius: 25px;
+  padding: 12px;
+  width: 100%;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.knx-btn:hover {
+  background: #18462c;
+}
+
+/* Sign-up text */
+.knx-signup-text {
+  margin-top: 18px;
+  font-size: 14px;
+  color: #777;
+}
+
+.knx-signup-text a {
+  color: #225638;
+  text-decoration: none;
+  font-weight: 500;
+}
+.knx-signup-text a:hover {
+  text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .knx-auth-card {
+    padding: 30px 25px;
+  }
+  .knx-back-home {
+    top: 15px;
+    left: 15px;
+  }
+}

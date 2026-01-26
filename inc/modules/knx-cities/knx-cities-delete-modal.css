@@ -1,0 +1,119 @@
+/*
+==========================================================
+ KNX Cities — Delete Modal (NEXUS scoped)
+ Goal:
+ - Force modal buttons to ignore Hello Elementor/theme button styles
+ - Remove ugly pink/red hover/focus styles from Cancel / Yes Delete
+ - Keep our NEXUS look consistent
+========================================================== */
+
+#knxCityDeleteModal.knx-modal{
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+#knxCityDeleteModal .knx-modal-backdrop{
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+}
+
+#knxCityDeleteModal .knx-modal-box{
+  position: relative;
+  width: min(520px, calc(100% - 32px));
+  margin: 12vh auto 0;
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.25);
+}
+
+#knxCityDeleteModal h3{
+  margin: 0 0 6px 0;
+  font-weight: 900;
+  color: var(--knx-text, #111827);
+}
+
+#knxCityDeleteModal .knx-modal-warning{
+  margin: 10px 0 16px;
+  line-height: 1.35;
+  color: var(--knx-text, #111827);
+}
+
+#knxCityDeleteModal .knx-modal-actions{
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+/* ----------------------------------------------------------
+   HARD RESET ONLY INSIDE MODAL BUTTONS
+   (prevents Hello Elementor from skinning them)
+---------------------------------------------------------- */
+#knxCityDeleteModal button{
+  -webkit-appearance: none;
+  appearance: none;
+  font: inherit;
+  letter-spacing: normal;
+  text-transform: none;
+  text-decoration: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+  transform: none !important;
+  outline: none;
+}
+
+/* Cancel button */
+#knxCityDeleteCancel{
+  background: #f3f4f6;
+  color: #111827;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+/* Danger button */
+#knxCityDeleteConfirm{
+  background: #dc2626;
+  color: #fff;
+  border: 1px solid #dc2626;
+  border-radius: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+#knxCityDeleteConfirm:disabled{
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+/* ----------------------------------------------------------
+   KILL THE THEME HOVER (make hover identical to base)
+---------------------------------------------------------- */
+#knxCityDeleteCancel:hover,
+#knxCityDeleteCancel:active{
+  background: #f3f4f6 !important;
+  color: #111827 !important;
+  border-color: #e5e7eb !important;
+}
+
+#knxCityDeleteConfirm:hover,
+#knxCityDeleteConfirm:active{
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  border-color: #dc2626 !important;
+}
+
+/* Keep keyboard focus clean + NEXUS-consistent (not theme) */
+#knxCityDeleteCancel:focus-visible{
+  box-shadow: 0 0 0 3px rgba(11,121,58,.15) !important;
+}
+
+#knxCityDeleteConfirm:focus-visible{
+  box-shadow: 0 0 0 3px rgba(220,38,38,.25) !important;
+}

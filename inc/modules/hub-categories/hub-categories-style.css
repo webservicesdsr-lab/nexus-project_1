@@ -1,0 +1,551 @@
+/* File: inc/modules/hub-categories/hub-categories-style.css */
+/* ==========================================================
+   KNX Hub Categories — CRUD Responsive UI v1.1 (Cities-style)
+   - Theme-safe (Hello Elementor hover bleed blocked)
+   - Desktop: table | Mobile: cards
+   - Unified Add/Edit modal + simple Delete modal
+========================================================== */
+
+.knx-hubcats-signed{
+  --knx-green: #0b793a;
+  --knx-green-dark: #096631;
+  --knx-bg: #ffffff;
+  --knx-soft: #f6f7f8;
+  --knx-border: #e2e5e8;
+  --knx-text: #111827;
+  --knx-muted: #6b7280;
+  --knx-danger: #b33a3a;
+  --knx-danger-bg: #f6eaea;
+  --knx-success-bg: #e5f7eb;
+
+  padding: 5%;
+  margin-left: 154px;
+  color: var(--knx-text);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+.knx-hubcats-signed,
+.knx-hubcats-signed *{
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Kill theme link styling inside module */
+.knx-hubcats-signed a{
+  color: inherit;
+  text-decoration: none;
+}
+.knx-hubcats-signed a:hover,
+.knx-hubcats-signed a:focus,
+.knx-hubcats-signed a:active{
+  color: inherit !important;
+  text-decoration: none !important;
+  box-shadow: none !important;
+  outline: none;
+}
+
+/* Prevent theme button hover palettes from bleeding in */
+.knx-hubcats-signed button{
+  font-family: inherit;
+}
+.knx-hubcats-signed button:hover,
+.knx-hubcats-signed button:focus,
+.knx-hubcats-signed button:active{
+  filter: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+  outline: none;
+}
+
+/* ==========================================================
+   Header (Cities-style)
+========================================================== */
+
+.knx-cities-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.knx-cities-title{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.knx-cities-title i{
+  color: var(--knx-green);
+  font-size: 1.25rem;
+}
+
+.knx-cities-title h2{
+  margin:0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--knx-green);
+}
+
+.knx-badge-sealed{
+  font-size: .75rem;
+  font-weight: 800;
+  background: #eef6f1;
+  color: var(--knx-green);
+  border: 1px solid #dbece2;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+/* ==========================================================
+   Controls
+========================================================== */
+
+.knx-cities-controls{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap: wrap;
+}
+
+.knx-search{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  background: var(--knx-soft);
+  border-radius: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--knx-border);
+}
+
+.knx-search i{ color: var(--knx-green); }
+
+.knx-search input{
+  border:none;
+  outline:none;
+  background: transparent;
+  font-size: .95rem;
+  width: 220px;
+  color: var(--knx-text);
+}
+
+/* ==========================================================
+   Buttons (NO hover shifts)
+========================================================== */
+
+.knx-btn{
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: 800;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  line-height: 1;
+  transition: none !important;
+}
+
+.knx-btn--primary{
+  background: var(--knx-green);
+  color:#fff;
+}
+.knx-btn--primary:hover,
+.knx-btn--primary:focus,
+.knx-btn--primary:active{
+  background: var(--knx-green) !important;
+  color:#fff !important;
+}
+
+.knx-btn--ghost{
+  background: #f2f2f2;
+  color:#333;
+}
+.knx-btn--ghost:hover,
+.knx-btn--ghost:focus,
+.knx-btn--ghost:active{
+  background: #f2f2f2 !important;
+  color:#333 !important;
+}
+
+.knx-btn--danger{
+  background: var(--knx-danger-bg);
+  color: var(--knx-danger);
+  border: 1px solid #efcaca;
+}
+.knx-btn--danger:hover,
+.knx-btn--danger:focus,
+.knx-btn--danger:active{
+  background: var(--knx-danger-bg) !important;
+  color: var(--knx-danger) !important;
+  border-color: #efcaca !important;
+}
+
+.knx-btn--sm{
+  padding: 8px 12px;
+  border-radius: 9px;
+  font-size: .92rem;
+}
+
+/* ==========================================================
+   Table (Desktop)
+========================================================== */
+
+.knx-cities-tablewrap{ width:100%; }
+
+.knx-cities-table{
+  width:100%;
+  border-collapse: collapse;
+  background: var(--knx-bg);
+}
+
+.knx-cities-table th,
+.knx-cities-table td{
+  text-align:left;
+  padding: 12px 12px;
+  border-bottom: 1px solid var(--knx-border);
+  font-size: .95rem;
+  vertical-align: middle;
+}
+
+.knx-cities-table th{
+  background: #f7f9fa;
+  font-weight: 800;
+  color:#333;
+}
+
+/* Remove row hover highlight */
+.knx-cities-table tbody tr:hover{ background: transparent !important; }
+
+.knx-center{ text-align:center; }
+
+.knx-citycell .knx-cityname{
+  font-weight: 900;
+  color:#111;
+}
+
+.knx-citycell .knx-citymeta{
+  margin-top: 2px;
+  font-size: .82rem;
+  color: var(--knx-muted);
+}
+
+/* Status labels */
+.knx-status{
+  display:inline-block;
+  font-weight: 900;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: .85rem;
+  text-transform: capitalize;
+}
+
+.knx-status--active{
+  background: var(--knx-success-bg);
+  color: var(--knx-green);
+}
+
+.knx-status--inactive{
+  background: var(--knx-danger-bg);
+  color: var(--knx-danger);
+}
+
+/* Icon buttons */
+.knx-iconbtn{
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 10px;
+  color: var(--knx-green);
+  transition: none !important;
+  line-height: 1;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+.knx-iconbtn i{ pointer-events: none; }
+
+.knx-iconbtn:hover,
+.knx-iconbtn:focus,
+.knx-iconbtn:active{
+  background: transparent !important;
+  color: var(--knx-green) !important;
+}
+
+.knx-iconbtn--danger{ color: var(--knx-danger); }
+.knx-iconbtn--danger:hover,
+.knx-iconbtn--danger:focus,
+.knx-iconbtn--danger:active{
+  background: transparent !important;
+  color: var(--knx-danger) !important;
+}
+
+/* Toggle switch */
+.knx-switch{
+  position: relative;
+  display:inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.knx-switch input{
+  opacity:0;
+  width:0;
+  height:0;
+}
+
+.knx-slider{
+  position:absolute;
+  cursor:pointer;
+  top:0; left:0; right:0; bottom:0;
+  background:#ccc;
+  transition:.3s;
+  border-radius: 24px;
+}
+
+.knx-slider:before{
+  position:absolute;
+  content:"";
+  height: 18px;
+  width: 18px;
+  left:3px;
+  bottom:3px;
+  background:#fff;
+  transition:.3s;
+  border-radius: 50%;
+}
+
+.knx-switch input:checked + .knx-slider{ background: var(--knx-green); }
+.knx-switch input:checked + .knx-slider:before{ transform: translateX(20px); }
+
+/* Busy */
+.is-busy{
+  opacity: .6;
+  pointer-events: none;
+}
+
+/* ==========================================================
+   Cards (Mobile)
+========================================================== */
+
+.knx-cities-cards{
+  display:none;
+  gap: 12px;
+}
+
+.knx-citycard{
+  border: 1px solid var(--knx-border);
+  background: #fff;
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.06);
+}
+
+.knx-citycard__top{
+  display:flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.knx-citycard__name{
+  font-weight: 900;
+  color:#111;
+  line-height: 1.2;
+}
+
+.knx-citycard__meta{
+  font-size: .82rem;
+  color: var(--knx-muted);
+  margin-top: 3px;
+}
+
+.knx-citycard__row{
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-top: 1px solid #f1f3f5;
+  border-bottom: 1px solid #f1f3f5;
+  margin: 10px 0;
+}
+
+.knx-citycard__label{
+  font-weight: 800;
+  color:#333;
+}
+
+.knx-citycard__actions{
+  display:flex;
+  justify-content:flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ==========================================================
+   Empty / Error / Loading
+========================================================== */
+
+.knx-loading{
+  text-align:center;
+  padding: 18px 10px;
+  color: var(--knx-muted);
+  font-size: .95rem;
+}
+
+.knx-empty-state{
+  text-align: center;
+  padding: 26px 12px;
+  color: var(--knx-muted);
+  border: 1px dashed var(--knx-border);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.knx-empty-state i{
+  font-size: 2.4rem;
+  color: #d1d5db;
+  margin-bottom: 10px;
+  display:block;
+}
+
+.knx-empty-state p{
+  margin: 0 0 12px 0;
+  font-size: 1.05rem;
+}
+
+.knx-error-state{
+  text-align: center;
+  padding: 22px 12px;
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 14px;
+  margin: 10px 0;
+}
+.knx-error-state i{
+  font-size: 2.2rem;
+  color: #ef4444;
+  margin-bottom: 10px;
+  display:block;
+}
+.knx-error-state p{
+  margin: 0;
+  color: #991b1b;
+}
+
+/* ==========================================================
+   Modals (Cities-style, scoped)
+========================================================== */
+
+.knx-modal{
+  display:none;
+  position: fixed;
+  inset:0;
+  z-index: 9999;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+.knx-modal.active{
+  display:block;
+}
+
+.knx-modal-backdrop{
+  position:absolute;
+  inset:0;
+  background: rgba(0,0,0,.45);
+}
+
+.knx-modal-box{
+  position: relative;
+  width: 92%;
+  max-width: 420px;
+  margin: 10vh auto;
+  background: #fff;
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.22);
+}
+
+/* Hard reset modal buttons to avoid theme skinning */
+.knx-modal-box button{
+  -webkit-appearance: none;
+  appearance: none;
+  font: inherit;
+  letter-spacing: normal;
+  text-transform: none;
+  text-decoration: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+  transform: none !important;
+  outline: none;
+}
+
+.knx-modal-box h3{
+  margin:0 0 6px 0;
+  color: var(--knx-text);
+  font-weight: 900;
+}
+
+.knx-modal-sub{
+  margin: 0 0 14px 0;
+  color: var(--knx-muted);
+  font-size: .95rem;
+  line-height: 1.35;
+}
+
+.knx-modal-sub--danger{
+  color: #7f1d1d;
+}
+
+.knx-field span{
+  display:block;
+  font-weight: 900;
+  color:#333;
+  margin-bottom: 6px;
+}
+
+.knx-field input{
+  width:100%;
+  padding: 11px 12px;
+  border: 1px solid var(--knx-border);
+  border-radius: 12px;
+  font-size: 1rem;
+  outline: none;
+  color: var(--knx-text);
+  background: #fff;
+}
+
+.knx-field input:focus{
+  border-color: #bfe3cf;
+  box-shadow: 0 0 0 3px rgba(11,121,58,.10);
+}
+
+.knx-modal-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+/* ==========================================================
+   Responsive: Desktop table | Mobile cards
+========================================================== */
+
+@media (max-width: 768px){
+  .knx-hubcats-signed{
+    margin-left: 58px;
+    padding: 2%;
+  }
+
+  .knx-search input{ width: 160px; }
+
+  #knxHubCatsTableWrap{ display:none; }
+  .knx-cities-cards{ display:grid; }
+
+  .knx-btn--primary{ width:100%; }
+}

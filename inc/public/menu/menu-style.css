@@ -1,0 +1,905 @@
+/* ==========================================================
+   ROOT
+========================================================== */
+#olc-menu {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: #111827;
+  background: #ffffff;
+  padding-bottom: 40px;
+}
+
+#olc-menu button {
+  font-family: inherit;
+}
+
+/* ==========================================================
+   HEADER
+========================================================== */
+#olc-menu .knx-header {
+  position: relative;
+}
+
+#olc-menu .knx-header-back {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: none;
+  background: #0b793a;
+  color: #ffffff;
+  font-size: 0.9rem;
+  cursor: pointer;
+  z-index: 5;
+}
+
+#olc-menu .knx-header-back i {
+  font-size: 0.8rem;
+}
+
+/* ==========================================================
+   MOBILE HEADER
+========================================================== */
+#olc-menu .knx-header-mobile-banner {
+  height: 252px;
+  overflow: hidden;
+}
+
+#olc-menu .knx-header-mobile-banner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 100% 80%;
+}
+
+#olc-menu .knx-header-mobile-info {
+  padding: 16px;
+  text-align: center;
+}
+
+#olc-menu .knx-header-title {
+  margin: 0;
+  font-size: 1.9rem;
+  font-weight: 800;
+}
+
+#olc-menu .knx-header-status-row {
+  margin-top: 4px;
+  font-size: 0.95rem;
+  color: #4b5563;
+}
+
+/* ==========================================================
+   DESKTOP HEADER
+========================================================== */
+#olc-menu .knx-header-desktop {
+  display: none;
+  padding: 24px 20px 4px;
+}
+
+#olc-menu .knx-header-desktop-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  justify-content: center;
+}
+
+#olc-menu .knx-header-desktop-image {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 4px solid #0b793a;
+}
+
+#olc-menu .knx-header-desktop-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+#olc-menu .knx-header-desktop-main {
+  text-align: left;
+}
+
+#olc-menu .knx-header-title--desktop {
+  font-size: 2.2rem;
+}
+
+@media (min-width: 900px) {
+  #olc-menu .knx-header-mobile { display: none; }
+  #olc-menu .knx-header-desktop { display: block; }
+}
+
+/* ==========================================================
+   SEARCH
+========================================================== */
+#olc-menu .knx-menu__search {
+  padding: 16px;
+}
+
+#olc-menu .knx-menu__search-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f3f4f6;
+  border-radius: 14px;
+  padding: 10px 14px;
+}
+
+#olc-menu .knx-menu__search-icon {
+  color: #9ca3af;
+}
+
+#olc-menu .knx-menu__search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 0.98rem;
+  outline: none;
+}
+
+/* ==========================================================
+   MOBILE SEARCH (Compact + Includes Button)
+========================================================== */
+
+#olc-menu .knx-mobile-search {
+  width: 100%;
+  padding: 0 16px;
+  margin: 5px;
+  max-width: 862px;
+}
+
+#olc-menu .knx-mobile-search-wrapper {
+  display: flex;
+  align-items: center;
+  background: #f3f4f6;
+  padding: 10px 12px;
+  border-radius: 14px;
+  gap: 10px;
+}
+
+#olc-menu .knx-mobile-search-icon {
+  color: #9ca3af;
+  font-size: 1rem;
+}
+
+#olc-menu .knx-mobile-search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.95rem;
+}
+
+#olc-menu .knx-mobile-search-btn {
+  background: #f97316;
+  border: none;
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(249,115,22,0.35);
+  white-space: nowrap;
+}
+
+#olc-menu .knx-mobile-search-btn:active {
+  transform: scale(0.96);
+}
+
+@media (min-width:900px) {
+  #olc-menu .knx-mobile-search {
+    display: none !important;
+  }
+}
+
+/* ==========================================================
+   CATEGORY CHIPS
+========================================================== */
+#olc-menu .knx-menu__categories {
+
+  max-width: 1260px;
+  margin: 0 auto;
+  margin-bottom: 20px;
+  display: flex;
+  gap: 18px;
+
+}
+
+@media (max-width:900px) {
+    #olc-menu .knx-menu__categories {
+  margin: 0px 16px;
+  margin-bottom: 20px;
+}
+}
+
+#olc-menu .knx-menu__category-chip {
+  border: none;
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: #f3f4f6;
+  font-size: 1rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  color: #4b5563;
+  transition: 0.15s;
+  justify-content: flex-start;
+}
+
+#olc-menu .knx-menu__category-chip.active {
+  background: #0b793a;
+  color: #ffffff;
+}
+
+/* ==========================================================
+   GRID
+========================================================== */
+#olc-menu .knx-menu__items {
+  padding: 0 16px 24px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 16px;
+}
+
+@media (min-width:900px) {
+  #olc-menu .knx-menu__items {
+    max-width: 1300px;
+    margin: 0 auto;
+    grid-template-columns: repeat(4,minmax(0,1fr));
+    gap: 18px;
+  }
+}
+
+#olc-menu .knx-menu__card {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 6px 18px rgba(15,23,42,.10);
+  overflow: hidden;
+  cursor: pointer;
+  transition: 0.16s;
+}
+
+#olc-menu .knx-menu__card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 26px rgba(15,23,42,.15);
+}
+
+#olc-menu .knx-menu__card-img-wrap {
+  position: relative;
+  width: 100%;
+  padding-top: 75%;
+  overflow: hidden;
+}
+
+#olc-menu .knx-menu__card-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+#olc-menu .knx-menu__card-image--placeholder {
+  background: #e5e7eb;
+}
+
+#olc-menu .knx-menu__card-body {
+  position: relative;
+  padding: 28px 14px 16px;
+  text-align: center;
+}
+
+#olc-menu .knx-menu__price-pill {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translate(-50%,-50%);
+  background: #f97316;
+  color: #fff;
+  padding: 8px 22px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 0.95rem;
+  box-shadow: 0 4px 10px rgba(249,115,22,.35);
+  z-index: 2;
+}
+
+#olc-menu .knx-menu__card-title {
+  margin: 6px 0 4px;
+  font-size: 1.02rem;
+  font-weight: 800;
+}
+
+#olc-menu .knx-menu__card-desc {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #4b5563;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ==========================================================
+   EMPTY
+========================================================== */
+#olc-menu .knx-menu__empty {
+  text-align: center;
+  padding: 40px 16px;
+  color: #6b7280;
+}
+
+#olc-menu .knx-menu__empty i {
+  font-size: 32px;
+  color: #9ca3af;
+  margin-bottom: 8px;
+}
+
+/* ==========================================================
+   MODAL
+========================================================== */
+#olc-menu .knx-menu__modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+#olc-menu .knx-menu__modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.60);
+}
+
+#olc-menu .knx-menu__modal-dialog {
+  position: relative;
+  max-width: 780px;
+  max-height: 90vh;
+  margin: 0 12px;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.35);
+  overflow-y: auto;
+  padding: 20px 24px 24px;
+}
+
+/* ==========================================================
+   MODAL CLOSE WRAPPER (sticky inside modal, no layout shift)
+========================================================== */
+#olc-menu .knx-modal-close-wrapper {
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+  height: 0;
+}
+
+/* ==========================================================
+   MODAL CLOSE BUTTON
+========================================================== */
+#olc-menu .knx-menu__modal-close {
+  pointer-events: auto;
+  transform: translateY(12px);
+  margin-right: 6px;
+
+  width: 40px;
+  height: 40px;
+
+  background: rgba(255,255,255,0.78);
+  backdrop-filter: blur(10px);
+  color: #111;
+
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 50%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 1.25rem;
+  font-weight: 500;
+  line-height: 0;
+
+  box-shadow: 0 3px 12px rgba(0,0,0,0.25);
+
+  cursor: pointer;
+  transition: 0.18s ease;
+}
+
+#olc-menu .knx-menu__modal-close:hover {
+  transform: translateY(12px) scale(1.07);
+}
+
+#olc-menu .knx-menu__modal-close:active {
+  transform: translateY(12px) scale(0.92);
+}
+
+@media (min-width: 900px) {
+  #olc-menu .knx-menu__modal-close {
+    width: 44px;
+    height: 44px;
+    margin-right: 8px;
+    transform: translateY(16px);
+  }
+}
+
+/* ==========================================================
+   MODAL INNER
+========================================================== */
+#olc-menu .knx-modal-hero {
+  margin-top: 10px;
+  margin-bottom: 18px;
+  text-align: center;
+}
+
+#olc-menu .knx-modal-hero img {
+  max-width: 720px;
+  width: 100%;
+  border-radius: 12px;
+}
+
+#olc-menu .knx-modal-header-card {
+  margin: 0 auto 18px;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 6px 18px rgba(15,23,42,.08);
+  padding: 20px 24px 22px;
+  text-align: center;
+}
+
+#olc-menu .knx-modal-title {
+  margin: 0 0 8px;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+#olc-menu .knx-modal-desc {
+  color: #4b5563;
+  font-size: 0.96rem;
+}
+
+#olc-menu .knx-modal-price-main {
+  margin-top: 16px;
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+/* ==========================================================
+   GROUPS
+========================================================== */
+#olc-menu .knx-modal-group {
+  margin: 0 auto 16px;
+  background: #f9fafb;
+  border-radius: 18px;
+  box-shadow: 0 1px 3px rgba(15,23,42,.05);
+  padding: 16px 14px 14px;
+}
+
+@media (min-width:900px) {
+  #olc-menu .knx-modal-group {
+    margin: 0px 10px;
+    width: 100%;
+  }
+}
+
+#olc-menu .knx-modal-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 12px 26px;
+}
+
+#olc-menu .knx-modal-group-title {
+  font-weight: 600;
+  color: #f97316;
+}
+
+#olc-menu .knx-modal-group-required {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+/* ==========================================================
+   OPTIONS
+========================================================== */
+#olc-menu .knx-modal-options {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 10px;
+}
+
+@media (min-width:900px) {
+  #olc-menu .knx-modal-options {
+    grid-template-columns: repeat(3,minmax(0,1fr));
+    justify-items: center;
+    grid-auto-rows: auto;
+  }
+
+  #olc-menu .knx-modal-option {
+    width: 100%;
+  }
+}
+
+#olc-menu .knx-modal-option {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 10px 10px 12px;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: 0.15s;
+}
+
+#olc-menu .knx-modal-option-label {
+  font-weight: 700;
+  color: #111827;
+}
+
+#olc-menu .knx-modal-option-cta {
+  margin-top: 2px;
+  padding: 8px 6px;
+  border-radius: 999px;
+  background: #f97316;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+#olc-menu .knx-modal-option.is-selected {
+  border-color: #fbbf24;
+  box-shadow: 0 8px 20px rgba(251,191,36,.45);
+  transform: translateY(-1px);
+}
+
+#olc-menu .knx-modal-option.is-selected .knx-modal-option-cta {
+  background: #fbbf24;
+}
+
+@media (max-width:899px) {
+  #olc-menu .knx-modal-options .knx-modal-option:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ==========================================================
+   NOTES
+========================================================== */
+#olc-menu .knx-modal-notes {
+  margin: 18px auto 12px;
+}
+
+#olc-menu .knx-modal-notes label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+#olc-menu .knx-modal-notes textarea {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  min-height: 80px;
+  padding: 8px 10px;
+  font-size: 0.9rem;
+}
+
+/* ==========================================================
+   FOOTER
+========================================================== */
+#olc-menu .knx-modal-footer {
+  margin: 10px auto 0;
+  max-width: 520px;
+  text-align: center;
+}
+
+#olc-menu .knx-modal-qty-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+
+#olc-menu .knx-modal-qty-btn {
+  font-weight: 700;
+  font-size: 1.2rem;
+
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  cursor: pointer;
+}
+
+#olc-menu .knx-modal-total-row {
+  margin-bottom: 14px;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+#olc-menu .knx-modal-add-btn {
+  width: 100%;
+  padding: 17px 28px;
+  border-radius: 999px;
+  border: none;
+  background: #f97316;
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 10px 26px rgba(249,115,22,.45);
+}
+
+/* ==========================================================
+   VALIDATION
+========================================================== */
+#olc-menu .knx-modal-group.required-error {
+  border: 2px solid #ef4444;
+  animation: pulseBorder 0.9s ease-in-out 2;
+}
+
+#olc-menu .knx-modal-required-msg {
+  color: #ef4444;
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-top: 6px;
+  text-align: center;
+}
+
+@keyframes pulseBorder {
+  0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,.6); }
+  50%     { box-shadow: 0 0 8px 4px rgba(239,68,68,.6); }
+}
+
+/* ==========================================================
+   DESKTOP HERO
+========================================================== */
+@media (min-width:900px) {
+  #olc-menu .knx-header-desktop-inner,
+  #olc-menu .knx-header-desktop-image {
+    display: none !important;
+  }
+
+  #olc-menu .knx-desktop-hero {
+    position: relative;
+    height: 412px;
+    border-radius: 14px;
+    overflow: hidden;
+    margin: 0 auto 26px;
+    max-width: 1300px;
+  }
+
+  #olc-menu .knx-desktop-hero-bg img {
+    width: 100%;
+    height: 552px;
+    object-fit: cover;
+    filter: brightness(0.55);
+  }
+
+  #olc-menu .knx-desktop-hero-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%);
+    text-align: center;
+    color: #fff;
+    width: 100%;
+    max-width: 900px;
+    padding: 0 20px;
+  }
+
+  #olc-menu .knx-desktop-hero-title {
+    margin: 0;
+    font-size: 3.2rem;
+    font-weight: 800;
+    text-shadow: 0 4px 10px rgba(0,0,0,.35);
+    line-height: 1.1;
+  }
+
+  #olc-menu .knx-desktop-hero-subtitle {
+    margin: 14px 0 26px;
+    font-size: 1.45rem;
+    font-weight: 500;
+    opacity: 0.96;
+    text-shadow: 0 2px 6px rgba(0,0,0,.30);
+  }
+
+  #olc-menu .knx-desktop-hero-search {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #fff;
+    padding: 14px 18px;
+    border-radius: 14px;
+    max-width: 540px;
+    margin: 0 auto;
+    box-shadow: 0 6px 20px rgba(0,0,0,.30);
+  }
+
+  #olc-menu .knx-desktop-hero-search i {
+    color: #9ca3af;
+    font-size: 1.1rem;
+  }
+
+  #olc-menu .knx-desktop-hero-search-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 1rem;
+    background: transparent;
+  }
+
+  #olc-menu .knx-desktop-hero-search-btn {
+    padding: 9px 22px;
+    background: #f97316;
+    border: none;
+    color: #fff;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 700;
+  }
+
+  #olc-menu .knx-menu__search,
+  #olc-menu .knx-header-mobile {
+    display: none !important;
+  }
+}
+
+/* ==========================================================
+   BACK BUTTON MOBILE
+========================================================== */
+@media (min-width:900px) {
+  #olc-menu .knx-header-back {
+    display: none !important;
+  }
+}
+
+@media (max-width:900px) {
+  #olc-menu .knx-header-back {
+    display: inline-flex !important;
+    top: 12px;
+    left: 12px;
+    background: #0b793a;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 0.9rem;
+  }
+}
+
+/* ==========================================================
+   NEXUS AVAILABILITY MODAL (Menu)
+========================================================== */
+
+#olc-menu .knx-avail {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#olc-menu .knx-avail.hidden {
+  display: none;
+}
+
+#olc-menu .knx-avail-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.60);
+  backdrop-filter: blur(7px);
+}
+
+#olc-menu .knx-avail-card {
+  position: relative;
+  width: 92%;
+  max-width: 420px;
+  background: #ffffff;
+  border-radius: 22px;
+  padding: 26px 20px 22px;
+  box-shadow: 0 22px 70px rgba(0,0,0,0.28);
+  text-align: center;
+  border: 1px solid rgba(0,0,0,0.06);
+  animation: knxAvailIn 0.22s ease-out;
+}
+
+@keyframes knxAvailIn {
+  from { transform: translateY(14px) scale(0.98); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+#olc-menu .knx-avail-x {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(0,0,0,0.06);
+  color: #111;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition: none !important;
+}
+
+#olc-menu .knx-avail-icon {
+  font-size: 44px;
+  line-height: 1;
+  margin-bottom: 10px;
+}
+
+#olc-menu .knx-avail-title {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 800;
+  color: #111827;
+}
+
+#olc-menu .knx-avail-message {
+  margin: 0 0 14px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #6b7280;
+}
+
+#olc-menu .knx-avail-countdown {
+  margin: 0 auto 18px;
+  width: fit-content;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(11, 121, 58, 0.08);
+  color: #0b793a;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.2px;
+}
+
+#olc-menu .knx-avail-actions {
+  display: flex;
+  justify-content: center;
+}
+
+#olc-menu .btn {
+  border: none;
+  appearance: none;
+  font-family: inherit;
+  cursor: pointer;
+  transition: none !important;
+}
+
+#olc-menu .btn-amber {
+  background: #d8991e;
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 999px;
+  font-weight: 800;
+  box-shadow: 0 10px 26px rgba(216,153,30,.30);
+}
+
+#olc-menu .btn-amber:hover,
+#olc-menu .btn-amber:focus,
+#olc-menu .btn-amber:active {
+  transform: none !important;
+  filter: none !important;
+}

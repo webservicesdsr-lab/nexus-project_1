@@ -1,0 +1,533 @@
+<?php
+if (!defined('ABSPATH')) exit;
+
+/**
+ * ==========================================================
+ * Kingdom Nexus - Addresses API (SEALED v1)
+ * File: inc/core/resources/knx-addresses/api-addresses.php
+ * ----------------------------------------------------------
+ * Endpoints:
+ * - GET  /wp-json/knx/v1/addresses
+ * - POST /wp-json/knx/v1/addresses/add
+ * - POST /wp-json/knx/v1/addresses/edit
+ * - POST /wp-json/knx/v1/addresses/delete
+ * - POST /wp-json/knx/v1/addresses/default
+ * - POST /wp-json/knx/v1/addresses/select
+ *
+ * Canon:
+ * - Session required (fail-closed).
+ * - Nonce required for mutations.
+ * - Soft delete when possible.
+ * - Selected address stored via SSOT helper (session + cookie).
+ * - Response contract: { success, message, data }
+ * ==========================================================
+ */
+
+add_action('rest_api_init', function () {
+
+    register_rest_route('knx/v1', '/addresses', [
+        'methods'  => 'GET',
+        'callback' => 'knx_api_addresses_list',
+        'permission_callback' => '__return_true',
+    ]);
+
+    register_rest_route('knx/v1', '/addresses/add', [
+        'methods'  => 'POST',
+        'callback' => 'knx_api_addresses_add',
+        'permission_callback' => '__return_true',
+    ]);
+
+    register_rest_route('knx/v1', '/addresses/edit', [
+        'methods'  => 'POST',
+        'callback' => 'knx_api_addresses_edit',
+        'permission_callback' => '__return_true',
+    ]);
+
+    register_rest_route('knx/v1', '/addresses/delete', [
+        'methods'  => 'POST',
+        'callback' => 'knx_api_addresses_delete',
+        'permission_callback' => '__return_true',
+    ]);
+
+    register_rest_route('knx/v1', '/addresses/default', [
+        'methods'  => 'POST',
+        'callback' => 'knx_api_addresses_set_default',
+        'permission_callback' => '__return_true',
+    ]);
+
+    register_rest_route('knx/v1', '/addresses/select', [
+        'methods'  => 'POST',
+        'callback' => 'knx_api_addresses_select',
+        'permission_callback' => '__return_true',
+    ]);
+});
+
+/**
+ * Unified response helper (prefers KNX wrapper if present).
+ */
+function knx_addr_resp($success, $message, $data = [], $status = 200) {
+    if (function_exists('knx_rest_response')) {
+        return knx_rest_response((bool) $success, (string) $message, $data, (int) $status);
+    }
+    return new WP_REST_Response([
+        'success' => (bool) $success,
+        'message' => (string) $message,
+        'data'    => $data,
+    ], (int) $status);
+}
+
+/**
+ * Read JSON body safely.
+ */
+function knx_addr_body($request) {
+    $p = $request->get_json_params();
+    return is_array($p) ? $p : [];
+}
+
+/**
+ * Require a valid KNX session.
+ */
+function knx_addr_require_session() {
+    if (!function_exists('knx_get_session')) {
+        return [null, knx_addr_resp(false, 'SYSTEM_UNAVAILABLE', [], 503)];
+    }
+    $session = knx_get_session();
+    if (empty($session) || empty($session->user_id)) {
+        return [null, knx_addr_resp(false, 'AUTH_REQUIRED', [], 401)];
+    }
+    return [$session, null];
+}
+
+/**
+ * Verify nonce for mutations.
+ */
+function knx_addr_verify_nonce($request) {
+    $nonce = '';
+
+    // Body param
+    $b = knx_addr_body($request);
+    if (!empty($b['knx_nonce'])) $nonce = (string) $b['knx_nonce'];
+
+    // Header fallback
+    if ($nonce === '' && method_exists($request, 'get_header')) {
+        $h = (string) $request->get_header('X-KNX-Nonce');
+        if ($h !== '') $nonce = $h;
+        $h2 = (string) $request->get_header('X-WP-Nonce');
+        if ($nonce === '' && $h2 !== '') $nonce = $h2;
+    }
+
+    if ($nonce === '') return false;
+
+    if (function_exists('knx_verify_nonce')) {
+        return (bool) knx_verify_nonce($nonce);
+    }
+
+    // WP REST nonce fallback
+    return (bool) wp_verify_nonce($nonce, 'wp_rest');
+}
+
+/**
+ * Return addresses table name.
+ */
+function knx_addr_table() {
+    global $wpdb;
+    return $wpdb->prefix . 'knx_addresses';
+}
+
+/**
+ * Cache column list for safe inserts/updates.
+ */
+function knx_addr_cols() {
+    static $cols = null;
+    if (is_array($cols)) return $cols;
+
+    global $wpdb;
+    $table = knx_addr_table();
+    $rows = $wpdb->get_results("SHOW COLUMNS FROM {$table}");
+    $cols = [];
+
+    if (is_array($rows)) {
+        foreach ($rows as $r) {
+            if (!empty($r->Field)) $cols[] = (string) $r->Field;
+        }
+    }
+    return $cols;
+}
+
+function knx_addr_user_col($cols) {
+    if (in_array('customer_id', $cols, true)) return 'customer_id';
+    if (in_array('user_id', $cols, true)) return 'user_id';
+    return 'customer_id';
+}
+
+function knx_addr_soft_filter_sql($cols) {
+    if (in_array('is_deleted', $cols, true)) return " AND is_deleted = 0 ";
+    if (in_array('deleted_at', $cols, true)) return " AND (deleted_at IS NULL OR deleted_at = '') ";
+    if (in_array('status', $cols, true)) return " AND status != 'deleted' ";
+    if (in_array('is_active', $cols, true)) return " AND is_active = 1 ";
+    return "";
+}
+
+function knx_addr_one_line($a) {
+    if (function_exists('knx_addresses_format_one_line')) {
+        return (string) knx_addresses_format_one_line($a);
+    }
+    $parts = [];
+    if (!empty($a->line1)) $parts[] = $a->line1;
+    if (!empty($a->line2)) $parts[] = $a->line2;
+    $cityLine = trim(implode(' ', array_filter([(string)($a->city ?? ''), (string)($a->state ?? ''), (string)($a->postal_code ?? '')])));
+    if ($cityLine !== '') $parts[] = $cityLine;
+    return implode(', ', $parts);
+}
+
+function knx_addr_map($a, $cols) {
+    $id = (int) ($a->id ?? 0);
+    $is_default = isset($a->is_default) ? (int) $a->is_default : 0;
+
+    return [
+        'id'          => $id,
+        'label'       => (string) ($a->label ?? ''),
+        'phone'       => (string) ($a->phone ?? ''),
+        'line1'       => (string) ($a->line1 ?? ''),
+        'line2'       => (string) ($a->line2 ?? ''),
+        'city'        => (string) ($a->city ?? ''),
+        'state'       => (string) ($a->state ?? ''),
+        'postal_code' => (string) ($a->postal_code ?? ''),
+        'country'     => (string) ($a->country ?? ''),
+        'instructions'=> (string) ($a->instructions ?? ''),
+        'latitude'    => isset($a->latitude) ? (float) $a->latitude : null,
+        'longitude'   => isset($a->longitude) ? (float) $a->longitude : null,
+        'is_default'  => $is_default ? true : false,
+        'one_line'    => knx_addr_one_line($a),
+    ];
+}
+
+/**
+ * GET /addresses
+ */
+function knx_api_addresses_list($request) {
+    global $wpdb;
+
+    [$session, $err] = knx_addr_require_session();
+    if ($err) return $err;
+
+    $cols = knx_addr_cols();
+    $table = knx_addr_table();
+
+    $user_col = knx_addr_user_col($cols);
+    $user_id = (int) $session->user_id;
+
+    $soft = knx_addr_soft_filter_sql($cols);
+
+    $rows = $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT * FROM {$table}
+             WHERE {$user_col} = %d
+             {$soft}
+             ORDER BY (CASE WHEN is_default = 1 THEN 0 ELSE 1 END), id DESC",
+            $user_id
+        )
+    );
+
+    $addresses = [];
+    if (is_array($rows)) {
+        foreach ($rows as $r) $addresses[] = knx_addr_map($r, $cols);
+    }
+
+    $selected_id = function_exists('knx_session_get_selected_address_id')
+        ? (int) knx_session_get_selected_address_id()
+        : 0;
+
+    return knx_addr_resp(true, 'OK', [
+        'addresses' => $addresses,
+        'selected_address_id' => $selected_id,
+    ], 200);
+}
+
+/**
+ * POST /addresses/select
+ */
+function knx_api_addresses_select($request) {
+    global $wpdb;
+
+    [$session, $err] = knx_addr_require_session();
+    if ($err) return $err;
+
+    if (!knx_addr_verify_nonce($request)) {
+        return knx_addr_resp(false, 'INVALID_NONCE', [], 403);
+    }
+
+    $b = knx_addr_body($request);
+    $address_id = isset($b['address_id']) ? (int) $b['address_id'] : 0;
+    if ($address_id <= 0) return knx_addr_resp(false, 'INVALID_ADDRESS', [], 400);
+
+    $cols = knx_addr_cols();
+    $table = knx_addr_table();
+    $user_col = knx_addr_user_col($cols);
+
+    $soft = knx_addr_soft_filter_sql($cols);
+    $row = $wpdb->get_row(
+        $wpdb->prepare(
+            "SELECT id FROM {$table}
+             WHERE id = %d AND {$user_col} = %d {$soft}
+             LIMIT 1",
+            $address_id,
+            (int) $session->user_id
+        )
+    );
+
+    if (!$row) return knx_addr_resp(false, 'ADDRESS_NOT_FOUND', [], 404);
+
+    if (function_exists('knx_session_set_selected_address_id')) {
+        knx_session_set_selected_address_id($address_id);
+    }
+
+    return knx_addr_resp(true, 'OK', [
+        'selected_address_id' => $address_id,
+    ], 200);
+}
+
+/**
+ * POST /addresses/default
+ */
+function knx_api_addresses_set_default($request) {
+    global $wpdb;
+
+    [$session, $err] = knx_addr_require_session();
+    if ($err) return $err;
+
+    if (!knx_addr_verify_nonce($request)) {
+        return knx_addr_resp(false, 'INVALID_NONCE', [], 403);
+    }
+
+    $b = knx_addr_body($request);
+    $address_id = isset($b['address_id']) ? (int) $b['address_id'] : 0;
+    if ($address_id <= 0) return knx_addr_resp(false, 'INVALID_ADDRESS', [], 400);
+
+    $cols = knx_addr_cols();
+    $table = knx_addr_table();
+    $user_col = knx_addr_user_col($cols);
+
+    if (!in_array('is_default', $cols, true)) {
+        return knx_addr_resp(false, 'SCHEMA_MISSING_IS_DEFAULT', [], 409);
+    }
+
+    $soft = knx_addr_soft_filter_sql($cols);
+    $row = $wpdb->get_row(
+        $wpdb->prepare(
+            "SELECT id FROM {$table}
+             WHERE id = %d AND {$user_col} = %d {$soft}
+             LIMIT 1",
+            $address_id,
+            (int) $session->user_id
+        )
+    );
+
+    if (!$row) return knx_addr_resp(false, 'ADDRESS_NOT_FOUND', [], 404);
+
+    // Clear default for user
+    $wpdb->query(
+        $wpdb->prepare(
+            "UPDATE {$table} SET is_default = 0 WHERE {$user_col} = %d",
+            (int) $session->user_id
+        )
+    );
+
+    // Set new default
+    $wpdb->query(
+        $wpdb->prepare(
+            "UPDATE {$table} SET is_default = 1 WHERE id = %d AND {$user_col} = %d",
+            $address_id,
+            (int) $session->user_id
+        )
+    );
+
+    return knx_addr_resp(true, 'OK', [
+        'address_id' => $address_id,
+        'is_default' => true,
+    ], 200);
+}
+
+/**
+ * POST /addresses/add
+ */
+function knx_api_addresses_add($request) {
+    global $wpdb;
+
+    [$session, $err] = knx_addr_require_session();
+    if ($err) return $err;
+
+    if (!knx_addr_verify_nonce($request)) {
+        return knx_addr_resp(false, 'INVALID_NONCE', [], 403);
+    }
+
+    $b = knx_addr_body($request);
+    $line1 = isset($b['line1']) ? trim((string) $b['line1']) : '';
+    if ($line1 === '') return knx_addr_resp(false, 'LINE1_REQUIRED', [], 400);
+
+    $cols = knx_addr_cols();
+    $table = knx_addr_table();
+    $user_col = knx_addr_user_col($cols);
+
+    $data = [
+        $user_col      => (int) $session->user_id,
+        'label'        => isset($b['label']) ? (string) $b['label'] : '',
+        'phone'        => isset($b['phone']) ? (string) $b['phone'] : '',
+        'line1'        => $line1,
+        'line2'        => isset($b['line2']) ? (string) $b['line2'] : '',
+        'city'         => isset($b['city']) ? (string) $b['city'] : '',
+        'state'        => isset($b['state']) ? (string) $b['state'] : '',
+        'postal_code'  => isset($b['postal_code']) ? (string) $b['postal_code'] : '',
+        'country'      => isset($b['country']) ? (string) $b['country'] : 'USA',
+        'instructions' => isset($b['instructions']) ? (string) $b['instructions'] : '',
+        'latitude'     => isset($b['latitude']) ? (string) $b['latitude'] : '',
+        'longitude'    => isset($b['longitude']) ? (string) $b['longitude'] : '',
+    ];
+
+    // Keep only existing columns
+    $filtered = [];
+    foreach ($data as $k => $v) {
+        if (in_array($k, $cols, true)) $filtered[$k] = $v;
+    }
+
+    $ok = $wpdb->insert($table, $filtered);
+    if (!$ok) return knx_addr_resp(false, 'INSERT_FAILED', [], 500);
+
+    $new_id = (int) $wpdb->insert_id;
+
+    // Select SSOT
+    if (function_exists('knx_session_set_selected_address_id')) {
+        knx_session_set_selected_address_id($new_id);
+    }
+
+    return knx_addr_resp(true, 'OK', [
+        'address_id' => $new_id,
+        'selected_address_id' => $new_id,
+    ], 200);
+}
+
+/**
+ * POST /addresses/edit
+ */
+function knx_api_addresses_edit($request) {
+    global $wpdb;
+
+    [$session, $err] = knx_addr_require_session();
+    if ($err) return $err;
+
+    if (!knx_addr_verify_nonce($request)) {
+        return knx_addr_resp(false, 'INVALID_NONCE', [], 403);
+    }
+
+    $b = knx_addr_body($request);
+    $address_id = isset($b['address_id']) ? (int) $b['address_id'] : 0;
+    if ($address_id <= 0) return knx_addr_resp(false, 'INVALID_ADDRESS', [], 400);
+
+    $cols = knx_addr_cols();
+    $table = knx_addr_table();
+    $user_col = knx_addr_user_col($cols);
+
+    $soft = knx_addr_soft_filter_sql($cols);
+    $row = $wpdb->get_row(
+        $wpdb->prepare(
+            "SELECT id FROM {$table}
+             WHERE id = %d AND {$user_col} = %d {$soft}
+             LIMIT 1",
+            $address_id,
+            (int) $session->user_id
+        )
+    );
+    if (!$row) return knx_addr_resp(false, 'ADDRESS_NOT_FOUND', [], 404);
+
+    $line1 = isset($b['line1']) ? trim((string) $b['line1']) : '';
+    if ($line1 === '') return knx_addr_resp(false, 'LINE1_REQUIRED', [], 400);
+
+    $data = [
+        'label'        => isset($b['label']) ? (string) $b['label'] : '',
+        'phone'        => isset($b['phone']) ? (string) $b['phone'] : '',
+        'line1'        => $line1,
+        'line2'        => isset($b['line2']) ? (string) $b['line2'] : '',
+        'city'         => isset($b['city']) ? (string) $b['city'] : '',
+        'state'        => isset($b['state']) ? (string) $b['state'] : '',
+        'postal_code'  => isset($b['postal_code']) ? (string) $b['postal_code'] : '',
+        'country'      => isset($b['country']) ? (string) $b['country'] : 'USA',
+        'instructions' => isset($b['instructions']) ? (string) $b['instructions'] : '',
+        'latitude'     => isset($b['latitude']) ? (string) $b['latitude'] : '',
+        'longitude'    => isset($b['longitude']) ? (string) $b['longitude'] : '',
+    ];
+
+    $filtered = [];
+    foreach ($data as $k => $v) {
+        if (in_array($k, $cols, true)) $filtered[$k] = $v;
+    }
+
+    $ok = $wpdb->update($table, $filtered, ['id' => $address_id]);
+    if ($ok === false) return knx_addr_resp(false, 'UPDATE_FAILED', [], 500);
+
+    // Keep selection stable
+    if (function_exists('knx_session_set_selected_address_id')) {
+        knx_session_set_selected_address_id($address_id);
+    }
+
+    return knx_addr_resp(true, 'OK', [
+        'address_id' => $address_id,
+        'selected_address_id' => $address_id,
+    ], 200);
+}
+
+/**
+ * POST /addresses/delete
+ */
+function knx_api_addresses_delete($request) {
+    global $wpdb;
+
+    [$session, $err] = knx_addr_require_session();
+    if ($err) return $err;
+
+    if (!knx_addr_verify_nonce($request)) {
+        return knx_addr_resp(false, 'INVALID_NONCE', [], 403);
+    }
+
+    $b = knx_addr_body($request);
+    $address_id = isset($b['address_id']) ? (int) $b['address_id'] : 0;
+    if ($address_id <= 0) return knx_addr_resp(false, 'INVALID_ADDRESS', [], 400);
+
+    $cols = knx_addr_cols();
+    $table = knx_addr_table();
+    $user_col = knx_addr_user_col($cols);
+
+    $soft = knx_addr_soft_filter_sql($cols);
+    $row = $wpdb->get_row(
+        $wpdb->prepare(
+            "SELECT id FROM {$table}
+             WHERE id = %d AND {$user_col} = %d {$soft}
+             LIMIT 1",
+            $address_id,
+            (int) $session->user_id
+        )
+    );
+    if (!$row) return knx_addr_resp(false, 'ADDRESS_NOT_FOUND', [], 404);
+
+    // Soft delete if possible
+    if (in_array('is_deleted', $cols, true)) {
+        $wpdb->update($table, ['is_deleted' => 1], ['id' => $address_id]);
+    } else if (in_array('status', $cols, true)) {
+        $wpdb->update($table, ['status' => 'deleted'], ['id' => $address_id]);
+    } else if (in_array('is_active', $cols, true)) {
+        $wpdb->update($table, ['is_active' => 0], ['id' => $address_id]);
+    } else {
+        // Last resort
+        $wpdb->delete($table, ['id' => $address_id]);
+    }
+
+    // If deleted address was selected, clear selection
+    if (function_exists('knx_session_get_selected_address_id') && function_exists('knx_session_clear_selected_address_id')) {
+        $sel = (int) knx_session_get_selected_address_id();
+        if ($sel === $address_id) knx_session_clear_selected_address_id();
+    }
+
+    return knx_addr_resp(true, 'OK', [
+        'address_id' => $address_id,
+        'deleted' => true,
+    ], 200);
+}

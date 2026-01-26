@@ -1,0 +1,273 @@
+/* ==========================================================
+   Kingdom Nexus — Edit Hub Hours Styles (v11.0)
+   12h UI • 1st + 2nd Shift • Sunday locked
+   ========================================================== */
+
+#hoursBlock {
+  background: #fff;
+  border: 2px solid #c3b6ff;
+  border-radius: 10px;
+  padding: 22px;
+  width: 100%;
+  margin: 20px auto;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  box-sizing: border-box;
+}
+
+#hoursBlock h2 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: #111827;
+}
+
+.knx-hours-help {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: #0c4a6e;
+}
+.knx-hours-help strong { color: #0369a1; }
+
+/* Contenedor general de días */
+#knxHoursContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Una fila por día */
+.knx-hours-row {
+  background: #f8fbff;
+  border: 1px solid #e0e6f0;
+  border-radius: 10px;
+  padding: 8px 12px;
+  transition: background 0.2s ease;
+}
+.knx-hours-row:hover {
+  background: #f1f6ff;
+}
+
+/* Contenido principal de la fila */
+.knx-hours-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+/* Día + checkbox */
+.knx-day-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 76px;
+}
+.knx-day-toggle input.day-check {
+  width: 18px;
+  height: 18px;
+  accent-color: #0b793a;
+  cursor: pointer;
+}
+.knx-day-toggle .day-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #111827;
+}
+
+/* Grupos de turnos */
+.knx-shift-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 260px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.knx-shift-primary {
+  border-left: 1px solid rgba(148, 163, 184, 0.5);
+  padding-left: 10px;
+}
+
+.knx-shift-second {
+  border-left: 1px dashed rgba(148, 163, 184, 0.6);
+  padding-left: 10px;
+}
+
+/* Etiquetas de turno */
+.shift-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* "Second" / "2nd" label controlado por CSS */
+.second-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.second-toggle input.second-check {
+  width: 16px;
+  height: 16px;
+  accent-color: #0b793a;
+  cursor: pointer;
+}
+
+/* texto dinámico */
+.second-label::before {
+  content: "2nd";
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+}
+@media (min-width: 768px) {
+  .second-label::before {
+    content: "Second shift";
+  }
+}
+
+.to-label {
+  font-size: 13px;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+.second-to {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* Grupo de selects de hora */
+.time-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+.time-select {
+  border: 1px solid #d5d8e0;
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #111827;
+  background: #ffffff;
+  min-width: 58px;
+  cursor: pointer;
+  transition: border 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  appearance: none;
+}
+.time-select:focus {
+  border-color: #5563ff;
+  box-shadow: 0 0 0 2px rgba(85,99,255,0.18);
+  outline: none;
+}
+.time-select:disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.time-select.hh {
+  text-align: center;
+}
+.time-select.mm {
+  text-align: center;
+}
+.time-select.ampm {
+  min-width: 70px;
+}
+
+.time-sep {
+  font-weight: 600;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+/* Segundo turno deshabilitado visualmente */
+.second-range.disabled {
+  opacity: 0.45;
+}
+
+/* Sunday bloqueado */
+.sunday-locked {
+  opacity: 0.6;
+}
+.sunday-locked .day-name::after {
+  content: " (locked)";
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+/* Footer */
+.knx-hours-footer {
+  text-align: right;
+  margin-top: 14px;
+}
+
+/* Botón guardar */
+#knxSaveHoursBtn {
+  background: #225638;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.08s ease;
+}
+#knxSaveHoursBtn:hover {
+  background: #18462c;
+  box-shadow: 0 4px 12px rgba(15, 118, 54, 0.28);
+  transform: translateY(-1px);
+}
+
+/* ==========================
+   Responsive
+   ========================== */
+@media (max-width: 960px) {
+  .knx-shift-primary,
+  .knx-shift-second {
+    border-left-width: 0;
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .knx-hours-main {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .knx-day-toggle {
+    margin-bottom: 4px;
+  }
+
+  .knx-shift-group {
+    width: 100%;
+  }
+
+  .time-select {
+    min-width: 52px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 420px) {
+  #hoursBlock {
+    padding: 18px;
+  }
+  .knx-hours-row {
+    padding: 8px 10px;
+  }
+  .time-group {
+    flex-wrap: wrap;
+  }
+}

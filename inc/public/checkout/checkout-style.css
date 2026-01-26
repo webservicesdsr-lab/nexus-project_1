@@ -1,0 +1,1590 @@
+/* ==========================================================
+   Kingdom Nexus — Checkout UI v3 (Modern Hero Design)
+   - New hero header with restaurant info
+   - Back button (mobile only, circular)
+   - Clean, centered desktop layout
+========================================================== */
+
+#knx-checkout {
+  background: #f9fafb;
+  min-height: 100vh;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: #111827;
+  padding: 0;
+  margin: 0;
+}
+
+/* ========================================================== 
+   HERO HEADER (Restaurant Info)
+========================================================== */
+
+.knx-co-hero {
+  background: linear-gradient(135deg, #ffffff 0%, #fef3f2 100%);
+  border-bottom: 1px solid rgba(251, 115, 6, 0.1);
+  padding: 20px 18px 24px;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* ==========================================================
+   SUCCESS SPLASH OVERLAY (A2.9)
+========================================================== */
+
+#knxSuccessSplash {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  animation: knxFadeIn 0.3s ease-out;
+}
+
+#knxSuccessSplash.active {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.knx-splash-card {
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+  max-width: 420px;
+  width: 100%;
+  padding: 40px 32px 32px;
+  text-align: center;
+  animation: knxSplashEnter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+}
+
+.knx-splash-checkmark {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 24px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: knxCheckBounce 0.6s ease-out 0.2s;
+}
+
+.knx-splash-checkmark svg {
+  width: 48px;
+  height: 48px;
+  stroke: #ffffff;
+  stroke-width: 3px;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.knx-splash-title {
+  font-size: 28px;
+  font-weight: 900;
+  color: #111827;
+  margin: 0 0 12px 0;
+  letter-spacing: -0.02em;
+}
+
+.knx-splash-body {
+  font-size: 16px;
+  line-height: 1.5;
+  color: #6b7280;
+  margin: 0 0 8px 0;
+}
+
+.knx-splash-subtext {
+  font-size: 13px;
+  color: #9ca3af;
+  margin: 0 0 28px 0;
+}
+
+.knx-splash-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.knx-splash-btn {
+  display: inline-block;
+  padding: 14px 24px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+  text-align: center;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+}
+
+.knx-splash-btn-primary {
+  background: #fb7306;
+  color: #ffffff;
+}
+
+.knx-splash-btn-primary:hover {
+  background: #ea580c;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(251, 115, 6, 0.3);
+}
+
+.knx-splash-btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.knx-splash-btn-secondary:hover {
+  background: #e5e7eb;
+}
+
+@keyframes knxFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes knxSplashEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes knxCheckBounce {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  70% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ========================================================== 
+   HERO HEADER (Restaurant Info) - continued
+========================================================== */
+
+/* Back button (mobile only, circular, minimal) */
+.knx-co-hero__back {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  left: 18px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  font-size: 20px;
+  font-weight: 900;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  z-index: 10;
+}
+
+.knx-co-hero__back::before {
+  content: '<';
+  display: block;
+  line-height: 1;
+}
+
+.knx-co-hero__back:hover {
+  background: #fb7306;
+  border-color: #fb7306;
+  color: #ffffff;
+  transform: translateY(-50%) translateX(-2px);
+  box-shadow: 0 4px 12px rgba(251, 115, 6, 0.3);
+}
+
+/* Hero content */
+.knx-co-hero__content {
+  padding-left: 0;
+  text-align: center;
+  max-width: 100%;
+  padding: 0 56px;
+}
+
+/* Badge with icon */
+.knx-co-hero__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 10px;
+  background: rgba(251, 115, 6, 0.08);
+  border: 1px solid rgba(251, 115, 6, 0.2);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #ea580c;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 12px;
+}
+
+.knx-co-hero__badge svg {
+  width: 14px;
+  height: 14px;
+  stroke: #fb7306;
+}
+
+/* Restaurant name */
+.knx-co-hero__title {
+  font-size: 22px;
+  font-weight: 900;
+  color: #111827;
+  margin: 0 0 10px 0;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+/* Location with icon */
+.knx-co-hero__location {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.knx-co-hero__location svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  fill: #fb7306;
+  opacity: 0.8;
+}
+
+/* Layout */
+.knx-co-layout {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 18px 18px 40px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 7px;
+}
+
+/* Main Column */
+.knx-co-main {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+/* Sidebar (hidden on mobile, stacked at end) */
+.knx-co-sidebar {
+  display: contents;
+}
+
+/* Card */
+.knx-co-card {
+  background: white;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+  transition: box-shadow 0.2s ease;
+  animation: cardFadeIn 0.4s ease-out;
+}
+
+@keyframes cardFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.knx-co-card__head {
+  padding: 16px 16px;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  position: relative;
+}
+
+.knx-co-card__head h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: #111827;
+  text-align: center;
+  flex: 1;
+}
+
+.knx-co-card__headleft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* Subtotal card styles */
+.knx-co-card--subtotal .knx-co-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.knx-co-card--subtotal .knx-subtotal-value {
+  font-size: 19px;
+  font-weight: 800;
+  color: #1a1a1a;
+}
+
+.knx-co-card__body {
+  padding: 16px 16px;
+}
+
+.knx-co-link {
+  color: #fb7306;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 800;
+  transition: opacity 0.2s;
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.knx-co-link:hover {
+  opacity: 0.75;
+}
+
+.knx-co-pill {
+  background: rgba(251,115,6,0.10);
+  color: #fb7306;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.knx-co-pill--muted {
+  background: rgba(0,0,0,0.06);
+  color: rgba(0,0,0,0.65);
+}
+
+.knx-co-iconpin {
+  font-size: 16px;
+  line-height: 1;
+}
+.knx-co-iconpin--warn { filter: saturate(1.2); }
+
+/* Address soft blocks */
+.knx-co-softsuccess {
+  border: 1px solid rgba(251,115,6,0.14);
+  background: rgba(251,115,6,0.05);
+  padding: 12px 12px;
+  border-radius: 14px;
+}
+.knx-co-softsuccess__title {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: rgba(251,115,6,0.80);
+  margin-bottom: 6px;
+}
+.knx-co-softsuccess__line {
+  font-size: 14px;
+  font-weight: 700;
+  color: #c2410c;
+}
+
+.knx-co-softwarn {
+  border: 1px solid rgba(220,38,38,0.18);
+  background: rgba(220,38,38,0.06);
+  padding: 14px 12px;
+  border-radius: 14px;
+  display: grid;
+  gap: 10px;
+}
+.knx-co-softwarn__title {
+  font-size: 14px;
+  font-weight: 850;
+  color: #991b1b;
+}
+.knx-co-softwarn__text {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(127,29,29,0.95);
+}
+
+/* Timeslot placeholder */
+.knx-co-timeslot-placeholder {
+  border: 1px dashed rgba(0,0,0,0.12);
+  background: rgba(0,0,0,0.02);
+  padding: 14px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 650;
+  color: rgba(0,0,0,0.65);
+}
+
+/* Collapsible summary */
+.knx-co-collapse-toggle {
+  border: 1px solid rgba(0,0,0,0.08);
+  background: rgba(0,0,0,0.03);
+  border-radius: 999px;
+  padding: 8px 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 850;
+  color: rgba(0,0,0,0.70);
+}
+
+.knx-co-collapse-toggle__chev {
+  font-size: 16px;
+  font-weight: 900;
+  transform: rotate(0deg);
+  transition: transform .2s ease;
+}
+
+.knx-co-card--summary.is-collapsed .knx-co-itemswrap {
+  display: none;
+}
+
+.knx-co-card--summary.is-collapsed .knx-co-collapse-toggle__chev {
+  transform: rotate(-90deg);
+}
+
+/* Items list */
+.knx-co-items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px 0;
+}
+
+.knx-co-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 14px;
+}
+
+.knx-co-item__img {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #e5e7eb;
+}
+
+.knx-co-item__img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.knx-co-item__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.knx-co-item__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.knx-co-item__name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.knx-co-item__price {
+  font-size: 14px;
+  font-weight: 900;
+  color: #111827;
+  white-space: nowrap;
+}
+
+.knx-co-item__mods {
+  font-size: 12px;
+  font-weight: 650;
+  color: #6b7280;
+  line-height: 1.45;
+}
+
+/* Items subtotal (inside Order Details) */
+.knx-co-items-subtotal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  margin-top: 12px;
+  border-top: 2px solid #f3f4f6;
+  font-size: 15px;
+}
+
+.knx-co-items-subtotal span {
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.knx-co-items-subtotal strong {
+  font-weight: 800;
+  color: #111827;
+  font-size: 16px;
+}
+
+/* Totals block */
+.knx-co-totals {
+  padding: 14px 16px 16px;
+}
+
+.knx-co-totals__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  font-size: 14px;
+}
+
+.knx-co-totals__row strong {
+  font-weight: 900;
+}
+
+/* Delivery mini */
+.knx-co-deliverymini {
+  margin-top: 10px;
+  border: 1px solid rgba(59,130,246,0.18);
+  background: rgba(59,130,246,0.05);
+  border-radius: 14px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.knx-co-deliverymini__k {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: rgba(0,0,0,0.55);
+  margin-bottom: 4px;
+}
+.knx-co-deliverymini__v {
+  font-size: 14px;
+  font-weight: 900;
+  color: rgba(0,0,0,0.88);
+}
+
+/* Disclaimer */
+.knx-co-disclaimer-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  margin: 12px 0 0;
+  background: #f9fafb;
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 12px;
+  font-size: 13px;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.knx-co-disclaimer-toggle:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.knx-co-disclaimer-icon {
+  font-size: 18px;
+  font-weight: 900;
+  transition: transform 0.2s;
+}
+
+.knx-co-disclaimer-toggle[aria-expanded="true"] .knx-co-disclaimer-icon {
+  transform: rotate(180deg);
+}
+
+.knx-co-disclaimer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease;
+}
+
+.knx-co-disclaimer.show {
+  max-height: 280px;
+}
+
+.knx-co-disclaimer p {
+  margin: 12px 0 0;
+  padding: 14px;
+  background: #fef3c7;
+  border-left: 3px solid #f59e0b;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #78350f;
+}
+
+/* Summary box */
+.knx-summary-box{
+  margin-top: 12px;
+  border: 1px solid rgba(0,0,0,.12);
+  border-radius: 16px;
+  padding: 12px;
+  background:#fff;
+}
+.knx-summary-title{
+  font-weight: 900;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+.knx-summary-row{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  padding:6px 0;
+  font-size: 13px;
+  font-weight: 650;
+}
+.knx-summary-row.total{
+  border-top:1px solid rgba(0,0,0,.10);
+  margin-top:8px;
+  padding-top:10px;
+  font-weight: 950;
+  font-size: 14px;
+}
+
+/* Buttons */
+.knx-co-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border: none;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 900;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.knx-co-btn--primary {
+  background: linear-gradient(135deg, #fb7306 0%, #ea580c 100%);
+  color: white;
+  box-shadow: 0 2px 10px rgba(251,115,6,0.25);
+}
+.knx-co-btn--primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(251,115,6,0.32);
+}
+.knx-co-btn--full { width: 100%; }
+
+/* Tip selector (UI v2) */
+.knx-tip-selector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+@media (min-width: 640px) {
+  .knx-tip-selector {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+.knx-tip-chip {
+  padding: 12px 10px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(0,0,0,0.10);
+  background: rgba(255,255,255,0.9);
+  font-weight: 950;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.knx-tip-chip:hover {
+  border-color: rgba(251,115,6,0.55);
+  background: rgba(251,115,6,0.06);
+}
+
+.knx-tip-chip.is-active {
+  border-color: rgba(251,115,6,1);
+  background: rgba(251,115,6,1);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(251,115,6,0.20);
+}
+
+.knx-tip-customwrap {
+  margin-top: 12px;
+  border: 1px solid rgba(0,0,0,0.08);
+  background: rgba(0,0,0,0.02);
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.knx-tip-customwrap[hidden] { display:none; }
+
+.knx-tip-customrow {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.knx-tip-label {
+  display:block;
+  font-size: 12px;
+  font-weight: 900;
+  color: rgba(0,0,0,0.70);
+  margin-bottom: 6px;
+}
+
+.knx-tip-input,
+.knx-coupon-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 14px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+  transition: all 0.2s;
+}
+
+.knx-tip-input:focus,
+.knx-coupon-input:focus {
+  outline: none;
+  border-color: #fb7306;
+  box-shadow: 0 0 0 3px rgba(251,115,6,0.10);
+}
+
+.knx-tip-apply,
+.knx-tip-clear,
+.knx-coupon-apply {
+  padding: 12px 14px;
+  border: none;
+  border-radius: 14px;
+  font-weight: 950;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.knx-tip-apply,
+.knx-coupon-apply {
+  background: #fb7306;
+  color: white;
+}
+.knx-tip-apply:hover,
+.knx-coupon-apply:hover {
+  background: #ea580c;
+}
+
+.knx-tip-clear {
+  background: rgba(0,0,0,0.06);
+  color: rgba(0,0,0,0.75);
+}
+.knx-tip-clear:hover { background: rgba(0,0,0,0.09); }
+
+.knx-tip-hint {
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 750;
+  color: rgba(0,0,0,0.60);
+}
+
+/* Coupon form */
+.knx-coupon-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+}
+
+.knx-coupon-status {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 900;
+  display: none;
+}
+
+.knx-coupon-status.success {
+  display: block;
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}
+
+.knx-coupon-status.error {
+  display: block;
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+/* Comment */
+.knx-co-comment-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #374151;
+  font-weight: 750;
+}
+
+.knx-co-comment-textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 14px;
+  font-family: inherit;
+  font-size: 14px;
+  color: #111827;
+  resize: vertical;
+  transition: all 0.2s;
+}
+
+.knx-co-comment-textarea:focus {
+  outline: none;
+  border-color: #fb7306;
+  box-shadow: 0 0 0 3px rgba(251,115,6,0.10);
+}
+
+/* Restaurant */
+.knx-co-restaurant-body {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.knx-co-restaurant-logo {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f3f4f6;
+}
+.knx-co-restaurant-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.knx-co-restaurant-meta {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #374151;
+}
+.knx-co-restaurant-meta strong {
+  font-size: 14px;
+  font-weight: 950;
+  color: #111827;
+}
+.knx-co-restaurant-address,
+.knx-co-restaurant-phone { color: #6b7280; }
+
+/* Fineprint */
+.knx-co-fineprint {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: #9ca3af;
+  line-height: 1.45;
+  text-align: center;
+}
+
+/* Place Order Card (final action) */
+.knx-co-card--place-order {
+  box-shadow: 0 20px 40px rgba(251, 115, 6, 0.25);
+}
+
+.knx-co-card--place-order .knx-co-card__body {
+  padding: 40px 10px 10px 10px
+}
+
+.knx-co-btn--place {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  font-size: 16px;
+  font-weight: 900;
+  background: #fb7306;
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.knx-co-btn--place:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+.knx-place-order-text {
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.knx-place-order-total {
+  font-size: 20px;
+  font-weight: 980;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.knx-co-card--place-order .knx-co-fineprint {
+  color: #6b7280;
+  margin-top: 14px;
+}
+
+/* Sticky bottom bar (mobile only) */
+.knx-co-stickybar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(16px);
+  border-top: 2px solid rgba(251, 115, 6, 0.12);
+  padding: 16px 18px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: center;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.knx-co-stickybar.knx-hidden {
+  transform: translateY(100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.knx-co-stickybar__meta {
+  min-width: 0;
+}
+
+.knx-co-stickybar__label {
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fb7306;
+  margin-bottom: 4px;
+}
+
+.knx-co-stickybar__value {
+  font-size: 22px;
+  font-weight: 980;
+  color: #111827;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.knx-co-stickybar__sub {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.knx-co-stickybar__cta {
+  border: none;
+  border-radius: 12px;
+  padding: 16px 28px;
+  font-size: 15px;
+  font-weight: 980;
+  color: #fff;
+  cursor: pointer;
+  background: linear-gradient(135deg, #fb7306 0%, #ea580c 100%);
+  box-shadow: 0 4px 16px rgba(251, 115, 6, 0.35);
+  transition: all 0.2s ease;
+}
+
+.knx-co-stickybar__cta:hover {
+  box-shadow: 0 6px 20px rgba(251, 115, 6, 0.45);
+  transform: translateY(-2px);
+}
+
+/* Desktop: hide sticky bar */
+@media (min-width: 1024px) {
+  .knx-co-stickybar { display: none; }
+}
+
+/* Mobile: add bottom padding so content isn't covered by sticky bar */
+@media (max-width: 1023px) {
+  .knx-co-layout {
+    padding-bottom: 10px;
+  }
+}
+
+/* Micro animation */
+@keyframes knxFadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.knx-co-card { animation: knxFadeUp 0.22s ease-out; }
+
+/* ==================================================
+   Collapsible Cards
+================================================== */
+.knx-is-collapsible .knx-collapse-body {
+  display: none;
+}
+
+.knx-is-collapsible.is-open .knx-collapse-body {
+  display: block;
+}
+
+.knx-collapse-toggle {
+  cursor: pointer;
+  user-select: none;
+}
+
+.knx-collapse-chevron {
+  font-size: 18px;
+  transition: transform 0.2s ease;
+  display: inline-block;
+  color: rgba(0, 0, 0, 0.4);
+}
+
+.knx-is-collapsible.is-open .knx-collapse-chevron {
+  transform: rotate(180deg);
+}
+
+/* Restaurant Mini Logo */
+.knx-co-restaurant-mini-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  object-fit: cover;
+  margin-right: 8px;
+}
+
+.knx-restaurant-helptext {
+  /* Removed - green background not part of NEXUS brand style */
+  display: none;
+}
+
+.knx-co-restaurant-details {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #4b5563;
+}
+
+.knx-co-restaurant-details div {
+  margin-bottom: 8px;
+}
+
+.knx-co-restaurant-details strong {
+  color: #111827;
+  font-weight: 600;
+}
+
+/* Summary Box in Sidebar */
+.knx-summary-box {
+  margin-bottom: 16px;
+}
+
+.knx-summary-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+  margin-bottom: 10px;
+}
+
+#knx-summary-body-sidebar {
+  font-size: 13px;
+}
+
+#knx-summary-body-sidebar .knx-co-totals__row {
+  font-size: 13px;
+}
+
+/* Delivery Time Select */
+
+/* Total breakdown card */
+.knx-co-card--totals {
+  margin-bottom: 16px;
+}
+
+.knx-co-card--totals .knx-co-card__head h2 {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.knx-co-card--totals .knx-co-card__body {
+  padding: 18px;
+}
+
+/* Taxes info (at the bottom after total) */
+.knx-co-taxes-info {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.knx-co-taxes-info-toggle {
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.2s;
+}
+
+.knx-co-taxes-info-toggle:hover {
+  color: #374151;
+}
+
+.knx-co-taxes-info-icon {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.knx-co-taxes-info-content {
+  margin-top: 10px;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.knx-co-taxes-info-content[hidden] {
+  display: none;
+}
+
+.knx-co-taxes-info-content p {
+  margin: 0;
+}
+
+/* Select element */
+.knx-co-select {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #111827;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.knx-co-select:hover {
+  border-color: #fb7306;
+}
+
+.knx-co-select:focus {
+  outline: none;
+  border-color: #fb7306;
+  box-shadow: 0 0 0 3px rgba(251, 115, 6, 0.1);
+}
+
+.knx-co-helptext {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+/* ========================================================== 
+   RESPONSIVE: DESKTOP LAYOUT (Two-Column)
+========================================================== */
+
+@media (min-width: 768px) {
+  /* Hero header - desktop centered, no back button */
+  .knx-co-hero {
+    padding: 32px 40px 36px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  }
+
+  .knx-co-hero__back {
+    display: none; /* Hide back button on desktop */
+  }
+
+  .knx-co-hero__content {
+    padding: 0;
+    text-align: center;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .knx-co-hero__badge {
+    font-size: 12px;
+    padding: 8px 16px 8px 14px;
+  }
+
+  .knx-co-hero__badge svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .knx-co-hero__title {
+    font-size: 32px;
+    margin-bottom: 14px;
+  }
+
+  .knx-co-hero__location {
+    justify-content: center;
+    font-size: 14px;
+  }
+
+  .knx-co-hero__location svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Layout */
+  .knx-co-layout {
+    max-width: 1140px;
+    grid-template-columns: 1fr 400px;
+    gap: 6px;
+    padding: 24px 32px 60px;
+  }
+
+  /* Main column cards */
+  .knx-co-main {
+    gap: 5px;
+  }
+
+  .knx-co-card {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+    transition: box-shadow 0.3s ease, transform 0.2s ease;
+  }
+
+  .knx-co-card:hover {
+    box-shadow: 0 10px 25px rgba(0,0,0,0.08), 0 5px 10px rgba(0,0,0,0.05);
+    transform: translateY(-1px);
+  }
+
+  .knx-co-card__head {
+    padding: 20px 24px;
+    justify-content: flex-start;
+  }
+
+  .knx-co-card__body {
+    padding: 20px 24px;
+  }
+
+  .knx-co-card__head h2 {
+    font-size: 18px;
+    text-align: left;
+  }
+
+  .knx-co-pill {
+    right: 24px;
+  }
+
+  .knx-co-link {
+    right: 24px;
+  }
+
+  /* Sidebar for Order Summary + Place Order */
+  .knx-co-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* Sticky sidebar on desktop */
+  .knx-co-sidebar-sticky {
+    position: sticky;
+    top: 24px;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(251, 115, 6, 0.3) transparent;
+  }
+
+  .knx-co-sidebar-sticky::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .knx-co-sidebar-sticky::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .knx-co-sidebar-sticky::-webkit-scrollbar-thumb {
+    background-color: rgba(251, 115, 6, 0.3);
+    border-radius: 3px;
+  }
+
+  .knx-co-sidebar-sticky::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(251, 115, 6, 0.5);
+  }
+
+  /* Place Order card enhanced */
+  .knx-co-card--place-order {
+    box-shadow: 0 20px 40px rgba(251, 115, 6, 0.25);
+  }
+
+  .knx-co-btn--place {
+    padding: 20px 28px;
+    font-size: 17px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+  }
+
+  .knx-co-btn--place:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15);
+  }
+
+  .knx-place-order-total {
+    font-size: 22px;
+  }
+
+  /* Hide mobile sticky bar on desktop */
+  .knx-co-stickybar {
+    display: none;
+  }
+
+  /* Items in summary */
+  .knx-co-item__img {
+    width: 64px;
+    height: 64px;
+  }
+
+  /* Tip chips larger */
+  .knx-tip-chip {
+    padding: 14px 20px;
+    font-size: 14px;
+  }
+
+  /* Comment textarea larger */
+  .knx-co-comment-textarea {
+    min-height: 100px;
+  }
+}
+
+@media (min-width: 1024px) {
+  /* Even more spacious on large screens */
+  .knx-co-hero {
+    padding: 40px 48px 44px;
+  }
+
+  .knx-co-hero__content {
+    max-width: 900px;
+  }
+
+  .knx-co-hero__title {
+    font-size: 36px;
+    margin-bottom: 16px;
+  }
+
+  .knx-co-hero__location {
+    font-size: 15px;
+  }
+
+  .knx-co-layout {
+    max-width: 1200px;
+    grid-template-columns: 1fr 420px;
+    gap: 32px;
+    padding: 32px 40px 60px;
+  }
+
+  .knx-co-card__head {
+    padding: 24px 28px;
+  }
+
+  .knx-co-card__body {
+    padding: 24px 28px;
+  }
+
+  .knx-co-card__head h2 {
+    font-size: 19px;
+  }
+}
+
+/* ==========================================================
+   STRIPE PAYMENT INTEGRATION
+========================================================== */
+
+/* Stripe Card Element container styling */
+#knx-stripe-card-element {
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  transition: border-color 0.2s ease;
+}
+
+#knx-stripe-card-element:focus-within {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+/* Card errors */
+#knx-stripe-card-errors {
+  color: #ef4444;
+  font-size: 14px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #fef2f2;
+  border-radius: 6px;
+  border-left: 3px solid #ef4444;
+}
+
+/* Success message */
+.knx-checkout-success {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  color: #166534;
+  padding: 14px 18px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 15px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.knx-checkout-success::before {
+  content: "✓";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #22c55e;
+  color: white;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Error message */
+.knx-checkout-error {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+  padding: 14px 18px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 15px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.knx-checkout-error::before {
+  content: "⚠";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: white;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Payment card styling enhancement */
+.knx-co-card--payment {
+  border: 2px solid #10b981;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
+}
+
+.knx-co-card--payment .knx-co-card__head {
+  background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+  border-bottom: 1px solid #d1fae5;
+}
+
+/* Loading state for button */
+.knx-btn-loading {
+  position: relative;
+  color: transparent !important;
+  pointer-events: none;
+}
+
+.knx-btn-loading::after {
+  content: "";
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  top: 50%;
+  left: 50%;
+  margin-left: -10px;
+  margin-top: -10px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: knx-spinner 0.8s linear infinite;
+}
+
+@keyframes knx-spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}

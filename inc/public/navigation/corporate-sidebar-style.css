@@ -1,0 +1,203 @@
+/**
+ * KINGDOM NEXUS — CORPORATE SIDEBAR STYLES
+ * PURPOSE:
+ * - Fixed left sidebar for private pages
+ * - Desktop body push (margin-left: 230px)
+ * - Mobile collapsible (58px → 200px)
+ * - Auto-height with scroll
+ * 
+ * [KNX-NAV-CORPORATE]
+ */
+
+/* ═══════════════════════════════════════════════════════════════
+   CORPORATE SIDEBAR (Fixed Left)
+   ═══════════════════════════════════════════════════════════════ */
+
+.knx-corporate-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 230px;
+  height: 100vh;
+  min-height: 100vh;
+  background: #0a0a0a;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  z-index: 2000;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+/* Header */
+.knx-corporate-sidebar__header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  background: #111;
+  padding: 1rem 0;
+  gap: 0.7rem;
+  flex-shrink: 0;
+}
+
+.knx-corporate-sidebar__logo {
+  font-size: 2rem;
+  text-decoration: none;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  line-height: 1;
+}
+
+.knx-corporate-sidebar__logo:hover {
+  transform: scale(1.1);
+}
+
+.knx-expand-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  font-size: 18px;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.knx-expand-btn:hover {
+  color: #0b793a;
+}
+
+/* Scrollable container */
+.knx-corporate-sidebar__scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #0b793a #111;
+}
+
+.knx-corporate-sidebar__scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.knx-corporate-sidebar__scroll::-webkit-scrollbar-thumb {
+  background-color: #0b793a;
+  border-radius: 10px;
+}
+
+.knx-corporate-sidebar__scroll::-webkit-scrollbar-track {
+  background: #111;
+}
+
+/* Menu */
+.knx-corporate-sidebar__menu {
+  padding: 1rem 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.knx-corporate-sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #ddd;
+  text-decoration: none;
+  padding: 12px 18px;
+  transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s;
+  font-weight: 500;
+  font-size: 0.9375rem;
+  border-left: 3px solid transparent;
+}
+
+.knx-corporate-sidebar__link:hover {
+  background: #0b793a;
+  color: #fff;
+  border-left-color: #12a550;
+}
+
+.knx-corporate-sidebar__link i {
+  width: 20px;
+  text-align: center;
+  font-size: 17px;
+  flex-shrink: 0;
+}
+
+.knx-corporate-sidebar__link span {
+  white-space: nowrap;
+  transition: opacity 0.3s;
+}
+
+/* Active state */
+.knx-corporate-sidebar__link--active {
+  background: #0b793a;
+  color: #fff;
+  border-left-color: #12a550;
+  font-weight: 600;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DESKTOP: Body Push
+   ═══════════════════════════════════════════════════════════════ */
+
+@media (min-width: 901px) {
+  .knx-expand-btn {
+    display: none !important;
+  }
+
+  /* Push body content to the right */
+  body {
+    margin-left: 230px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE: Collapsible
+   ═══════════════════════════════════════════════════════════════ */
+
+@media (max-width: 900px) {
+  .knx-corporate-sidebar {
+    width: 58px;
+  }
+
+  .knx-corporate-sidebar.expanded {
+    width: 200px;
+  }
+
+  .knx-corporate-sidebar__link span {
+    display: none;
+  }
+
+  .knx-corporate-sidebar.expanded .knx-corporate-sidebar__link span {
+    display: inline;
+  }
+
+  .knx-expand-btn {
+    display: flex !important;
+  }
+
+  .knx-corporate-sidebar.expanded .knx-expand-btn i {
+    transform: rotate(180deg);
+  }
+
+  /* No body push on mobile */
+  body {
+    margin-left: 0;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PRINT: Hide Sidebar
+   ═══════════════════════════════════════════════════════════════ */
+
+@media print {
+  .knx-corporate-sidebar {
+    display: none !important;
+  }
+
+  body {
+    margin-left: 0 !important;
+  }
+}

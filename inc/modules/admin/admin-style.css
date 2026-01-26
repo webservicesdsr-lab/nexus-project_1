@@ -1,0 +1,95 @@
+/* Kingdom Nexus - Admin UI v2.5 */
+
+.knx-admin-wrap {
+  font-family: "Inter", sans-serif;
+  padding: 30px;
+  background: #f7f8f9;
+  min-height: 100vh;
+}
+
+.knx-admin-header {
+  text-align: left;
+  border-bottom: 2px solid #0B793A;
+  padding-bottom: 10px;
+  margin-bottom: 25px;
+}
+
+.knx-admin-header h1 {
+  color: #0B793A;
+  font-size: 26px;
+  margin: 0;
+}
+
+.knx-admin-header .subtitle {
+  color: #555;
+  margin-top: 6px;
+  font-size: 14px;
+}
+
+.knx-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 25px;
+}
+
+.knx-card {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+
+.knx-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.knx-card h2 {
+  color: #0B793A;
+  font-size: 18px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.knx-card p {
+  color: #333;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.knx-card .button {
+  margin-top: 10px;
+  background: #0B793A;
+  border: none;
+  color: #fff;
+  font-weight: 500;
+  border-radius: 6px;
+  padding: 6px 12px;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.knx-card .button:hover {
+  background: #096a32;
+}
+
+.knx-toast {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  background: #0B793A;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  opacity: 0;
+  transform: translateY(15px);
+  transition: all 0.4s ease;
+}
+
+.knx-toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}

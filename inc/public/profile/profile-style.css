@@ -1,0 +1,210 @@
+/* ==========================================================
+ * Kingdom Nexus — Profile Page Styles (PHASE 2.C+)
+ * ========================================================== */
+
+#knx-profile-page {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.knx-profile__header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.knx-profile__header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 8px 0;
+}
+
+.knx-profile__header p {
+    font-size: 0.95rem;
+    color: #6b7280;
+    margin: 0;
+}
+
+.knx-profile__card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    padding: 30px;
+}
+
+.knx-profile__form {
+    position: relative;
+}
+
+.knx-profile__loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255,255,255,0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    color: #6b7280;
+    border-radius: 12px;
+    z-index: 10;
+}
+
+.knx-form-section {
+    margin-bottom: 30px;
+    padding-bottom: 30px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.knx-form-section:last-of-type {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.knx-form-section h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #374151;
+    margin: 0 0 20px 0;
+}
+
+.knx-form-field {
+    margin-bottom: 20px;
+}
+
+.knx-form-field:last-child {
+    margin-bottom: 0;
+}
+
+.knx-form-field label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 6px;
+}
+
+.knx-form-field .required {
+    color: #ef4444;
+    font-weight: 600;
+}
+
+.knx-form-field input,
+.knx-form-field textarea {
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 0.95rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    transition: border-color 0.2s;
+    font-family: inherit;
+}
+
+.knx-form-field input:focus,
+.knx-form-field textarea:focus {
+    outline: none;
+    border-color: #10b981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.knx-form-field input:disabled,
+.knx-form-field textarea:disabled {
+    background: #f9fafb;
+    cursor: not-allowed;
+}
+
+.knx-profile__message {
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+}
+
+.knx-profile__message.success {
+    background: #d1fae5;
+    border: 1px solid #10b981;
+    color: #065f46;
+}
+
+.knx-profile__message.error {
+    background: #fee2e2;
+    border: 1px solid #ef4444;
+    color: #991b1b;
+}
+
+.knx-profile__actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.knx-btn {
+    padding: 12px 24px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-radius: 8px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.knx-btn--primary {
+    background: #10b981;
+    color: white;
+    flex: 1;
+}
+
+.knx-btn--primary:hover:not(:disabled) {
+    background: #059669;
+    transform: translateY(-1px);
+}
+
+.knx-btn--primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.knx-btn--secondary {
+    background: white;
+    color: #6b7280;
+    border: 1px solid #d1d5db;
+}
+
+.knx-btn--secondary:hover {
+    background: #f9fafb;
+}
+
+.knx-btn__spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+    #knx-profile-page {
+        padding: 15px;
+    }
+
+    .knx-profile__card {
+        padding: 20px;
+    }
+
+    .knx-profile__actions {
+        flex-direction: column;
+    }
+
+    .knx-btn {
+        width: 100%;
+    }
+}

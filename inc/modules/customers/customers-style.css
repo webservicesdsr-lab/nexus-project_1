@@ -1,0 +1,406 @@
+/**
+ * ==========================================================
+ * Kingdom Nexus — Customers Style (v1.0 Cities/Hubs UX)
+ * ----------------------------------------------------------
+ * - Desktop: table
+ * - Mobile: cards (no tables)
+ * - Matches green style (#0b793a)
+ * - Sidebar offset: desktop 154px, mobile 58px
+ * ==========================================================
+ */
+
+/* Hide public navbar on admin pages */
+.knx-admin-page .knx-nav { display: none !important; }
+
+.knx-customers-wrapper{
+  padding: 5%;
+  margin-left: 154px;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+/* Header */
+.knx-customers-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:25px;
+  flex-wrap:wrap;
+}
+
+.knx-customers-header h2{
+  font-size: 1.4rem;
+  font-weight: 700;
+  color:#0b793a;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin:0;
+}
+
+.knx-customers-controls{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
+
+.knx-search-form{
+  display:flex;
+  align-items:center;
+  background:#f6f7f8;
+  border-radius:8px;
+  padding:5px 10px;
+}
+
+.knx-search-form input{
+  border:none;
+  background:transparent;
+  padding:8px 10px;
+  font-size:.95rem;
+  width:220px;
+  outline:none;
+}
+
+.knx-search-form button{
+  background:none;
+  border:none;
+  cursor:pointer;
+  color:#0b793a;
+  font-size:1rem;
+}
+
+.knx-status-filter{
+  background:#fff;
+  border:1px solid #e2e5e8;
+  border-radius:8px;
+  padding:9px 12px;
+  font-weight:600;
+  color:#333;
+}
+
+.knx-add-btn{
+  background:#0b793a;
+  color:#fff;
+  border:none;
+  border-radius:8px;
+  padding:8px 14px;
+  cursor:pointer;
+  font-weight:600;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  transition: background .2s ease;
+}
+
+.knx-add-btn:hover{ background:#096631; }
+
+/* TABLE (desktop) */
+.knx-customers-table{
+  width:100%;
+  border-collapse:collapse;
+  margin-bottom:15px;
+  background:#fff;
+}
+
+.knx-customers-table th,
+.knx-customers-table td{
+  text-align:left;
+  padding:10px 12px;
+  border-bottom:1px solid #e2e5e8;
+  font-size:.95rem;
+}
+
+.knx-customers-table th{
+  background:#f7f9fa;
+  font-weight:600;
+  color:#333;
+}
+
+.knx-customers-table tbody tr:hover{
+  background:#f8fdf9;
+}
+
+.knx-col-center{
+  text-align:center;
+  width:80px;
+}
+
+/* Edit button */
+.knx-edit-link{
+  border:none;
+  background:transparent;
+  cursor:pointer;
+  color:#0b793a;
+  font-size:1rem;
+}
+
+.knx-edit-link:hover{ opacity:.8; }
+
+/* Status pills (same names as Cities) */
+.status-active{
+  background:#e5f7eb;
+  color:#0b793a;
+  font-weight:700;
+  padding:3px 10px;
+  border-radius:6px;
+  font-size:.85rem;
+  display:inline-block;
+}
+
+.status-inactive{
+  background:#f6eaea;
+  color:#b33a3a;
+  font-weight:700;
+  padding:3px 10px;
+  border-radius:6px;
+  font-size:.85rem;
+  display:inline-block;
+}
+
+/* Toggle switch (same as Cities) */
+.knx-switch{
+  position:relative;
+  display:inline-block;
+  width:42px;
+  height:22px;
+}
+
+.knx-switch input{
+  opacity:0;
+  width:0;
+  height:0;
+}
+
+.knx-slider{
+  position:absolute;
+  cursor:pointer;
+  top:0;
+  left:0;
+  right:0;
+  bottom:0;
+  background-color:#ccc;
+  transition:.3s;
+  border-radius:22px;
+}
+
+.knx-slider:before{
+  position:absolute;
+  content:"";
+  height:16px;
+  width:16px;
+  left:3px;
+  bottom:3px;
+  background-color:#fff;
+  transition:.3s;
+  border-radius:50%;
+}
+
+.knx-switch input:checked + .knx-slider{
+  background-color:#0b793a;
+}
+
+.knx-switch input:checked + .knx-slider:before{
+  transform: translateX(20px);
+}
+
+/* Cards (mobile) */
+.knx-customers-cards{
+  display:none;
+  gap:12px;
+}
+
+.knx-customer-card{
+  background:#fff;
+  border:1px solid #e2e5e8;
+  border-radius:14px;
+  padding:14px;
+  box-shadow: 0 6px 16px rgba(0,0,0,.06);
+}
+
+.knx-customer-card__top{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:10px;
+  margin-bottom:10px;
+}
+
+.knx-customer-card__title{
+  font-weight:800;
+  color:#0b793a;
+  font-size:1.05rem;
+}
+
+.knx-customer-card__meta{
+  display:grid;
+  gap:6px;
+  color:#333;
+  font-size:.95rem;
+  margin-bottom:12px;
+}
+
+.knx-customer-card__actions{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+}
+
+.knx-customer-card__actions .knx-edit-link{
+  background:#f6f7f8;
+  border:1px solid #e2e5e8;
+  border-radius:10px;
+  padding:8px 10px;
+  font-weight:700;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+/* Empty */
+.knx-empty{
+  text-align:center;
+  padding:18px;
+  color:#666;
+  background:#fff;
+  border:1px dashed #e2e5e8;
+  border-radius:12px;
+}
+
+/* Modal (same pattern as Cities) */
+.knx-modal{
+  display:none;
+  position:fixed;
+  z-index:1000;
+  left:0;
+  top:0;
+  width:100%;
+  height:100%;
+  background: rgba(0,0,0,.45);
+  justify-content:center;
+  align-items:center;
+}
+
+.knx-modal.active{ display:flex; }
+
+.knx-modal-content{
+  background:#fff;
+  padding:25px 30px;
+  border-radius:14px;
+  width:360px;
+  max-width:92vw;
+  box-shadow:0 6px 20px rgba(0,0,0,.15);
+  text-align:center;
+}
+
+.knx-modal-content h3{
+  margin-bottom:15px;
+  color:#0b793a;
+  font-weight:800;
+}
+
+#knxCustomerForm input,
+#knxCustomerForm select{
+  width:100%;
+  padding:10px 12px;
+  border:1px solid #ccc;
+  border-radius:10px;
+  margin-bottom:10px;
+  font-size:.95rem;
+  outline:none;
+}
+
+.knx-hint{
+  display:block;
+  text-align:left;
+  margin:-4px 0 10px;
+  font-size:.82rem;
+  color:#666;
+}
+
+.knx-btn,
+.knx-btn-secondary{
+  border:none;
+  border-radius:10px;
+  padding:10px 14px;
+  cursor:pointer;
+  font-weight:800;
+  font-size:.95rem;
+  transition: background .2s ease;
+  width:100%;
+  margin-top:6px;
+}
+
+.knx-btn{
+  background:#0b793a;
+  color:#fff;
+}
+
+.knx-btn:hover{ background:#096631; }
+
+.knx-btn-secondary{
+  background:#f2f2f2;
+  color:#333;
+}
+
+.knx-btn-secondary:hover{ background:#e4e4e4; }
+
+/* Pagination (same as Cities) */
+.knx-pagination{
+  text-align:center;
+  margin-top:20px;
+}
+
+.knx-pagination a{
+  display:inline-block;
+  padding:6px 10px;
+  margin:0 4px;
+  background:#f6f7f8;
+  border-radius:6px;
+  color:#333;
+  font-weight:700;
+  text-decoration:none;
+  border:1px solid #e2e5e8;
+}
+
+.knx-pagination a.active,
+.knx-pagination a:hover{
+  background:#0b793a;
+  color:#fff;
+  border-color:#0b793a;
+}
+
+.knx-pagination a.disabled{
+  opacity:.45;
+  pointer-events:none;
+}
+
+/* Responsive: switch to cards */
+@media (max-width: 768px){
+  .knx-customers-header{
+    flex-direction:column;
+    align-items:flex-start;
+    gap:12px;
+  }
+  .knx-search-form input{ width: 200px; }
+}
+
+@media (max-width: 700px){
+  .knx-customers-wrapper{
+    margin-left:58px;
+    padding:2%;
+  }
+
+  .knx-add-btn{
+    width:100%;
+    justify-content:center;
+  }
+
+  /* Hide table, show cards */
+  .knx-customers-table{ display:none; }
+  .knx-customers-cards{
+    display:grid;
+    grid-template-columns: 1fr;
+    margin-top: 8px;
+  }
+}

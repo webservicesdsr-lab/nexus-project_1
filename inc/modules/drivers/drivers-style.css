@@ -1,0 +1,559 @@
+/* ==========================================================
+   KNX Drivers Dashboard — UI (SEALED MVP v1.9 POLISHED)
+   Goals:
+   - Mobile-first “app” feel
+   - Centered modals (all)
+   - Strong cascade control (theme-safe)
+   - Clean cards, pills, buttons, spacing
+   - Subtle motion (reduced-motion safe)
+   - No “blank page” risks
+   ========================================================== */
+
+/* ---------- Scope + tokens ---------- */
+.knx-drivers-signed{
+  --knx-accent:#0B793A;
+  --knx-bg:#ffffff;
+  --knx-text:#0f172a;
+  --knx-muted:rgba(15,23,42,.62);
+  --knx-muted2:rgba(15,23,42,.45);
+  --knx-border:rgba(15,23,42,.10);
+  --knx-border2:rgba(15,23,42,.08);
+  --knx-soft:rgba(15,23,42,.04);
+  --knx-soft2:rgba(15,23,42,.06);
+  --knx-danger:#b91c1c;
+  --knx-warning:#b45309;
+
+  --knx-radius-xl:18px;
+  --knx-radius-lg:16px;
+  --knx-radius-md:14px;
+  --knx-radius-sm:12px;
+
+  --knx-shadow-1:0 1px 10px rgba(0,0,0,.06);
+  --knx-shadow-2:0 12px 30px rgba(0,0,0,.10);
+
+  --knx-maxw:980px;
+  --knx-gap:12px;
+
+  /* touch-friendly */
+  --knx-tap:44px;
+}
+
+/* ---------- Theme sanitization (don’t break the world) ---------- */
+/* keep it scoped only */
+.knx-drivers-signed,
+.knx-drivers-signed *{
+  box-sizing:border-box;
+}
+
+.knx-drivers-signed a{ color:inherit; text-decoration:none; }
+.knx-drivers-signed button{ font:inherit; }
+
+/* Neutralize aggressive theme hover/focus styles WITHOUT nuking UX */
+.knx-drivers-signed .knx-btn:hover,
+.knx-drivers-signed .knx-iconbtn:hover,
+.knx-drivers-signed .knx-chip:hover{
+  background:inherit;
+  color:inherit;
+  box-shadow:none;
+  filter:none;
+  transform:none;
+}
+
+/* Our own focus ring */
+.knx-drivers-signed :is(button, a, [role="button"]):focus{
+  outline:none;
+}
+.knx-drivers-signed :is(button, a, [role="button"]):focus-visible{
+  box-shadow:0 0 0 3px rgba(11,121,58,.22);
+  border-color:rgba(11,121,58,.35);
+}
+
+/* Reduced motion safe */
+@media (prefers-reduced-motion: reduce){
+  .knx-drivers-signed *{
+    transition:none !important;
+    animation:none !important;
+    scroll-behavior:auto !important;
+  }
+}
+
+/* ---------- Root container ---------- */
+.knx-driver-dashboard{
+  max-width:var(--knx-maxw);
+  margin:0 auto;
+  padding:14px;
+  color:var(--knx-text);
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+}
+
+/* ---------- Reusable text ---------- */
+.knx-title{
+  font-weight:950;
+  font-size:16px;
+  letter-spacing:.2px;
+  margin:0 0 6px;
+}
+.knx-muted{
+  color:var(--knx-muted);
+  font-size:13px;
+  line-height:1.35;
+}
+.knx-muted--sm{ font-size:12px; color:var(--knx-muted2); }
+
+/* ---------- Cards ---------- */
+.knx-card{
+  background:var(--knx-bg);
+  border-radius:var(--knx-radius-lg);
+  border:1px solid var(--knx-border);
+  box-shadow:var(--knx-shadow-1);
+}
+.knx-card--soft{
+  background:var(--knx-soft);
+  border-color:transparent;
+  box-shadow:none;
+}
+.knx-card__body{ padding:14px; }
+
+/* ---------- Topbar (app-like) ---------- */
+.knx-driver-topbar{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:12px;
+}
+
+.knx-driver-topbar__left{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
+.knx-app-title{
+  font-weight:1000;
+  font-size:18px;
+  letter-spacing:.2px;
+  line-height:1.1;
+}
+.knx-app-sub{
+  font-size:12.5px;
+  color:var(--knx-muted);
+}
+
+.knx-driver-topbar__right{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+/* Availability cluster */
+.knx-availability{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:6px;
+  border-radius:999px;
+  background:var(--knx-soft);
+  border:1px solid var(--knx-border2);
+}
+
+/* ---------- Status bar ---------- */
+.knx-driver-statusbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:12px;
+  padding:10px 12px;
+  background:linear-gradient(180deg, rgba(15,23,42,.03), rgba(15,23,42,.01));
+  border:1px solid var(--knx-border2);
+  border-radius:var(--knx-radius-lg);
+}
+.knx-driver-hint{
+  font-size:12px;
+  color:var(--knx-muted2);
+}
+
+/* ---------- Pills ---------- */
+.knx-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 12px;
+  border-radius:999px;
+  font-weight:950;
+  font-size:12.5px;
+  border:1px solid var(--knx-border2);
+  background:rgba(15,23,42,.03);
+  color:rgba(15,23,42,.78);
+  white-space:nowrap;
+}
+.knx-pill--soft{ background:rgba(15,23,42,.04); }
+.knx-pill--muted{ background:rgba(15,23,42,.04); color:var(--knx-muted); }
+.knx-pill--ok{
+  background:rgba(11,121,58,.12);
+  border-color:rgba(11,121,58,.28);
+  color:var(--knx-accent);
+}
+.knx-pill--danger{
+  background:rgba(239,68,68,.12);
+  border-color:rgba(239,68,68,.28);
+  color:var(--knx-danger);
+}
+.knx-driver-banner {
+  width: 100%;
+  display: block;
+  background: linear-gradient(90deg, rgba(11,121,58,0.98), rgba(6,95,46,0.98));
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-weight: 900;
+  font-size: 13px;
+  text-align: center;
+  box-shadow: 0 6px 18px rgba(11,121,58,0.12);
+  margin-bottom: 8px;
+}
+
+.knx-driver-banner--show { display: block; animation: knx-banner-in 360ms ease; }
+/* ---------- Buttons ---------- */
+.knx-btn{
+  min-height:var(--knx-tap);
+  padding:10px 14px;
+  border-radius:var(--knx-radius-md);
+  border:1px solid transparent;
+  font-weight:950;
+  font-size:14px;
+  cursor:pointer;
+  background:transparent;
+  transition:background 140ms ease, transform 120ms ease, opacity 120ms ease, border-color 140ms ease;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+.knx-btn:active{ transform:translateY(1px); }
+.knx-btn:disabled{ opacity:.55; cursor:not-allowed; transform:none; }
+
+.knx-btn--sm{
+  min-height:38px;
+  padding:8px 12px;
+  border-radius:var(--knx-radius-sm);
+  font-size:13px;
+}
+
+.knx-btn--primary{
+  background:#111827;
+  color:#fff;
+}
+.knx-btn--primary:active{ background:#0b1220; }
+
+.knx-btn--ghost{
+  background:var(--knx-soft2);
+  color:rgba(15,23,42,.82);
+  border-color:transparent;
+}
+.knx-btn--ghost:active{ background:rgba(15,23,42,.10); }
+
+.knx-btn--danger{
+  background:rgba(239,68,68,.14);
+  color:var(--knx-danger);
+  border:1px solid rgba(239,68,68,.30);
+}
+.knx-btn--danger:active{ background:rgba(239,68,68,.20); }
+
+/* ---------- Orders list ---------- */
+.knx-driver-list{
+  display:grid;
+  gap:10px;
+}
+
+/* ---------- Driver order card ---------- */
+.knx-driver-card{
+  border-radius:var(--knx-radius-lg);
+  border:1px solid var(--knx-border);
+  background:var(--knx-bg);
+  box-shadow:var(--knx-shadow-1);
+  padding:12px;
+  transition:box-shadow 160ms ease, transform 140ms ease, border-color 140ms ease;
+}
+
+/* keep hover “empty-ish” but allow tiny elevation (doesn’t fight theme) */
+.knx-drivers-signed .knx-driver-card:hover{
+  box-shadow:0 10px 26px rgba(0,0,0,.08);
+  transform:translateY(-1px);
+}
+
+.knx-driver-card__head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:8px;
+}
+
+.knx-driver-card__title{
+  font-weight:1000;
+  font-size:16px;
+  letter-spacing:.2px;
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+}
+
+/* badge */
+.knx-badge{
+  display:inline-flex;
+  align-items:center;
+  padding:3px 8px;
+  border-radius:999px;
+  font-weight:950;
+  font-size:11px;
+  color:#fff;
+  background:var(--knx-accent);
+}
+
+/* meta grid */
+.knx-driver-card__meta{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px 12px;
+  margin-top:6px;
+}
+
+/* meta line */
+.knx-meta{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  gap:10px;
+  padding:6px 0;
+  border-bottom:1px dashed rgba(15,23,42,.10);
+}
+.knx-meta:last-child{ border-bottom:none; }
+.knx-meta span{
+  font-size:12px;
+  color:var(--knx-muted);
+}
+.knx-meta strong{
+  font-size:13px;
+  font-weight:950;
+  color:rgba(15,23,42,.92);
+  text-align:right;
+  word-break:break-word;
+}
+.knx-meta--wide{ grid-column:1 / -1; }
+
+.knx-driver-card__actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:10px;
+}
+
+/* new order highlight */
+.knx-order-new{
+  border-color:rgba(11,121,58,.28);
+  box-shadow:0 0 0 3px rgba(11,121,58,.10), var(--knx-shadow-1);
+}
+
+/* ---------- Toast ---------- */
+.knx-toast{
+  position:fixed;
+  left:50%;
+  bottom:18px;
+  transform:translateX(-50%) translateY(10px);
+  opacity:0;
+  pointer-events:none;
+  z-index:99999;
+
+  background:rgba(17,24,39,.96);
+  color:#fff;
+  padding:10px 14px;
+  border-radius:999px;
+  font-size:13px;
+  font-weight:950;
+  box-shadow:0 14px 30px rgba(0,0,0,.18);
+
+  transition:opacity 160ms ease, transform 180ms ease;
+}
+.knx-toast--show{
+  opacity:1;
+  transform:translateX(-50%) translateY(0);
+}
+
+/* ==========================================================
+   MODALS — CENTERED, POLISHED, SCROLL-SAFE
+   ========================================================== */
+
+.knx-modal{
+  position:fixed;
+  inset:0;
+  display:none;
+  z-index:99998;
+}
+.knx-modal--open{ display:block; }
+
+.knx-modal__backdrop{
+  position:absolute;
+  inset:0;
+  background:rgba(0,0,0,.52);
+}
+
+/* centered panel */
+.knx-modal__panel{
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  width:min(680px, calc(100% - 24px));
+  max-height:90vh;
+  overflow:hidden;
+
+  background:#fff;
+  border-radius:var(--knx-radius-xl);
+  border:1px solid rgba(255,255,255,.14);
+  box-shadow:var(--knx-shadow-2);
+}
+
+/* inner scroll area */
+.knx-modal__body{
+  padding:14px;
+  max-height:calc(90vh - 120px);
+  overflow:auto;
+}
+
+/* header */
+.knx-modal__head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:14px;
+  border-bottom:1px solid var(--knx-border2);
+  background:linear-gradient(180deg, rgba(15,23,42,.03), rgba(15,23,42,.00));
+}
+.knx-modal__title{
+  font-weight:1000;
+  font-size:15px;
+  letter-spacing:.2px;
+}
+
+/* icon button */
+.knx-iconbtn{
+  width:40px;
+  height:40px;
+  min-width:40px;
+  border-radius:var(--knx-radius-sm);
+  border:1px solid var(--knx-border2);
+  background:rgba(15,23,42,.04);
+  cursor:pointer;
+  font-weight:1000;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.knx-iconbtn:active{ transform:translateY(1px); }
+
+/* modal lines */
+.knx-modal__line{ margin:0 0 10px; }
+
+/* footer actions */
+.knx-modal__actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  padding:14px;
+  border-top:1px solid var(--knx-border2);
+  background:#fff;
+}
+
+/* ==========================================================
+   Delay Chips — Polished
+   ========================================================== */
+.knx-chipgrid{
+  display:grid;
+  gap:10px;
+}
+.knx-chip{
+  width:100%;
+  min-height:var(--knx-tap);
+  padding:12px;
+  border-radius:var(--knx-radius-md);
+  border:1px solid var(--knx-border2);
+  background:rgba(15,23,42,.03);
+  font-weight:950;
+  cursor:pointer;
+  text-align:left;
+  transition:background 140ms ease, transform 120ms ease, border-color 140ms ease;
+}
+.knx-chip:active{
+  transform:translateY(1px);
+  background:rgba(15,23,42,.06);
+  border-color:rgba(15,23,42,.12);
+}
+
+/* ==========================================================
+   History — IDs only rows
+   ========================================================== */
+.knx-history-list{ display:grid; gap:10px; }
+.knx-history-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:12px;
+  border-radius:var(--knx-radius-md);
+  border:1px solid var(--knx-border2);
+  background:rgba(15,23,42,.03);
+}
+.knx-history-left{
+  font-weight:1000;
+  font-size:14px;
+}
+
+/* pager */
+.knx-pager{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-top:12px;
+}
+
+/* ==========================================================
+   Responsive refinements
+   ========================================================== */
+@media (max-width: 720px){
+  .knx-driver-dashboard{ padding:12px; }
+
+  .knx-driver-topbar{
+    flex-direction:column;
+    align-items:flex-start;
+  }
+  .knx-driver-topbar__right{
+    width:100%;
+    justify-content:flex-start;
+  }
+
+  .knx-driver-statusbar{
+    flex-direction:column;
+    align-items:flex-start;
+  }
+
+  .knx-driver-card__meta{
+    grid-template-columns:1fr;
+  }
+
+  .knx-modal__panel{
+    width:calc(100% - 18px);
+  }
+}
+
+@media (min-width: 900px){
+  .knx-driver-card{ padding:16px; }
+  .knx-card__body{ padding:16px; }
+}
+
+/* ==========================================================
+   End
+   ========================================================== */

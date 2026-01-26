@@ -1,0 +1,330 @@
+
+
+.knx-ops-wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 16px;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+.knx-ops-topbar {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 8px 0 14px;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+
+.knx-ops-title .knx-ops-h1 {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.knx-ops-title .knx-ops-sub {
+  font-size: 13px;
+  opacity: 0.75;
+  margin-top: 4px;
+}
+
+.knx-ops-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.knx-btn {
+  appearance: none;
+  border: 0;
+  background: #0B793A;
+  color: #fff;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.10);
+}
+
+.knx-btn:hover { filter: brightness(0.98); }
+.knx-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.knx-btn-ghost {
+  background: rgba(0,0,0,0.06);
+  color: #111;
+  box-shadow: none;
+}
+
+.knx-btn-danger {
+  background: #b42318;
+}
+
+.knx-btn-mini {
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.knx-ops-filters {
+  display: flex;
+  gap: 10px;
+  padding: 14px 0 12px;
+  flex-wrap: wrap;
+}
+
+.knx-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 160px;
+}
+
+.knx-field.knx-grow {
+  flex: 1;
+  min-width: 220px;
+}
+
+.knx-field label {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.knx-field select,
+.knx-field input {
+  border: 1px solid rgba(0,0,0,0.10);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  font-size: 14px;
+}
+
+.knx-ops-content {
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 18px;
+  padding: 10px;
+  box-shadow: 0 14px 30px rgba(0,0,0,0.06);
+}
+
+.knx-ops-tableWrap {
+  overflow-x: auto;
+}
+
+.knx-ops-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 980px;
+}
+
+.knx-ops-table thead th {
+  text-align: left;
+  font-size: 12px;
+  padding: 12px 10px;
+  opacity: 0.75;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+
+.knx-ops-table tbody td {
+  padding: 12px 10px;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+  vertical-align: middle;
+  font-size: 14px;
+}
+
+.knx-ops-ord { font-weight: 700; }
+.knx-ops-money { font-weight: 700; white-space: nowrap; }
+.knx-ops-date { font-size: 12px; opacity: 0.75; white-space: nowrap; }
+
+.knx-ops-col-actions { width: 360px; }
+.knx-ops-actionsCell {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.knx-ops-driverSel {
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 12px;
+  padding: 8px 10px;
+  min-width: 160px;
+  background: #fff;
+}
+
+.knx-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: rgba(0,0,0,0.06);
+  color: #111;
+  white-space: nowrap;
+}
+
+.knx-pill-ops {
+  background: rgba(11, 121, 58, 0.12);
+  color: #0B793A;
+  font-weight: 700;
+}
+
+.knx-pill-money {
+  background: rgba(0,0,0,0.08);
+  font-weight: 800;
+}
+
+.knx-ops-loadingCell,
+.knx-ops-emptyCell {
+  text-align: center;
+  padding: 22px 10px;
+  opacity: 0.75;
+}
+
+.knx-ops-footer {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 6px 6px;
+}
+
+.knx-ops-pager {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.knx-ops-page {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.knx-ops-meta {
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+/* Mobile Cards */
+.knx-ops-cards {
+  display: none;
+  gap: 10px;
+  padding: 4px;
+}
+
+.knx-ops-card {
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 18px;
+  padding: 12px;
+  background: #fff;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+}
+
+.knx-ops-cardTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.knx-ops-cardTitle {
+  font-weight: 800;
+  font-size: 16px;
+}
+
+.knx-ops-cardMeta {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.knx-ops-cardBadges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 10px 0 8px;
+}
+
+.knx-ops-cardLine {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 1px dashed rgba(0,0,0,0.08);
+}
+
+.knx-ops-cardLine:first-of-type {
+  border-top: 0;
+}
+
+.knx-ops-cardLabel {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.knx-ops-cardVal {
+  font-size: 13px;
+  font-weight: 650;
+  text-align: right;
+}
+
+.knx-ops-cardActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.knx-ops-cardActions .knx-ops-driverSel {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+/* Toast */
+.knx-ops-toast {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  display: grid;
+  gap: 8px;
+  z-index: 9999;
+}
+
+.knx-toastItem {
+  background: rgba(0,0,0,0.86);
+  color: #fff;
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  box-shadow: 0 16px 30px rgba(0,0,0,0.20);
+  transform: translateY(0);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.knx-toast-ok { background: rgba(11, 121, 58, 0.92); }
+.knx-toast-warn { background: rgba(156, 99, 0, 0.92); }
+.knx-toast-error { background: rgba(180, 35, 24, 0.92); }
+
+.knx-toastItem.is-gone {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+/* Responsive switch: table on desktop, cards on mobile */
+@media (max-width: 880px) {
+  .knx-ops-tableWrap { display: none; }
+  .knx-ops-cards { display: grid; }
+  .knx-ops-topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .knx-ops-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .knx-ops-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}

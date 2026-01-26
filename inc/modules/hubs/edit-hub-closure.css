@@ -1,0 +1,117 @@
+/* ==========================================================
+   Kingdom Nexus - Edit Hub Closure Styles (v1.1)
+   Improved header with title and description
+   ========================================================== */
+
+#closureBlock .knx-collapse-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fff;
+  color: #0b793a;
+  padding: 16px 20px;
+  border: 1px solid #c3b6ff;
+  border-radius: 8px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+#closureBlock .knx-collapse-header:hover {
+  background: #f8fbff;
+}
+
+#closureBlock .knx-collapse-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0b793a;
+}
+
+#closureBlock .knx-collapse-desc {
+  margin: 4px 0 0 0;
+  font-size: 13px;
+  color: #555;
+}
+
+#closureBlock .toggle-arrow {
+  font-size: 18px;
+  color: #0b793a;
+  transition: transform 0.3s ease;
+}
+
+#closureBlock .knx-collapse-header.active .toggle-arrow {
+  transform: rotate(180deg);
+}
+
+#closureBlock .knx-collapse-body {
+  display: none;
+  background: #fff;
+  border: 1px solid #e0e6f0;
+  border-radius: 8px;
+  padding: 22px;
+  margin-top: 10px;
+}
+
+#closureBlock .knx-collapse-body.open {
+  display: block;
+}
+
+.knx-field {
+  margin-bottom: 14px;
+}
+.knx-field label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.knx-field textarea {
+  width: 100%;
+  min-height: 70px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 8px;
+  resize: vertical;
+}
+
+.knx-switch {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 24px;
+}
+.knx-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.knx-switch .slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0;
+  right: 0; bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 24px;
+}
+.knx-switch .slider:before {
+  position: absolute;
+  content: "";
+  height: 18px; width: 18px;
+  left: 3px; bottom: 3px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+.knx-switch input:checked + .slider {
+  background-color: #0b793a;
+}
+.knx-switch input:checked + .slider:before {
+  transform: translateX(22px);
+}
+
+.knx-save-row {
+  text-align: right;
+  margin-top: 15px;
+}

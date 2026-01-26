@@ -1,0 +1,745 @@
+/**
+ * KINGDOM NEXUS — NAVIGATION STYLES v3.1 LEGACY PARITY
+ * PURPOSE:
+ * - Navbar (top, public/customer)
+ * - Cart drawer (right side)
+ * - Location chip (dark, legacy style)
+ * - Admin sidebar overlay (public pages)
+ * - Mobile responsive (768px, 700px, 480px)
+ * - Corporate sidebar on private pages (see corporate-sidebar-style.css)
+ * 
+ * SCOPE:
+ * - Public pages: /, /explore-hubs, /menu
+ * - Customer pages: /cart, /checkout, /profile
+ * - Admin overlay: Public pages for admin users
+ * 
+ * [KNX-NAV-3.1] [KNX-TASK-NAV-003]
+ */
+
+/* ═══════════════════════════════════════════════════════════════
+   CSS VARIABLES
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  --knx-nav-h: 70px;
+  --knx-accent: #225638;
+  --knx-accent-hover: #1a422b;
+  --knx-bg: #ffffff;
+  --knx-border: #e5e7eb;
+  --knx-text: #111827;
+  --knx-text-muted: #6b7280;
+  --knx-cart-badge: #ef4444;
+  --knx-loc-chip-bg: #ecfdf5;
+  --knx-loc-chip-text: #065f46;
+  --knx-loc-chip-icon: #06b6d4;
+  --knx-sidebar-w: 320px;
+  --knx-overlay-bg: rgba(0, 0, 0, 0.5);
+  --knx-transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   NAVBAR (Top Navigation)
+   ═══════════════════════════════════════════════════════════════ */
+
+.knx-nav {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: var(--knx-bg);
+  border-bottom: 1px solid var(--knx-border);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  height: var(--knx-nav-h);
+}
+
+.knx-nav__inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+/* Brand */
+.knx-nav__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: var(--knx-text);
+  font-weight: 600;
+  font-size: 1.125rem;
+  transition: opacity var(--knx-transition);
+  flex-shrink: 0;
+}
+
+.knx-nav__brand:hover {
+  opacity: 0.8;
+}
+
+.knx-nav__logo {
+  font-size: 1.75rem;
+  line-height: 1;
+}
+
+.knx-nav__brand-text {
+  white-space: nowrap;
+}
+
+/* Center: Location Chip */
+.knx-nav__center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* [KNX-TASK-NAV-003] Fix 5: Dark location chip (legacy parity) */
+.knx-loc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #0f172a;
+  color: #ffffff;
+  border: 1px solid var(--knx-border);
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--knx-transition);
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.knx-loc-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.22);
+}
+
+.knx-loc-chip i {
+  color: #38bdf8;
+  font-size: 1rem;
+}
+
+.knx-loc-chip__text {
+  font-weight: 600;
+}
+
+/* Actions (Right Side) */
+.knx-nav__actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-shrink: 0;
+}
+
+/* [KNX-TASK-NAV-003] Fix 6: Gray cart button (legacy parity) */
+/* Cart Button */
+.knx-nav__cart {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.125rem;
+  background: #f9fafb;
+  color: var(--knx-text);
+  border: 1px solid var(--knx-border);
+  border-radius: 50px;
+  text-decoration: none;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  transition: all var(--knx-transition);
+  white-space: nowrap;
+  height: 52px;
+}
+
+.knx-nav__cart:hover {
+  background: #f3f4f6;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.knx-nav__cart svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* [KNX-TASK-NAV-003] Fix 6: Cart badge with border (legacy parity) */
+.knx-nav__cart-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 22px;
+  height: 22px;
+  background: var(--knx-cart-badge);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+  border: 2px solid var(--knx-bg);
+}
+
+.knx-nav__cart-badge[data-count="0"],
+.knx-nav__cart-badge:empty {
+  display: none;
+}
+
+/* [KNX-TASK-NAV-003] Fix 3: Username button (legacy parity) */
+/* Username Display (non-admin) */
+.knx-nav__username {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.125rem;
+  background: #f9fafb;
+  border: 1px solid var(--knx-border);
+  border-radius: 50px;
+  color: var(--knx-text);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  white-space: nowrap;
+  height: 52px;
+}
+
+/* Username Button (admin - clickable) */
+.knx-nav__username-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.625rem 1.125rem;
+  background: #f9fafb;
+  border: 1px solid var(--knx-border);
+  border-radius: 50px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--knx-text);
+  transition: all var(--knx-transition);
+  height: 52px;
+}
+
+.knx-nav__username-btn:hover {
+  background: var(--knx-accent);
+  color: #fff;
+  border-color: var(--knx-accent);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(34, 86, 56, 0.2);
+}
+
+.knx-nav__username-text {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+
+/* [KNX-TASK-NAV-003] Fix 4: Desktop/mobile logout separation (legacy parity) */
+/* Logout Button */
+.knx-nav__logout {
+  display: inline-block;
+  margin: 0;
+}
+
+.knx-nav__logout-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.125rem;
+  background: #f9fafb;
+  border: 1px solid var(--knx-border);
+  border-radius: 50px;
+  color: var(--knx-text);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--knx-transition);
+  white-space: nowrap;
+  height: 52px;
+}
+
+.knx-nav__logout-btn:hover {
+  background: var(--knx-accent);
+  border-color: var(--knx-accent);
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(34, 86, 56, 0.2);
+}
+
+.knx-nav__logout-btn svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  transition: color var(--knx-transition);
+}
+
+.knx-nav__logout-btn:hover svg {
+  color: #fff;
+}
+
+/* Hide mobile logout by default (shown in admin sidebar) */
+.knx-nav__logout--mobile {
+  display: none;
+}
+
+/* Login Link */
+.knx-nav__login {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--knx-accent);
+  color: white;
+  border-radius: 0.5rem;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all var(--knx-transition);
+  white-space: nowrap;
+}
+
+.knx-nav__login:hover {
+  background: var(--knx-accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.knx-nav__login svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
+   CART DRAWER (Right Side)
+   ═══════════════════════════════════════════════════════════════ */
+
+.knx-cart-drawer {
+  position: fixed;
+  top: 0;
+  right: -400px;
+  width: 400px;
+  height: 100vh;
+  background: white;
+  z-index: 1300;
+  box-shadow: -2px 0 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  transition: right var(--knx-transition);
+}
+
+.knx-cart-drawer.active {
+  right: 0;
+}
+
+.knx-cart-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--knx-border);
+}
+
+.knx-cart-drawer__header h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--knx-text);
+  margin: 0;
+}
+
+.knx-cart-drawer__close {
+  background: transparent;
+  border: none;
+  font-size: 2rem;
+  color: var(--knx-text-muted);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: color var(--knx-transition);
+}
+
+.knx-cart-drawer__close:hover {
+  color: var(--knx-text);
+}
+
+.knx-cart-drawer__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.knx-cart-drawer__footer {
+  border-top: 1px solid var(--knx-border);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.knx-cart-drawer__total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1.125rem;
+}
+
+.knx-cart-drawer__review-btn,
+.knx-cart-drawer__checkout-btn {
+  display: block;
+  width: 100%;
+  padding: 0.875rem;
+  text-align: center;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all var(--knx-transition);
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.knx-cart-drawer__review-btn {
+  background: #f3f4f6;
+  color: var(--knx-text);
+  border: 1px solid var(--knx-border);
+}
+
+.knx-cart-drawer__review-btn:hover {
+  background: #e5e7eb;
+}
+
+.knx-cart-drawer__checkout-btn {
+  background: var(--knx-accent);
+  color: white;
+}
+
+.knx-cart-drawer__checkout-btn:hover {
+  background: var(--knx-accent-hover);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE RESPONSIVE
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Tablet: 768px */
+@media (max-width: 768px) {
+  .knx-nav__inner {
+    padding: 0 1rem;
+  }
+
+  /* Hide texts, show icons only */
+  .knx-nav__brand-text,
+  .knx-nav__cart span:not(.knx-nav__cart-badge),
+  .knx-nav__username-text,
+  .knx-nav__logout-btn span,
+  .knx-nav__login span {
+    display: none;
+  }
+
+  /* Adjust spacing */
+  .knx-nav__actions {
+    gap: 0.5rem;
+  }
+
+  .knx-nav__cart,
+  .knx-nav__username,
+  .knx-nav__logout-btn,
+  .knx-nav__login {
+    padding: 0.5rem 0.75rem;
+    gap: 0;
+  }
+
+  /* Location chip: keep text but smaller */
+  .knx-loc-chip {
+    font-size: 0.8125rem;
+    padding: 0.375rem 0.875rem;
+  }
+}
+
+/* Compact: 700px */
+@media (max-width: 700px) {
+  .knx-nav__inner {
+    gap: 0.75rem;
+  }
+
+  /* Cart and username: icon only */
+  .knx-nav__cart,
+  .knx-nav__username,
+  .knx-nav__logout-btn,
+  .knx-nav__login {
+    padding: 0.5rem;
+    width: 40px;
+    height: 40px;
+    justify-content: center;
+  }
+
+  .knx-nav__cart svg,
+  .knx-nav__logout-btn svg,
+  .knx-nav__login svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .knx-nav__cart-badge {
+    top: -4px;
+    right: -4px;
+    font-size: 0.6875rem;
+    padding: 0.0625rem 0.25rem;
+  }
+
+  /* Location chip: smaller */
+  .knx-loc-chip {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.625rem;
+  }
+
+  .knx-loc-chip i {
+    font-size: 0.875rem;
+  }
+
+  /* Cart drawer: full width */
+  .knx-cart-drawer {
+    width: 100%;
+    right: -100%;
+  }
+
+  /* [KNX-TASK-NAV-003] Show mobile logout in admin sidebar */
+  .knx-admin-sidebar .knx-nav__logout--mobile {
+    display: block;
+  }
+
+  .knx-nav__logout--desktop {
+    display: none;
+  }
+}
+
+/* Smallest: 480px */
+@media (max-width: 480px) {
+  .knx-nav {
+    height: 60px;
+  }
+
+  .knx-nav__inner {
+    gap: 0.5rem;
+    padding: 0 0.75rem;
+  }
+
+  .knx-nav__logo {
+    font-size: 1.5rem;
+  }
+
+  .knx-nav__actions {
+    gap: 0.375rem;
+  }
+
+  .knx-nav__cart,
+  .knx-nav__username-btn,
+  .knx-nav__logout-btn,
+  .knx-nav__login {
+    width: 36px;
+    height: 36px;
+    padding: 0.375rem;
+  }
+
+  .knx-loc-chip {
+    font-size: 0.6875rem;
+    padding: 0.25rem 0.5rem;
+    gap: 0.25rem;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ADMIN SIDEBAR OVERLAY (Public Pages Only)
+   [KNX-TASK-NAV-003] Fix 1: Admin navigation on public pages
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Overlay */
+.knx-admin-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  z-index: 1299;
+}
+
+.knx-admin-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Sidebar */
+.knx-admin-sidebar {
+  position: fixed;
+  top: 0;
+  left: -320px;
+  width: 320px;
+  height: 100vh;
+  background: #0a0a0a;
+  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.3);
+  z-index: 1300;
+  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+.knx-admin-sidebar.active {
+  left: 0;
+}
+
+/* Sidebar Header */
+.knx-admin-sidebar__header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #222;
+  background: #111;
+  position: relative;
+}
+
+.knx-admin-sidebar__logo {
+  color: #0b793a;
+  font-size: 28px;
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.knx-admin-sidebar__logo:hover {
+  color: #12a550;
+}
+
+.knx-admin-sidebar__close {
+  position: absolute;
+  right: 10px;
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 10px;
+}
+
+.knx-admin-sidebar__close:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: rotate(90deg);
+}
+
+.knx-admin-sidebar__close svg {
+  color: #fff;
+  width: 22px;
+  height: 22px;
+  stroke-width: 2.5;
+}
+
+/* Sidebar Navigation */
+.knx-admin-sidebar__nav {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px 0;
+  scrollbar-width: thin;
+  scrollbar-color: #0b793a #111;
+  display: flex;
+  flex-direction: column;
+}
+
+.knx-admin-sidebar__nav::-webkit-scrollbar {
+  width: 6px;
+}
+
+.knx-admin-sidebar__nav::-webkit-scrollbar-thumb {
+  background-color: #0b793a;
+  border-radius: 10px;
+}
+
+.knx-admin-sidebar__nav::-webkit-scrollbar-track {
+  background: #111;
+}
+
+.knx-admin-sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  text-decoration: none;
+  color: #ddd;
+  font-weight: 500;
+  font-size: 15px;
+  transition: all 0.3s;
+  border: none;
+  background: transparent;
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+}
+
+.knx-admin-sidebar__link:hover {
+  background: #0b793a;
+  color: #fff;
+}
+
+.knx-admin-sidebar__link--active {
+  background: #0b793a;
+  color: #fff;
+}
+
+.knx-admin-sidebar__link i {
+  width: 20px;
+  text-align: center;
+  font-size: 17px;
+  flex-shrink: 0;
+}
+
+.knx-admin-sidebar__divider {
+  border: none;
+  border-top: 1px solid #222;
+  margin: 12px 18px;
+}
+
+.knx-admin-sidebar__logout {
+  color: #ff4444 !important;
+  background: rgba(255, 68, 68, 0.1) !important;
+}
+
+.knx-admin-sidebar__logout:hover {
+  background: rgba(255, 68, 68, 0.2) !important;
+  color: #ff6666 !important;
+}
+
+.knx-admin-sidebar__logout i {
+  color: #ff4444 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PRINT STYLES
+   ═══════════════════════════════════════════════════════════════ */
+
+@media print {
+  .knx-nav,
+  .knx-cart-drawer,
+  .knx-admin-sidebar,
+  .knx-admin-overlay {
+    display: none !important;
+  }
+}

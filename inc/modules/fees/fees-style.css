@@ -1,0 +1,318 @@
+.knx-fees {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: #111827;
+  background: #fff;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 18px;
+}
+
+.knx-fees__header {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.knx-fees__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.knx-fees__title h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.knx-fees__pill {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #d1fae5;
+  background: #ecfdf5;
+}
+
+.knx-fees__subtitle {
+  margin: 0;
+  color: #6b7280;
+}
+
+.knx-fees__cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 980px) {
+  .knx-fees__cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .knx-fees__cards { grid-template-columns: 1fr; }
+}
+
+.knx-fees__card {
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.knx-fees__cardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.knx-fees__cardTop h3 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.knx-fees__badge {
+  font-size: 12px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.knx-fees__badge.is-active {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.knx-fees__badge.is-inactive {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.knx-fees__badge.is-muted {
+  border-color: #e5e7eb;
+  background: #f9fafb;
+  color: #6b7280;
+}
+
+.knx-fees__kv {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  color: #374151;
+}
+
+.knx-fees__kv span {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.knx-fees__kv strong {
+  font-size: 16px;
+}
+
+.knx-fees__cardBot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.knx-fees__btn {
+  appearance: none;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #111827;
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.knx-fees__btn--primary {
+  border-color: #0B793A;
+  background: #0B793A;
+  color: #ffffff;
+}
+
+.knx-fees__btn--ghost {
+  background: #f9fafb;
+}
+
+.knx-fees__btn--small {
+  padding: 7px 10px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.knx-fees__btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.knx-fees__editTop {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 640px) {
+  .knx-fees__editTop {
+    grid-template-columns: 1fr;
+  }
+}
+
+.knx-fees__editTitle {
+  margin: 0;
+}
+
+.knx-fees__panel {
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 12px;
+  background: #fff;
+  margin-bottom: 12px;
+}
+
+.knx-fees__panelHead {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.knx-fees__panelHead h4 {
+  margin: 0;
+}
+
+.knx-fees__muted {
+  margin: 0;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.knx-fees__form {
+  display: grid;
+  gap: 12px;
+}
+
+.knx-fees__row {
+  display: grid;
+  grid-template-columns: 1fr 140px;
+  gap: 12px;
+  align-items: end;
+}
+
+@media (max-width: 640px) {
+  .knx-fees__row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.knx-fees__field label {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.knx-fees__input {
+  width: 100%;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 10px;
+  padding: 10px 10px;
+  font-size: 14px;
+}
+
+.knx-fees__hint {
+  display: block;
+  margin-top: 6px;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.knx-fees__toggle {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  font-weight: 700;
+  color: #111827;
+}
+
+.knx-fees__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.knx-fees__hub {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid #f3f4f6;
+}
+
+.knx-fees__hub:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+@media (max-width: 760px) {
+  .knx-fees__hub {
+    grid-template-columns: 1fr;
+  }
+}
+
+.knx-fees__hubName {
+  font-weight: 800;
+}
+
+.knx-fees__hubMeta {
+  color: #6b7280;
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.knx-fees__hubRight {
+  display: grid;
+  grid-template-columns: 1fr 80px 90px;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 760px) {
+  .knx-fees__hubRight {
+    grid-template-columns: 1fr 1fr;
+  }
+  .knx-fees__hubRight .knx-fees__btn--ghost {
+    grid-column: 1 / -1;
+  }
+}
+
+.knx-fees__loading,
+.knx-fees__empty {
+  border: 1px dashed #e5e7eb;
+  border-radius: 14px;
+  padding: 18px;
+  text-align: center;
+  color: #6b7280;
+}
+
+.knx-fees__spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid #e5e7eb;
+  border-top-color: #0B793A;
+  margin: 0 auto 8px;
+  animation: knxFeesSpin 0.8s linear infinite;
+}
+
+@keyframes knxFeesSpin {
+  to { transform: rotate(360deg); }
+}

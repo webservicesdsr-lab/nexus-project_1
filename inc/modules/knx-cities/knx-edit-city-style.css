@@ -1,0 +1,253 @@
+/**
+ * ==========================================================
+ * Kingdom Nexus — KNX Edit City Style (SEALED v4)
+ * ----------------------------------------------------------
+ * Scoped to the module wrapper to avoid theme conflicts.
+ * Delivery Rates (A) UI included.
+ * ==========================================================
+ */
+
+.knx-edit-city-signed {
+  --knx-green: #0b793a;
+  --knx-border: #e5e7eb;
+  --knx-muted: #6b7280;
+  --knx-soft: #f6f7f8;
+  --knx-text: #111827;
+
+  color: var(--knx-text);
+}
+
+/* ==========================================================
+   Theme sanitization (avoid hover bleed / weird transitions)
+========================================================== */
+
+.knx-edit-city-signed,
+.knx-edit-city-signed * {
+  box-sizing: border-box;
+}
+
+.knx-edit-city-signed a {
+  color: inherit;
+  text-decoration: none;
+}
+.knx-edit-city-signed a:hover,
+.knx-edit-city-signed a:focus,
+.knx-edit-city-signed a:active {
+  color: inherit !important;
+  text-decoration: none !important;
+  box-shadow: none !important;
+  outline: none;
+}
+
+.knx-edit-city-signed button {
+  font-family: inherit;
+}
+.knx-edit-city-signed button:hover,
+.knx-edit-city-signed button:focus,
+.knx-edit-city-signed button:active {
+  filter: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+  outline: none;
+}
+
+.knx-edit-city-signed * {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Layout */
+.knx-edit-city-signed .knx-edit-city-shell {
+  display: flex;
+  gap: 18px;
+  align-items: stretch;
+}
+
+.knx-edit-city-signed .knx-edit-city-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.knx-edit-city-signed .knx-edit-city-container {
+  padding: 10px 0 40px;
+}
+
+/* Card */
+.knx-edit-city-signed .knx-card {
+  max-width: 900px;
+  margin: 22px auto;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  padding: 20px;
+}
+
+/* Action bar */
+.knx-edit-city-signed .knx-edit-city-actionbar {
+  max-width: 900px;
+  margin: 10px auto 0;
+  display: flex;
+  justify-content: flex-start;
+}
+
+/* Header */
+.knx-edit-city-signed .knx-edit-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.knx-edit-city-signed .knx-edit-city-icon {
+  font-size: 22px;
+  color: var(--knx-green);
+}
+
+.knx-edit-city-signed .knx-card h1 {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.knx-edit-city-signed .knx-card h2 {
+  margin: 0;
+  color: var(--knx-green);
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.knx-edit-city-signed .knx-muted {
+  color: var(--knx-muted);
+  margin: 0;
+}
+
+/* ==========================================================
+   City Info Form (existing)
+========================================================== */
+
+.knx-edit-city-signed .knx-form-group {
+  margin-bottom: 15px;
+}
+
+.knx-edit-city-signed .knx-form-group label {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.knx-edit-city-signed .knx-form-group input,
+.knx-edit-city-signed .knx-form-group select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  outline: none;
+  background: #fff;
+}
+
+.knx-edit-city-signed .knx-save-row {
+  text-align: right;
+  margin-top: 10px;
+}
+
+/* Buttons (default / keeps your current admin feel) */
+.knx-edit-city-signed .knx-btn {
+  background: var(--knx-green);
+  color: #fff;
+  padding: 9px 16px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.knx-edit-city-signed .knx-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* ==========================================================
+   Delivery Rates (A)
+========================================================== */
+
+.knx-edit-city-signed .knx-dr-field {
+  margin-bottom: 18px;
+}
+
+.knx-edit-city-signed .knx-dr-field label {
+  display: block;
+  font-weight: 800;
+  margin-bottom: 10px;
+  font-size: 1.05rem;
+  color: #1f2937;
+}
+
+/* Big, soft input look (screenshot-like) */
+.knx-edit-city-signed .knx-edit-city-rates-wrapper input[type="text"],
+.knx-edit-city-signed .knx-edit-city-rates-wrapper select {
+  width: 100%;
+  padding: 18px 18px;
+  border: 1px solid var(--knx-border);
+  border-radius: 12px;
+  background: #fff;
+  outline: none;
+  font-size: 1.25rem;
+  box-shadow: 0 2px 10px rgba(0,0,0,.06);
+}
+
+.knx-edit-city-signed .knx-edit-city-rates-wrapper input[type="text"]::placeholder {
+  color: #9ca3af;
+}
+
+.knx-edit-city-signed .knx-edit-city-rates-wrapper input[type="text"]:focus,
+.knx-edit-city-signed .knx-edit-city-rates-wrapper select:focus {
+  border-color: #bfe3cf;
+  box-shadow: 0 0 0 3px rgba(11,121,58,.10), 0 2px 10px rgba(0,0,0,.06);
+}
+
+/* Update row bottom-left */
+.knx-edit-city-signed .knx-rates-save-row {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 8px;
+}
+
+.knx-edit-city-signed .knx-btn--rates {
+  padding: 14px 26px;
+  border-radius: 12px;
+  font-size: 1.15rem;
+  box-shadow: 0 10px 20px rgba(0,0,0,.10);
+}
+
+/* Choices.js (if applied) */
+.knx-edit-city-signed .choices {
+  width: 100%;
+}
+.knx-edit-city-signed .choices__inner {
+  border-radius: 12px !important;
+  border: 1px solid var(--knx-border) !important;
+  padding: 14px 14px !important;
+  min-height: 60px !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,.06) !important;
+}
+.knx-edit-city-signed .choices__list--single {
+  padding: 0 !important;
+}
+.knx-edit-city-signed .choices__item--selectable {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.knx-edit-city-signed .choices__input {
+  font-size: 1rem;
+}
+
+/* Responsive: stack */
+@media (max-width: 980px) {
+  .knx-edit-city-signed .knx-edit-city-shell {
+    flex-direction: column;
+  }
+
+  /* Sidebar becomes normal block (still works with sidebar-script.js mobile behavior) */
+  .knx-edit-city-signed .knx-sidebar {
+    width: 100%;
+  }
+}
