@@ -1,0 +1,133 @@
+# NEXUS – Theme Shell & Error Handling
+
+## Purpose
+
+This document describes the **Nexus Shell theme** used as a neutral, institutional presentation layer for WordPress while the NEXUS plugin remains the system authority.
+
+The goal is to:
+
+* Provide a clean, professional UX for non-existent pages (404)
+* Avoid WordPress default messaging and branding
+* Keep strict separation of responsibilities (theme vs plugin)
+
+---
+
+## Core Principles
+
+1. **WordPress is a container**
+2. **NEXUS plugin owns all logic and decisions**
+3. **Theme is presentation-only**
+4. **No business logic in the theme**
+5. **No redirects decided by the theme**
+
+The theme must be replaceable at any time without breaking NEXUS.
+
+---
+
+## Current Scope (v1.1.0)
+
+### Implemented
+
+* Custom institutional 404 page
+* Fully responsive layout
+* Centered card (desktop + mobile)
+* Original SVG illustration (no external assets)
+* Forced stylesheet loading to avoid WordPress edge cases
+
+### Explicitly NOT Implemented
+
+* Redirects
+* 500 error handling logic
+* Maintenance mode
+* Auth / permission logic
+* Plugin integration
+
+---
+
+## File Structure
+
+```
+wp-content/themes/nexus-shell/
+├── style.css
+├── functions.php
+├── header.php
+├── footer.php
+├── index.php
+├── 404.php
+└── assets/
+    └── img/
+        └── nexus-404.svg
+```
+
+---
+
+## Styling Strategy
+
+### Why CSS Is Forced
+
+WordPress may not automatically enqueue `style.css` under certain conditions.
+To guarantee consistency:
+
+* `style.css` is explicitly enqueued in `functions.php`
+* Cache-busting is handled via `filemtime()`
+
+This ensures the theme behaves consistently across:
+
+* Admin / non-admin users
+* Staging environments
+* Temporary domains
+
+---
+
+## 404 Page Behavior
+
+* HTTP status code: **404**
+* No automatic redirects
+* Clear, neutral messaging
+* User-controlled actions only
+
+  * Go back (browser history)
+  * Home (/)
+
+The theme **does not decide** whether a page should redirect.
+
+---
+
+## Console Warnings (Expected)
+
+### Permissions-Policy Warnings
+
+These originate from hosting or proxy layers (e.g. temporary domains).
+They do **not** affect:
+
+* Theme rendering
+* CSS loading
+* NEXUS behavior
+
+They are safe to ignore during development.
+
+---
+
+## When to Extend This Theme
+
+Future extensions may include:
+
+* `500.php` (visual only)
+* Maintenance templates
+* Shared layout patterns
+
+Any logic determining **when** to show these must live in the NEXUS plugin.
+
+---
+
+## Final Notes
+
+This theme is intentionally minimal.
+
+Its purpose is to:
+
+* Remove noise
+* Provide a professional baseline
+* Stay out of the way of system logic
+
+All intelligence belongs to NEXUS.
