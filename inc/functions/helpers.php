@@ -456,3 +456,106 @@ function knx_get_acting_driver_context($as_driver_id = 0) {
         'session'   => $session,
     ];
 }
+
+/**
+ * Print UI theme CSS variables when `knx_ui_theme` option exists.
+ * Injects a small <style> block into head on admin and public pages.
+ */
+function knx_print_ui_theme_vars() {
+    $opt = get_option('knx_ui_theme', null);
+    if (empty($opt) || !is_array($opt)) return;
+
+    $font = isset($opt['font']) && $opt['font'] !== '' ? $opt['font'] : '';
+    $primary = isset($opt['primary']) && $opt['primary'] !== '' ? $opt['primary'] : '';
+    $bg = isset($opt['bg']) && $opt['bg'] !== '' ? $opt['bg'] : '';
+    $card = isset($opt['card']) && $opt['card'] !== '' ? $opt['card'] : '';
+
+    $vars = [];
+    if ($font !== '') $vars[] = "--nxs-font: {$font};";
+    if ($primary !== '') $vars[] = "--nxs-primary: {$primary};";
+    if ($bg !== '') $vars[] = "--nxs-bg: {$bg};";
+    if ($card !== '') $vars[] = "--nxs-card: {$card};";
+
+    if (empty($vars)) return;
+
+    echo "\n<!-- KNX UI THEME VARIABLES -->\n<style id=\"knx-ui-theme-vars\">:root{" . implode(' ', $vars) . "}</style>\n";
+}
+
+add_action('wp_head', 'knx_print_ui_theme_vars', 1);
+add_action('admin_head', 'knx_print_ui_theme_vars', 1);
+
+
+/**
+ * Create a server-side session for a user and set the secure cookie.
+ * Returns the token string on success or false on failure.
+ */
+function knx_create_session(int $user_id, bool $remember = false) {
+    global $wpdb;
+    $sessions_table = $wpdb->prefix . 'knx_sessions';
+
+    $token   = knx_generate_token();
+    $expires = $remember ? date('Y-m-d H:i:s', strtotime('+30 days')) : date('Y-m-d H:i:s', strtotime('+1 day'));
+    $ip = function_exists('knx_get_client_ip') ? knx_get_client_ip() : ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
+    $agent = substr(sanitize_text_field($_SERVER['HTTP_USER_AGENT'] ?? 'unknown'), 0, 255);
+
+    $inserted = $wpdb->insert($sessions_table, [
+        'user_id'    => $user_id,
+        'token'      => $token,
+        'ip_address' => $ip,
+        'user_agent' => $agent,
+        'expires_at' => $expires
+    ]);
+
+    if ($inserted === false) return false;
+
+    // Set secure cookie
+    setcookie('knx_session', $token, [
+        'expires'  => $remember ? time() + (30 * DAY_IN_SECONDS) : time() + DAY_IN_SECONDS,
+        'path'     => '/',
+        'secure'   => is_ssl(),
+        'httponly' => true,
+        'samesite' => 'Strict'
+    ]);
+
+    return $token;
+}
+
+
+/**
+ * Auto-login helper: creates session, claims guest cart and returns true on success.
+ */
+function knx_auto_login_user_by_id(int $user_id, bool $remember = false): bool {
+    global $wpdb;
+
+    $token = knx_create_session($user_id, $remember);
+    if (!$token) return false;
+
+    // Claim guest cart if present
+    if (!empty($_COOKIE['knx_cart_token'])) {
+        $cart_token = sanitize_text_field(wp_unslash($_COOKIE['knx_cart_token']));
+        $carts_table = $wpdb->prefix . 'knx_carts';
+
+        $guest_cart = $wpdb->get_row($wpdb->prepare(
+            "SELECT id FROM {$carts_table}
+             WHERE session_token = %s
+             AND status = 'active'
+             AND customer_id IS NULL
+             ORDER BY updated_at DESC
+             LIMIT 1",
+            $cart_token
+        ));
+
+        if ($guest_cart) {
+            $wpdb->update(
+                $carts_table,
+                ['customer_id' => $user_id],
+                ['id' => $guest_cart->id],
+                ['%d'],
+                ['%d']
+            );
+        }
+    }
+
+    return true;
+}
+

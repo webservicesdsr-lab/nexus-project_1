@@ -2,14 +2,14 @@
    ROOT
 ========================================================== */
 #olc-menu {
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  /* font removed to inherit theme typography */
   color: #111827;
   background: #ffffff;
   padding-bottom: 40px;
 }
 
 #olc-menu button {
-  font-family: inherit;
+  /* font removed to inherit theme typography */
 }
 
 /* ==========================================================
@@ -883,7 +883,7 @@
 #olc-menu .btn {
   border: none;
   appearance: none;
-  font-family: inherit;
+  /* font removed to inherit theme typography */
   cursor: pointer;
   transition: none !important;
 }

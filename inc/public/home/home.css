@@ -2,7 +2,7 @@
 
 body {
   background: #fff;
-  font-family: "Segoe UI", Roboto, sans-serif;
+  /* font removed to inherit theme typography */
   margin: 0;
   padding: 0;
   color: #fb7306;

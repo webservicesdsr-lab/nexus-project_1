@@ -11,7 +11,7 @@
   position: fixed;
   inset: 0;
   z-index: 9999;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  /* font removed to inherit theme typography */
 }
 
 #knxCityDeleteModal .knx-modal-backdrop{

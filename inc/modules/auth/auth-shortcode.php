@@ -1,16 +1,7 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
-/**
- * Kingdom Nexus - Auth Shortcode (v2)
- *
- * Shortcode: [knx_auth]
- * Provides a secure and modern login form.
- * Automatically redirects logged-in users to home.
- */
-
 add_shortcode('knx_auth', function () {
-    // Redirect if user already has a valid session
     $session = knx_get_session();
     if ($session) {
         wp_safe_redirect(site_url('/cart'));
@@ -19,151 +10,108 @@ add_shortcode('knx_auth', function () {
 
     ob_start(); ?>
 
-    <link rel="stylesheet" href="<?php echo esc_url(KNX_URL . 'inc/modules/auth/auth-style.css'); ?>">
+<link rel="stylesheet" href="<?php echo esc_url(KNX_URL . 'inc/modules/auth/auth-style.css'); ?>">
 
-    <div class="knx-auth-container">
-        <a href="<?php echo esc_url(site_url('/')); ?>" class="knx-back-home">Back to Home</a>
+<div class="knx-auth-shell" data-mode="login">
 
-        <div class="knx-auth-card knx-auth-card--tabs" role="region" aria-label="Authentication">
-            <div class="knx-toggle-area">
-                <p class="knx-toggle-text">¿No tienes cuenta? <button type="button" class="knx-toggle-link" aria-controls="knx-tab-register">Regístrate</button></p>
-            </div>
+    <a href="<?php echo esc_url(site_url('/')); ?>" class="knx-auth-back">← Back</a>
 
-            <div class="knx-tab-contents">
-                <div id="knx-tab-login" class="knx-tab-pane knx-tab-pane--active" role="tabpanel">
-                    <h2>Sign In</h2>
+    <div class="knx-auth-card">
 
-                    <form method="post">
-                        <?php knx_nonce_field('login'); ?>
+        <!-- LOGIN -->
+        <section class="knx-auth-mode" data-mode="login">
+            <h1>Sign in</h1>
 
-                        <?php if (isset($_GET['error']) && in_array($_GET['error'], ['auth','invalid','locked'], true)): ?>
-                            <div class="knx-error" role="status" aria-live="polite">Something went wrong with your login. Please try again.</div>
-                        <?php endif; ?>
+            <form method="post">
+                <?php knx_nonce_field('login'); ?>
 
-                        <div style="display:none;">
-                            <label>Leave this empty<input type="text" name="knx_hp" value=""></label>
-                            <input type="hidden" name="knx_hp_ts" value="<?php echo time(); ?>">
-                        </div>
+                <?php if (isset($_GET['error'])): ?>
+                    <div class="knx-auth-error">Invalid credentials. Please try again.</div>
+                <?php endif; ?>
 
-                        <div class="knx-input-group">
-                            <input type="text" name="knx_login" placeholder="Username or Email" required>
-                        </div>
-
-                        <div class="knx-input-group">
-                            <input type="password" id="knx_password_login" name="knx_password" placeholder="Password" required>
-                            <button type="button" class="knx-password-toggle" data-target="knx_password_login" aria-pressed="false" aria-label="Show password">Mostrar</button>
-                        </div>
-
-                        <div class="knx-auth-options">
-                            <label><input type="checkbox" name="knx_remember"> Remember me</label>
-                        </div>
-
-                        <button type="submit" name="knx_login_btn" class="knx-btn">Sign In</button>
-                    </form>
+                <div class="knx-hp">
+                    <input type="text" name="knx_hp">
+                    <input type="hidden" name="knx_hp_ts" value="<?php echo time(); ?>">
                 </div>
 
-                <div id="knx-tab-register" class="knx-tab-pane" role="tabpanel" aria-hidden="true">
-                    <h2>Create Account</h2>
+                <input type="text" name="knx_login" placeholder="Email" required>
+                <input type="password" name="knx_password" placeholder="Password" required>
 
-                    <form method="post">
-                        <?php knx_nonce_field('register'); ?>
+                <label class="knx-remember">
+                    <input type="checkbox" name="knx_remember"> Remember me
+                </label>
 
-                        <div style="display:none;">
-                            <label>Leave this empty<input type="text" name="knx_hp" value=""></label>
-                            <input type="hidden" name="knx_hp_ts" value="<?php echo time(); ?>">
-                        </div>
+                <button class="knx-btn-primary" name="knx_login_btn">Sign in</button>
+            </form>
 
-                        <div class="knx-input-group">
-                            <input type="email" name="knx_register_email" placeholder="Email" required>
-                        </div>
-
-                        <div class="knx-input-group">
-                            <input type="password" id="knx_register_password" name="knx_register_password" placeholder="Password" required>
-                            <button type="button" class="knx-password-toggle" data-target="knx_register_password" aria-pressed="false" aria-label="Show password">Mostrar</button>
-                        </div>
-
-                        <div class="knx-input-group">
-                            <input type="password" id="knx_register_password_confirm" name="knx_register_password_confirm" placeholder="Confirm Password" required>
-                            <button type="button" class="knx-password-toggle" data-target="knx_register_password_confirm" aria-pressed="false" aria-label="Show password">Mostrar</button>
-                        </div>
-
-                        <button type="submit" name="knx_register_btn" class="knx-btn">Create Account</button>
-                    </form>
-                </div>
+            <div class="knx-auth-links">
+                <button type="button" data-switch="forgot">Forgot password?</button>
+                <span>New here? <button type="button" data-switch="register">Create account</button></span>
             </div>
-        </div>
+        </section>
+
+        <!-- REGISTER -->
+        <section class="knx-auth-mode" data-mode="register">
+            <h1>Create account</h1>
+
+            <form method="post">
+                <?php knx_nonce_field('register'); ?>
+
+                <div class="knx-hp">
+                    <input type="text" name="knx_hp">
+                    <input type="hidden" name="knx_hp_ts" value="<?php echo time(); ?>">
+                </div>
+
+                <input type="email" name="knx_register_email" placeholder="Email" required>
+                <input type="password" name="knx_register_password" placeholder="Password" required>
+                <input type="password" name="knx_register_password_confirm" placeholder="Confirm password" required>
+
+                <button class="knx-btn-primary" name="knx_register_btn">Create account</button>
+            </form>
+
+            <div class="knx-auth-links">
+                <span>Already have an account? <button type="button" data-switch="login">Sign in</button></span>
+            </div>
+        </section>
+
+        <!-- FORGOT PASSWORD (UI ONLY for now) -->
+        <section class="knx-auth-mode" data-mode="forgot">
+            <h1>Reset password</h1>
+
+            <form method="post">
+                <?php knx_nonce_field('forgot'); ?>
+
+                <input type="email" name="knx_reset_email" placeholder="Email" required>
+
+                <button class="knx-btn-primary" disabled>
+                    Send recovery email
+                </button>
+            </form>
+
+            <div class="knx-auth-links">
+                <button type="button" data-switch="login">Back to sign in</button>
+            </div>
+        </section>
+
     </div>
+</div>
 
-    <script>
-    (function(){
-        var toggle = document.querySelector('.knx-toggle-link');
-        var loginPane = document.getElementById('knx-tab-login');
-        var registerPane = document.getElementById('knx-tab-register');
-
-        function showRegister(on){
-            if (on) {
-                registerPane.classList.add('knx-tab-pane--active');
-                registerPane.setAttribute('aria-hidden', 'false');
-                loginPane.classList.remove('knx-tab-pane--active');
-                loginPane.setAttribute('aria-hidden', 'true');
-                toggle.textContent = 'Volver';
-            } else {
-                registerPane.classList.remove('knx-tab-pane--active');
-                registerPane.setAttribute('aria-hidden', 'true');
-                loginPane.classList.add('knx-tab-pane--active');
-                loginPane.setAttribute('aria-hidden', 'false');
-                toggle.textContent = 'Regístrate';
-            }
-        }
-
-        // Password toggle handlers
-        var pwToggles = document.querySelectorAll('.knx-password-toggle');
-        pwToggles.forEach(function(btn){
-            btn.addEventListener('click', function(){
-                var tid = btn.getAttribute('data-target');
-                var inp = document.getElementById(tid);
-                if (!inp) return;
-                if (inp.type === 'password') {
-                    inp.type = 'text';
-                    btn.setAttribute('aria-pressed', 'true');
-                    btn.textContent = 'Ocultar';
-                } else {
-                    inp.type = 'password';
-                    btn.setAttribute('aria-pressed', 'false');
-                    btn.textContent = 'Mostrar';
-                }
-                try { inp.focus(); } catch(e){}
-            });
-            btn.addEventListener('touchend', function(e){ e.preventDefault(); btn.click(); });
+<script>
+(function(){
+    const shell = document.querySelector('.knx-auth-shell');
+    document.querySelectorAll('[data-switch]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            shell.setAttribute('data-mode', btn.dataset.switch);
         });
+    });
 
-        if (toggle) {
-            toggle.addEventListener('click', function(){
-                var show = !registerPane.classList.contains('knx-tab-pane--active');
-                showRegister(show);
-                // autofocus first input of visible pane
-                setTimeout(function(){
-                    if (show) {
-                        var f = registerPane.querySelector('input[required]'); if (f) try{f.focus();}catch(e){}
-                    } else {
-                        var f = loginPane.querySelector('input[required]'); if (f) try{f.focus();}catch(e){}
-                    }
-                }, 120);
-            });
-            toggle.addEventListener('touchend', function(e){ e.preventDefault(); var show = !registerPane.classList.contains('knx-tab-pane--active'); showRegister(show); setTimeout(function(){ var f = registerPane.querySelector('input[required]'); if (f) try{f.focus();}catch(e){} }, 120); });
-        }
+    // Force login on errors
+    if (new URLSearchParams(window.location.search).has('error')) {
+        shell.setAttribute('data-mode', 'login');
+    }
+})();
+</script>
 
-        // Ensure Sign In active when errors present and focus first input
-        try{
-            var params = new URLSearchParams(window.location.search);
-            if (params.has('error')) {
-                showRegister(false);
-                setTimeout(function(){ var f = loginPane.querySelector('input[required]'); if (f) try{f.focus();}catch(e){} }, 80);
-            }
-        }catch(e){ }
-    })();
-    </script>
-
-    <?php
-    return ob_get_clean();
+<?php
+return ob_get_clean();
 });

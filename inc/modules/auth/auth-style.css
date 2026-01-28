@@ -1,220 +1,94 @@
-/* Kingdom Nexus - Auth Page (v2) */
+:root {
+  --knx-primary: #225638;
+  --knx-bg: #ffffff;
+  --knx-text: #1f2937;
+  --knx-muted: #6b7280;
+  --knx-radius: 16px;
+}
 
 body {
-  background: #ffffff;
-  font-family: "Poppins", "Segoe UI", sans-serif;
-  margin: 0;
-  padding: 0;
+  background: var(--knx-bg);
+  /* font removed to inherit theme typography */
 }
 
-:root{
-  --knx-accent: #225638;
-  --knx-accent-dark: #18462c;
-  --knx-gap: 16px;
-  --knx-radius: 12px;
-  --knx-input-pad: 12px 16px;
-  --knx-card-max: 420px;
-}
-
-/* Container */
-.knx-auth-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+.knx-auth-shell {
   min-height: 100vh;
-  position: relative;
-  padding: 28px 16px;
+  display: grid;
+  place-items: center;
+  padding: 24px;
 }
 
-/* Back to Home link */
-.knx-back-home {
+.knx-auth-back {
   position: absolute;
-  top: 25px;
-  left: 25px;
-  color: #666;
-  font-size: 15px;
+  top: 24px;
+  left: 24px;
   text-decoration: none;
-  transition: color 0.2s ease;
-}
-.knx-back-home:hover {
-  color: #225638;
+  color: var(--knx-muted);
 }
 
-/* Card */
 .knx-auth-card {
+  width: 100%;
+  max-width: 380px;
   background: #fff;
   border-radius: var(--knx-radius);
-  padding: 28px 22px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.06);
-  max-width: var(--knx-card-max);
-  width: 100%;
-  text-align: center;
-  box-sizing: border-box;
+  padding: 36px 32px;
+  box-shadow: 0 20px 40px rgba(0,0,0,.08);
 }
 
-/* Tabs */
-.knx-auth-card--tabs {
-  padding: 20px 20px 28px 20px;
+.knx-auth-mode {
+  display: none;
 }
-.knx-tabs {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  margin-bottom: 18px;
+
+.knx-auth-shell[data-mode="login"] [data-mode="login"],
+.knx-auth-shell[data-mode="register"] [data-mode="register"],
+.knx-auth-shell[data-mode="forgot"] [data-mode="forgot"] {
+  display: block;
 }
-.knx-tab {
-  background: transparent;
-  border: 1px solid transparent;
-  padding: 8px 14px;
+
+.knx-auth-card h1 {
+  font-size: 24px;
+  margin-bottom: 20px;
+}
+
+.knx-auth-card input {
+  width: 100%;
+  padding: 12px 14px;
+  margin-bottom: 14px;
   border-radius: 999px;
-  cursor: pointer;
-  color: #225638;
-  font-weight: 600;
-  font-size: 14px;
-}
-.knx-tab:focus { outline: 2px solid rgba(34,86,56,0.15); }
-.knx-tab--active {
-  background: #225638;
-  color: #fff;
-  box-shadow: 0 4px 12px rgba(34,86,56,0.12);
+  border: 1.5px solid #e5e7eb;
 }
 
-.knx-tab-contents { min-height: 320px; transition: min-height .18s ease; }
-.knx-tab-pane { display: none; opacity: 0; transform: translateY(6px); transition: opacity .18s ease, transform .18s ease; }
-.knx-tab-pane--active { display: block; opacity: 1; transform: translateY(0); }
-
-.knx-error { color: #b00020; margin-bottom: 12px; }
-
-/* Inline register toggle */
-.knx-toggle-text { margin: 0 0 12px 0; font-size: 14px; color: #555; }
-.knx-toggle-link {
-  background: transparent;
-  border: none;
-  color: #225638;
-  font-weight: 800;
-  text-decoration: none;
-  cursor: pointer;
-  padding: 0 6px;
-}
-.knx-toggle-link:hover { text-decoration: underline; }
-.knx-toggle-link:focus { outline: 2px solid rgba(34,86,56,0.12); }
-
-/* Title */
-.knx-auth-card h2 {
-  font-size: 26px;
-  color: #333;
-  margin-bottom: 25px;
-  font-weight: 700;
-}
-
-/* Input group */
-.knx-input-group {
-  position: relative;
-  margin-bottom: 18px;
-}
-
-.knx-input-group input {
+.knx-btn-primary {
   width: 100%;
-  padding: var(--knx-input-pad);
-  border: 1.5px solid #e6e6e6;
-  border-radius: 20px;
-  font-size: 15px;
-  outline: none;
-  transition: border-color .18s ease, box-shadow .18s ease;
-}
-
-.knx-input-group input:focus {
-  border-color: #225638;
-}
-
-/* Options (Remember / Forgot) */
-.knx-auth-options {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin: 6px 0 18px;
-  font-size: 14px;
-}
-
-.knx-auth-options label {
-  color: #555;
-}
-
-.knx-auth-options a {
-  color: #225638;
-  text-decoration: none;
-  font-weight: 500;
-}
-.knx-auth-options a:hover {
-  text-decoration: underline;
-}
-
-/* Button */
-.knx-btn {
-  background: var(--knx-accent);
+  padding: 12px;
+  border-radius: 999px;
+  border: none;
+  background: var(--knx-primary);
   color: #fff;
-  border: none;
-  border-radius: 12px;
-  padding: 14px 16px;
-  width: 100%;
-  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: background .12s ease, transform .08s ease;
 }
 
-.knx-btn:hover { background: var(--knx-accent-dark); }
-
-/* Password toggle */
-.knx-password-toggle {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: transparent;
-  border: none;
-  color: var(--knx-accent);
-  font-weight: 600;
-  cursor: pointer;
-  padding: 6px 8px;
-  border-radius: 8px;
-}
-.knx-password-toggle:focus { outline: 2px solid rgba(34,86,56,0.12); }
-
-.knx-input-group{ padding-right: 56px; }
-
-/* Responsive adjustments */
-@media (min-width: 700px) {
-  .knx-auth-container { padding: 48px 24px; }
-  .knx-auth-card { padding: 34px 36px; }
-  .knx-tab-contents { min-height: 360px; }
-  :root{ --knx-card-max: 480px; }
-}
-
-/* Sign-up text */
-.knx-signup-text {
+.knx-auth-links {
   margin-top: 18px;
+  text-align: center;
   font-size: 14px;
-  color: #777;
+  color: var(--knx-muted);
 }
 
-.knx-signup-text a {
-  color: #225638;
-  text-decoration: none;
-  font-weight: 500;
-}
-.knx-signup-text a:hover {
-  text-decoration: underline;
+.knx-auth-links button {
+  background: none;
+  border: none;
+  color: var(--knx-primary);
+  font-weight: 600;
+  cursor: pointer;
 }
 
-/* Responsive */
-@media (max-width: 480px) {
-  .knx-auth-card {
-    padding: 30px 25px;
-  }
-  .knx-back-home {
-    top: 15px;
-    left: 15px;
-  }
+.knx-auth-error {
+  color: #b00020;
+  margin-bottom: 12px;
+}
+
+.knx-hp {
+  display: none;
 }

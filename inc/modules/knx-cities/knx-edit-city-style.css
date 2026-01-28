@@ -40,7 +40,7 @@
 }
 
 .knx-edit-city-signed button {
-  font-family: inherit;
+  /* font removed to inherit theme typography */
 }
 .knx-edit-city-signed button:hover,
 .knx-edit-city-signed button:focus,

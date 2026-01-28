@@ -23,7 +23,7 @@ add_action('template_redirect', function() {
 
     // Redirect logged-in users away from login/register
     if ($session && in_array($slug, ['login', 'register'])) {
-        wp_safe_redirect(site_url('/home'));
+        wp_safe_redirect(site_url('/cart'));
         exit;
     }
 
@@ -39,7 +39,7 @@ add_action('template_redirect', function() {
 
         // Customers cannot access dashboards
         if ($role === 'customer' && in_array($slug, $dashboard_pages)) {
-            wp_safe_redirect(site_url('/home'));
+            wp_safe_redirect(site_url('/cart'));
             exit;
         }
 

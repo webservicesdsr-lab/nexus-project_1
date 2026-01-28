@@ -1,7 +1,7 @@
 /* Kingdom Nexus - Admin UI v2.5 */
 
 .knx-admin-wrap {
-  font-family: "Inter", sans-serif;
+  /* font removed to inherit theme typography */
   padding: 30px;
   background: #f7f8f9;
   min-height: 100vh;

@@ -21,7 +21,7 @@
   padding: 5%;
   margin-left: 154px;
   color: var(--knx-text);
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  /* font removed to inherit theme typography */
 }
 
 .knx-hubcats-signed,
@@ -46,7 +46,7 @@
 
 /* Prevent theme button hover palettes from bleeding in */
 .knx-hubcats-signed button{
-  font-family: inherit;
+  /* font removed to inherit theme typography */
 }
 .knx-hubcats-signed button:hover,
 .knx-hubcats-signed button:focus,
@@ -447,7 +447,7 @@
   position: fixed;
   inset:0;
   z-index: 9999;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  /* font removed to inherit theme typography */
 }
 
 .knx-modal.active{

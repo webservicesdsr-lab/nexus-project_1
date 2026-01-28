@@ -2,7 +2,7 @@
 --------------------------------------------*/
 
 .knx-edit-hub-wrapper {
-  font-family: "Inter", sans-serif;
+  /* font removed to inherit theme typography */
   padding: 20px;
   background: #f8f9fa;
   min-height: 90vh;

@@ -100,7 +100,7 @@
     border: 1px solid #d1d5db;
     border-radius: 6px;
     transition: border-color 0.2s;
-    font-family: inherit;
+    /* font removed to inherit theme typography */
 }
 
 .knx-form-field input:focus,
