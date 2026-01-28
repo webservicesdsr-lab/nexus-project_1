@@ -15,18 +15,15 @@ Endpoints explicitly exclusive to `super_admin` (file → function → route →
   - `GET /knx/v2/cities/get-delivery-rates` — route-level permission requires `super_admin`.
 - `inc/core/resources/knx-cities/update-delivery-rates.php` → (updater)
   - `POST /knx/v2/cities/update-delivery-rates` — route-level permission requires `super_admin`; handler requires nonce and upserts delivery rates.
-- `inc/core/resources/knx-ops/api-ops-orders.php` → (ops registrations)
-  - `POST /knx/v2/ops/orders/force-status` — registered with `knx_rest_permission_roles(['super_admin'])`; server enforces `super_admin` exclusively for this action.
+ - (legacy ops force-status endpoint removed from repository)
 
 Endpoints shared with other admin roles where `super_admin` acts globally (file → behavior)
 - Hubs CRUD and delete
   - `inc/core/resources/knx-hubs/api-hubs-core.php`, `inc/core/resources/knx-hubs/api-delete-hub.php`, `inc/core/resources/knx-hubs/api-update-hub-identity.php` — route registrations include `super_admin` and `manager` (and sometimes `hub_management`). Handler code (e.g., `knx_api_delete_hub_v3()`) performs cascade deletes and accepts super_admin without owner checks.
 - Drivers CRUD
   - `inc/core/resources/knx-drivers/api-drivers-crud.php` — drivers list/create/update/toggle/reset-password endpoints include `super_admin` in permission arrays. `drivers-list` returns global driver rows (no hub filter).
-- OPS assign/unassign/cancel
-  - `inc/core/resources/knx-ops/api-ops-orders.php` — `assign`/`unassign`/`cancel` endpoints allow `super_admin` and `manager`; code path for `super_admin` computes `$allowed_hubs` as all hubs (super_admin → global assignment).
-- Orders / OPS lists
-  - `inc/core/resources/knx-ops/api-ops-orders.php` and older order-list handlers return orders across hubs by default; `knx_v2_ops_orders_live()` proxies to the internal orders route and returns that payload.
+  - OPS assign/unassign/cancel (legacy endpoints removed from repository)
+  - Orders lists: some older handlers returned orders across hubs by default; live proxy evidence removed.
 
 Explicit bypasses and their justification (evidence-only)
 - `force-status` (ops): registered and enforced as `super_admin` only — evidence: route registration uses `knx_rest_permission_roles(['super_admin'])`.

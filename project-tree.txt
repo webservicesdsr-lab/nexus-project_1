@@ -2,21 +2,20 @@
 ├── .DS_Store
 ├── .vscode
 │   └── settings.json
+├── NEXUS.md
+├── README.md
 ├── ROADMAP.md
 ├── documentation
 │   ├── .DS_Store
 │   ├── AUTHORITY_MAP.md
 │   ├── Customer Capability & Navigation
-│   │   ├── customer-capability-es.md
 │   │   └── customer-capability.md
 │   ├── Driver Capability & Navigation
-│   │   ├── driver-capability-es.md
 │   │   └── driver-capability.md
 │   ├── Guest Capability & Navigation
-│   │   ├── guest-capability-es.md
 │   │   └── guest-capability.md
 │   ├── Manager Capability & Navigation
-│   ├── README.md
+│   │   └── manager-capability.md
 │   ├── Super Admin Capability & Navigation
 │   │   ├── super-admin-capability-es.md
 │   │   └── super-admin-capability.md
@@ -44,12 +43,12 @@
 │       └── users-roles
 │           └── users-roles-identity-territory.md
 ├── inc
+│   ├── .DS_Store
 │   ├── core
 │   │   ├── cart
 │   │   │   └── cart-cleanup.php
 │   │   ├── edit-hub-closure.js
 │   │   ├── functions
-│   │   │   ├── knx-driver-ops-sync.php
 │   │   │   └── knx-driver-runtime.php
 │   │   ├── install
 │   │   ├── knx-orders
@@ -59,10 +58,6 @@
 │   │   │   ├── api-quote-totals.php
 │   │   │   └── api-update-order-status.php
 │   │   ├── pages-installer.php
-│   │   ├── pwa
-│   │   │   ├── knx-driver-pwa-router.php
-│   │   │   ├── knx-ops-pwa-router.php
-│   │   │   └── knx-ops-sw.js
 │   │   ├── resources
 │   │   │   ├── knx-addresses
 │   │   │   │   ├── api-addresses.php
@@ -86,6 +81,7 @@
 │   │   │   ├── knx-customers
 │   │   │   │   ├── api-customers-crud.php
 │   │   │   │   └── api-list-customers.php
+│   │   │   ├── knx-dispatcher
 │   │   │   ├── knx-drivers
 │   │   │   │   ├── api-driver-availability.php
 │   │   │   │   ├── api-driver-claim.php
@@ -132,12 +128,7 @@
 │   │   │   ├── knx-location
 │   │   │   │   ├── api-check-coverage.php
 │   │   │   │   └── api-location-search.php
-│   │   │   ├── knx-ops
-│   │   │   │   ├── api-ops-drivers-available.php
-│   │   │   │   ├── api-ops-orders-live.php
-│   │   │   │   ├── api-ops-orders.php
-│   │   │   │   ├── api-ops-push-subcriptions.php
-│   │   │   │   └── api-ops-settings.php
+
 │   │   │   ├── knx-orders
 │   │   │   ├── knx-payments
 │   │   │   │   ├── api-create-payment-intent.php
@@ -147,9 +138,6 @@
 │   │   │   ├── knx-profile
 │   │   │   │   ├── api-get-profile.php
 │   │   │   │   └── api-update-profile.php
-│   │   │   ├── knx-push
-│   │   │   │   ├── api-push-subscriptions.php
-│   │   │   │   └── api-push-test.php
 │   │   │   └── knx-system
 │   │   │       ├── api-hours-extension.php
 │   │   │       └── api-settings.php
@@ -172,13 +160,13 @@
 │   │   ├── navigation-engine.php
 │   │   ├── order-helpers.php
 │   │   ├── payment-helpers.php
-│   │   ├── pwa-helpers.php
 │   │   ├── security.php
 │   │   ├── stripe-helpers.php
 │   │   ├── stripe-logger.php
 │   │   ├── taxes-engine.php
 │   │   └── totals-engine.php
 │   ├── modules
+│   │   ├── .DS_Store
 │   │   ├── admin
 │   │   │   ├── admin-menu.php
 │   │   │   ├── admin-script.js
@@ -194,6 +182,7 @@
 │   │   ├── cart
 │   │   │   ├── cart-drawer.css
 │   │   │   └── cart-drawer.js
+│   │   ├── compat
 │   │   ├── core
 │   │   │   ├── knx-toast.css
 │   │   │   └── knx-toast.js
@@ -205,13 +194,7 @@
 │   │   │   ├── customers-script.js
 │   │   │   ├── customers-shortcode.php
 │   │   │   └── customers-style.css
-│   │   ├── drivers
-│   │   │   ├── drivers-admin-script.js
-│   │   │   ├── drivers-admin-shortcode.php
-│   │   │   ├── drivers-admin-style.css
-│   │   │   ├── drivers-script.js
-│   │   │   ├── drivers-shortcode.php
-│   │   │   └── drivers-style.css
+│   │   ├── dispatcher
 │   │   ├── fees
 │   │   │   ├── fees-script.js
 │   │   │   ├── fees-shortcode.php
@@ -267,15 +250,6 @@
 │   │   │   ├── navbar-render.php
 │   │   │   ├── navbar-script.js
 │   │   │   └── navbar-style.css
-│   │   ├── ops
-│   │   │   ├── ops-orders-shortcode.php
-│   │   │   ├── ops-push-ui.php
-│   │   │   ├── ops-script.js
-│   │   │   └── ops-style.css
-│   │   ├── orders
-│   │   │   ├── live-orders-script.js
-│   │   │   ├── live-orders-shortcode.php
-│   │   │   └── live-orders-style.css
 │   │   ├── payments
 │   │   │   ├── payments-api.php
 │   │   │   ├── payments-helpers.php
@@ -330,6 +304,8 @@
 ├── kingdom-nexus.php
 ├── nexus-db-export-1.sql
 ├── nexus-db-export-2.sql
+├── nexus-schema-y05.sql
+├── pages-list.md
 └── project-tree.txt
 
-77 directories, 256 files
+75 directories, 239 files

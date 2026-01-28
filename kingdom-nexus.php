@@ -226,9 +226,6 @@ add_action('plugins_loaded', function() {
     /* ======================================================
      * RESOURCES — MVP DELIVERY (PHASE 3)
      * ====================================================== */
-    knx_require('inc/core/resources/knx-drivers/api-drivers.php');
-    knx_require('inc/core/resources/knx-fees/api-software-fees.php');
-    knx_require('inc/core/resources/knx-ops/api-ops-orders.php');
     // OPS Live Orders (push endpoint removed)
 
     /* ======================================================
@@ -236,7 +233,6 @@ add_action('plugins_loaded', function() {
      * ====================================================== */
     knx_require('inc/core/resources/knx-drivers/api-driver-my-orders.php');
     knx_require('inc/core/resources/knx-drivers/api-driver-availability.php');
-    // Driver runtime endpoints (driver app)
     knx_require('inc/core/functions/knx-driver-runtime.php');
     knx_require('inc/core/resources/knx-drivers/api-driver-claim.php');
     knx_require('inc/core/resources/knx-drivers/api-driver-update-status.php');
@@ -244,9 +240,7 @@ add_action('plugins_loaded', function() {
     knx_require('inc/core/resources/knx-drivers/api-driver-release.php');
     knx_require('inc/core/resources/knx-drivers/api-driver-delay.php');
     knx_require('inc/core/resources/knx-drivers/api-driver-orders-history.php');
-    // Admin CRUD for drivers (Phase 2)
     knx_require('inc/core/resources/knx-drivers/api-drivers-crud.php');
-    // OPS assign endpoint (assign/unassign by manager/super_admin)
     knx_require('inc/core/resources/knx-drivers/api-driver-ops-assign.php');
     // Push subscriptions and test endpoints removed (PHASE 13.CLEAN)
 
@@ -268,7 +262,6 @@ add_action('plugins_loaded', function() {
     /* ======================================================
      * MODULES — OPS ORDERS (Admin / Manager)
      * NOTE: legacy OPS UI removed in PHASE 13.CLEAN — UI modules are deleted
-     * Backend ops resources remain under `inc/core/resources/knx-ops/`.
      * ====================================================== */
 
     /* ======================================================
@@ -279,7 +272,7 @@ add_action('plugins_loaded', function() {
     /* ======================================================
      * MODULES — DRIVERS (Driver Dashboard)
      * NOTE: drivers UI removed in PHASE 13.CLEAN — UI modules are deleted
-     * Backend driver resources remain under `inc/core/resources/knx-drivers/`.
+     * Backend driver resources were reviewed and ops backend removed.
      * ====================================================== */
 
     /* ======================================================
@@ -293,7 +286,7 @@ add_action('plugins_loaded', function() {
      * ====================================================== */
     knx_require('inc/modules/coupons/coupons-shortcode.php');
 
-        knx_require('inc/core/resources/knx-ops/api-ops-drivers-available.php');
+    
     /* ======================================================
      * MODULES — KNX CITIES (NEW UI)
      * ====================================================== */

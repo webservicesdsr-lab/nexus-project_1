@@ -109,7 +109,7 @@ function knx_api_ops_assign(WP_REST_Request $req) {
     $hub_id = isset($op->hub_id) ? (int) $op->hub_id : 0;
     if ($hub_id > 0 && !in_array($hub_id, $allowed_hubs, true)) {
         // audit log
-        error_log('[KNX-OPS][ASSIGN] actor_user_id=' . intval($session->user_id) . ' role=' . $role . ' op_id=' . $op_id . ' hub_id=' . $hub_id . ' assign_to=' . $assign_to . ' allowed=0 reason=hub_not_in_scope');
+        error_log('[KNX-ASSIGN] actor_user_id=' . intval($session->user_id) . ' role=' . $role . ' op_id=' . $op_id . ' hub_id=' . $hub_id . ' assign_to=' . $assign_to . ' allowed=0 reason=hub_not_in_scope');
         return knx_rest_error('forbidden', 403);
     }
 
@@ -117,7 +117,7 @@ function knx_api_ops_assign(WP_REST_Request $req) {
     if ($assign_to <= 0) {
         $sql = $wpdb->prepare("UPDATE {$ops_table} SET driver_user_id = NULL WHERE id = %d", $op_id);
         $updated = $wpdb->query($sql);
-        error_log('[KNX-OPS][ASSIGN] actor_user_id=' . intval($session->user_id) . ' role=' . $role . ' op_id=' . $op_id . ' hub_id=' . $hub_id . ' assign_to=null allowed=1 driver_key_used=' . ($driver_key ?? 'unknown') . ' mapping_key_used=' . ($dh_key ?? 'none'));
+        error_log('[KNX-ASSIGN] actor_user_id=' . intval($session->user_id) . ' role=' . $role . ' op_id=' . $op_id . ' hub_id=' . $hub_id . ' assign_to=null allowed=1 driver_key_used=' . ($driver_key ?? 'unknown') . ' mapping_key_used=' . ($dh_key ?? 'none'));
         if ($updated === false) return knx_rest_error('db_update_failed', 500);
         return knx_rest_response(true, 'OK', ['updated' => ($updated > 0), 'op_id' => $op_id], 200);
     }
@@ -146,7 +146,7 @@ function knx_api_ops_assign(WP_REST_Request $req) {
 
     $driver = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$drivers_table} WHERE {$driver_key} = %d LIMIT 1", $assign_to));
     if (!$driver) {
-        error_log('[KNX-OPS][ASSIGN] actor_user_id=' . intval($session->user_id) . ' role=' . $role . ' op_id=' . $op_id . ' hub_id=' . $hub_id . ' assign_to=' . $assign_to . ' allowed=0 reason=driver_not_found driver_key_used=' . $driver_key);
+        error_log('[KNX-ASSIGN] actor_user_id=' . intval($session->user_id) . ' role=' . $role . ' op_id=' . $op_id . ' hub_id=' . $hub_id . ' assign_to=' . $assign_to . ' allowed=0 reason=driver_not_found driver_key_used=' . $driver_key);
         return knx_rest_error('invalid_driver', 422);
     }
 
@@ -161,7 +161,7 @@ function knx_api_ops_assign(WP_REST_Request $req) {
         $check_id = isset($driver->user_id) ? intval($driver->user_id) : (isset($driver->id) ? intval($driver->id) : $assign_to);
         $av_row = $wpdb->get_row($wpdb->prepare("SELECT status FROM {$availability_table} WHERE driver_user_id = %d LIMIT 1", $check_id), ARRAY_A);
         if (!$av_row || !isset($av_row['status']) || (string)$av_row['status'] !== 'on') {
-            error_log('[KNX-OPS][ASSIGN] blocked_assign_driver_off_duty actor=' . intval($session->user_id) . ' assign_to=' . $assign_to . ' check_id=' . $check_id . ' op_id=' . $op_id);
+            error_log('[KNX-ASSIGN] blocked_assign_driver_off_duty actor=' . intval($session->user_id) . ' assign_to=' . $assign_to . ' check_id=' . $check_id . ' op_id=' . $op_id);
             return knx_rest_error('Driver is off duty', 403);
         }
     }
@@ -187,7 +187,7 @@ function knx_api_ops_assign(WP_REST_Request $req) {
     }
 
     if (!$mapped) {
-        error_log('[KNX-OPS][ASSIGN] actor_user_id=' . intval($session->user_id) . ' role=' . $role . ' op_id=' . $op_id . ' hub_id=' . $hub_id . ' assign_to=' . $assign_to . ' allowed=0 reason=driver_not_mapped mapping_key_used=' . ($dh_key ?? 'none'));
+        error_log('[KNX-ASSIGN] actor_user_id=' . intval($session->user_id) . ' role=' . $role . ' op_id=' . $op_id . ' hub_id=' . $hub_id . ' assign_to=' . $assign_to . ' allowed=0 reason=driver_not_mapped mapping_key_used=' . ($dh_key ?? 'none'));
         return knx_rest_error('driver_not_mapped_to_hub', 422);
     }
 
@@ -204,7 +204,7 @@ function knx_api_ops_assign(WP_REST_Request $req) {
         return knx_rest_error('db_update_failed', 500);
     }
 
-    error_log('[KNX-OPS][ASSIGN] actor_user_id=' . intval($session->user_id) . ' role=' . $role . ' op_id=' . $op_id . ' hub_id=' . $hub_id . ' assign_to=' . $assign_to . ' allowed=1 driver_key_used=' . $driver_key . ' mapping_key_used=' . ($dh_key ?? 'none'));
+    error_log('[KNX-ASSIGN] actor_user_id=' . intval($session->user_id) . ' role=' . $role . ' op_id=' . $op_id . ' hub_id=' . $hub_id . ' assign_to=' . $assign_to . ' allowed=1 driver_key_used=' . $driver_key . ' mapping_key_used=' . ($dh_key ?? 'none'));
 
     return knx_rest_response(true, 'OK', ['updated' => ($updated > 0), 'op_id' => $op_id, 'assign_to' => $assign_to], 200);
 }

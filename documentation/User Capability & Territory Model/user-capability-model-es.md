@@ -10,7 +10,7 @@ Qué está sellado a `super_admin` (sólo evidencia)
 - Endpoints sellados (registro de ruta o comprobación en handler):
   - Gestión de ciudades add/delete: `inc/core/resources/knx-cities/add-city.php`, `inc/core/resources/knx-cities/delete-city.php` (`POST /knx/v2/cities/add`, `POST /knx/v2/cities/delete`) — registrados como `super_admin` únicamente.
   - Tarifas por ciudad get/update: `inc/core/resources/knx-cities/get-delivery-rates.php`, `inc/core/resources/knx-cities/update-delivery-rates.php` — permiso `super_admin` a nivel de ruta.
-  - OPS `force-status`: `inc/core/resources/knx-ops/api-ops-orders.php` — `POST /knx/v2/ops/orders/force-status` registrado como `super_admin`.
+  - OPS `force-status`: (endpoint histórico eliminado del repositorio)
 
 Dónde `super_admin` actúa de forma global (sólo evidencia)
 - El código implementa semántica global para `super_admin` en varios endpoints:

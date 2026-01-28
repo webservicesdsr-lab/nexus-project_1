@@ -442,9 +442,6 @@ Objetivo: Tener una brújula ejecutable (estado real + dependencias + smoke test
 - Existe OPS dashboard y engine ops-sync; falta sellar reglas terminales + filtros canon.
 
 ***🟦 EVIDENCE ANCHORS***
-- ✅ `inc/core/functions/knx-driver-ops-sync.php`
-- ✅ `inc/core/resources/knx-ops/api-ops-orders.php`
-- ✅ `inc/core/resources/knx-ops/api-ops-orders-live.php`
  - 🟡 UI: (legacy OPS UI removed)
 
 ***🟦 CONTRACTS (DO NOT BREAK)***
@@ -522,8 +519,7 @@ Objetivo: Tener una brújula ejecutable (estado real + dependencias + smoke test
 
 ***🟦 EVIDENCE ANCHORS***
  - 🟡 Live Orders UI: (legacy removed)
-- 🟡 `inc/core/resources/knx-ops/api-ops-orders.php`
-- 🟡 `inc/core/resources/knx-ops/api-ops-orders-live.php` (evidence: live proxy for ops/orders)
+ - 🟡 Live Orders UI: (legacy removed)
 - 🟡 Admin base: `inc/modules/admin/admin-menu.php`, `inc/modules/admin/admin-users.php`
 
 ***🟦 CONTRACTS (DO NOT BREAK)***

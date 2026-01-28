@@ -59,14 +59,14 @@ This document defines the canonical authority assignments across Kingdom Nexus d
 - Canonical files:
   - `inc/functions/navigation-engine.php` (declares nav items and role visibility)
   - REST registrations in `inc/core/resources/*` files (permission callbacks using `knx_rest_permission_roles([...])`)
-  - Examples: `inc/core/resources/knx-cities/*`, `inc/core/resources/knx-ops/api-ops-orders.php`, `inc/core/resources/knx-hubs/*`, `inc/core/resources/knx-drivers/api-drivers-crud.php`
+  - Examples: `inc/core/resources/knx-cities/*`, `inc/core/resources/knx-hubs/*`, `inc/core/resources/knx-drivers/api-drivers-crud.php`
 - What it decides:
   - Observed behavior: Route-level guards and handler-level checks gate actions to roles `super_admin`, `manager`, `driver`, `customer`, `guest` as registered in permission callbacks and handler code.
-  - Enforced at route-level: Some endpoints are registered `super_admin` only (sealed). Example registrations: `POST /knx/v2/cities/add`, `POST /knx/v2/cities/delete`, `POST /knx/v2/ops/orders/force-status` (see `inc/core/resources/knx-cities/*`, `inc/core/resources/knx-ops/api-ops-orders.php`).
+  - Enforced at route-level: Some endpoints are registered `super_admin` only (sealed). Example registrations: `POST /knx/v2/cities/add`, `POST /knx/v2/cities/delete` (see `inc/core/resources/knx-cities/*`).
 - What it does NOT decide:
   - Observed behavior: Route-level role inclusion does not always imply handler-level owner-scoping; many endpoints include `manager` in permission arrays but handler code does not enforce manager ownership.
 - Known limits:
-  - Observed behavior: The codebase contains temporary/legacy paths where manager scoping is not applied (see `TEMPORARY` comments in `inc/core/resources/knx-ops/api-ops-orders.php` and related orders handlers).
+  - Observed behavior: The codebase contains temporary/legacy paths where manager scoping is not applied (see `TEMPORARY` comments in some orders handlers).
 
 ### 4.3 Cart & Cart Token
 - Authority level: OPERATIONAL AUTHORITY (session-bound cart)  
@@ -97,7 +97,7 @@ This document defines the canonical authority assignments across Kingdom Nexus d
 - Authority level: CANONICAL WITH LIMITS  
 - Canonical files:
   - `inc/core/knx-orders/api-create-order-mvp.php` (create)
-  - `inc/core/knx-orders/api-list-orders.php`, `inc/core/resources/knx-ops/api-ops-orders.php` (list, ops pipeline)
+  - `inc/core/knx-orders/api-list-orders.php` (list, ops pipeline)
   - `inc/core/knx-orders/api-get-order.php`, `inc/core/knx-orders/api-update-order-status.php` (get, update status)
 - What it decides:
   - Observed behavior: Order creation inserts canonical order rows; status changes are applied via controlled handlers.
@@ -105,7 +105,7 @@ This document defines the canonical authority assignments across Kingdom Nexus d
 - What it does NOT decide:
   - Observed behavior: Client/UI presentation is not authoritative; server enforces canonical order state.
 - Known limits:
-  - Observed behavior: Manager-scoping for order lists is incomplete in places; some order-list handlers contain `TEMPORARY` comments allowing all hubs until scoping is implemented (`inc/core/resources/knx-ops/api-ops-orders.php`).
+  - Observed behavior: Manager-scoping for order lists is incomplete in places; some order-list handlers contain `TEMPORARY` comments allowing all hubs until scoping is implemented.
 
 ### 4.6 Coverage & Location
 - Authority level: DERIVED / DEPENDENT  
@@ -136,13 +136,12 @@ This document defines the canonical authority assignments across Kingdom Nexus d
 ### 4.8 Ops / Dispatch / Drivers
 - Authority level: CANONICAL WITH LIMITS  
 - Canonical files:
-  - `inc/core/resources/knx-ops/api-ops-orders.php` (ops pipeline, assign/unassign/cancel, force-status)
-  - `inc/core/resources/knx-ops/api-ops-orders-live.php` (live proxy)
+  - (ops pipeline and live proxy handlers were removed from the repository)
   - `inc/core/resources/knx-drivers/api-drivers-crud.php` (drivers CRUD)
   - UI clients: legacy OPS UI has been removed; drivers admin UI remains under `inc/modules/drivers`.
 - What it decides:
   - Observed behavior: OPS handlers execute assignments/unassignments and status changes; `super_admin` path is implemented as global (allowed hubs = all hubs). Assignment logic attempts manager scoping for manager branch.
-  - Enforced at handler level: `force-status` is registered and enforced as `super_admin` only (`inc/core/resources/knx-ops/api-ops-orders.php`).
+  - Enforced at handler level: `force-status` is registered and enforced as `super_admin` only (historical evidence removed).
 - What it does NOT decide:
   - Observed behavior: Driver availability scheduling and some client-visible state are maintained elsewhere (driver availability tables and helper functions). Drivers themselves do not change order canonical state except via OPS flows.
 - Known limits:
@@ -186,7 +185,7 @@ This document defines the canonical authority assignments across Kingdom Nexus d
 
 ## 7. Known Temporary Exceptions
 
-- Orders listing and manager scoping: Observed behavior: Order-list handlers contain `TEMPORARY` comments such as `"TEMPORARY: Allow all hubs until city-scoping is fully implemented"` in `inc/core/resources/knx-ops/api-ops-orders.php` and related files. This is an observed temporary exception where manager-visible UI may show global orders.
+ - Orders listing and manager scoping: Observed behavior: Order-list handlers contain `TEMPORARY` comments such as `"TEMPORARY: Allow all hubs until city-scoping is fully implemented"` in some orders handlers. This is an observed temporary exception where manager-visible UI may show global orders.
 - Manager assignment and hub ownership: Observed behavior: Some hub delete/update handlers accept manager in permission arrays but do not enforce manager ownership in handler body (see `inc/core/resources/knx-hubs/api-delete-hub.php`).
 
 ---

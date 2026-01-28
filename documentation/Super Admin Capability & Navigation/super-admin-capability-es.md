@@ -15,18 +15,15 @@ Endpoints exclusivos para `super_admin` (archivo → función → ruta → compo
   - `GET /knx/v2/cities/get-delivery-rates` — permiso a nivel de ruta requiere `super_admin`.
 - `inc/core/resources/knx-cities/update-delivery-rates.php` → (actualizador)
   - `POST /knx/v2/cities/update-delivery-rates` — permiso a nivel de ruta requiere `super_admin`; el handler exige nonce y hace upsert de tarifas.
-- `inc/core/resources/knx-ops/api-ops-orders.php` → (registro de ops)
-  - `POST /knx/v2/ops/orders/force-status` — registrado con `knx_rest_permission_roles(['super_admin'])`; el servidor exige `super_admin` exclusivamente para esta acción.
+ - (endpoint legacy de force-status eliminado del repositorio)
 
 Endpoints compartidos donde `super_admin` actúa de forma global (archivo → comportamiento)
 - CRUD y eliminación de hubs
   - `inc/core/resources/knx-hubs/api-hubs-core.php`, `inc/core/resources/knx-hubs/api-delete-hub.php`, `inc/core/resources/knx-hubs/api-update-hub-identity.php` — el registro de rutas incluye `super_admin` y `manager`. El handler (`knx_api_delete_hub_v3()`) realiza deletes en cascada y no exige que el manager sea propietario del hub.
 - CRUD de drivers
   - `inc/core/resources/knx-drivers/api-drivers-crud.php` — endpoints list/create/update/toggle/reset-password incluyen `super_admin` en permisos; la lista de drivers devuelve filas globales.
-- OPS assign/unassign/cancel
-  - `inc/core/resources/knx-ops/api-ops-orders.php` — endpoints `assign`/`unassign`/`cancel` permiten `super_admin` y `manager`; la rama de `super_admin` construye `$allowed_hubs` con todos los hubs.
-- Listas de órdenes / OPS
-  - `inc/core/resources/knx-ops/api-ops-orders.php` y handlers de lista de órdenes antiguos devuelven órdenes de todos los hubs por defecto; `knx_v2_ops_orders_live()` actúa como proxy hacia la ruta interna de órdenes y devuelve ese payload.
+  - OPS assign/unassign/cancel (endpoints legacy eliminados del repositorio)
+  - Listas de órdenes: algunos handlers antiguos devolvían órdenes de todos los hubs por defecto; evidencia de proxy en vivo eliminada.
 
 Bypasses explícitos y justificación (sólo evidencia)
 - `force-status` (ops): registrado y reforzado como `super_admin` únicamente — evidencia: registro de ruta con `knx_rest_permission_roles(['super_admin'])`.

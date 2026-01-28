@@ -4,8 +4,7 @@ Purpose
 - Role: `driver` — operational actor that receives assignments from OPS and performs deliveries. This document records, from audited code evidence, the driver-facing capabilities, the ops model interactions, and how driver context appears in the codebase.
 
 What drivers can do / Ops interactions (evidence-only)
-- Assignment and ops pipeline:
-  - `inc/core/resources/knx-ops/api-ops-orders.php` — OPS endpoints include `assign`, `unassign`, `cancel`, and `list`. The legacy client-side OPS UI that called these endpoints has been removed; backend endpoints remain as evidence.
+ - Assignment and ops pipeline: (legacy OPS endpoints removed from repository)
 - Drivers CRUD / list:
   - `inc/core/resources/knx-drivers/api-drivers-crud.php` — drivers list endpoint returns driver rows globally; drivers can be created/updated/toggled/reset by admin endpoints (permission includes `super_admin` and `manager`).
 

@@ -10,7 +10,7 @@ What is sealed to `super_admin` (evidence-only)
 - Sealed endpoints (route registration or handler-level checks):
   - City management add/delete: `inc/core/resources/knx-cities/add-city.php`, `inc/core/resources/knx-cities/delete-city.php` (`POST /knx/v2/cities/add`, `POST /knx/v2/cities/delete`) — registered as `super_admin` only.
   - Delivery rates getter/updater: `inc/core/resources/knx-cities/get-delivery-rates.php`, `inc/core/resources/knx-cities/update-delivery-rates.php` — route-level `super_admin` permission.
-  - OPS `force-status`: `inc/core/resources/knx-ops/api-ops-orders.php` — `POST /knx/v2/ops/orders/force-status` registered `super_admin` only.
+  - OPS `force-status`: (historical endpoint removed from repository)
 
 Where `super_admin` is global (evidence-only)
 - Handler code intentionally implements global semantics for `super_admin` in multiple endpoints:
