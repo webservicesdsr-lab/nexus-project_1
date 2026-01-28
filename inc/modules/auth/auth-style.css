@@ -44,6 +44,39 @@ body {
   box-sizing: border-box;
 }
 
+/* Tabs */
+.knx-auth-card--tabs {
+  padding: 20px 20px 28px 20px;
+}
+.knx-tabs {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+.knx-tab {
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 8px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: #225638;
+  font-weight: 600;
+  font-size: 14px;
+}
+.knx-tab:focus { outline: 2px solid rgba(34,86,56,0.15); }
+.knx-tab--active {
+  background: #225638;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(34,86,56,0.12);
+}
+
+.knx-tab-contents { min-height: 320px; }
+.knx-tab-pane { display: none; }
+.knx-tab-pane--active { display: block; }
+
+.knx-error { color: #b00020; margin-bottom: 12px; }
+
 /* Title */
 .knx-auth-card h2 {
   font-size: 26px;
