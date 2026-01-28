@@ -1,0 +1,22 @@
+{
+  "intelephense.environment.phpVersion": "8.2",
+
+  "intelephense.stubs": [
+    "wordpress"
+  ],
+
+  "intelephense.diagnostics.undefinedFunctions": false,
+  "intelephense.diagnostics.undefinedConstants": false,
+
+  "cSpell.words": [
+    "ABSPATH",
+    "español",
+    "fontawesome",
+    "httponly",
+    "KNX",
+    "NEXUS",
+    "prevalidate",
+    "Softaculous",
+    "SSOT"
+  ]
+}

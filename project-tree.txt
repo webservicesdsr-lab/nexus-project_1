@@ -1,0 +1,335 @@
+.
+├── .DS_Store
+├── .vscode
+│   └── settings.json
+├── ROADMAP.md
+├── documentation
+│   ├── .DS_Store
+│   ├── AUTHORITY_MAP.md
+│   ├── Customer Capability & Navigation
+│   │   ├── customer-capability-es.md
+│   │   └── customer-capability.md
+│   ├── Driver Capability & Navigation
+│   │   ├── driver-capability-es.md
+│   │   └── driver-capability.md
+│   ├── Guest Capability & Navigation
+│   │   ├── guest-capability-es.md
+│   │   └── guest-capability.md
+│   ├── Manager Capability & Navigation
+│   ├── README.md
+│   ├── Super Admin Capability & Navigation
+│   │   ├── super-admin-capability-es.md
+│   │   └── super-admin-capability.md
+│   ├── User Capability & Territory Model
+│   │   ├── user-capability-model-es.md
+│   │   └── user-capability-model.md
+│   └── knx-documentation-english
+│       ├── .DS_Store
+│       ├── auth
+│       │   └── auth-canonical-english.md
+│       ├── bootstrap
+│       │   └── kingdom-nexus-bootstrap-english.md
+│       ├── cities
+│       │   └── cities-territory-authority-english.md
+│       ├── hubs
+│       │   └── hubs-operational-authority.md
+│       ├── orders
+│       │   └── orders-phase-1-foundation.md
+│       ├── orders-foundation
+│       │   └── orders-foundation-english.md
+│       ├── rest
+│       │   └── rest-infrastructure-english.md
+│       ├── theme-shell
+│       │   └── nexus-theme-shell-error-handling-english.md
+│       └── users-roles
+│           └── users-roles-identity-territory.md
+├── inc
+│   ├── core
+│   │   ├── cart
+│   │   │   └── cart-cleanup.php
+│   │   ├── edit-hub-closure.js
+│   │   ├── functions
+│   │   │   ├── knx-driver-ops-sync.php
+│   │   │   └── knx-driver-runtime.php
+│   │   ├── install
+│   │   ├── knx-orders
+│   │   │   ├── api-create-order-mvp.php
+│   │   │   ├── api-get-order.php
+│   │   │   ├── api-list-orders.php
+│   │   │   ├── api-quote-totals.php
+│   │   │   └── api-update-order-status.php
+│   │   ├── pages-installer.php
+│   │   ├── pwa
+│   │   │   ├── knx-driver-pwa-router.php
+│   │   │   ├── knx-ops-pwa-router.php
+│   │   │   └── knx-ops-sw.js
+│   │   ├── resources
+│   │   │   ├── knx-addresses
+│   │   │   │   ├── api-addresses.php
+│   │   │   │   └── api-addresses.php.backup
+│   │   │   ├── knx-cart
+│   │   │   │   └── api-cart.php
+│   │   │   ├── knx-checkout
+│   │   │   │   ├── api-checkout-prevalidate.php
+│   │   │   │   └── api-checkout-quote.php
+│   │   │   ├── knx-cities
+│   │   │   │   ├── add-city.php
+│   │   │   │   ├── api-edit-city.php
+│   │   │   │   ├── delete-city.php
+│   │   │   │   ├── get-cities.php
+│   │   │   │   ├── get-delivery-rates.php
+│   │   │   │   ├── post-operational-toggle.php
+│   │   │   │   └── update-delivery-rates.php
+│   │   │   ├── knx-coupons
+│   │   │   │   ├── api-coupons-crud.php
+│   │   │   │   └── api-validate-coupon.php
+│   │   │   ├── knx-customers
+│   │   │   │   ├── api-customers-crud.php
+│   │   │   │   └── api-list-customers.php
+│   │   │   ├── knx-drivers
+│   │   │   │   ├── api-driver-availability.php
+│   │   │   │   ├── api-driver-claim.php
+│   │   │   │   ├── api-driver-complete.php
+│   │   │   │   ├── api-driver-delay.php
+│   │   │   │   ├── api-driver-my-orders.php
+│   │   │   │   ├── api-driver-ops-assign.php
+│   │   │   │   ├── api-driver-orders-history.php
+│   │   │   │   ├── api-driver-release.php
+│   │   │   │   ├── api-driver-update-status.php
+│   │   │   │   ├── api-drivers-crud.php
+│   │   │   │   └── api-drivers.php
+│   │   │   ├── knx-explore
+│   │   │   │   └── api-explore-hubs.php
+│   │   │   ├── knx-fees
+│   │   │   │   └── api-software-fees.php
+│   │   │   ├── knx-hubs
+│   │   │   │   ├── api-delete-hub.php
+│   │   │   │   ├── api-edit-hub-identity.php
+│   │   │   │   ├── api-edit-hub-location.php
+│   │   │   │   ├── api-get-hub.php
+│   │   │   │   ├── api-hub-categories.php
+│   │   │   │   ├── api-hub-hours.php
+│   │   │   │   ├── api-hub-location.php
+│   │   │   │   ├── api-hubs-core.php
+│   │   │   │   ├── api-hubs.php
+│   │   │   │   ├── api-toggle-featured.php
+│   │   │   │   ├── api-update-closure.php
+│   │   │   │   ├── api-update-hub-slug.php
+│   │   │   │   ├── api-update-settings.php
+│   │   │   │   └── api-upload-logo.php
+│   │   │   ├── knx-items
+│   │   │   │   ├── api-delete-item-category.php
+│   │   │   │   ├── api-get-item-categories.php
+│   │   │   │   ├── api-hub-items.php
+│   │   │   │   ├── api-item-addons.php
+│   │   │   │   ├── api-menu-read.php
+│   │   │   │   ├── api-modifiers.php
+│   │   │   │   ├── api-reorder-item-category.php
+│   │   │   │   ├── api-reorder-item.php
+│   │   │   │   ├── api-save-item-category.php
+│   │   │   │   ├── api-toggle-item-category.php
+│   │   │   │   └── api-update-item.php
+│   │   │   ├── knx-location
+│   │   │   │   ├── api-check-coverage.php
+│   │   │   │   └── api-location-search.php
+│   │   │   ├── knx-ops
+│   │   │   │   ├── api-ops-drivers-available.php
+│   │   │   │   ├── api-ops-orders-live.php
+│   │   │   │   ├── api-ops-orders.php
+│   │   │   │   ├── api-ops-push-subcriptions.php
+│   │   │   │   └── api-ops-settings.php
+│   │   │   ├── knx-orders
+│   │   │   ├── knx-payments
+│   │   │   │   ├── api-create-payment-intent.php
+│   │   │   │   ├── api-payment-status.php
+│   │   │   │   ├── api-payment-webhook.php
+│   │   │   │   └── stripe-authority.php
+│   │   │   ├── knx-profile
+│   │   │   │   ├── api-get-profile.php
+│   │   │   │   └── api-update-profile.php
+│   │   │   ├── knx-push
+│   │   │   │   ├── api-push-subscriptions.php
+│   │   │   │   └── api-push-test.php
+│   │   │   └── knx-system
+│   │   │       ├── api-hours-extension.php
+│   │   │       └── api-settings.php
+│   │   ├── rest
+│   │   │   ├── knx-rest-guard.php
+│   │   │   ├── knx-rest-response.php
+│   │   │   └── knx-rest-wrapper.php
+│   │   └── session-cleaner.php
+│   ├── functions
+│   │   ├── address-helper.php
+│   │   ├── availability-engine.php
+│   │   ├── coverage-engine.php
+│   │   ├── coverage-parser-internal.php
+│   │   ├── customer-helpers.php
+│   │   ├── delivery-fee-engine.php
+│   │   ├── distance-calculator.php
+│   │   ├── geo-engine.php
+│   │   ├── helpers.php
+│   │   ├── hours-engine.php
+│   │   ├── navigation-engine.php
+│   │   ├── order-helpers.php
+│   │   ├── payment-helpers.php
+│   │   ├── pwa-helpers.php
+│   │   ├── security.php
+│   │   ├── stripe-helpers.php
+│   │   ├── stripe-logger.php
+│   │   ├── taxes-engine.php
+│   │   └── totals-engine.php
+│   ├── modules
+│   │   ├── admin
+│   │   │   ├── admin-menu.php
+│   │   │   ├── admin-script.js
+│   │   │   ├── admin-settings.js
+│   │   │   ├── admin-settings.php
+│   │   │   ├── admin-style.css
+│   │   │   └── admin-users.php
+│   │   ├── auth
+│   │   │   ├── auth-handler.php
+│   │   │   ├── auth-redirects.php
+│   │   │   ├── auth-shortcode.php
+│   │   │   └── auth-style.css
+│   │   ├── cart
+│   │   │   ├── cart-drawer.css
+│   │   │   └── cart-drawer.js
+│   │   ├── core
+│   │   │   ├── knx-toast.css
+│   │   │   └── knx-toast.js
+│   │   ├── coupons
+│   │   │   ├── coupons-script.js
+│   │   │   ├── coupons-shortcode.php
+│   │   │   └── coupons-style.css
+│   │   ├── customers
+│   │   │   ├── customers-script.js
+│   │   │   ├── customers-shortcode.php
+│   │   │   └── customers-style.css
+│   │   ├── drivers
+│   │   │   ├── drivers-admin-script.js
+│   │   │   ├── drivers-admin-shortcode.php
+│   │   │   ├── drivers-admin-style.css
+│   │   │   ├── drivers-script.js
+│   │   │   ├── drivers-shortcode.php
+│   │   │   └── drivers-style.css
+│   │   ├── fees
+│   │   │   ├── fees-script.js
+│   │   │   ├── fees-shortcode.php
+│   │   │   └── fees-style.css
+│   │   ├── home
+│   │   │   ├── knx-location-detector.js
+│   │   │   └── knx-location-modal.css
+│   │   ├── hub-categories
+│   │   │   ├── hub-categories-script.js
+│   │   │   ├── hub-categories-shortcode.php
+│   │   │   └── hub-categories-style.css
+│   │   ├── hubs
+│   │   │   ├── edit-hub-closure.css
+│   │   │   ├── edit-hub-closure.js
+│   │   │   ├── edit-hub-form.php
+│   │   │   ├── edit-hub-hours.css
+│   │   │   ├── edit-hub-hours.js
+│   │   │   ├── edit-hub-identity.js
+│   │   │   ├── edit-hub-identity.php
+│   │   │   ├── edit-hub-location.js
+│   │   │   ├── edit-hub-location.php
+│   │   │   ├── edit-hub-logo.js
+│   │   │   ├── edit-hub-settings.css
+│   │   │   ├── edit-hub-settings.js
+│   │   │   ├── edit-hub-settings.php
+│   │   │   ├── edit-hub-style.css
+│   │   │   ├── edit-hub-template.php
+│   │   │   ├── hub-location-editor.js
+│   │   │   ├── hub-location-ui.php
+│   │   │   ├── hubs-script.js
+│   │   │   ├── hubs-shortcode.php
+│   │   │   └── hubs-style.css
+│   │   ├── items
+│   │   │   ├── edit-hub-items.css
+│   │   │   ├── edit-hub-items.js
+│   │   │   ├── edit-hub-items.php
+│   │   │   ├── edit-item-categories.js
+│   │   │   ├── edit-item-categories.php
+│   │   │   ├── edit-item.css
+│   │   │   ├── edit-item.js
+│   │   │   └── edit-item.php
+│   │   ├── knx-cities
+│   │   │   ├── knx-cities-delete-modal.css
+│   │   │   ├── knx-cities-delete-modal.js
+│   │   │   ├── knx-cities-delete-modal.php
+│   │   │   ├── knx-cities-script.js
+│   │   │   ├── knx-cities-shortcode.php
+│   │   │   ├── knx-cities-style.css
+│   │   │   ├── knx-edit-city-script.js
+│   │   │   ├── knx-edit-city-style.css
+│   │   │   └── knx-edit-city.php
+│   │   ├── navbar
+│   │   │   ├── navbar-render.php
+│   │   │   ├── navbar-script.js
+│   │   │   └── navbar-style.css
+│   │   ├── ops
+│   │   │   ├── ops-orders-shortcode.php
+│   │   │   ├── ops-push-ui.php
+│   │   │   ├── ops-script.js
+│   │   │   └── ops-style.css
+│   │   ├── orders
+│   │   │   ├── live-orders-script.js
+│   │   │   ├── live-orders-shortcode.php
+│   │   │   └── live-orders-style.css
+│   │   ├── payments
+│   │   │   ├── payments-api.php
+│   │   │   ├── payments-helpers.php
+│   │   │   └── payments-service.php
+│   │   ├── profile
+│   │   └── sidebar
+│   │       ├── sidebar-render.php
+│   │       ├── sidebar-script.js
+│   │       └── sidebar-style.css
+│   ├── public
+│   │   ├── addresses
+│   │   │   ├── my-addresses-script.js
+│   │   │   ├── my-addresses-shortcode.php
+│   │   │   └── my-addresses-style.css
+│   │   ├── cart
+│   │   │   ├── cart-drawer.js
+│   │   │   ├── cart-page.js
+│   │   │   ├── cart-shortcode.php
+│   │   │   └── cart-style.css
+│   │   ├── checkout
+│   │   │   ├── checkout-payment-flow.js
+│   │   │   ├── checkout-script.js
+│   │   │   ├── checkout-shortcode.php
+│   │   │   └── checkout-style.css
+│   │   ├── explore-hubs
+│   │   │   ├── explore-hubs-shortcode.php
+│   │   │   ├── explore-hubs.css
+│   │   │   └── explore-hubs.js
+│   │   ├── home
+│   │   │   ├── home-shortcode.php
+│   │   │   ├── home.css
+│   │   │   └── home.js
+│   │   ├── menu
+│   │   │   ├── menu-rewrite-rules.php
+│   │   │   ├── menu-script.js
+│   │   │   ├── menu-shortcode.php
+│   │   │   └── menu-style.css
+│   │   ├── navigation
+│   │   │   ├── corporate-sidebar-script.js
+│   │   │   ├── corporate-sidebar-style.css
+│   │   │   ├── corporate-sidebar.php
+│   │   │   ├── navbar.php
+│   │   │   ├── navigation-script.js
+│   │   │   ├── navigation-style.css
+│   │   │   └── sidebar.php
+│   │   └── profile
+│   │       ├── profile-script.js
+│   │       ├── profile-shortcode.php
+│   │       └── profile-style.css
+│   └── shortcodes
+│       └── cities-grid-shortcode.php
+├── kingdom-nexus.php
+├── nexus-db-export-1.sql
+├── nexus-db-export-2.sql
+└── project-tree.txt
+
+77 directories, 256 files
