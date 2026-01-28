@@ -77,6 +77,11 @@ if (!function_exists('knx_install_pages')) {
             ['title' => 'Edit Hub Items', 'slug' => 'edit-hub-items', 'content' => '[knx_edit_hub_items]'],
             ['title' => 'Edit Item', 'slug' => 'edit-item', 'content' => '[knx_edit_item]'],
             ['title' => 'Edit Item Categories', 'slug' => 'edit-item-categories', 'content' => '[knx_edit_item_categories]'],
+            // Additional operational/admin pages
+            ['title' => 'Driver Dashboard', 'slug' => 'driver-dashboard', 'content' => '[knx_driver_dashboard]'],
+            ['title' => 'Drivers Admin', 'slug' => 'drivers-admin', 'content' => '[knx_drivers_admin]'],
+            ['title' => 'Live Orders', 'slug' => 'live-orders', 'content' => '[knx_live_orders_admin]'],
+            ['title' => 'Ops Orders', 'slug' => 'ops-orders', 'content' => '[knx_ops_orders]'],
         ];
 
         foreach ($pages as $p) {
