@@ -160,3 +160,11 @@ input {
 }
 
 .knx-hp { display: none; }
+
+/* Make bold text inside the auth card use the primary color
+   so tab-like labels/buttons are visually distinct. */
+.knx-auth-card strong,
+.knx-auth-card b {
+  color: var(--nxs-primary, inherit);
+  font-weight: 700;
+}
