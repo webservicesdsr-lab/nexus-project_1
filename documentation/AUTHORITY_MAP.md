@@ -139,7 +139,7 @@ This document defines the canonical authority assignments across Kingdom Nexus d
   - `inc/core/resources/knx-ops/api-ops-orders.php` (ops pipeline, assign/unassign/cancel, force-status)
   - `inc/core/resources/knx-ops/api-ops-orders-live.php` (live proxy)
   - `inc/core/resources/knx-drivers/api-drivers-crud.php` (drivers CRUD)
-  - UI clients: legacy OPS UI was previously implemented under `inc/modules/ops/*` but those UI artifacts have been removed; drivers admin UI remains under `inc/modules/drivers`.
+  - UI clients: legacy OPS UI has been removed; drivers admin UI remains under `inc/modules/drivers`.
 - What it decides:
   - Observed behavior: OPS handlers execute assignments/unassignments and status changes; `super_admin` path is implemented as global (allowed hubs = all hubs). Assignment logic attempts manager scoping for manager branch.
   - Enforced at handler level: `force-status` is registered and enforced as `super_admin` only (`inc/core/resources/knx-ops/api-ops-orders.php`).
@@ -177,7 +177,7 @@ This document defines the canonical authority assignments across Kingdom Nexus d
 
 ## 6. Explicit Non-Authorities
 
-- Frontend JS — Observed behavior: Client scripts (e.g., `inc/modules/ops/ops-script.js`, `inc/modules/drivers/drivers-admin-script.js`) call REST endpoints but do not decide canonical state.
+ - Frontend JS — Observed behavior: Client scripts call REST endpoints but do not decide canonical state. Legacy OPS UI files have been removed.
 - URL params — Observed behavior: Query and path parameters are accepted by handlers but validated/enforced server-side.
 - Client-side state — Observed behavior: UI state is not authoritative; server handlers perform final validation and persistence.
 - UI navigation — Observed behavior: Navigation visibility is declared in `inc/functions/navigation-engine.php` but does not grant server-side permission unless backed by route-level or handler-level checks.
