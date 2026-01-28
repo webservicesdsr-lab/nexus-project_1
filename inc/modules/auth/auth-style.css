@@ -1,7 +1,10 @@
 /* Canonical Nexus Auth UI — variable driven */
 
 .knx-auth-shell {
-  min-height: 100vh;
+  /* Use 88vh to match the visual mockup while avoiding full-viewport quirks
+     on some mobile browsers. If you prefer strict viewport height, consider
+     using 100dvh (dynamic viewport) instead of 100vh on modern browsers. */
+  min-height: 88vh;
   display: flex;
   align-items: center;
   justify-content: center;
