@@ -77,6 +77,20 @@ body {
 
 .knx-error { color: #b00020; margin-bottom: 12px; }
 
+/* Inline register toggle */
+.knx-toggle-text { margin: 0 0 12px 0; font-size: 14px; color: #555; }
+.knx-toggle-link {
+  background: transparent;
+  border: none;
+  color: #225638;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+  padding: 0 6px;
+}
+.knx-toggle-link:hover { text-decoration: underline; }
+.knx-toggle-link:focus { outline: 2px solid rgba(34,86,56,0.12); }
+
 /* Title */
 .knx-auth-card h2 {
   font-size: 26px;

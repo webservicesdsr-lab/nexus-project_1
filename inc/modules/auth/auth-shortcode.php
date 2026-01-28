@@ -25,9 +25,8 @@ add_shortcode('knx_auth', function () {
         <a href="<?php echo esc_url(site_url('/')); ?>" class="knx-back-home">Back to Home</a>
 
         <div class="knx-auth-card knx-auth-card--tabs" role="region" aria-label="Authentication">
-            <div class="knx-tabs" role="tablist" aria-label="Auth Tabs">
-                <button type="button" class="knx-tab knx-tab--active" data-target="knx-tab-login" role="tab" aria-selected="true">Sign In</button>
-                <button type="button" class="knx-tab" data-target="knx-tab-register" role="tab" aria-selected="false">Create Account</button>
+            <div class="knx-toggle-area">
+                <p class="knx-toggle-text">¿No tienes cuenta? <button type="button" class="knx-toggle-link" aria-controls="knx-tab-register">Regístrate</button></p>
             </div>
 
             <div class="knx-tab-contents">
@@ -94,38 +93,41 @@ add_shortcode('knx_auth', function () {
 
     <script>
     (function(){
-        var tabs = document.querySelectorAll('.knx-tab');
-        var panes = document.querySelectorAll('.knx-tab-pane');
+        var toggle = document.querySelector('.knx-toggle-link');
+        var loginPane = document.getElementById('knx-tab-login');
+        var registerPane = document.getElementById('knx-tab-register');
 
-        function activate(targetId){
-            tabs.forEach(function(t){
-                var on = t.getAttribute('data-target') === targetId;
-                t.classList.toggle('knx-tab--active', on);
-                t.setAttribute('aria-selected', on ? 'true' : 'false');
-            });
-            panes.forEach(function(p){
-                var on = p.id === targetId;
-                p.classList.toggle('knx-tab-pane--active', on);
-                p.setAttribute('aria-hidden', on ? 'false' : 'true');
-            });
+        function showRegister(on){
+            if (on) {
+                registerPane.classList.add('knx-tab-pane--active');
+                registerPane.setAttribute('aria-hidden', 'false');
+                loginPane.classList.remove('knx-tab-pane--active');
+                loginPane.setAttribute('aria-hidden', 'true');
+                toggle.textContent = 'Volver';
+            } else {
+                registerPane.classList.remove('knx-tab-pane--active');
+                registerPane.setAttribute('aria-hidden', 'true');
+                loginPane.classList.add('knx-tab-pane--active');
+                loginPane.setAttribute('aria-hidden', 'false');
+                toggle.textContent = 'Regístrate';
+            }
         }
 
-        tabs.forEach(function(btn){
-            btn.addEventListener('click', function(){
-                activate(btn.getAttribute('data-target'));
+        if (toggle) {
+            toggle.addEventListener('click', function(){
+                var show = !registerPane.classList.contains('knx-tab-pane--active');
+                showRegister(show);
             });
-            btn.addEventListener('touchend', function(){
-                activate(btn.getAttribute('data-target'));
-            });
-        });
+            toggle.addEventListener('touchend', function(e){ e.preventDefault(); var show = !registerPane.classList.contains('knx-tab-pane--active'); showRegister(show); });
+        }
 
-        // If URL has error param, ensure Sign In tab is active
+        // Ensure Sign In active when errors present
         try{
             var params = new URLSearchParams(window.location.search);
             if (params.has('error')) {
-                activate('knx-tab-login');
+                showRegister(false);
             }
-        }catch(e){ /* ignore */ }
+        }catch(e){ }
     })();
     </script>
 
