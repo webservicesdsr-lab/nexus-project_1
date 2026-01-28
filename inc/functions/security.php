@@ -23,7 +23,10 @@ function knx_generate_token() {
  * Example: knx_nonce_field('login')
  */
 function knx_nonce_field($action, $name = 'knx_nonce') {
-    wp_nonce_field("knx_{$action}_action", $name);
+    // Create a nonce tied to the action but output a hidden input without an `id`
+    // to avoid duplicate element IDs when multiple forms appear on the same page.
+    $nonce = wp_create_nonce("knx_{$action}_action");
+    echo '<input type="hidden" name="' . esc_attr($name) . '" value="' . esc_attr($nonce) . '">';
 }
 
 /**
@@ -68,6 +71,96 @@ function knx_get_client_ip() {
 }
 
 /**
+ * Return the canonical password_resets table name.
+ */
+function knx_password_resets_table() {
+    global $wpdb;
+    return $wpdb->prefix . 'knx_password_resets';
+}
+
+/**
+ * Create a password reset record and return the raw token (plain) or false.
+ * The token is stored hashed (sha256) in the DB.
+ */
+function knx_create_password_reset(int $user_id, string $ip = '') {
+    global $wpdb;
+    $table = knx_password_resets_table();
+
+    // Fail closed if table doesn't exist
+    $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
+    if (!$exists) return false;
+
+    // Invalidate any previous active tokens for this user
+    $wpdb->update($table, ['used_at' => current_time('mysql')], ['user_id' => $user_id, 'used_at' => null], ['%s'], ['%d', '%s']);
+
+    // Generate secure random token and hash it
+    try {
+        $token = bin2hex(random_bytes(32));
+    } catch (Exception $e) {
+        return false;
+    }
+    $token_hash = hash('sha256', $token);
+
+    $now = current_time('mysql');
+    $expires = date('Y-m-d H:i:s', time() + 60 * MINUTE_IN_SECONDS);
+
+    $inserted = $wpdb->insert($table, [
+        'user_id'    => $user_id,
+        'token_hash' => $token_hash,
+        'expires_at' => $expires,
+        'created_at' => $now,
+        'ip_address' => substr($ip, 0, 45),
+    ], ['%d','%s','%s','%s','%s']);
+
+    if ($inserted === false) return false;
+    return $token;
+}
+
+/**
+ * Validate a raw token and return the DB row or false.
+ */
+function knx_get_password_reset_by_token(string $token) {
+    global $wpdb;
+    $table = knx_password_resets_table();
+
+    $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
+    if (!$exists) return false;
+
+    $token_hash = hash('sha256', $token);
+
+    $sql = $wpdb->prepare("SELECT * FROM {$table} WHERE token_hash = %s LIMIT 1", $token_hash);
+    $row = $wpdb->get_row($sql);
+    if (!$row) return false;
+
+    if (!empty($row->used_at)) return false;
+    if (strtotime($row->expires_at) < time()) return false;
+
+    return $row;
+}
+
+/**
+ * Mark a password reset record as used.
+ */
+function knx_mark_password_reset_used(int $id) {
+    global $wpdb;
+    $table = knx_password_resets_table();
+    $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
+    if (!$exists) return false;
+    return $wpdb->update($table, ['used_at' => current_time('mysql')], ['id' => $id], ['%s'], ['%d']);
+}
+
+/**
+ * Invalidate all tokens for a given user (mark used).
+ */
+function knx_invalidate_password_resets_for_user(int $user_id) {
+    global $wpdb;
+    $table = knx_password_resets_table();
+    $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
+    if (!$exists) return false;
+    return $wpdb->update($table, ['used_at' => current_time('mysql')], ['user_id' => $user_id, 'used_at' => null], ['%s'], ['%d', '%s']);
+}
+
+/**
  * Check if the user is temporarily locked due to failed attempts.
  * Returns true if blocked, false otherwise.
  */
@@ -92,64 +185,6 @@ function knx_check_honeypot(array $post): bool {
     if ($ts > $now || ($now - $ts) < 1 || ($now - $ts) > 43200) return false;
 
     return true;
-}
-
-/**
- * Create a password reset record for a user.
- * Returns the plain token (to be sent via email) on success or false on failure.
- */
-function knx_create_password_reset(int $user_id, string $ip = '') {
-    global $wpdb;
-    $table = $wpdb->prefix . 'knx_password_resets';
-
-    // Invalidate previous tokens for user (mark used)
-    $wpdb->update($table, ['used_at' => current_time('mysql')], ['user_id' => $user_id, 'used_at' => null], ['%s'], ['%d', '%s']);
-
-    // Generate token (random) and HMAC-hash it with AUTH_KEY for safe lookup
-    $token = bin2hex(random_bytes(32));
-    $token_hash = hash_hmac('sha256', $token, AUTH_KEY);
-
-    $now = current_time('mysql');
-    $expires = date('Y-m-d H:i:s', time() + 60 * MINUTE_IN_SECONDS); // 60 minutes
-
-    $inserted = $wpdb->insert($table, [
-        'user_id'    => $user_id,
-        'token_hash' => $token_hash,
-        'expires_at' => $expires,
-        'created_at' => $now,
-        'ip_address' => substr($ip, 0, 45),
-    ], ['%d', '%s', '%s', '%s', '%s']);
-
-    if ($inserted === false) return false;
-    return $token;
-}
-
-/**
- * Validate a reset token and return the row object or false.
- */
-function knx_get_password_reset_by_token(string $token) {
-    global $wpdb;
-    $table = $wpdb->prefix . 'knx_password_resets';
-    $token_hash = hash_hmac('sha256', $token, AUTH_KEY);
-
-    $sql = $wpdb->prepare("SELECT * FROM {$table} WHERE token_hash = %s LIMIT 1", $token_hash);
-    $row = $wpdb->get_row($sql);
-    if (!$row) return false;
-
-    // Check used and expiration
-    if (!empty($row->used_at)) return false;
-    if (strtotime($row->expires_at) < time()) return false;
-
-    return $row;
-}
-
-/**
- * Mark a password reset record as used.
- */
-function knx_mark_password_reset_used(int $id) {
-    global $wpdb;
-    $table = $wpdb->prefix . 'knx_password_resets';
-    return $wpdb->update($table, ['used_at' => current_time('mysql')], ['id' => $id], ['%s'], ['%d']);
 }
 
 /**

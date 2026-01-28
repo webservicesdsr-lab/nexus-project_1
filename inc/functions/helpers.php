@@ -36,6 +36,26 @@ function knx_get_session() {
     return $session ? $session : false;
 }
 
+
+/**
+ * Simple email wrapper for auth emails.
+ */
+function knx_send_email(string $to, string $subject, string $html) {
+    $to = sanitize_email($to);
+    if (!is_email($to)) return false;
+
+    $site_name = get_bloginfo('name');
+    $host = parse_url(site_url(), PHP_URL_HOST) ?: 'localhost';
+    $from = sprintf('%s <no-reply@%s>', $site_name, $host);
+
+    $headers = [
+        'Content-Type: text/html; charset=UTF-8',
+        'From: ' . $from
+    ];
+
+    // Use wp_mail (server transport configured externally)
+    return wp_mail($to, $subject, $html, $headers);
+}
 /**
  * Require a minimum role hierarchy.
  * Returns the session object or false if unauthorized.
@@ -104,32 +124,6 @@ function knx_logout_user() {
     // Ensure user is redirected to home or login
     wp_safe_redirect(site_url('/login'));
     exit;
-}
-
-/**
- * Send a simple HTML email for auth flows.
- * Wrapper around wp_mail so we can change transport later.
- */
-function knx_send_email(string $to, string $subject, string $html) {
-    $to = sanitize_email($to);
-    if (!is_email($to)) return false;
-
-    $site_name = get_bloginfo('name');
-    $headers = ["Content-Type: text/html; charset=UTF-8", 'From: ' . $site_name . ' <no-reply@' . parse_url(site_url(), PHP_URL_HOST) . '>'];
-
-    // Plaintext fallback
-    $plain = wp_strip_all_tags($html);
-
-    return wp_mail($to, $subject, $html, $headers, []);
-}
-
-/**
- * Invalidate all sessions for a user (delete from knx_sessions).
- */
-function knx_invalidate_user_sessions(int $user_id) {
-    global $wpdb;
-    $sessions_table = $wpdb->prefix . 'knx_sessions';
-    return $wpdb->delete($sessions_table, ['user_id' => $user_id]);
 }
 
 

@@ -177,68 +177,74 @@ add_action('wp_ajax_knx_logout_user', function() {
 
 
 /**
- * Handle Forgot Password requests (POST) and show generic UX.
+ * Handle Forgot Password requests (backend only).
+ * Triggered by POST with `knx_forgot_email` and nonce 'forgot'.
  */
 add_action('template_redirect', function() {
-    if (!empty($_POST['knx_forgot_btn'])) {
-        global $wpdb;
-        $users_table = $wpdb->prefix . 'knx_users';
-        $ip = knx_get_client_ip();
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['knx_forgot_email'])) {
+        return;
+    }
 
-        // Honeypot
-        if (!knx_check_honeypot($_POST)) {
-            knx_record_failed_login($ip, '');
-            wp_safe_redirect(site_url('/login?forgot=1'));
-            exit;
-        }
+    global $wpdb;
+    $users_table = $wpdb->prefix . 'knx_users';
+    $ip = function_exists('knx_get_client_ip') ? knx_get_client_ip() : ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
 
-        $email = isset($_POST['knx_forgot_email']) ? sanitize_email($_POST['knx_forgot_email']) : '';
-
-        // Rate-limit checks (do not reveal)
-        if (knx_is_ip_blocked($ip) || ($email !== '' && knx_is_user_blocked($email))) {
-            wp_safe_redirect(site_url('/login?forgot=1'));
-            exit;
-        }
-
-        // Nonce
-        if (!isset($_POST['knx_nonce']) || !knx_verify_nonce($_POST['knx_nonce'], 'forgot')) {
-            knx_record_failed_login($ip, $email);
-            wp_safe_redirect(site_url('/login?forgot=1'));
-            exit;
-        }
-
-        // Lookup user by email silently
-        $user_id = $wpdb->get_var($wpdb->prepare("SELECT id FROM {$users_table} WHERE email = %s LIMIT 1", $email));
-
-        if ($user_id) {
-            // Create token and send email; fail-closed (don't reveal failures)
-            $token = knx_create_password_reset(intval($user_id), $ip);
-            if ($token) {
-                $reset_link = site_url('/reset-password?token=' . rawurlencode($token));
-
-                $subject = 'Password reset request';
-                $html = '<div style="font-family:system-ui, -apple-system, Roboto, "Segoe UI", "Helvetica Neue", Arial; color:#111">'
-                    . '<p>Hello,</p>'
-                    . '<p>We received a request to reset your password. Click the link below to reset it. This link will expire in 60 minutes.</p>'
-                    . '<p><a href="' . esc_url($reset_link) . '" style="color:#1E6FF0;">Reset your password</a></p>'
-                    . '<p>If you did not request this, you can ignore this message.</p>'
-                    . '<p>— ' . esc_html(get_bloginfo('name')) . '</p>'
-                    . '</div>';
-
-                // Use wrapper
-                knx_send_email($email, $subject, $html);
-            }
-        }
-
-        // Always show the same UX
+    // Honeypot
+    if (!function_exists('knx_check_honeypot') || !knx_check_honeypot($_POST)) {
+        if (function_exists('knx_record_failed_login')) knx_record_failed_login($ip, '');
         wp_safe_redirect(site_url('/login?forgot=1'));
         exit;
     }
+
+    $email = isset($_POST['knx_forgot_email']) ? sanitize_email($_POST['knx_forgot_email']) : '';
+
+    // Rate-limit: IP or email
+    if ((function_exists('knx_is_ip_blocked') && knx_is_ip_blocked($ip)) || (function_exists('knx_is_user_blocked') && $email !== '' && knx_is_user_blocked($email))) {
+        wp_safe_redirect(site_url('/login?forgot=1'));
+        exit;
+    }
+
+    // Nonce
+    if (!isset($_POST['knx_nonce']) || !function_exists('knx_verify_nonce') || !knx_verify_nonce($_POST['knx_nonce'], 'forgot')) {
+        if (function_exists('knx_record_failed_login')) knx_record_failed_login($ip, $email);
+        wp_safe_redirect(site_url('/login?forgot=1'));
+        exit;
+    }
+
+    // Lookup user silently, only customers allowed
+    $user_row = $wpdb->get_row($wpdb->prepare("SELECT id, role FROM {$users_table} WHERE email = %s LIMIT 1", $email));
+
+    if ($user_row && isset($user_row->role) && $user_row->role === 'customer') {
+        // Create token and email — use helpers; fail-closed on any error
+        if (function_exists('knx_create_password_reset')) {
+            $token = knx_create_password_reset(intval($user_row->id), $ip);
+            if ($token && function_exists('knx_send_email')) {
+                $reset_link = site_url('/reset-password?token=' . rawurlencode($token));
+                $subject = 'Password reset request';
+
+                $html = '<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111;">'
+                      . '<p>Hello,</p>'
+                      . '<p>We received a request to reset your password. Click the link below to reset it. This link expires in 60 minutes.</p>'
+                      . '<p><a href="' . esc_url($reset_link) . '" style="color:#1E6FF0;">Reset your password</a></p>'
+                      . '<p>If you did not request this, you can ignore this message.</p>'
+                      . '<p>— ' . esc_html(get_bloginfo('name')) . '</p>'
+                      . '</div>';
+
+                // best-effort send
+                knx_send_email($email, $subject, $html);
+            }
+        }
+    }
+
+    // Always show generic response
+    wp_safe_redirect(site_url('/login?forgot=1'));
+    exit;
 });
 
 
 /**
- * Reset password shortcode & handler. Shortcode: [knx_reset_password]
+ * Shortcode for reset page: [knx_reset_password]
+ * Validates token and handles password update (POST name="knx_reset_password").
  */
 add_shortcode('knx_reset_password', function() {
     global $wpdb;
@@ -246,18 +252,16 @@ add_shortcode('knx_reset_password', function() {
 
     ob_start();
 
-    // If POSTing new password
-    if (!empty($_POST['knx_reset_btn'])) {
-        $ip = knx_get_client_ip();
+    // Handle form submission
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['knx_reset_password'])) {
+        $ip = function_exists('knx_get_client_ip') ? knx_get_client_ip() : ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
 
-        if (!knx_check_honeypot($_POST)) {
-            knx_record_failed_login($ip, '');
+        // Honeypot & nonce
+        if (!function_exists('knx_check_honeypot') || !knx_check_honeypot($_POST)) {
             echo '<div class="knx-auth-error">Invalid request. Please try again.</div>';
             return ob_get_clean();
         }
-
-        if (!isset($_POST['knx_nonce']) || !knx_verify_nonce($_POST['knx_nonce'], 'reset')) {
-            knx_record_failed_login($ip, '');
+        if (!isset($_POST['knx_nonce']) || !function_exists('knx_verify_nonce') || !knx_verify_nonce($_POST['knx_nonce'], 'reset')) {
             echo '<div class="knx-auth-error">Invalid request. Please try again.</div>';
             return ob_get_clean();
         }
@@ -266,22 +270,27 @@ add_shortcode('knx_reset_password', function() {
         $pass = isset($_POST['knx_new_password']) ? trim($_POST['knx_new_password']) : '';
         $pass2 = isset($_POST['knx_new_password_confirm']) ? trim($_POST['knx_new_password_confirm']) : '';
 
-        // Basic strength: min 8, letter and number
+        // Basic strength
         $ok_strength = (strlen($pass) >= 8) && preg_match('/[A-Za-z]/', $pass) && preg_match('/[0-9]/', $pass);
         if ($pass === '' || $pass !== $pass2 || !$ok_strength) {
-            echo '<div class="knx-auth-error">Invalid input. Please make sure passwords match and meet strength requirements.</div>';
+            echo '<div class="knx-auth-error">Invalid input. Please ensure passwords match and meet strength requirements.</div>';
+            return ob_get_clean();
+        }
+
+        if (!function_exists('knx_get_password_reset_by_token')) {
+            echo '<div class="knx-auth-error">Invalid request. Please try again.</div>';
             return ob_get_clean();
         }
 
         $reset_row = knx_get_password_reset_by_token($token);
         if (!$reset_row) {
-            echo '<div class="knx-auth-error">Invalid or expired token. Please request a new reset.</div>';
+            echo '<div class="knx-auth-error">Invalid or expired token. Please request a new password reset.</div>';
             return ob_get_clean();
         }
 
         $user_id = intval($reset_row->user_id);
 
-        // Update password (fail-closed)
+        // Update password
         $hash = password_hash($pass, PASSWORD_DEFAULT);
         $updated = $wpdb->update($users_table, ['password' => $hash], ['id' => $user_id], ['%s'], ['%d']);
         if ($updated === false) {
@@ -289,18 +298,24 @@ add_shortcode('knx_reset_password', function() {
             return ob_get_clean();
         }
 
-        // Mark token used and invalidate sessions
-        knx_mark_password_reset_used(intval($reset_row->id));
-        knx_invalidate_user_sessions($user_id);
+        // Mark token used and invalidate other tokens & sessions
+        if (function_exists('knx_mark_password_reset_used')) knx_mark_password_reset_used(intval($reset_row->id));
+        if (function_exists('knx_invalidate_password_resets_for_user')) knx_invalidate_password_resets_for_user($user_id);
+        if (function_exists('knx_invalidate_user_sessions')) knx_invalidate_user_sessions($user_id);
 
-        wp_safe_redirect(site_url('/login?reset=success'));
+        // Auto-login the user
+        if (function_exists('knx_auto_login_user_by_id')) {
+            knx_auto_login_user_by_id($user_id, false);
+        }
+
+        wp_safe_redirect(site_url('/cart'));
         exit;
     }
 
-    // Show form if token present in querystring
+    // Show form when token is present and valid
     $token = isset($_GET['token']) ? trim($_GET['token']) : '';
     $valid = false;
-    if ($token) {
+    if ($token && function_exists('knx_get_password_reset_by_token')) {
         $valid = (bool) knx_get_password_reset_by_token($token);
     }
 
@@ -329,7 +344,7 @@ add_shortcode('knx_reset_password', function() {
           <input type="password" name="knx_new_password" required>
           <label>Confirm password</label>
           <input type="password" name="knx_new_password_confirm" required>
-          <button class="knx-btn-primary" name="knx_reset_btn">Set new password</button>
+          <button class="knx-btn-primary" name="knx_reset_password">Set new password</button>
         </form>
       </div>
     </div>
