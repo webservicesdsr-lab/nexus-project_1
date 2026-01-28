@@ -83,7 +83,7 @@ input {
   right: 12px;
   top: 0;
   bottom: 0;
-  margin: auto 0; /* vertically center within the password wrap */
+  margin: 0px 0px 6px 0px; 
   background: none;
   border: none;
   color: var(--nxs-muted, inherit);

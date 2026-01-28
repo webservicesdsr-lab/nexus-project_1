@@ -24,7 +24,7 @@ add_shortcode('knx_auth', function () {
 
             <!-- LOGIN -->
             <div class="knx-auth-mode" data-mode="login">
-                <h1>Welcome Back</h1>
+                <h1>Login</h1>
                 <p class="knx-auth-sub">
                     Enter your email and password to access your account.
                 </p>
