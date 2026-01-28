@@ -139,7 +139,7 @@ This document defines the canonical authority assignments across Kingdom Nexus d
   - `inc/core/resources/knx-ops/api-ops-orders.php` (ops pipeline, assign/unassign/cancel, force-status)
   - `inc/core/resources/knx-ops/api-ops-orders-live.php` (live proxy)
   - `inc/core/resources/knx-drivers/api-drivers-crud.php` (drivers CRUD)
-  - UI clients: `inc/modules/ops/ops-script.js`, `inc/modules/drivers/drivers-admin-script.js` (clients call ops/drivers endpoints)
+  - UI clients: legacy OPS UI was previously implemented under `inc/modules/ops/*` but those UI artifacts have been removed; drivers admin UI remains under `inc/modules/drivers`.
 - What it decides:
   - Observed behavior: OPS handlers execute assignments/unassignments and status changes; `super_admin` path is implemented as global (allowed hubs = all hubs). Assignment logic attempts manager scoping for manager branch.
   - Enforced at handler level: `force-status` is registered and enforced as `super_admin` only (`inc/core/resources/knx-ops/api-ops-orders.php`).

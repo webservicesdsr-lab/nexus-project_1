@@ -33,8 +33,8 @@ self.addEventListener('activate', (event) => {
  *   "audience": "ops_orders",
  *   "title": "New order",
  *   "body": "#123",
- *   "url": "/ops-orders",
- *   "tag": "knx_ops_orders",
+ *   "url": "/",
+ *   "tag": "knx",
  *   "data": {}
  * }
  */
