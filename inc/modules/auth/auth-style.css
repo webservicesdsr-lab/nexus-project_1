@@ -123,6 +123,8 @@ input {
   flex: 0 0 auto;
   white-space: nowrap;
   margin-left: 12px;
+  color: var(--nxs-primary, inherit);
+  font-weight: 700;
 }
 
 .knx-btn-primary {
@@ -149,7 +151,7 @@ input {
   border: none;
   color: var(--nxs-primary, inherit);
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .knx-auth-error {
@@ -160,11 +162,3 @@ input {
 }
 
 .knx-hp { display: none; }
-
-/* Make bold text inside the auth card use the primary color
-   so tab-like labels/buttons are visually distinct. */
-.knx-auth-card strong,
-.knx-auth-card b {
-  color: var(--nxs-primary, inherit);
-  font-weight: 700;
-}
