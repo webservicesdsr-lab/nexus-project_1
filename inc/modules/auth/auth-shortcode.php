@@ -37,7 +37,7 @@ add_shortcode('knx_auth', function () {
                         <?php knx_nonce_field('login'); ?>
 
                         <?php if (isset($_GET['error']) && in_array($_GET['error'], ['auth','invalid','locked'], true)): ?>
-                            <div class="knx-error">Something went wrong with your login. Please try again.</div>
+                            <div class="knx-error" role="status" aria-live="polite">Something went wrong with your login. Please try again.</div>
                         <?php endif; ?>
 
                         <div style="display:none;">
@@ -50,7 +50,8 @@ add_shortcode('knx_auth', function () {
                         </div>
 
                         <div class="knx-input-group">
-                            <input type="password" name="knx_password" placeholder="Password" required>
+                            <input type="password" id="knx_password_login" name="knx_password" placeholder="Password" required>
+                            <button type="button" class="knx-password-toggle" data-target="knx_password_login" aria-pressed="false" aria-label="Show password">Mostrar</button>
                         </div>
 
                         <div class="knx-auth-options">
@@ -77,11 +78,13 @@ add_shortcode('knx_auth', function () {
                         </div>
 
                         <div class="knx-input-group">
-                            <input type="password" name="knx_register_password" placeholder="Password" required>
+                            <input type="password" id="knx_register_password" name="knx_register_password" placeholder="Password" required>
+                            <button type="button" class="knx-password-toggle" data-target="knx_register_password" aria-pressed="false" aria-label="Show password">Mostrar</button>
                         </div>
 
                         <div class="knx-input-group">
-                            <input type="password" name="knx_register_password_confirm" placeholder="Confirm Password" required>
+                            <input type="password" id="knx_register_password_confirm" name="knx_register_password_confirm" placeholder="Confirm Password" required>
+                            <button type="button" class="knx-password-toggle" data-target="knx_register_password_confirm" aria-pressed="false" aria-label="Show password">Mostrar</button>
                         </div>
 
                         <button type="submit" name="knx_register_btn" class="knx-btn">Create Account</button>
@@ -113,19 +116,49 @@ add_shortcode('knx_auth', function () {
             }
         }
 
+        // Password toggle handlers
+        var pwToggles = document.querySelectorAll('.knx-password-toggle');
+        pwToggles.forEach(function(btn){
+            btn.addEventListener('click', function(){
+                var tid = btn.getAttribute('data-target');
+                var inp = document.getElementById(tid);
+                if (!inp) return;
+                if (inp.type === 'password') {
+                    inp.type = 'text';
+                    btn.setAttribute('aria-pressed', 'true');
+                    btn.textContent = 'Ocultar';
+                } else {
+                    inp.type = 'password';
+                    btn.setAttribute('aria-pressed', 'false');
+                    btn.textContent = 'Mostrar';
+                }
+                try { inp.focus(); } catch(e){}
+            });
+            btn.addEventListener('touchend', function(e){ e.preventDefault(); btn.click(); });
+        });
+
         if (toggle) {
             toggle.addEventListener('click', function(){
                 var show = !registerPane.classList.contains('knx-tab-pane--active');
                 showRegister(show);
+                // autofocus first input of visible pane
+                setTimeout(function(){
+                    if (show) {
+                        var f = registerPane.querySelector('input[required]'); if (f) try{f.focus();}catch(e){}
+                    } else {
+                        var f = loginPane.querySelector('input[required]'); if (f) try{f.focus();}catch(e){}
+                    }
+                }, 120);
             });
-            toggle.addEventListener('touchend', function(e){ e.preventDefault(); var show = !registerPane.classList.contains('knx-tab-pane--active'); showRegister(show); });
+            toggle.addEventListener('touchend', function(e){ e.preventDefault(); var show = !registerPane.classList.contains('knx-tab-pane--active'); showRegister(show); setTimeout(function(){ var f = registerPane.querySelector('input[required]'); if (f) try{f.focus();}catch(e){} }, 120); });
         }
 
-        // Ensure Sign In active when errors present
+        // Ensure Sign In active when errors present and focus first input
         try{
             var params = new URLSearchParams(window.location.search);
             if (params.has('error')) {
                 showRegister(false);
+                setTimeout(function(){ var f = loginPane.querySelector('input[required]'); if (f) try{f.focus();}catch(e){} }, 80);
             }
         }catch(e){ }
     })();

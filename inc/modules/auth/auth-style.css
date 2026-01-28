@@ -7,6 +7,15 @@ body {
   padding: 0;
 }
 
+:root{
+  --knx-accent: #225638;
+  --knx-accent-dark: #18462c;
+  --knx-gap: 16px;
+  --knx-radius: 12px;
+  --knx-input-pad: 12px 16px;
+  --knx-card-max: 420px;
+}
+
 /* Container */
 .knx-auth-container {
   display: flex;
@@ -15,7 +24,7 @@ body {
   justify-content: center;
   min-height: 100vh;
   position: relative;
-  padding: 40px 20px;
+  padding: 28px 16px;
 }
 
 /* Back to Home link */
@@ -35,10 +44,10 @@ body {
 /* Card */
 .knx-auth-card {
   background: #fff;
-  border-radius: 12px;
-  padding: 40px 35px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
-  max-width: 360px;
+  border-radius: var(--knx-radius);
+  padding: 28px 22px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+  max-width: var(--knx-card-max);
   width: 100%;
   text-align: center;
   box-sizing: border-box;
@@ -71,9 +80,9 @@ body {
   box-shadow: 0 4px 12px rgba(34,86,56,0.12);
 }
 
-.knx-tab-contents { min-height: 320px; }
-.knx-tab-pane { display: none; }
-.knx-tab-pane--active { display: block; }
+.knx-tab-contents { min-height: 320px; transition: min-height .18s ease; }
+.knx-tab-pane { display: none; opacity: 0; transform: translateY(6px); transition: opacity .18s ease, transform .18s ease; }
+.knx-tab-pane--active { display: block; opacity: 1; transform: translateY(0); }
 
 .knx-error { color: #b00020; margin-bottom: 12px; }
 
@@ -107,12 +116,12 @@ body {
 
 .knx-input-group input {
   width: 100%;
-  padding: 10px 15px;
-  border: 1.5px solid #ddd;
-  border-radius: 25px;
+  padding: var(--knx-input-pad);
+  border: 1.5px solid #e6e6e6;
+  border-radius: 20px;
   font-size: 15px;
   outline: none;
-  transition: all 0.2s ease;
+  transition: border-color .18s ease, box-shadow .18s ease;
 }
 
 .knx-input-group input:focus {
@@ -124,7 +133,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin: 5px 0 18px;
+  margin: 6px 0 18px;
   font-size: 14px;
 }
 
@@ -143,20 +152,44 @@ body {
 
 /* Button */
 .knx-btn {
-  background: #225638;
+  background: var(--knx-accent);
   color: #fff;
   border: none;
-  border-radius: 25px;
-  padding: 12px;
+  border-radius: 12px;
+  padding: 14px 16px;
   width: 100%;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: background .12s ease, transform .08s ease;
 }
 
-.knx-btn:hover {
-  background: #18462c;
+.knx-btn:hover { background: var(--knx-accent-dark); }
+
+/* Password toggle */
+.knx-password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--knx-accent);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+.knx-password-toggle:focus { outline: 2px solid rgba(34,86,56,0.12); }
+
+.knx-input-group{ padding-right: 56px; }
+
+/* Responsive adjustments */
+@media (min-width: 700px) {
+  .knx-auth-container { padding: 48px 24px; }
+  .knx-auth-card { padding: 34px 36px; }
+  .knx-tab-contents { min-height: 360px; }
+  :root{ --knx-card-max: 480px; }
 }
 
 /* Sign-up text */
