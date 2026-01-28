@@ -96,8 +96,12 @@ input {
 }
 
 .knx-password-wrap input {
-  /* make room for the toggle button */
-  padding-right: 48px;
+  /* fixed height + line-height to keep icon vertically centered reliably */
+  height: 44px;
+  line-height: 20px;
+  padding-right: 56px; /* reserve space for the toggle */
+  box-sizing: border-box;
+  font-size: 14px;
 }
 
 .knx-pass-toggle i {
