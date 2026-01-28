@@ -65,8 +65,7 @@ add_action('plugins_loaded', function() {
     knx_require('inc/functions/helpers.php');
     knx_require('inc/functions/security.php');
 
-    // PWA (Driver) — Phase 6.1
-    knx_require('inc/functions/pwa-helpers.php');
+    // PWA (Driver) — Phase 6.1 (removed in PHASE 13.CLEAN)
 
     knx_require('inc/functions/customer-helpers.php');
     knx_require('inc/functions/order-helpers.php');          // KNX-A0.9.2: Order SSOT helpers
@@ -108,8 +107,7 @@ add_action('plugins_loaded', function() {
     knx_require('inc/core/rest/knx-rest-guard.php');
     knx_require('inc/core/rest/knx-rest-wrapper.php');
 
-    // PWA Router (serves manifest + service worker)
-    knx_require('inc/core/pwa/knx-driver-pwa-router.php');
+    // PWA Router (serves manifest + service worker) removed
 
     /* ======================================================
      * CORE (LEGACY - STABLE)
@@ -231,11 +229,7 @@ add_action('plugins_loaded', function() {
     knx_require('inc/core/resources/knx-drivers/api-drivers.php');
     knx_require('inc/core/resources/knx-fees/api-software-fees.php');
     knx_require('inc/core/resources/knx-ops/api-ops-orders.php');
-    // OPS Live Orders (MVP)
-    knx_require('inc/core/resources/knx-ops/api-ops-push-subscriptions.php');
-
-    // OPS SW router (serves /knx-ops-sw.js)
-    knx_require('inc/core/pwa/knx-ops-pwa-router.php');
+    // OPS Live Orders (push endpoint removed)
 
     /* ======================================================
      * RESOURCES — KNX DRIVERS (Driver App MVP)
@@ -254,10 +248,7 @@ add_action('plugins_loaded', function() {
     knx_require('inc/core/resources/knx-drivers/api-drivers-crud.php');
     // OPS assign endpoint (assign/unassign by manager/super_admin)
     knx_require('inc/core/resources/knx-drivers/api-driver-ops-assign.php');
-    // Push subscriptions (driver/manager/admin)
-    knx_require('inc/core/resources/knx-push/api-push-subscriptions.php');
-    // Push test endpoint (validates subscription presence / optional sender)
-    knx_require('inc/core/resources/knx-push/api-push-test.php');
+    // Push subscriptions and test endpoints removed (PHASE 13.CLEAN)
 
     /* ======================================================
      * MODULES — FEES
@@ -287,10 +278,9 @@ add_action('plugins_loaded', function() {
 
     /* ======================================================
      * MODULES — DRIVERS (Driver Dashboard)
+     * NOTE: drivers UI removed in PHASE 13.CLEAN — UI modules are deleted
+     * Backend driver resources remain under `inc/core/resources/knx-drivers/`.
      * ====================================================== */
-    knx_require('inc/modules/drivers/drivers-shortcode.php');
-    // Drivers admin UI (super_admin, manager)
-    knx_require('inc/modules/drivers/drivers-admin-shortcode.php');
 
     /* ======================================================
      * RESOURCES — KNX COUPONS
