@@ -13,7 +13,7 @@ add_shortcode('knx_auth', function () {
     // Redirect if user already has a valid session
     $session = knx_get_session();
     if ($session) {
-        wp_safe_redirect(site_url('/home'));
+        wp_safe_redirect(site_url('/cart'));
         exit;
     }
 
@@ -30,6 +30,15 @@ add_shortcode('knx_auth', function () {
             <form method="post">
                 <?php knx_nonce_field('login'); ?>
 
+                <?php if (isset($_GET['error']) && in_array($_GET['error'], ['auth','invalid','locked'], true)): ?>
+                    <div class="knx-error">Something went wrong with your login. Please try again.</div>
+                <?php endif; ?>
+
+                <div style="display:none;">
+                    <label>Leave this empty<input type="text" name="knx_hp" value=""></label>
+                    <input type="hidden" name="knx_hp_ts" value="<?php echo time(); ?>">
+                </div>
+
                 <div class="knx-input-group">
                     <input type="text" name="knx_login" placeholder="Username or Email" required>
                 </div>
@@ -40,14 +49,11 @@ add_shortcode('knx_auth', function () {
 
                 <div class="knx-auth-options">
                     <label><input type="checkbox" name="knx_remember"> Remember me</label>
-                    <a href="#">Forgot password?</a>
                 </div>
 
                 <button type="submit" name="knx_login_btn" class="knx-btn">Sign In</button>
 
-                <p class="knx-signup-text">
-                    New here? <a href="#">Create an Account</a>
-                </p>
+                <!-- Removed orphan signup link as part of UX polish -->
             </form>
         </div>
     </div>
