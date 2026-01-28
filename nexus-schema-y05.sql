@@ -1574,3 +1574,22 @@ ALTER TABLE `y05_knx_order_status_history`
 --
 ALTER TABLE `y05_knx_sessions`
   ADD CONSTRAINT `y05_knx_sessions_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `y05_knx_users` (`id`) ON DELETE CASCADE;
+
+-- --------------------------------------------------------
+-- Estructura de tabla para la tabla `y05_knx_password_resets`
+-- (Password reset tokens for custom KNX users)
+-- --------------------------------------------------------
+
+CREATE TABLE `y05_knx_password_resets` (
+  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id` bigint UNSIGNED NOT NULL,
+  `token_hash` varchar(255) NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `used_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `ip_address` varchar(45) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `token_hash` (`token_hash`(64)),
+  KEY `user_id` (`user_id`),
+  KEY `expires_at` (`expires_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
