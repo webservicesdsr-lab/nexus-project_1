@@ -81,8 +81,9 @@ input {
 .knx-pass-toggle {
   position: absolute;
   right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 0;
+  bottom: 0;
+  margin: auto 0; /* vertically center within the password wrap */
   background: none;
   border: none;
   color: var(--nxs-muted, inherit);
