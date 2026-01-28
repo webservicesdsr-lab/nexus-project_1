@@ -83,15 +83,8 @@
 │   │   │   │   └── api-list-customers.php
 │   │   │   ├── knx-dispatcher
 │   │   │   ├── knx-drivers
-│   │   │   │   ├── api-driver-availability.php
-│   │   │   │   ├── api-driver-claim.php
-│   │   │   │   ├── api-driver-complete.php
-│   │   │   │   ├── api-driver-delay.php
-│   │   │   │   ├── api-driver-my-orders.php
-│   │   │   │   ├── api-driver-ops-assign.php
-│   │   │   │   ├── api-driver-orders-history.php
-│   │   │   │   ├── api-driver-release.php
-│   │   │   │   ├── api-driver-update-status.php
+│   │   │   │   ├── api-drivers-crud.php
+│   │   │   │   └── api-drivers.php
 │   │   │   │   ├── api-drivers-crud.php
 │   │   │   │   └── api-drivers.php
 │   │   │   ├── knx-explore

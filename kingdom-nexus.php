@@ -231,17 +231,9 @@ add_action('plugins_loaded', function() {
     /* ======================================================
      * RESOURCES — KNX DRIVERS (Driver App MVP)
      * ====================================================== */
-    knx_require('inc/core/resources/knx-drivers/api-driver-my-orders.php');
-    knx_require('inc/core/resources/knx-drivers/api-driver-availability.php');
+    // Runtime APIs removed in PHASE 13/14 CLEAN (deleted)
     knx_require('inc/core/functions/knx-driver-runtime.php');
-    knx_require('inc/core/resources/knx-drivers/api-driver-claim.php');
-    knx_require('inc/core/resources/knx-drivers/api-driver-update-status.php');
-    knx_require('inc/core/resources/knx-drivers/api-driver-complete.php');
-    knx_require('inc/core/resources/knx-drivers/api-driver-release.php');
-    knx_require('inc/core/resources/knx-drivers/api-driver-delay.php');
-    knx_require('inc/core/resources/knx-drivers/api-driver-orders-history.php');
     knx_require('inc/core/resources/knx-drivers/api-drivers-crud.php');
-    knx_require('inc/core/resources/knx-drivers/api-driver-ops-assign.php');
     // Push subscriptions and test endpoints removed (PHASE 13.CLEAN)
 
     /* ======================================================

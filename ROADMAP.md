@@ -465,9 +465,7 @@ Objetivo: Tener una brújula ejecutable (estado real + dependencias + smoke test
 - Endpoints existen; falta consolidar dashboard MVP + report flow sin riesgo.
 
 ***🟦 EVIDENCE ANCHORS***
-- 🟡 `inc/core/resources/knx-drivers/api-driver-my-orders.php`
-- 🟡 `inc/core/resources/knx-drivers/api-driver-update-status.php`
-- 🟡 `inc/core/resources/knx-drivers/api-driver-availability.php`
+ - 🟡 Driver runtime APIs: legacy runtime endpoints removed (see repo)
 - 🟡 `inc/core/resources/knx-drivers/api-drivers-crud.php`
 - 🟡 UI: `inc/modules/drivers/drivers-shortcode.php`
 - 🟡 UI: `inc/modules/drivers/drivers-script.js`
