@@ -1,14 +1,9 @@
-:root {
-  --knx-primary: #225638;
-  --knx-bg: #ffffff;
-  --knx-text: #1f2937;
-  --knx-muted: #6b7280;
-  --knx-radius: 16px;
-}
+
+/* Auth UI consumes theme variables only. No fonts or color literals here. */
+/* Fallbacks use inherit to let the theme shell control presentation. */
 
 body {
-  background: var(--knx-bg);
-  /* font removed to inherit theme typography */
+  background: var(--nxs-bg, inherit);
 }
 
 .knx-auth-shell {
@@ -28,11 +23,11 @@ body {
 
 .knx-auth-card {
   width: 100%;
-  max-width: 380px;
-  background: #fff;
-  border-radius: var(--knx-radius);
-  padding: 36px 32px;
-  box-shadow: 0 20px 40px rgba(0,0,0,.08);
+  max-width: 420px;
+  background: var(--nxs-card, inherit);
+  border-radius: 12px;
+  padding: 28px 22px;
+  box-shadow: 0 10px 24px currentColor;
 }
 
 .knx-auth-mode {
@@ -47,7 +42,10 @@ body {
 
 .knx-auth-card h1 {
   font-size: 24px;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
+  color: var(--nxs-text, inherit);
+  margin-top: 0;
+  text-align: center;
 }
 
 .knx-auth-card input {
@@ -55,40 +53,57 @@ body {
   padding: 12px 14px;
   margin-bottom: 14px;
   border-radius: 999px;
-  border: 1.5px solid #e5e7eb;
+  border: 1.5px solid var(--nxs-muted, inherit);
+  background: transparent;
+  color: var(--nxs-text, inherit);
 }
 
 .knx-btn-primary {
   width: 100%;
-  padding: 12px;
+  padding: 12px 14px;
   border-radius: 999px;
   border: none;
-  background: var(--knx-primary);
-  color: #fff;
+  background: var(--nxs-primary, inherit);
+  color: var(--nxs-text, inherit);
   font-weight: 600;
   cursor: pointer;
 }
+
 
 .knx-auth-links {
   margin-top: 18px;
   text-align: center;
   font-size: 14px;
-  color: var(--knx-muted);
+  color: var(--nxs-muted, inherit);
 }
 
 .knx-auth-links button {
   background: none;
   border: none;
-  color: var(--knx-primary);
+  color: var(--nxs-primary, inherit);
   font-weight: 600;
   cursor: pointer;
 }
 
 .knx-auth-error {
-  color: #b00020;
+  color: var(--nxs-primary, inherit);
   margin-bottom: 12px;
+  font-weight: 700;
 }
 
-.knx-hp {
-  display: none;
+.knx-hp { display:none; }
+
+/* Focus styles */
+.knx-auth-card input:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--nxs-primary, transparent);
+  border-color: var(--nxs-primary, inherit);
+}
+
+/* Ensure layout is vertically centered and app-like */
+.knx-auth-shell { min-height: calc(100vh - 40px); }
+
+/* Small screens */
+@media (max-width: 480px) {
+  .knx-auth-card { padding: 20px; margin: 12px; }
 }
