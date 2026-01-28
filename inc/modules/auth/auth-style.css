@@ -100,10 +100,26 @@ input {
   align-items: center;
   gap: 8px;
   cursor: pointer;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .knx-checkbox input {
   margin: 0;
+  width: auto;
+  flex: 0 0 auto;
+}
+
+.knx-checkbox span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.knx-auth-row .knx-link {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  margin-left: 12px;
 }
 
 .knx-btn-primary {
