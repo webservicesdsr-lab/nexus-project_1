@@ -232,7 +232,8 @@ add_action('plugins_loaded', function() {
      * RESOURCES — KNX DRIVERS (Driver App MVP)
      * ====================================================== */
     // Runtime APIs removed in PHASE 13/14 CLEAN (deleted)
-    knx_require('inc/core/functions/knx-driver-runtime.php');
+    // Administrative drivers endpoints (CRUD) remain loaded.
+    knx_require('inc/core/resources/knx-drivers/api-drivers.php');
     knx_require('inc/core/resources/knx-drivers/api-drivers-crud.php');
     // Push subscriptions and test endpoints removed (PHASE 13.CLEAN)
 
