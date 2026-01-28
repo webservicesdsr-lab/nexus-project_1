@@ -1,39 +1,43 @@
-
-/* Auth UI consumes theme variables only. No fonts or color literals here. */
-/* Fallbacks use inherit to let the theme shell control presentation. */
-
-body {
-  background: var(--nxs-bg, inherit);
-}
+/* Canonical Nexus Auth UI — variable driven */
 
 .knx-auth-shell {
   min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--nxs-bg, inherit);
+  position: relative;
 }
 
 .knx-auth-back {
-  position: absolute;
-  top: 24px;
-  left: 24px;
+  position: fixed;
+  top: 20px;
+  left: 20px;
   text-decoration: none;
-  color: var(--knx-muted);
+}
+
+.knx-back-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  background: var(--nxs-primary, inherit);
+  color: var(--nxs-card, inherit);
+  border-radius: 50%;
+  font-size: 22px;
 }
 
 .knx-auth-card {
   width: 100%;
   max-width: 420px;
   background: var(--nxs-card, inherit);
-  border-radius: 12px;
-  padding: 28px 22px;
-  box-shadow: 0 10px 24px currentColor;
+  padding: 32px 28px;
+  border-radius: 14px;
+  box-shadow: 0 16px 40px currentColor;
+  transform: translateY(-20px);
 }
 
-.knx-auth-mode {
-  display: none;
-}
-
+.knx-auth-mode { display: none; }
 .knx-auth-shell[data-mode="login"] [data-mode="login"],
 .knx-auth-shell[data-mode="register"] [data-mode="register"],
 .knx-auth-shell[data-mode="forgot"] [data-mode="forgot"] {
@@ -41,34 +45,77 @@ body {
 }
 
 .knx-auth-card h1 {
-  font-size: 24px;
-  margin-bottom: 18px;
-  color: var(--nxs-text, inherit);
-  margin-top: 0;
   text-align: center;
+  margin-bottom: 6px;
+  color: var(--nxs-text, inherit);
 }
 
-.knx-auth-card input {
+.knx-auth-sub {
+  text-align: center;
+  color: var(--nxs-muted, inherit);
+  margin-bottom: 22px;
+}
+
+label {
+  font-size: 14px;
+  color: var(--nxs-muted, inherit);
+}
+
+input {
   width: 100%;
   padding: 12px 14px;
-  margin-bottom: 14px;
-  border-radius: 999px;
-  border: 1.5px solid var(--nxs-muted, inherit);
+  border-radius: 10px;
+  border: 1px solid var(--nxs-muted, inherit);
+  margin: 6px 0 14px;
   background: transparent;
   color: var(--nxs-text, inherit);
 }
 
-.knx-btn-primary {
-  width: 100%;
-  padding: 12px 14px;
-  border-radius: 999px;
+.knx-password-wrap {
+  position: relative;
+}
+
+.knx-pass-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
   border: none;
-  background: var(--nxs-primary, inherit);
-  color: var(--nxs-text, inherit);
-  font-weight: 600;
+  color: var(--nxs-muted, inherit);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.knx-auth-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.knx-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   cursor: pointer;
 }
 
+.knx-checkbox input {
+  margin: 0;
+}
+
+.knx-btn-primary {
+  width: 100%;
+  padding: 14px;
+  border-radius: 10px;
+  border: none;
+  background: var(--nxs-primary, inherit);
+  color: var(--nxs-card, inherit);
+  font-weight: 600;
+  cursor: pointer;
+}
 
 .knx-auth-links {
   margin-top: 18px;
@@ -77,33 +124,20 @@ body {
   color: var(--nxs-muted, inherit);
 }
 
-.knx-auth-links button {
+.knx-auth-links button,
+.knx-link {
   background: none;
   border: none;
   color: var(--nxs-primary, inherit);
-  font-weight: 600;
   cursor: pointer;
+  font-weight: 600;
 }
 
 .knx-auth-error {
   color: var(--nxs-primary, inherit);
+  text-align: center;
   margin-bottom: 12px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
-.knx-hp { display:none; }
-
-/* Focus styles */
-.knx-auth-card input:focus {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--nxs-primary, transparent);
-  border-color: var(--nxs-primary, inherit);
-}
-
-/* Ensure layout is vertically centered and app-like */
-.knx-auth-shell { min-height: calc(100vh - 40px); }
-
-/* Small screens */
-@media (max-width: 480px) {
-  .knx-auth-card { padding: 20px; margin: 12px; }
-}
+.knx-hp { display: none; }
