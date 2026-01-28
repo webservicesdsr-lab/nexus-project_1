@@ -118,7 +118,7 @@ add_shortcode('knx_auth', function () {
                     <label>Email</label>
                     <input type="email" name="knx_forgot_email" required>
 
-                    <button class="knx-btn-primary">
+                    <button class="knx-btn-primary" name="knx_forgot_btn">
                         Send Reset Link
                     </button>
                 </form>
