@@ -80,8 +80,7 @@ if (!function_exists('knx_install_pages')) {
             // Additional operational/admin pages
             ['title' => 'Driver Dashboard', 'slug' => 'driver-dashboard', 'content' => '[knx_driver_dashboard]'],
             ['title' => 'Drivers Admin', 'slug' => 'drivers-admin', 'content' => '[knx_drivers_admin]'],
-            ['title' => 'Live Orders', 'slug' => 'live-orders', 'content' => '[knx_live_orders_admin]'],
-            ['title' => 'Ops Orders', 'slug' => 'ops-orders', 'content' => '[knx_ops_orders]'],
+            // Legacy OPS pages removed as part of PHASE 13.CLEAN
         ];
 
         foreach ($pages as $p) {

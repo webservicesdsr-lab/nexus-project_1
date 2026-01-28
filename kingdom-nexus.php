@@ -276,9 +276,9 @@ add_action('plugins_loaded', function() {
 
     /* ======================================================
      * MODULES — OPS ORDERS (Admin / Manager)
+     * NOTE: legacy OPS UI removed in PHASE 13.CLEAN — UI modules are deleted
+     * Backend ops resources remain under `inc/core/resources/knx-ops/`.
      * ====================================================== */
-    knx_require('inc/modules/ops/ops-orders-shortcode.php');
-    knx_require('inc/modules/ops/ops-push-ui.php');
 
     /* ======================================================
      * MODULES — ORDERS (Live admin dashboard)

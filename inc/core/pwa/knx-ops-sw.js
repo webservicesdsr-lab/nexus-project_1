@@ -65,11 +65,11 @@ function parsePushData(event) {
 
   const url = (typeof payload.url === 'string' && payload.url.trim())
     ? payload.url.trim()
-    : '/ops-orders';
+    : '/';
 
   const tag = (typeof payload.tag === 'string' && payload.tag.trim())
     ? payload.tag.trim()
-    : 'knx_ops';
+    : 'knx';
 
   const data = (payload.data && typeof payload.data === 'object') ? payload.data : {};
   data.url = url;
@@ -103,8 +103,8 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
   const targetUrl = (event.notification && event.notification.data && event.notification.data.url)
-    ? String(event.notification.data.url)
-    : '/ops-orders';
+  ? String(event.notification.data.url)
+  : '/';
 
   event.waitUntil((async () => {
     try {

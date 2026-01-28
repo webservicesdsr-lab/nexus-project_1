@@ -445,9 +445,7 @@ Objetivo: Tener una brújula ejecutable (estado real + dependencias + smoke test
 - ✅ `inc/core/functions/knx-driver-ops-sync.php`
 - ✅ `inc/core/resources/knx-ops/api-ops-orders.php`
 - ✅ `inc/core/resources/knx-ops/api-ops-orders-live.php`
-- 🟡 UI: `inc/modules/ops/ops-orders-shortcode.php`
-- 🟡 UI: `inc/modules/ops/ops-script.js`
-- 🟡 UI: `inc/modules/ops/ops-style.css`
+ - 🟡 UI: (legacy OPS UI removed)
 
 ***🟦 CONTRACTS (DO NOT BREAK)***
 - `knx_orders` = verdad canónica (dinero/snapshot/status).
@@ -523,9 +521,7 @@ Objetivo: Tener una brújula ejecutable (estado real + dependencias + smoke test
 - Existen módulos de orders live + ops + history; falta consolidación final y naming/documentación en NEXUS.
 
 ***🟦 EVIDENCE ANCHORS***
-- 🟡 `inc/modules/orders/live-orders-shortcode.php`
-- 🟡 `inc/modules/orders/live-orders-script.js`
-- 🟡 `inc/modules/orders/live-orders-style.css`
+ - 🟡 Live Orders UI: (legacy removed)
 - 🟡 `inc/core/resources/knx-ops/api-ops-orders.php`
 - 🟡 `inc/core/resources/knx-ops/api-ops-orders-live.php` (evidence: live proxy for ops/orders)
 - 🟡 Admin base: `inc/modules/admin/admin-menu.php`, `inc/modules/admin/admin-users.php`

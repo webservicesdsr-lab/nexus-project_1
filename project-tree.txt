@@ -267,15 +267,9 @@
 │   │   │   ├── navbar-render.php
 │   │   │   ├── navbar-script.js
 │   │   │   └── navbar-style.css
-│   │   ├── ops
-│   │   │   ├── ops-orders-shortcode.php
-│   │   │   ├── ops-push-ui.php
-│   │   │   ├── ops-script.js
-│   │   │   └── ops-style.css
+│   │   ├── ops (REMOVED)
 │   │   ├── orders
-│   │   │   ├── live-orders-script.js
-│   │   │   ├── live-orders-shortcode.php
-│   │   │   └── live-orders-style.css
+│   │   │   ├── (live orders UI removed)
 │   │   ├── payments
 │   │   │   ├── payments-api.php
 │   │   │   ├── payments-helpers.php

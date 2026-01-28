@@ -5,7 +5,7 @@ Propósito
 
 Qué pueden hacer los drivers / Interacciones OPS (sólo evidencia)
 - Asignación y pipeline OPS:
-  - `inc/core/resources/knx-ops/api-ops-orders.php` — endpoints OPS incluyen `assign`, `unassign`, `cancel` y `list`. La UI cliente (`inc/modules/ops/ops-script.js`) llama a estos endpoints. Las operaciones son ejecutadas por handlers en el servidor que permiten `super_admin` y `manager`.
+  - `inc/core/resources/knx-ops/api-ops-orders.php` — endpoints OPS incluyen `assign`, `unassign`, `cancel` y `list`. La UI cliente legacy que llamaba a estos endpoints ha sido removida; los endpoints backend permanecen como evidencia.
 - CRUD y listado de drivers:
   - `inc/core/resources/knx-drivers/api-drivers-crud.php` — endpoint de lista de drivers devuelve filas globales; drivers pueden ser creados/actualizados/toggleados/reset-password por endpoints admin (permisos incluyen `super_admin` y `manager`).
 
@@ -16,7 +16,7 @@ Dónde se controla la autoridad sobre drivers (sólo evidencia)
 - Los drivers son destinatarios de acciones OPS. La lógica de asignación aplica `allowed_hubs` para la rama manager; la rama `super_admin` establece `allowed_hubs` con todos los hubs (autoridad global explícita).
 
 Puntos de integración en UI (sólo evidencia)
-- OPS UI (`inc/modules/ops/ops-script.js`) carga drivers desde `endpoints.drivers` y muestra un selector de driver por orden.
+- La UI legacy de OPS cargaba drivers desde `endpoints.drivers` y mostraba un selector por orden; esa UI fue removida como parte de PHASE 13.CLEAN.
 - UI de administración de drivers (`inc/modules/drivers/drivers-admin-shortcode.php` + script) expone endpoints de create/update/toggle/reset.
 
 VEREDICTO (sólo evidencia)
