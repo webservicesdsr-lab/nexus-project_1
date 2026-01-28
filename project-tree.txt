@@ -47,7 +47,7 @@
 │   ├── core
 │   │   ├── cart
 │   │   │   └── cart-cleanup.php
-│   │   ├── edit-hub-closure.js
+ 
 │   │   ├── functions
 
 │   │   ├── install
