@@ -123,7 +123,8 @@ input {
   flex: 0 0 auto;
   white-space: nowrap;
   margin-left: 12px;
-  color: var(--nxs-primary, inherit);
+  /* Fixed blue — not controlled by Admin UI */
+  color: #1E6FF0;
   font-weight: 700;
 }
 
@@ -149,7 +150,8 @@ input {
 .knx-link {
   background: none;
   border: none;
-  color: var(--nxs-primary, inherit);
+  /* Fixed blue — not controlled by Admin UI */
+  color: #1E6FF0;
   cursor: pointer;
   font-weight: 700;
 }
