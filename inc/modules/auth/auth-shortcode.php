@@ -56,6 +56,33 @@ add_shortcode('knx_auth', function () {
                 <!-- Removed orphan signup link as part of UX polish -->
             </form>
         </div>
+        
+        <div class="knx-auth-card" style="margin-top:20px;">
+            <h2>Create Account</h2>
+
+            <form method="post">
+                <?php knx_nonce_field('register'); ?>
+
+                <div style="display:none;">
+                    <label>Leave this empty<input type="text" name="knx_hp" value=""></label>
+                    <input type="hidden" name="knx_hp_ts" value="<?php echo time(); ?>">
+                </div>
+
+                <div class="knx-input-group">
+                    <input type="email" name="knx_register_email" placeholder="Email" required>
+                </div>
+
+                <div class="knx-input-group">
+                    <input type="password" name="knx_register_password" placeholder="Password" required>
+                </div>
+
+                <div class="knx-input-group">
+                    <input type="password" name="knx_register_password_confirm" placeholder="Confirm Password" required>
+                </div>
+
+                <button type="submit" name="knx_register_btn" class="knx-btn">Create Account</button>
+            </form>
+        </div>
     </div>
 
     <?php
