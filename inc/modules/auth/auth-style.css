@@ -88,6 +88,21 @@ input {
   color: var(--nxs-muted, inherit);
   cursor: pointer;
   font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  line-height: 1;
+}
+
+.knx-password-wrap input {
+  /* make room for the toggle button */
+  padding-right: 48px;
+}
+
+.knx-pass-toggle i {
+  display: block;
+  line-height: 1;
 }
 
 .knx-auth-row {
