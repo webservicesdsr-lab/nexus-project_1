@@ -317,11 +317,11 @@ Objetivo: Tener una brújula ejecutable (estado real + dependencias + smoke test
 - “Funciona con issues” (según tu estado). Falta pulido + consistencia de contracts.
 
 ***🟦 EVIDENCE ANCHORS***
-- 🟡 `inc/core/resources/knx-checkout/api-checkout-prevalidate.php`
-- 🟡 `inc/core/resources/knx-checkout/api-checkout-quote.php`
-- 🟡 `inc/public/checkout/checkout-shortcode.php`
-- 🟡 `inc/public/checkout/checkout-script.js`
-- 🟡 `inc/public/checkout/checkout-payment-flow.js`
+- ✅ `inc/core/resources/knx-checkout/api-checkout-prevalidate.php`
+- ✅ `inc/core/resources/knx-checkout/api-checkout-quote.php`
+- ✅ `inc/public/checkout/checkout-shortcode.php`
+- ✅ `inc/public/checkout/checkout-script.js`
+- ✅ `inc/public/checkout/checkout-payment-flow.js`
 - 🟡 `inc/public/checkout/checkout-style.css`
 
 ***🟦 CONTRACTS (DO NOT BREAK)***
@@ -442,9 +442,9 @@ Objetivo: Tener una brújula ejecutable (estado real + dependencias + smoke test
 - Existe OPS dashboard y engine ops-sync; falta sellar reglas terminales + filtros canon.
 
 ***🟦 EVIDENCE ANCHORS***
-- 🟡 `inc/core/functions/knx-driver-ops-sync.php`
-- 🟡 `inc/core/resources/knx-ops/api-ops-orders.php`
-- 🟡 `inc/core/resources/knx-ops/api-ops-orders-live.php` (existe en tree; validar si es canonical o legacy)
+- ✅ `inc/core/functions/knx-driver-ops-sync.php`
+- ✅ `inc/core/resources/knx-ops/api-ops-orders.php`
+- ✅ `inc/core/resources/knx-ops/api-ops-orders-live.php`
 - 🟡 UI: `inc/modules/ops/ops-orders-shortcode.php`
 - 🟡 UI: `inc/modules/ops/ops-script.js`
 - 🟡 UI: `inc/modules/ops/ops-style.css`
@@ -527,7 +527,7 @@ Objetivo: Tener una brújula ejecutable (estado real + dependencias + smoke test
 - 🟡 `inc/modules/orders/live-orders-script.js`
 - 🟡 `inc/modules/orders/live-orders-style.css`
 - 🟡 `inc/core/resources/knx-ops/api-ops-orders.php`
-- 🟡 `inc/core/resources/knx-ops/api-ops-orders-history.php` (⬜ PATH_REQUIRED si el archivo no existe en tu repo actual)
+- 🟡 `inc/core/resources/knx-ops/api-ops-orders-live.php` (evidence: live proxy for ops/orders)
 - 🟡 Admin base: `inc/modules/admin/admin-menu.php`, `inc/modules/admin/admin-users.php`
 
 ***🟦 CONTRACTS (DO NOT BREAK)***
