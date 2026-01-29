@@ -63,7 +63,6 @@ if (!function_exists('knx_install_pages')) {
             ['title' => 'Checkout', 'slug' => 'checkout', 'content' => '[knx_checkout]'],
             ['title' => 'Profile', 'slug' => 'profile', 'content' => '[knx_profile]'],
             ['title' => 'Login', 'slug' => 'login', 'content' => '[knx_auth]'],
-            ['title' => 'Reset Password', 'slug' => 'reset-password', 'content' => '[knx_reset_password]'],
             ['title' => 'My Addresses', 'slug' => 'my-addresses', 'content' => '[knx_my_addresses]'],
 
             // Administrative / management pages
@@ -105,37 +104,6 @@ if (!function_exists('knx_install_pages')) {
             wp_insert_post($postarr);
         }
 
-        return true;
-    }
-}
-
-// Schema migrations: ensure password_resets table exists
-if (!function_exists('knx_install_schema')) {
-    function knx_install_schema() {
-        global $wpdb;
-
-        if (!function_exists('dbDelta')) {
-            require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-        }
-
-        $table_name = $wpdb->prefix . 'knx_password_resets';
-        $charset_collate = $wpdb->get_charset_collate();
-
-        $sql = "CREATE TABLE {$table_name} (
-            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            user_id BIGINT UNSIGNED NOT NULL,
-            token_hash VARCHAR(255) NOT NULL,
-            expires_at DATETIME NOT NULL,
-            used_at DATETIME DEFAULT NULL,
-            created_at DATETIME NOT NULL,
-            ip_address VARCHAR(45) DEFAULT NULL,
-            PRIMARY KEY (id),
-            KEY user_id (user_id),
-            KEY token_hash (token_hash(64)),
-            KEY expires_at (expires_at)
-        ) {$charset_collate};";
-
-        dbDelta($sql);
         return true;
     }
 }

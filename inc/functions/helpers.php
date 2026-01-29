@@ -36,26 +36,6 @@ function knx_get_session() {
     return $session ? $session : false;
 }
 
-
-/**
- * Simple email wrapper for auth emails.
- */
-function knx_send_email(string $to, string $subject, string $html) {
-    $to = sanitize_email($to);
-    if (!is_email($to)) return false;
-
-    $site_name = get_bloginfo('name');
-    $host = parse_url(site_url(), PHP_URL_HOST) ?: 'localhost';
-    $from = sprintf('%s <no-reply@%s>', $site_name, $host);
-
-    $headers = [
-        'Content-Type: text/html; charset=UTF-8',
-        'From: ' . $from
-    ];
-
-    // Use wp_mail (server transport configured externally)
-    return wp_mail($to, $subject, $html, $headers);
-}
 /**
  * Require a minimum role hierarchy.
  * Returns the session object or false if unauthorized.

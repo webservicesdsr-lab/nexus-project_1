@@ -1589,7 +1589,9 @@ CREATE TABLE `y05_knx_password_resets` (
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `ip_address` varchar(45) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `token_hash` (`token_hash`(64)),
+  UNIQUE KEY `token_hash` (`token_hash`),
   KEY `user_id` (`user_id`),
   KEY `expires_at` (`expires_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_520_ci;
