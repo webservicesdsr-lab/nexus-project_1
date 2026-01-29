@@ -1,0 +1,44 @@
+/* Basic responsive styles for dispatcher prototype */
+:root{
+  --knx-bg: #f7f9fb;
+  --knx-card: #ffffff;
+  --knx-primary: #2563eb; /* blue-600 */
+  --knx-success: #16a34a;
+  --knx-muted: #6b7280;
+  --knx-accent: #06b6d4;
+}
+
+.knx-dispatcher-shell{font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;}
+.knx-dispatcher-layout{display:flex;gap:16px;padding:16px;background:var(--knx-bg);min-height:360px}
+
+/* Sidebar */
+.knx-dispatcher-sidebar{width:280px;background:var(--knx-card);border-radius:8px;padding:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
+.knx-dp-sidebar-header{display:flex;justify-content:space-between;align-items:center}
+.knx-dp-filters{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.knx-dp-filters input,.knx-dp-filters select{padding:8px;border:1px solid #e5e7eb;border-radius:6px}
+.knx-dp-controls{display:flex;gap:8px;margin-top:6px}
+.knx-dp-controls button{padding:8px 10px;border-radius:6px;border:0;background:var(--knx-primary);color:#fff;cursor:pointer}
+.knx-dp-controls #knx-dp-live{background:var(--knx-success)}
+
+/* Main */
+.knx-dispatcher-main{flex:1;display:flex;flex-direction:column;gap:12px}
+.knx-dp-main-header{display:flex;justify-content:space-between;align-items:center}
+.knx-dp-tabs{display:flex;gap:8px}
+.knx-dp-tab{background:transparent;border:0;padding:8px 12px;border-bottom:2px solid transparent;border-radius:6px;cursor:pointer}
+.knx-dp-tab[aria-selected="true"]{border-bottom-color:var(--knx-primary);color:var(--knx-primary);font-weight:600}
+.knx-badge{background:#efefef;padding:2px 8px;border-radius:999px;margin-left:8px;font-size:0.85em}
+
+.knx-dp-list{background:var(--knx-card);border-radius:8px;padding:12px;min-height:240px;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+.knx-dp-row{display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid #f3f4f6}
+.knx-dp-row:last-child{border-bottom:0}
+.knx-dp-row .meta{color:var(--knx-muted);font-size:0.9em}
+
+.knx-dp-placeholder{color:var(--knx-muted);padding:24px;text-align:center}
+
+/* Responsive */
+@media (max-width: 768px){
+  .knx-dispatcher-layout{flex-direction:column;padding:12px}
+  .knx-dispatcher-sidebar{width:100%;order:2}
+  .knx-dispatcher-main{order:1}
+  .knx-dp-tabs{overflow-x:auto}
+}
