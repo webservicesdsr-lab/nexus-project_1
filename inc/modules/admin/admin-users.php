@@ -13,34 +13,60 @@ $users_table = $wpdb->prefix . 'knx_users';
 
 // Handle new user creation
 if (isset($_POST['knx_add_user_btn'])) {
-    check_admin_referer('knx_add_user_action', 'knx_add_user_nonce');
+  check_admin_referer('knx_add_user_action', 'knx_add_user_nonce');
 
-    $username = sanitize_user($_POST['knx_username']);
-    $email    = sanitize_email($_POST['knx_email']);
-    $password = sanitize_text_field($_POST['knx_password']);
-    $role     = sanitize_text_field($_POST['knx_role']);
-    $status   = 'active';
+  $username = sanitize_user($_POST['knx_username']);
+  $email    = sanitize_email($_POST['knx_email']);
+  $password = sanitize_text_field($_POST['knx_password']);
+  $role     = strtolower(sanitize_text_field($_POST['knx_role'] ?? ''));
+  $status   = 'active';
 
-    if (empty($username) || empty($email) || empty($password)) {
-        echo '<div class="notice notice-error"><p>Please fill in all required fields.</p></div>';
+  // Allowed roles whitelist (canonical set). Modify if project roles change.
+  $allowed_roles = [
+    'super_admin',
+    'manager',
+    'menu_uploader',
+    'hub_management',
+    'driver',
+    'customer',
+  ];
+
+  if (empty($username) || empty($email) || empty($password)) {
+    echo '<div class="notice notice-error"><p>Please fill in all required fields.</p></div>';
+  } elseif (!is_email($email)) {
+    echo '<div class="notice notice-error"><p>Invalid email address.</p></div>';
+  } elseif (!in_array($role, $allowed_roles, true)) {
+    echo '<div class="notice notice-error"><p>Invalid role selected. Aborting user creation.</p></div>';
+  } else {
+    // Prevent duplicate email or username
+    $exists = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$users_table} WHERE email = %s OR username = %s", $email, $username));
+
+    if ($exists) {
+      echo '<div class="notice notice-error"><p>User with that email or username already exists.</p></div>';
     } else {
-        // Prevent duplicate email or username
-        $exists = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $users_table WHERE email = %s OR username = %s", $email, $username));
+      // Enforce centralized password policy if available
+      if (function_exists('knx_password_is_valid') && !knx_password_is_valid($password)) {
+        echo '<div class="notice notice-error"><p>Password does not meet the required policy (min length and complexity).</p></div>';
+      } else {
+        // Use PHP's recommended algorithm constant
+        $hashed = password_hash($password, PASSWORD_DEFAULT);
 
-        if ($exists) {
-            echo '<div class="notice notice-error"><p>User with that email or username already exists.</p></div>';
+        $inserted = $wpdb->insert($users_table, [
+          'username' => $username,
+          'email'    => $email,
+          'password' => $hashed,
+          'role'     => $role,
+          'status'   => $status
+        ]);
+
+        if ($inserted === false) {
+          echo '<div class="notice notice-error"><p>Failed to create user due to a database error.</p></div>';
         } else {
-            $hashed = password_hash($password, PASSWORD_BCRYPT);
-            $wpdb->insert($users_table, [
-                'username' => $username,
-                'email'    => $email,
-                'password' => $hashed,
-                'role'     => $role,
-                'status'   => $status
-            ]);
-            echo '<div class="notice notice-success"><p>New KNX user created successfully.</p></div>';
+          echo '<div class="notice notice-success"><p>New KNX user created successfully.</p></div>';
         }
+      }
     }
+  }
 }
 
 // Fetch users

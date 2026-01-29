@@ -1,22 +1,15 @@
---
--- Servidor: localhost:3306
--- Tiempo de generación: 21-01-2026 a las 08:35:24
--- Versión del servidor: 8.0.44-35
--- Versión de PHP: 8.3.26
+/* =========================================================
+   KINGDOM NEXUS — y05 schema (CLEAN)
+   - No data dumps
+   - No AUTO_INCREMENT=seed values
+   - FK + indexes preserved
+   ========================================================= */
 
-
-
-
---
--- Base de datos: `oywwofte_WPAYY`
---
+SET FOREIGN_KEY_CHECKS = 0;
 
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_addons`
---
-
+-- y05_knx_addons
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_addons` (
   `id` bigint UNSIGNED NOT NULL,
   `group_id` bigint UNSIGNED NOT NULL,
@@ -29,11 +22,8 @@ CREATE TABLE `y05_knx_addons` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
 
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_addon_groups`
---
-
+-- y05_knx_addon_groups
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_addon_groups` (
   `id` bigint UNSIGNED NOT NULL,
   `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci NOT NULL,
@@ -45,11 +35,8 @@ CREATE TABLE `y05_knx_addon_groups` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
 
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_addresses`
---
-
+-- y05_knx_addresses
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_addresses` (
   `id` bigint UNSIGNED NOT NULL,
   `customer_id` bigint UNSIGNED NOT NULL,
@@ -73,16 +60,9 @@ CREATE TABLE `y05_knx_addresses` (
   `default_customer_id` bigint UNSIGNED GENERATED ALWAYS AS (if(((`is_default` = 1) and (`status` = _utf8mb4'active') and (`deleted_at` is null)),`customer_id`,NULL)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Volcado de datos para la tabla `y05_knx_addresses`
---
-
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_carts`
---
-
+-- y05_knx_carts
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_carts` (
   `id` bigint UNSIGNED NOT NULL,
   `session_token` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -96,16 +76,9 @@ CREATE TABLE `y05_knx_carts` (
   `active_customer_id` bigint UNSIGNED GENERATED ALWAYS AS (if((`status` = _utf8mb4'active'),`customer_id`,NULL)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Volcado de datos para la tabla `y05_knx_carts`
---
-
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_cart_items`
---
-
+-- y05_knx_cart_items
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_cart_items` (
   `id` bigint UNSIGNED NOT NULL,
   `cart_id` bigint UNSIGNED NOT NULL,
@@ -119,16 +92,9 @@ CREATE TABLE `y05_knx_cart_items` (
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Volcado de datos para la tabla `y05_knx_cart_items`
---
-
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_cities`
---
-
+-- y05_knx_cities
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_cities` (
   `id` bigint UNSIGNED NOT NULL,
   `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci NOT NULL,
@@ -141,16 +107,9 @@ CREATE TABLE `y05_knx_cities` (
   `deleted_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
 
---
--- Volcado de datos para la tabla `y05_knx_cities`
---
-
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_coupons`
---
-
+-- y05_knx_coupons
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_coupons` (
   `id` bigint UNSIGNED NOT NULL,
   `code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -166,16 +125,9 @@ CREATE TABLE `y05_knx_coupons` (
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Volcado de datos para la tabla `y05_knx_coupons`
---
-
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_coupon_redemptions`
---
-
+-- y05_knx_coupon_redemptions
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_coupon_redemptions` (
   `id` bigint UNSIGNED NOT NULL,
   `coupon_id` bigint UNSIGNED DEFAULT NULL,
@@ -187,11 +139,8 @@ CREATE TABLE `y05_knx_coupon_redemptions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_delivery_fee_rules`
---
-
+-- y05_knx_delivery_fee_rules
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_delivery_fee_rules` (
   `id` bigint UNSIGNED NOT NULL,
   `hub_id` bigint UNSIGNED DEFAULT NULL COMMENT 'Specific hub (highest priority)',
@@ -215,16 +164,9 @@ CREATE TABLE `y05_knx_delivery_fee_rules` (
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Volcado de datos para la tabla `y05_knx_delivery_fee_rules`
---
-
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_delivery_rates`
---
-
+-- y05_knx_delivery_rates
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_delivery_rates` (
   `id` bigint UNSIGNED NOT NULL,
   `city_id` bigint UNSIGNED NOT NULL,
@@ -243,16 +185,9 @@ CREATE TABLE `y05_knx_delivery_rates` (
   `min_order` decimal(10,2) DEFAULT '0.00'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
 
---
--- Volcado de datos para la tabla `y05_knx_delivery_rates`
---
-
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_delivery_zones`
---
-
+-- y05_knx_delivery_zones
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_delivery_zones` (
   `id` bigint UNSIGNED NOT NULL,
   `hub_id` bigint UNSIGNED NOT NULL,
@@ -267,16 +202,9 @@ CREATE TABLE `y05_knx_delivery_zones` (
   `updated_at` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci COMMENT='Polygon-based delivery zones for hubs';
 
---
--- Volcado de datos para la tabla `y05_knx_delivery_zones`
---
-
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_drivers`
---
-
+-- y05_knx_drivers
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_drivers` (
   `id` bigint UNSIGNED NOT NULL,
   `driver_user_id` bigint UNSIGNED NOT NULL,
@@ -290,32 +218,18 @@ CREATE TABLE `y05_knx_drivers` (
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Volcado de datos para la tabla `y05_knx_drivers`
---
-
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_driver_availability`
---
-
+-- y05_knx_driver_availability
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_driver_availability` (
   `driver_user_id` int NOT NULL,
   `status` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'off',
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Volcado de datos para la tabla `y05_knx_driver_availability`
---
-
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_driver_hubs`
---
-
+-- y05_knx_driver_hubs
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_driver_hubs` (
   `id` bigint UNSIGNED NOT NULL,
   `driver_id` bigint UNSIGNED NOT NULL,
@@ -323,16 +237,9 @@ CREATE TABLE `y05_knx_driver_hubs` (
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Volcado de datos para la tabla `y05_knx_driver_hubs`
---
-
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_driver_ops`
---
-
+-- y05_knx_driver_ops
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_driver_ops` (
   `id` bigint UNSIGNED NOT NULL,
   `order_id` bigint UNSIGNED NOT NULL,
@@ -343,16 +250,9 @@ CREATE TABLE `y05_knx_driver_ops` (
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Volcado de datos para la tabla `y05_knx_driver_ops`
---
-
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_gift_cards`
---
-
+-- y05_knx_gift_cards
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_gift_cards` (
   `id` bigint UNSIGNED NOT NULL,
   `code` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -368,11 +268,8 @@ CREATE TABLE `y05_knx_gift_cards` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_gift_card_transactions`
---
-
+-- y05_knx_gift_card_transactions
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_gift_card_transactions` (
   `id` bigint UNSIGNED NOT NULL,
   `gift_card_id` bigint UNSIGNED NOT NULL,
@@ -384,11 +281,8 @@ CREATE TABLE `y05_knx_gift_card_transactions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_hubs`
---
-
+-- y05_knx_hubs
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_hubs` (
   `id` bigint UNSIGNED NOT NULL,
   `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci NOT NULL,
@@ -399,8 +293,8 @@ CREATE TABLE `y05_knx_hubs` (
   `address` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci,
   `latitude` decimal(10,7) DEFAULT NULL,
   `longitude` decimal(10,7) DEFAULT NULL,
-  `delivery_radius` decimal(5,2) DEFAULT '5.00' COMMENT 'Legacy: Delivery radius in miles (used when delivery_zone_type=radius)',
-  `delivery_zone_type` enum('radius','polygon') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT 'radius' COMMENT 'Type of delivery zone: radius (legacy) or polygon (custom area)',
+  `delivery_radius` decimal(5,2) DEFAULT '5.00',
+  `delivery_zone_type` enum('radius','polygon') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT 'radius',
   `delivery_available` tinyint(1) DEFAULT '1',
   `pickup_available` tinyint(1) DEFAULT '1',
   `phone` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL,
@@ -421,26 +315,19 @@ CREATE TABLE `y05_knx_hubs` (
   `closure_start` date DEFAULT NULL,
   `closure_until` datetime DEFAULT NULL,
   `closure_reason` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci,
-  `timezone` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT 'America/Chicago' COMMENT 'IANA timezone identifier',
-  `currency` varchar(3) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT 'USD' COMMENT 'ISO 4217 currency code',
-  `tax_rate` decimal(5,2) DEFAULT '0.00' COMMENT 'Tax percentage (e.g., 8.25 for 8.25%)',
-  `min_order` decimal(10,2) DEFAULT '0.00' COMMENT 'Minimum order amount in local currency',
+  `timezone` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT 'America/Chicago',
+  `currency` varchar(3) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT 'USD',
+  `tax_rate` decimal(5,2) DEFAULT '0.00',
+  `min_order` decimal(10,2) DEFAULT '0.00',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
-  `is_featured` tinyint(1) DEFAULT '0' COMMENT 'Show in Locals Love These section',
+  `is_featured` tinyint(1) DEFAULT '0',
   `closure_end` date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
 
---
--- Volcado de datos para la tabla `y05_knx_hubs`
---
-
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_hub_categories`
---
-
+-- y05_knx_hub_categories
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_hub_categories` (
   `id` bigint UNSIGNED NOT NULL,
   `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci NOT NULL,
@@ -450,16 +337,9 @@ CREATE TABLE `y05_knx_hub_categories` (
   `updated_at` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
 
---
--- Volcado de datos para la tabla `y05_knx_hub_categories`
---
-
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_hub_items`
---
-
+-- y05_knx_hub_items
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_hub_items` (
   `id` bigint UNSIGNED NOT NULL,
   `hub_id` bigint UNSIGNED NOT NULL,
@@ -474,16 +354,9 @@ CREATE TABLE `y05_knx_hub_items` (
   `updated_at` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
 
---
--- Volcado de datos para la tabla `y05_knx_hub_items`
---
-
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_items_categories`
---
-
+-- y05_knx_items_categories
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_items_categories` (
   `id` bigint UNSIGNED NOT NULL,
   `hub_id` bigint UNSIGNED NOT NULL,
@@ -494,16 +367,9 @@ CREATE TABLE `y05_knx_items_categories` (
   `updated_at` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
 
---
--- Volcado de datos para la tabla `y05_knx_items_categories`
---
-
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_item_addon_groups`
---
-
+-- y05_knx_item_addon_groups
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_item_addon_groups` (
   `id` bigint UNSIGNED NOT NULL,
   `item_id` bigint UNSIGNED NOT NULL,
@@ -512,11 +378,8 @@ CREATE TABLE `y05_knx_item_addon_groups` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
 
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_item_global_modifiers`
---
-
+-- y05_knx_item_global_modifiers
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_item_global_modifiers` (
   `id` bigint UNSIGNED NOT NULL,
   `item_id` bigint UNSIGNED NOT NULL,
@@ -525,11 +388,8 @@ CREATE TABLE `y05_knx_item_global_modifiers` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
 
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_item_modifiers`
---
-
+-- y05_knx_item_modifiers
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_item_modifiers` (
   `id` bigint UNSIGNED NOT NULL,
   `item_id` bigint UNSIGNED DEFAULT NULL,
@@ -545,16 +405,9 @@ CREATE TABLE `y05_knx_item_modifiers` (
   `updated_at` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
 
---
--- Volcado de datos para la tabla `y05_knx_item_modifiers`
---
-
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_modifier_options`
---
-
+-- y05_knx_modifier_options
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_modifier_options` (
   `id` bigint UNSIGNED NOT NULL,
   `modifier_id` bigint UNSIGNED NOT NULL,
@@ -566,16 +419,9 @@ CREATE TABLE `y05_knx_modifier_options` (
   `updated_at` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
 
---
--- Volcado de datos para la tabla `y05_knx_modifier_options`
---
-
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_ops_settings`
---
-
+-- y05_knx_ops_settings
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_ops_settings` (
   `id` bigint UNSIGNED NOT NULL,
   `setting_key` varchar(80) COLLATE utf8mb4_unicode_520_ci NOT NULL,
@@ -584,11 +430,8 @@ CREATE TABLE `y05_knx_ops_settings` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
 
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_orders`
---
-
+-- y05_knx_orders
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_orders` (
   `id` bigint UNSIGNED NOT NULL,
   `order_number` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -634,16 +477,9 @@ CREATE TABLE `y05_knx_orders` (
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Volcado de datos para la tabla `y05_knx_orders`
---
-
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_order_items`
---
-
+-- y05_knx_order_items
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_order_items` (
   `id` bigint UNSIGNED NOT NULL,
   `order_id` bigint UNSIGNED NOT NULL,
@@ -657,16 +493,9 @@ CREATE TABLE `y05_knx_order_items` (
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Volcado de datos para la tabla `y05_knx_order_items`
---
-
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_order_status_history`
---
-
+-- y05_knx_order_status_history
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_order_status_history` (
   `id` bigint UNSIGNED NOT NULL,
   `order_id` bigint UNSIGNED NOT NULL,
@@ -675,16 +504,9 @@ CREATE TABLE `y05_knx_order_status_history` (
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Volcado de datos para la tabla `y05_knx_order_status_history`
---
-
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_payments`
---
-
+-- y05_knx_payments
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_payments` (
   `id` bigint UNSIGNED NOT NULL,
   `order_id` bigint UNSIGNED NOT NULL COMMENT 'Reference to knx_orders.id',
@@ -697,16 +519,9 @@ CREATE TABLE `y05_knx_payments` (
   `updated_at` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Payment state authority for orders';
 
---
--- Volcado de datos para la tabla `y05_knx_payments`
---
-
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_push_subscriptions`
---
-
+-- y05_knx_push_subscriptions
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_push_subscriptions` (
   `id` bigint UNSIGNED NOT NULL,
   `user_id` bigint UNSIGNED NOT NULL,
@@ -718,16 +533,9 @@ CREATE TABLE `y05_knx_push_subscriptions` (
   `revoked_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Volcado de datos para la tabla `y05_knx_push_subscriptions`
---
-
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_sessions`
---
-
+-- y05_knx_sessions
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_sessions` (
   `id` bigint UNSIGNED NOT NULL,
   `user_id` bigint UNSIGNED NOT NULL,
@@ -738,16 +546,9 @@ CREATE TABLE `y05_knx_sessions` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
 
---
--- Volcado de datos para la tabla `y05_knx_sessions`
---
-
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_settings`
---
-
+-- y05_knx_settings
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_settings` (
   `id` bigint UNSIGNED NOT NULL,
   `setting_key` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci NOT NULL,
@@ -757,11 +558,8 @@ CREATE TABLE `y05_knx_settings` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
 
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_software_fees`
---
-
+-- y05_knx_software_fees
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_software_fees` (
   `id` bigint UNSIGNED NOT NULL,
   `scope` enum('city','hub') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'city',
@@ -773,16 +571,9 @@ CREATE TABLE `y05_knx_software_fees` (
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Volcado de datos para la tabla `y05_knx_software_fees`
---
-
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_tax_rules`
---
-
+-- y05_knx_tax_rules
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_tax_rules` (
   `id` bigint UNSIGNED NOT NULL,
   `scope` enum('city','hub') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'city',
@@ -796,29 +587,22 @@ CREATE TABLE `y05_knx_tax_rules` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
-
-
---
--- Estructura de tabla para la tabla `y05_knx_tip_settings`
---
-
+-- y05_knx_tip_settings
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_tip_settings` (
   `id` bigint UNSIGNED NOT NULL,
   `scope` enum('city','hub') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'city',
   `city_id` bigint UNSIGNED NOT NULL,
   `hub_id` bigint UNSIGNED NOT NULL DEFAULT '0',
   `is_enabled` tinyint(1) NOT NULL DEFAULT '1',
-  `presets_json` json DEFAULT NULL COMMENT 'Example: [0,10,15,20] or fixed amounts in cents/decimal (your engine decides)',
+  `presets_json` json DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_users`
---
-
+-- y05_knx_users
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_users` (
   `id` bigint UNSIGNED NOT NULL,
   `username` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci NOT NULL,
@@ -832,754 +616,23 @@ CREATE TABLE `y05_knx_users` (
   `updated_at` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
 
---
--- Volcado de datos para la tabla `y05_knx_users`
---
-
 -- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `y05_knx_webhook_events`
---
-
+-- y05_knx_webhook_events
+-- --------------------------------------------------------
 CREATE TABLE `y05_knx_webhook_events` (
   `id` bigint UNSIGNED NOT NULL,
   `provider` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'stripe',
-  `event_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Stripe event ID (evt_xxx)',
-  `event_type` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'payment_intent.succeeded, etc',
-  `intent_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'provider_intent_id (pi_xxx)',
+  `event_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `event_type` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `intent_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `order_id` bigint UNSIGNED DEFAULT NULL,
   `processed_at` datetime DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Volcado de datos para la tabla `y05_knx_webhook_events`
---
-
---
--- Índices para tablas volcadas
---
-
---
--- Indices de la tabla `y05_knx_addons`
---
-ALTER TABLE `y05_knx_addons`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `group_id` (`group_id`),
-  ADD KEY `group_id_2` (`group_id`,`sort_order`),
-  ADD KEY `status` (`status`);
-
---
--- Indices de la tabla `y05_knx_addon_groups`
---
-ALTER TABLE `y05_knx_addon_groups`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `hub_id` (`hub_id`),
-  ADD KEY `hub_id_2` (`hub_id`,`sort_order`),
-  ADD KEY `name` (`name`);
-
---
--- Indices de la tabla `y05_knx_addresses`
---
-ALTER TABLE `y05_knx_addresses`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `uq_default_address_per_customer` (`default_customer_id`),
-  ADD KEY `idx_customer_id` (`customer_id`),
-  ADD KEY `idx_status` (`status`),
-  ADD KEY `idx_deleted_at` (`deleted_at`),
-  ADD KEY `idx_latlng` (`latitude`,`longitude`),
-  ADD KEY `idx_customer_default_lookup` (`customer_id`,`is_default`,`status`,`deleted_at`);
-
---
--- Indices de la tabla `y05_knx_carts`
---
-ALTER TABLE `y05_knx_carts`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `uq_active_session_hub` (`active_session_token`,`hub_id`),
-  ADD UNIQUE KEY `uq_active_customer_hub` (`active_customer_id`,`hub_id`),
-  ADD KEY `session_idx` (`session_token`),
-  ADD KEY `customer_idx` (`customer_id`),
-  ADD KEY `hub_idx` (`hub_id`),
-  ADD KEY `status_idx` (`status`),
-  ADD KEY `idx_session_status` (`session_token`,`status`);
-
---
--- Indices de la tabla `y05_knx_cart_items`
---
-ALTER TABLE `y05_knx_cart_items`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `cart_idx` (`cart_id`),
-  ADD KEY `item_idx` (`item_id`);
-
---
--- Indices de la tabla `y05_knx_cities`
---
-ALTER TABLE `y05_knx_cities`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `status` (`status`),
-  ADD KEY `name` (`name`),
-  ADD KEY `idx_is_operational` (`is_operational`),
-  ADD KEY `idx_deleted_at` (`deleted_at`);
-
---
--- Indices de la tabla `y05_knx_coupons`
---
-ALTER TABLE `y05_knx_coupons`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `code` (`code`),
-  ADD KEY `status` (`status`),
-  ADD KEY `expires_at` (`expires_at`);
-
---
--- Indices de la tabla `y05_knx_coupon_redemptions`
---
-ALTER TABLE `y05_knx_coupon_redemptions`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_coupon_id` (`coupon_id`),
-  ADD KEY `idx_coupon_code` (`coupon_code`),
-  ADD KEY `idx_order_id` (`order_id`),
-  ADD KEY `idx_customer_id` (`customer_id`);
-
---
--- Indices de la tabla `y05_knx_delivery_fee_rules`
---
-ALTER TABLE `y05_knx_delivery_fee_rules`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_hub_active` (`hub_id`,`is_active`),
-  ADD KEY `idx_city_active` (`city_id`,`is_active`),
-  ADD KEY `idx_zone_active` (`zone_id`,`is_active`),
-  ADD KEY `idx_priority` (`priority` DESC);
-
---
--- Indices de la tabla `y05_knx_delivery_rates`
---
-ALTER TABLE `y05_knx_delivery_rates`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `unique_city` (`city_id`),
-  ADD KEY `status` (`status`),
-  ADD KEY `city_id` (`city_id`);
-
---
--- Indices de la tabla `y05_knx_delivery_zones`
---
-ALTER TABLE `y05_knx_delivery_zones`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `hub_id` (`hub_id`),
-  ADD KEY `is_active` (`is_active`),
-  ADD KEY `hub_active` (`hub_id`,`is_active`);
-
---
--- Indices de la tabla `y05_knx_drivers`
---
-ALTER TABLE `y05_knx_drivers`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_status` (`status`),
-  ADD KEY `idx_knx_drivers_user_id` (`user_id`);
-
---
--- Indices de la tabla `y05_knx_driver_availability`
---
-ALTER TABLE `y05_knx_driver_availability`
-  ADD PRIMARY KEY (`driver_user_id`),
-  ADD KEY `idx_knx_driver_availability_status` (`status`);
-
---
--- Indices de la tabla `y05_knx_driver_hubs`
---
-ALTER TABLE `y05_knx_driver_hubs`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `uk_driver_hub` (`driver_id`,`hub_id`),
-  ADD KEY `idx_driver_id` (`driver_id`),
-  ADD KEY `idx_hub_id` (`hub_id`);
-
---
--- Indices de la tabla `y05_knx_driver_ops`
---
-ALTER TABLE `y05_knx_driver_ops`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `uniq_order` (`order_id`),
-  ADD KEY `idx_driver` (`driver_user_id`),
-  ADD KEY `idx_ops_status` (`ops_status`),
-  ADD KEY `idx_updated` (`updated_at`);
-
---
--- Indices de la tabla `y05_knx_gift_cards`
---
-ALTER TABLE `y05_knx_gift_cards`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `uk_code` (`code`),
-  ADD KEY `idx_status` (`status`),
-  ADD KEY `idx_expires_at` (`expires_at`);
-
---
--- Indices de la tabla `y05_knx_gift_card_transactions`
---
-ALTER TABLE `y05_knx_gift_card_transactions`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_gift_card_id` (`gift_card_id`),
-  ADD KEY `idx_order_id` (`order_id`),
-  ADD KEY `idx_type` (`type`);
-
---
--- Indices de la tabla `y05_knx_hubs`
---
-ALTER TABLE `y05_knx_hubs`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `city_id` (`city_id`),
-  ADD KEY `category_id` (`category_id`),
-  ADD KEY `status` (`status`),
-  ADD KEY `name` (`name`),
-  ADD KEY `rating` (`rating`),
-  ADD KEY `delivery_zone_type` (`delivery_zone_type`),
-  ADD KEY `idx_hub_slug` (`slug`),
-  ADD KEY `is_featured` (`is_featured`),
-  ADD KEY `slug` (`slug`);
-
---
--- Indices de la tabla `y05_knx_hub_categories`
---
-ALTER TABLE `y05_knx_hub_categories`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `status` (`status`),
-  ADD KEY `sort_order` (`sort_order`),
-  ADD KEY `name` (`name`);
-
---
--- Indices de la tabla `y05_knx_hub_items`
---
-ALTER TABLE `y05_knx_hub_items`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `hub_id` (`hub_id`),
-  ADD KEY `category_id` (`category_id`),
-  ADD KEY `hub_id_2` (`hub_id`,`category_id`,`sort_order`),
-  ADD KEY `status` (`status`);
-
---
--- Indices de la tabla `y05_knx_items_categories`
---
-ALTER TABLE `y05_knx_items_categories`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `hub_id` (`hub_id`),
-  ADD KEY `hub_id_2` (`hub_id`,`sort_order`),
-  ADD KEY `status` (`status`);
-
---
--- Indices de la tabla `y05_knx_item_addon_groups`
---
-ALTER TABLE `y05_knx_item_addon_groups`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `unique_item_group` (`item_id`,`group_id`),
-  ADD KEY `item_id` (`item_id`),
-  ADD KEY `group_id` (`group_id`);
-
---
--- Indices de la tabla `y05_knx_item_global_modifiers`
---
-ALTER TABLE `y05_knx_item_global_modifiers`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `unique_item_global` (`item_id`,`global_modifier_id`),
-  ADD KEY `item_id` (`item_id`),
-  ADD KEY `global_modifier_id` (`global_modifier_id`);
-
---
--- Indices de la tabla `y05_knx_item_modifiers`
---
-ALTER TABLE `y05_knx_item_modifiers`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `item_id` (`item_id`),
-  ADD KEY `hub_id` (`hub_id`),
-  ADD KEY `is_global` (`is_global`),
-  ADD KEY `item_id_2` (`item_id`,`sort_order`),
-  ADD KEY `hub_id_2` (`hub_id`,`is_global`,`sort_order`);
-
---
--- Indices de la tabla `y05_knx_modifier_options`
---
-ALTER TABLE `y05_knx_modifier_options`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `modifier_id` (`modifier_id`),
-  ADD KEY `modifier_id_2` (`modifier_id`,`sort_order`);
-
---
--- Indices de la tabla `y05_knx_ops_settings`
---
-ALTER TABLE `y05_knx_ops_settings`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `uk_setting_key` (`setting_key`);
-
---
--- Indices de la tabla `y05_knx_orders`
---
-ALTER TABLE `y05_knx_orders`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `uk_order_number` (`order_number`),
-  ADD KEY `idx_hub_id` (`hub_id`),
-  ADD KEY `idx_city_id` (`city_id`),
-  ADD KEY `idx_session_token` (`session_token`),
-  ADD KEY `idx_status` (`status`),
-  ADD KEY `idx_created_at` (`created_at`),
-  ADD KEY `idx_delivery_address_id` (`delivery_address_id`),
-  ADD KEY `idx_idempotency_probe` (`session_token`,`hub_id`,`customer_id`,`status`,`created_at`),
-  ADD KEY `idx_coupon_code` (`coupon_code`),
-  ADD KEY `idx_gift_card_code` (`gift_card_code`);
-
---
--- Indices de la tabla `y05_knx_order_items`
---
-ALTER TABLE `y05_knx_order_items`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_order_id` (`order_id`),
-  ADD KEY `idx_item_id` (`item_id`);
-
---
--- Indices de la tabla `y05_knx_order_status_history`
---
-ALTER TABLE `y05_knx_order_status_history`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_order_id` (`order_id`),
-  ADD KEY `idx_status` (`status`),
-  ADD KEY `idx_created_at` (`created_at`);
-
---
--- Indices de la tabla `y05_knx_payments`
---
-ALTER TABLE `y05_knx_payments`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_order_id` (`order_id`),
-  ADD KEY `idx_provider_intent` (`provider`,`provider_intent_id`),
-  ADD KEY `idx_status` (`status`),
-  ADD KEY `idx_created_at` (`created_at`);
-
---
--- Indices de la tabla `y05_knx_push_subscriptions`
---
-ALTER TABLE `y05_knx_push_subscriptions`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `uniq_user_role` (`user_id`,`role`),
-  ADD KEY `idx_user_id` (`user_id`),
-  ADD KEY `idx_role` (`role`),
-  ADD KEY `idx_revoked_at` (`revoked_at`);
-
---
--- Indices de la tabla `y05_knx_sessions`
---
-ALTER TABLE `y05_knx_sessions`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `token` (`token`),
-  ADD KEY `token_2` (`token`),
-  ADD KEY `expires_at` (`expires_at`),
-  ADD KEY `user_id` (`user_id`);
-
---
--- Indices de la tabla `y05_knx_settings`
---
-ALTER TABLE `y05_knx_settings`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `setting_key` (`setting_key`),
-  ADD KEY `setting_key_2` (`setting_key`);
-
---
--- Indices de la tabla `y05_knx_software_fees`
---
-ALTER TABLE `y05_knx_software_fees`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `uniq_scope_city_hub` (`scope`,`city_id`,`hub_id`),
-  ADD KEY `idx_city` (`city_id`),
-  ADD KEY `idx_hub` (`hub_id`),
-  ADD KEY `idx_status` (`status`);
-
---
--- Indices de la tabla `y05_knx_tax_rules`
---
-ALTER TABLE `y05_knx_tax_rules`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_scope_status` (`scope`,`status`),
-  ADD KEY `idx_scope_id` (`scope_id`),
-  ADD KEY `idx_priority` (`priority`);
-
---
--- Indices de la tabla `y05_knx_tip_settings`
---
-ALTER TABLE `y05_knx_tip_settings`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `uk_scope_city_hub` (`scope`,`city_id`,`hub_id`),
-  ADD KEY `idx_city` (`city_id`),
-  ADD KEY `idx_hub` (`hub_id`);
-
---
--- Indices de la tabla `y05_knx_users`
---
-ALTER TABLE `y05_knx_users`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `username` (`username`),
-  ADD UNIQUE KEY `email` (`email`),
-  ADD KEY `email_2` (`email`),
-  ADD KEY `role` (`role`),
-  ADD KEY `status` (`status`),
-  ADD KEY `idx_name` (`name`),
-  ADD KEY `idx_phone` (`phone`);
-
---
--- Indices de la tabla `y05_knx_webhook_events`
---
-ALTER TABLE `y05_knx_webhook_events`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `event_id` (`event_id`),
-  ADD KEY `intent_id` (`intent_id`),
-  ADD KEY `order_id` (`order_id`),
-  ADD KEY `processed_at` (`processed_at`);
-
---
--- AUTO_INCREMENT de las tablas volcadas
---
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_addons`
---
-ALTER TABLE `y05_knx_addons`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_addon_groups`
---
-ALTER TABLE `y05_knx_addon_groups`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_addresses`
---
-ALTER TABLE `y05_knx_addresses`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_carts`
---
-ALTER TABLE `y05_knx_carts`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=167;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_cart_items`
---
-ALTER TABLE `y05_knx_cart_items`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=971;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_cities`
---
-ALTER TABLE `y05_knx_cities`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_coupons`
---
-ALTER TABLE `y05_knx_coupons`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_coupon_redemptions`
---
-ALTER TABLE `y05_knx_coupon_redemptions`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_delivery_fee_rules`
---
-ALTER TABLE `y05_knx_delivery_fee_rules`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_delivery_rates`
---
-ALTER TABLE `y05_knx_delivery_rates`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_delivery_zones`
---
-ALTER TABLE `y05_knx_delivery_zones`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_drivers`
---
-ALTER TABLE `y05_knx_drivers`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_driver_hubs`
---
-ALTER TABLE `y05_knx_driver_hubs`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_driver_ops`
---
-ALTER TABLE `y05_knx_driver_ops`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_gift_cards`
---
-ALTER TABLE `y05_knx_gift_cards`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_gift_card_transactions`
---
-ALTER TABLE `y05_knx_gift_card_transactions`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_hubs`
---
-ALTER TABLE `y05_knx_hubs`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_hub_categories`
---
-ALTER TABLE `y05_knx_hub_categories`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_hub_items`
---
-ALTER TABLE `y05_knx_hub_items`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_items_categories`
---
-ALTER TABLE `y05_knx_items_categories`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_item_addon_groups`
---
-ALTER TABLE `y05_knx_item_addon_groups`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_item_global_modifiers`
---
-ALTER TABLE `y05_knx_item_global_modifiers`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_item_modifiers`
---
-ALTER TABLE `y05_knx_item_modifiers`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_modifier_options`
---
-ALTER TABLE `y05_knx_modifier_options`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_ops_settings`
---
-ALTER TABLE `y05_knx_ops_settings`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_orders`
---
-ALTER TABLE `y05_knx_orders`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_order_items`
---
-ALTER TABLE `y05_knx_order_items`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_order_status_history`
---
-ALTER TABLE `y05_knx_order_status_history`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_payments`
---
-ALTER TABLE `y05_knx_payments`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_push_subscriptions`
---
-ALTER TABLE `y05_knx_push_subscriptions`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_sessions`
---
-ALTER TABLE `y05_knx_sessions`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=79;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_settings`
---
-ALTER TABLE `y05_knx_settings`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_software_fees`
---
-ALTER TABLE `y05_knx_software_fees`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_tax_rules`
---
-ALTER TABLE `y05_knx_tax_rules`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_tip_settings`
---
-ALTER TABLE `y05_knx_tip_settings`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_users`
---
-ALTER TABLE `y05_knx_users`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
-
---
--- AUTO_INCREMENT de la tabla `y05_knx_webhook_events`
---
-ALTER TABLE `y05_knx_webhook_events`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
-
---
--- Restricciones para tablas volcadas
---
-
---
--- Filtros para la tabla `y05_knx_addons`
---
-ALTER TABLE `y05_knx_addons`
-  ADD CONSTRAINT `y05_knx_addons_ibfk_1` FOREIGN KEY (`group_id`) REFERENCES `y05_knx_addon_groups` (`id`) ON DELETE CASCADE;
-
---
--- Filtros para la tabla `y05_knx_addon_groups`
---
-ALTER TABLE `y05_knx_addon_groups`
-  ADD CONSTRAINT `y05_knx_addon_groups_ibfk_1` FOREIGN KEY (`hub_id`) REFERENCES `y05_knx_hubs` (`id`) ON DELETE CASCADE;
-
---
--- Filtros para la tabla `y05_knx_addresses`
---
-ALTER TABLE `y05_knx_addresses`
-  ADD CONSTRAINT `fk_addresses_customer` FOREIGN KEY (`customer_id`) REFERENCES `y05_knx_users` (`id`) ON DELETE CASCADE;
-
---
--- Filtros para la tabla `y05_knx_carts`
---
-ALTER TABLE `y05_knx_carts`
-  ADD CONSTRAINT `fk_carts_customer` FOREIGN KEY (`customer_id`) REFERENCES `y05_knx_users` (`id`) ON DELETE SET NULL,
-  ADD CONSTRAINT `fk_carts_hub` FOREIGN KEY (`hub_id`) REFERENCES `y05_knx_hubs` (`id`) ON DELETE CASCADE;
-
---
--- Filtros para la tabla `y05_knx_cart_items`
---
-ALTER TABLE `y05_knx_cart_items`
-  ADD CONSTRAINT `fk_cart_items_cart` FOREIGN KEY (`cart_id`) REFERENCES `y05_knx_carts` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `fk_cart_items_item` FOREIGN KEY (`item_id`) REFERENCES `y05_knx_hub_items` (`id`) ON DELETE SET NULL;
-
---
--- Filtros para la tabla `y05_knx_delivery_rates`
---
-ALTER TABLE `y05_knx_delivery_rates`
-  ADD CONSTRAINT `y05_knx_delivery_rates_ibfk_1` FOREIGN KEY (`city_id`) REFERENCES `y05_knx_cities` (`id`) ON DELETE CASCADE;
-
---
--- Filtros para la tabla `y05_knx_delivery_zones`
---
-ALTER TABLE `y05_knx_delivery_zones`
-  ADD CONSTRAINT `y05_knx_delivery_zones_ibfk_1` FOREIGN KEY (`hub_id`) REFERENCES `y05_knx_hubs` (`id`) ON DELETE CASCADE;
-
---
--- Filtros para la tabla `y05_knx_hubs`
---
-ALTER TABLE `y05_knx_hubs`
-  ADD CONSTRAINT `y05_knx_hubs_ibfk_1` FOREIGN KEY (`city_id`) REFERENCES `y05_knx_cities` (`id`) ON DELETE SET NULL,
-  ADD CONSTRAINT `y05_knx_hubs_ibfk_2` FOREIGN KEY (`category_id`) REFERENCES `y05_knx_hub_categories` (`id`) ON DELETE SET NULL;
-
---
--- Filtros para la tabla `y05_knx_hub_items`
---
-ALTER TABLE `y05_knx_hub_items`
-  ADD CONSTRAINT `y05_knx_hub_items_ibfk_1` FOREIGN KEY (`hub_id`) REFERENCES `y05_knx_hubs` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `y05_knx_hub_items_ibfk_2` FOREIGN KEY (`category_id`) REFERENCES `y05_knx_items_categories` (`id`) ON DELETE SET NULL;
-
---
--- Filtros para la tabla `y05_knx_items_categories`
---
-ALTER TABLE `y05_knx_items_categories`
-  ADD CONSTRAINT `y05_knx_items_categories_ibfk_1` FOREIGN KEY (`hub_id`) REFERENCES `y05_knx_hubs` (`id`) ON DELETE CASCADE;
-
---
--- Filtros para la tabla `y05_knx_item_addon_groups`
---
-ALTER TABLE `y05_knx_item_addon_groups`
-  ADD CONSTRAINT `y05_knx_item_addon_groups_ibfk_1` FOREIGN KEY (`item_id`) REFERENCES `y05_knx_hub_items` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `y05_knx_item_addon_groups_ibfk_2` FOREIGN KEY (`group_id`) REFERENCES `y05_knx_addon_groups` (`id`) ON DELETE CASCADE;
-
---
--- Filtros para la tabla `y05_knx_item_global_modifiers`
---
-ALTER TABLE `y05_knx_item_global_modifiers`
-  ADD CONSTRAINT `y05_knx_item_global_modifiers_ibfk_1` FOREIGN KEY (`item_id`) REFERENCES `y05_knx_hub_items` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `y05_knx_item_global_modifiers_ibfk_2` FOREIGN KEY (`global_modifier_id`) REFERENCES `y05_knx_item_modifiers` (`id`) ON DELETE CASCADE;
-
---
--- Filtros para la tabla `y05_knx_item_modifiers`
---
-ALTER TABLE `y05_knx_item_modifiers`
-  ADD CONSTRAINT `y05_knx_item_modifiers_ibfk_1` FOREIGN KEY (`item_id`) REFERENCES `y05_knx_hub_items` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `y05_knx_item_modifiers_ibfk_2` FOREIGN KEY (`hub_id`) REFERENCES `y05_knx_hubs` (`id`) ON DELETE CASCADE;
-
---
--- Filtros para la tabla `y05_knx_modifier_options`
---
-ALTER TABLE `y05_knx_modifier_options`
-  ADD CONSTRAINT `y05_knx_modifier_options_ibfk_1` FOREIGN KEY (`modifier_id`) REFERENCES `y05_knx_item_modifiers` (`id`) ON DELETE CASCADE;
-
---
--- Filtros para la tabla `y05_knx_orders`
---
-ALTER TABLE `y05_knx_orders`
-  ADD CONSTRAINT `fk_orders_delivery_address` FOREIGN KEY (`delivery_address_id`) REFERENCES `y05_knx_addresses` (`id`) ON DELETE SET NULL;
-
---
--- Filtros para la tabla `y05_knx_order_items`
---
-ALTER TABLE `y05_knx_order_items`
-  ADD CONSTRAINT `fk_order_items_order` FOREIGN KEY (`order_id`) REFERENCES `y05_knx_orders` (`id`) ON DELETE CASCADE;
-
---
--- Filtros para la tabla `y05_knx_order_status_history`
---
-ALTER TABLE `y05_knx_order_status_history`
-  ADD CONSTRAINT `fk_order_status_history_order` FOREIGN KEY (`order_id`) REFERENCES `y05_knx_orders` (`id`) ON DELETE CASCADE;
-
---
--- Filtros para la tabla `y05_knx_sessions`
---
-ALTER TABLE `y05_knx_sessions`
-  ADD CONSTRAINT `y05_knx_sessions_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `y05_knx_users` (`id`) ON DELETE CASCADE;
-
 -- --------------------------------------------------------
--- Estructura de tabla para la tabla `y05_knx_password_resets`
--- (Password reset tokens for custom KNX users)
+-- y05_knx_password_resets (already clean)
 -- --------------------------------------------------------
-
 CREATE TABLE `y05_knx_password_resets` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `user_id` bigint UNSIGNED NOT NULL,
@@ -1595,3 +648,469 @@ CREATE TABLE `y05_knx_password_resets` (
 ) ENGINE=InnoDB
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_unicode_520_ci;
+
+-- =========================================================
+-- INDEXES + PRIMARY KEYS (from your export)
+-- =========================================================
+
+ALTER TABLE `y05_knx_addons`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `group_id` (`group_id`),
+  ADD KEY `group_id_2` (`group_id`,`sort_order`),
+  ADD KEY `status` (`status`);
+
+ALTER TABLE `y05_knx_addon_groups`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `hub_id` (`hub_id`),
+  ADD KEY `hub_id_2` (`hub_id`,`sort_order`),
+  ADD KEY `name` (`name`);
+
+ALTER TABLE `y05_knx_addresses`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_default_address_per_customer` (`default_customer_id`),
+  ADD KEY `idx_customer_id` (`customer_id`),
+  ADD KEY `idx_status` (`status`),
+  ADD KEY `idx_deleted_at` (`deleted_at`),
+  ADD KEY `idx_latlng` (`latitude`,`longitude`),
+  ADD KEY `idx_customer_default_lookup` (`customer_id`,`is_default`,`status`,`deleted_at`);
+
+ALTER TABLE `y05_knx_carts`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_active_session_hub` (`active_session_token`,`hub_id`),
+  ADD UNIQUE KEY `uq_active_customer_hub` (`active_customer_id`,`hub_id`),
+  ADD KEY `session_idx` (`session_token`),
+  ADD KEY `customer_idx` (`customer_id`),
+  ADD KEY `hub_idx` (`hub_id`),
+  ADD KEY `status_idx` (`status`),
+  ADD KEY `idx_session_status` (`session_token`,`status`);
+
+ALTER TABLE `y05_knx_cart_items`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `cart_idx` (`cart_id`),
+  ADD KEY `item_idx` (`item_id`);
+
+ALTER TABLE `y05_knx_cities`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `status` (`status`),
+  ADD KEY `name` (`name`),
+  ADD KEY `idx_is_operational` (`is_operational`),
+  ADD KEY `idx_deleted_at` (`deleted_at`);
+
+ALTER TABLE `y05_knx_coupons`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `code` (`code`),
+  ADD KEY `status` (`status`),
+  ADD KEY `expires_at` (`expires_at`);
+
+ALTER TABLE `y05_knx_coupon_redemptions`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_coupon_id` (`coupon_id`),
+  ADD KEY `idx_coupon_code` (`coupon_code`),
+  ADD KEY `idx_order_id` (`order_id`),
+  ADD KEY `idx_customer_id` (`customer_id`);
+
+ALTER TABLE `y05_knx_delivery_fee_rules`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_hub_active` (`hub_id`,`is_active`),
+  ADD KEY `idx_city_active` (`city_id`,`is_active`),
+  ADD KEY `idx_zone_active` (`zone_id`,`is_active`),
+  ADD KEY `idx_priority` (`priority` DESC);
+
+ALTER TABLE `y05_knx_delivery_rates`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_city` (`city_id`),
+  ADD KEY `status` (`status`),
+  ADD KEY `city_id` (`city_id`);
+
+ALTER TABLE `y05_knx_delivery_zones`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `hub_id` (`hub_id`),
+  ADD KEY `is_active` (`is_active`),
+  ADD KEY `hub_active` (`hub_id`,`is_active`);
+
+ALTER TABLE `y05_knx_drivers`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_status` (`status`),
+  ADD KEY `idx_knx_drivers_user_id` (`user_id`);
+
+ALTER TABLE `y05_knx_driver_availability`
+  ADD PRIMARY KEY (`driver_user_id`),
+  ADD KEY `idx_knx_driver_availability_status` (`status`);
+
+ALTER TABLE `y05_knx_driver_hubs`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uk_driver_hub` (`driver_id`,`hub_id`),
+  ADD KEY `idx_driver_id` (`driver_id`),
+  ADD KEY `idx_hub_id` (`hub_id`);
+
+ALTER TABLE `y05_knx_driver_ops`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uniq_order` (`order_id`),
+  ADD KEY `idx_driver` (`driver_user_id`),
+  ADD KEY `idx_ops_status` (`ops_status`),
+  ADD KEY `idx_updated` (`updated_at`);
+
+ALTER TABLE `y05_knx_gift_cards`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uk_code` (`code`),
+  ADD KEY `idx_status` (`status`),
+  ADD KEY `idx_expires_at` (`expires_at`);
+
+ALTER TABLE `y05_knx_gift_card_transactions`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_gift_card_id` (`gift_card_id`),
+  ADD KEY `idx_order_id` (`order_id`),
+  ADD KEY `idx_type` (`type`);
+
+ALTER TABLE `y05_knx_hubs`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `city_id` (`city_id`),
+  ADD KEY `category_id` (`category_id`),
+  ADD KEY `status` (`status`),
+  ADD KEY `name` (`name`),
+  ADD KEY `rating` (`rating`),
+  ADD KEY `delivery_zone_type` (`delivery_zone_type`),
+  ADD KEY `idx_hub_slug` (`slug`),
+  ADD KEY `is_featured` (`is_featured`),
+  ADD KEY `slug` (`slug`);
+
+ALTER TABLE `y05_knx_hub_categories`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `status` (`status`),
+  ADD KEY `sort_order` (`sort_order`),
+  ADD KEY `name` (`name`);
+
+ALTER TABLE `y05_knx_hub_items`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `hub_id` (`hub_id`),
+  ADD KEY `category_id` (`category_id`),
+  ADD KEY `hub_id_2` (`hub_id`,`category_id`,`sort_order`),
+  ADD KEY `status` (`status`);
+
+ALTER TABLE `y05_knx_items_categories`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `hub_id` (`hub_id`),
+  ADD KEY `hub_id_2` (`hub_id`,`sort_order`),
+  ADD KEY `status` (`status`);
+
+ALTER TABLE `y05_knx_item_addon_groups`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_item_group` (`item_id`,`group_id`),
+  ADD KEY `item_id` (`item_id`),
+  ADD KEY `group_id` (`group_id`);
+
+ALTER TABLE `y05_knx_item_global_modifiers`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_item_global` (`item_id`,`global_modifier_id`),
+  ADD KEY `item_id` (`item_id`),
+  ADD KEY `global_modifier_id` (`global_modifier_id`);
+
+ALTER TABLE `y05_knx_item_modifiers`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `item_id` (`item_id`),
+  ADD KEY `hub_id` (`hub_id`),
+  ADD KEY `is_global` (`is_global`),
+  ADD KEY `item_id_2` (`item_id`,`sort_order`),
+  ADD KEY `hub_id_2` (`hub_id`,`is_global`,`sort_order`);
+
+ALTER TABLE `y05_knx_modifier_options`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `modifier_id` (`modifier_id`),
+  ADD KEY `modifier_id_2` (`modifier_id`,`sort_order`);
+
+ALTER TABLE `y05_knx_ops_settings`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uk_setting_key` (`setting_key`);
+
+ALTER TABLE `y05_knx_orders`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uk_order_number` (`order_number`),
+  ADD KEY `idx_hub_id` (`hub_id`),
+  ADD KEY `idx_city_id` (`city_id`),
+  ADD KEY `idx_session_token` (`session_token`),
+  ADD KEY `idx_status` (`status`),
+  ADD KEY `idx_created_at` (`created_at`),
+  ADD KEY `idx_delivery_address_id` (`delivery_address_id`),
+  ADD KEY `idx_idempotency_probe` (`session_token`,`hub_id`,`customer_id`,`status`,`created_at`),
+  ADD KEY `idx_coupon_code` (`coupon_code`),
+  ADD KEY `idx_gift_card_code` (`gift_card_code`);
+
+ALTER TABLE `y05_knx_order_items`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_order_id` (`order_id`),
+  ADD KEY `idx_item_id` (`item_id`);
+
+ALTER TABLE `y05_knx_order_status_history`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_order_id` (`order_id`),
+  ADD KEY `idx_status` (`status`),
+  ADD KEY `idx_created_at` (`created_at`);
+
+ALTER TABLE `y05_knx_payments`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_order_id` (`order_id`),
+  ADD KEY `idx_provider_intent` (`provider`,`provider_intent_id`),
+  ADD KEY `idx_status` (`status`),
+  ADD KEY `idx_created_at` (`created_at`);
+
+ALTER TABLE `y05_knx_push_subscriptions`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uniq_user_role` (`user_id`,`role`),
+  ADD KEY `idx_user_id` (`user_id`),
+  ADD KEY `idx_role` (`role`),
+  ADD KEY `idx_revoked_at` (`revoked_at`);
+
+ALTER TABLE `y05_knx_sessions`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `token` (`token`),
+  ADD KEY `token_2` (`token`),
+  ADD KEY `expires_at` (`expires_at`),
+  ADD KEY `user_id` (`user_id`);
+
+ALTER TABLE `y05_knx_settings`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `setting_key` (`setting_key`),
+  ADD KEY `setting_key_2` (`setting_key`);
+
+ALTER TABLE `y05_knx_software_fees`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uniq_scope_city_hub` (`scope`,`city_id`,`hub_id`),
+  ADD KEY `idx_city` (`city_id`),
+  ADD KEY `idx_hub` (`hub_id`),
+  ADD KEY `idx_status` (`status`);
+
+ALTER TABLE `y05_knx_tax_rules`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_scope_status` (`scope`,`status`),
+  ADD KEY `idx_scope_id` (`scope_id`),
+  ADD KEY `idx_priority` (`priority`);
+
+ALTER TABLE `y05_knx_tip_settings`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uk_scope_city_hub` (`scope`,`city_id`,`hub_id`),
+  ADD KEY `idx_city` (`city_id`),
+  ADD KEY `idx_hub` (`hub_id`);
+
+ALTER TABLE `y05_knx_users`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `username` (`username`),
+  ADD UNIQUE KEY `email` (`email`),
+  ADD KEY `email_2` (`email`),
+  ADD KEY `role` (`role`),
+  ADD KEY `status` (`status`),
+  ADD KEY `idx_name` (`name`),
+  ADD KEY `idx_phone` (`phone`);
+
+ALTER TABLE `y05_knx_webhook_events`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `event_id` (`event_id`),
+  ADD KEY `intent_id` (`intent_id`),
+  ADD KEY `order_id` (`order_id`),
+  ADD KEY `processed_at` (`processed_at`);
+
+-- =========================================================
+-- AUTO_INCREMENT (CLEAN: no seed values)
+-- =========================================================
+
+ALTER TABLE `y05_knx_addons`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_addon_groups`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_addresses`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_carts`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_cart_items`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_cities`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_coupons`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_coupon_redemptions`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_delivery_fee_rules`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_delivery_rates`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_delivery_zones`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_drivers`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_driver_hubs`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_driver_ops`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_gift_cards`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_gift_card_transactions`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_hubs`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_hub_categories`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_hub_items`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_items_categories`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_item_addon_groups`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_item_global_modifiers`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_item_modifiers`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_modifier_options`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_ops_settings`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_orders`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_order_items`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_order_status_history`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_payments`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_push_subscriptions`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_sessions`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_settings`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_software_fees`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_tax_rules`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_tip_settings`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_users`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `y05_knx_webhook_events`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+-- =========================================================
+-- FOREIGN KEYS (from your export)
+-- =========================================================
+
+ALTER TABLE `y05_knx_addons`
+  ADD CONSTRAINT `y05_knx_addons_ibfk_1` FOREIGN KEY (`group_id`)
+  REFERENCES `y05_knx_addon_groups` (`id`) ON DELETE CASCADE;
+
+ALTER TABLE `y05_knx_addon_groups`
+  ADD CONSTRAINT `y05_knx_addon_groups_ibfk_1` FOREIGN KEY (`hub_id`)
+  REFERENCES `y05_knx_hubs` (`id`) ON DELETE CASCADE;
+
+ALTER TABLE `y05_knx_addresses`
+  ADD CONSTRAINT `fk_addresses_customer` FOREIGN KEY (`customer_id`)
+  REFERENCES `y05_knx_users` (`id`) ON DELETE CASCADE;
+
+ALTER TABLE `y05_knx_carts`
+  ADD CONSTRAINT `fk_carts_customer` FOREIGN KEY (`customer_id`)
+  REFERENCES `y05_knx_users` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `fk_carts_hub` FOREIGN KEY (`hub_id`)
+  REFERENCES `y05_knx_hubs` (`id`) ON DELETE CASCADE;
+
+ALTER TABLE `y05_knx_cart_items`
+  ADD CONSTRAINT `fk_cart_items_cart` FOREIGN KEY (`cart_id`)
+  REFERENCES `y05_knx_carts` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_cart_items_item` FOREIGN KEY (`item_id`)
+  REFERENCES `y05_knx_hub_items` (`id`) ON DELETE SET NULL;
+
+ALTER TABLE `y05_knx_delivery_rates`
+  ADD CONSTRAINT `y05_knx_delivery_rates_ibfk_1` FOREIGN KEY (`city_id`)
+  REFERENCES `y05_knx_cities` (`id`) ON DELETE CASCADE;
+
+ALTER TABLE `y05_knx_delivery_zones`
+  ADD CONSTRAINT `y05_knx_delivery_zones_ibfk_1` FOREIGN KEY (`hub_id`)
+  REFERENCES `y05_knx_hubs` (`id`) ON DELETE CASCADE;
+
+ALTER TABLE `y05_knx_hubs`
+  ADD CONSTRAINT `y05_knx_hubs_ibfk_1` FOREIGN KEY (`city_id`)
+  REFERENCES `y05_knx_cities` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `y05_knx_hubs_ibfk_2` FOREIGN KEY (`category_id`)
+  REFERENCES `y05_knx_hub_categories` (`id`) ON DELETE SET NULL;
+
+ALTER TABLE `y05_knx_hub_items`
+  ADD CONSTRAINT `y05_knx_hub_items_ibfk_1` FOREIGN KEY (`hub_id`)
+  REFERENCES `y05_knx_hubs` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `y05_knx_hub_items_ibfk_2` FOREIGN KEY (`category_id`)
+  REFERENCES `y05_knx_items_categories` (`id`) ON DELETE SET NULL;
+
+ALTER TABLE `y05_knx_items_categories`
+  ADD CONSTRAINT `y05_knx_items_categories_ibfk_1` FOREIGN KEY (`hub_id`)
+  REFERENCES `y05_knx_hubs` (`id`) ON DELETE CASCADE;
+
+ALTER TABLE `y05_knx_item_addon_groups`
+  ADD CONSTRAINT `y05_knx_item_addon_groups_ibfk_1` FOREIGN KEY (`item_id`)
+  REFERENCES `y05_knx_hub_items` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `y05_knx_item_addon_groups_ibfk_2` FOREIGN KEY (`group_id`)
+  REFERENCES `y05_knx_addon_groups` (`id`) ON DELETE CASCADE;
+
+ALTER TABLE `y05_knx_item_global_modifiers`
+  ADD CONSTRAINT `y05_knx_item_global_modifiers_ibfk_1` FOREIGN KEY (`item_id`)
+  REFERENCES `y05_knx_hub_items` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `y05_knx_item_global_modifiers_ibfk_2` FOREIGN KEY (`global_modifier_id`)
+  REFERENCES `y05_knx_item_modifiers` (`id`) ON DELETE CASCADE;
+
+ALTER TABLE `y05_knx_item_modifiers`
+  ADD CONSTRAINT `y05_knx_item_modifiers_ibfk_1` FOREIGN KEY (`item_id`)
+  REFERENCES `y05_knx_hub_items` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `y05_knx_item_modifiers_ibfk_2` FOREIGN KEY (`hub_id`)
+  REFERENCES `y05_knx_hubs` (`id`) ON DELETE CASCADE;
+
+ALTER TABLE `y05_knx_modifier_options`
+  ADD CONSTRAINT `y05_knx_modifier_options_ibfk_1` FOREIGN KEY (`modifier_id`)
+  REFERENCES `y05_knx_item_modifiers` (`id`) ON DELETE CASCADE;
+
+ALTER TABLE `y05_knx_orders`
+  ADD CONSTRAINT `fk_orders_delivery_address` FOREIGN KEY (`delivery_address_id`)
+  REFERENCES `y05_knx_addresses` (`id`) ON DELETE SET NULL;
+
+ALTER TABLE `y05_knx_order_items`
+  ADD CONSTRAINT `fk_order_items_order` FOREIGN KEY (`order_id`)
+  REFERENCES `y05_knx_orders` (`id`) ON DELETE CASCADE;
+
+ALTER TABLE `y05_knx_order_status_history`
+  ADD CONSTRAINT `fk_order_status_history_order` FOREIGN KEY (`order_id`)
+  REFERENCES `y05_knx_orders` (`id`) ON DELETE CASCADE;
+
+ALTER TABLE `y05_knx_sessions`
+  ADD CONSTRAINT `y05_knx_sessions_ibfk_1` FOREIGN KEY (`user_id`)
+  REFERENCES `y05_knx_users` (`id`) ON DELETE CASCADE;
+
+SET FOREIGN_KEY_CHECKS = 1;

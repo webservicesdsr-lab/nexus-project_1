@@ -35,6 +35,12 @@ add_shortcode('knx_auth', function () {
                     </div>
                 <?php endif; ?>
 
+                <?php if (isset($_GET['forgot']) && $_GET['forgot'] === '1'): ?>
+                    <div class="knx-auth-error" aria-live="polite">
+                        If an account exists for that email, you’ll receive a reset link shortly.
+                    </div>
+                <?php endif; ?>
+
                 <form method="post">
                     <?php knx_nonce_field('login'); ?>
 
