@@ -63,6 +63,7 @@ if (!function_exists('knx_install_pages')) {
             ['title' => 'Checkout', 'slug' => 'checkout', 'content' => '[knx_checkout]'],
             ['title' => 'Profile', 'slug' => 'profile', 'content' => '[knx_profile]'],
             ['title' => 'Login', 'slug' => 'login', 'content' => '[knx_auth]'],
+            ['title' => 'Reset Password', 'slug' => 'reset-password', 'content' => '[knx_reset_password]'],
             ['title' => 'My Addresses', 'slug' => 'my-addresses', 'content' => '[knx_my_addresses]'],
 
             // Administrative / management pages
