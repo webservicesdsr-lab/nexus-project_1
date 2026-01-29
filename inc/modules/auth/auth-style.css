@@ -184,3 +184,82 @@ input {
 }
 
 .knx-hp { display: none; }
+
+/* ==========================
+   AUTH TOAST — UI + ANIMS
+   ========================== */
+.knx-auth-toast {
+  /* Be in-flow within the auth card so the toast opens space in the container */
+  position: relative;
+  display: block;
+  pointer-events: auto;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 12px 0;
+}
+
+.knx-auth-toast__inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff;
+  color: #0b1220;
+  padding: 12px 14px;
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(11,18,32,0.06);
+  font-size: 15px;
+  line-height: 1.3;
+  border: 1px solid rgba(11,18,32,0.04);
+  width: 100%;
+}
+
+.knx-auth-toast__icon { display: none; }
+.knx-auth-toast__msg { flex: 1 1 auto; min-width: 0; }
+.knx-auth-toast__close {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  line-height: 1;
+  padding: 6px 8px;
+  cursor: pointer;
+  color: inherit;
+}
+
+/* Status colours (soft, SaaS-grade) */
+.knx-auth-toast--success .knx-auth-toast__inner { background: #F0FCF4; color: #0B6623; border-color: rgba(11,102,35,0.06); }
+.knx-auth-toast--info    .knx-auth-toast__inner { background: #F0F8FF; color: #0B3A66; border-color: rgba(11,58,102,0.06); }
+.knx-auth-toast--warning .knx-auth-toast__inner { background: #FFF8ED; color: #7A4A00; border-color: rgba(122,74,0,0.06); }
+.knx-auth-toast--error   .knx-auth-toast__inner { background: #FFF6F6; color: #7A1010; border-color: rgba(122,16,16,0.06); }
+
+/* Animations */
+.keyframes-placeholder {}
+@keyframes knx_auth_toast_in {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes knx_auth_toast_out {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-8px); }
+}
+
+.knx-auth-toast--anim-in { animation: knx_auth_toast_in 380ms cubic-bezier(.2,.9,.2,1) forwards; }
+.knx-auth-toast--anim-out{ animation: knx_auth_toast_out 300ms cubic-bezier(.2,.9,.2,1) forwards; }
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .knx-auth-toast--anim-in,
+  .knx-auth-toast--anim-out { animation: none; opacity: 1 !important; transform: none !important; }
+}
+
+/* Desktop tweaks */
+@media (min-width: 640px) {
+  .knx-auth-toast { margin-bottom: 16px; }
+  .knx-auth-toast__inner { padding: 14px 16px; font-size: 15px; }
+}
+
+/* Ensure toast doesn't cover main card on very small screens: slight inset
+   and max-height to avoid overlapping inputs (it is overlay-only). */
+@media (max-width: 360px) {
+  .knx-auth-toast { width: calc(100% - 18px); margin-left: auto; margin-right: auto; }
+}
+

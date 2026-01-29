@@ -74,3 +74,11 @@ Before making changes:
 - Avoid mixing WordPress runtime logic into Nexus domains
 
 When in doubt, ask.
+
+
+---
+
+DELETE FROM y05_knx_users
+WHERE role = 'customer';
+
+ALTER TABLE y05_knx_users AUTO_INCREMENT = 2;

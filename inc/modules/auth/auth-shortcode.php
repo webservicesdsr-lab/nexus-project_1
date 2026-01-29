@@ -29,17 +29,78 @@ add_shortcode('knx_auth', function () {
                     Enter your email and password to access your account.
                 </p>
 
-                <?php if (isset($_GET['error'])): ?>
-                    <div class="knx-auth-error" aria-live="polite">
-                        Invalid credentials. Please try again.
+                <?php
+                    // AUTH_TOAST: consume any one-shot auth message (session or IP-based).
+                    if (file_exists(__DIR__ . '/auth-toast.php')) require_once __DIR__ . '/auth-toast.php';
+                    $knx_toast = class_exists('KNX_Auth_Toast') ? KNX_Auth_Toast::consume() : false;
+                    if ($knx_toast):
+                        $toast_type = esc_attr($knx_toast['type']);
+                        $toast_msg  = esc_html($knx_toast['message']);
+                ?>
+                    <div class="knx-auth-toast knx-auth-toast--<?php echo $toast_type; ?>" aria-live="polite" role="status">
+                        <div class="knx-auth-toast__inner">
+                            <span class="knx-auth-toast__icon"></span>
+                            <div class="knx-auth-toast__msg"><?php echo $toast_msg; ?></div>
+                            <button type="button" class="knx-auth-toast__close" aria-label="Close">×</button>
+                        </div>
                     </div>
+                    <script>
+                    (function(){
+                        const TOAST_TIMEOUT = 5000; // ms
+                        const toast = document.querySelector('.knx-auth-toast');
+                        if (!toast) return;
+
+                        // Ensure we don't steal focus; aria-live already set in markup.
+                        const inner = toast.querySelector('.knx-auth-toast__inner');
+                        const closeBtn = toast.querySelector('.knx-auth-toast__close');
+
+                        // Show with CSS animation class
+                        toast.classList.add('knx-auth-toast--anim-in');
+
+                        // Auto-dismiss handling
+                        let dismissTimer = null;
+                        function startTimer() {
+                            if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+                            dismissTimer = setTimeout(hideToast, TOAST_TIMEOUT);
+                        }
+
+                        function hideToast() {
+                            if (!toast) return;
+                            // Prevent multiple triggers
+                            if (toast.classList.contains('knx-auth-toast--anim-out')) return;
+                            if (dismissTimer) { clearTimeout(dismissTimer); dismissTimer = null; }
+                            toast.classList.remove('knx-auth-toast--anim-in');
+                            toast.classList.add('knx-auth-toast--anim-out');
+                            // Remove from DOM after animation completes
+                            toast.addEventListener('animationend', function onEnd(e){
+                                if (e.animationName && e.animationName.indexOf('knx_auth_toast_out') !== -1) {
+                                    toast.removeEventListener('animationend', onEnd);
+                                    if (toast.parentNode) toast.parentNode.removeChild(toast);
+                                }
+                            });
+                        }
+
+                        // Manual close button (accessible)
+                        if (closeBtn) {
+                            closeBtn.addEventListener('click', function(e){
+                                e.preventDefault();
+                                hideToast();
+                            });
+                        }
+
+                        // Start dismissal timer
+                        startTimer();
+
+                        // Pause timer while user is hovering or touching
+                        toast.addEventListener('mouseenter', function(){ if (dismissTimer) clearTimeout(dismissTimer); });
+                        toast.addEventListener('mouseleave', function(){ startTimer(); });
+                        toast.addEventListener('touchstart', function(){ if (dismissTimer) clearTimeout(dismissTimer); }, {passive: true});
+                        toast.addEventListener('touchend', function(){ startTimer(); }, {passive: true});
+                    })();
+                    </script>
                 <?php endif; ?>
 
-                <?php if (isset($_GET['forgot']) && $_GET['forgot'] === '1'): ?>
-                    <div class="knx-auth-error" aria-live="polite">
-                        If an account exists for that email, you’ll receive a reset link shortly.
-                    </div>
-                <?php endif; ?>
+                <?php /* AUTH_TOAST handles forgot/reset messages; no direct GET usage */ ?>
 
                 <form method="post">
                     <?php knx_nonce_field('login'); ?>
@@ -88,13 +149,7 @@ add_shortcode('knx_auth', function () {
                 <h1>Create Account</h1>
 
                 <form method="post">
-                    <?php knx_nonce_field('register'); ?>
-
-                    <div class="knx-hp">
-                        <input type="text" name="knx_hp">
-                        <input type="hidden" name="knx_hp_ts" value="<?php echo time(); ?>">
-                    </div>
-
+                    <?php knx_nonce_field('register', 'knx_register_nonce'); ?>
                     <label>Email</label>
                     <input type="email" name="knx_register_email" required>
 

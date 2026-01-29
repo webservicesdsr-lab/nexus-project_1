@@ -649,6 +649,24 @@ CREATE TABLE `y05_knx_password_resets` (
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_unicode_520_ci;
 
+-- --------------------------------------------------------
+-- y05_knx_email_verifications
+-- --------------------------------------------------------
+CREATE TABLE `y05_knx_email_verifications` (
+  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id` bigint UNSIGNED NOT NULL,
+  `token_hash` varchar(128) NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `used_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `user_id` (`user_id`),
+  KEY `token_hash` (`token_hash`),
+  KEY `expires_at` (`expires_at`)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_520_ci;
+
 -- =========================================================
 -- INDEXES + PRIMARY KEYS (from your export)
 -- =========================================================
