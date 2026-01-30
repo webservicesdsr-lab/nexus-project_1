@@ -1,5 +1,6 @@
 .
 ├── .DS_Store
+├── .gitignore
 ├── .vscode
 │   └── settings.json
 ├── NEXUS.md
@@ -47,9 +48,6 @@
 │   ├── core
 │   │   ├── cart
 │   │   │   └── cart-cleanup.php
- 
-│   │   ├── functions
-
 │   │   ├── install
 │   │   ├── knx-orders
 │   │   │   ├── api-create-order-mvp.php
@@ -59,6 +57,7 @@
 │   │   │   └── api-update-order-status.php
 │   │   ├── pages-installer.php
 │   │   ├── resources
+│   │   │   ├── geocode
 │   │   │   ├── knx-addresses
 │   │   │   │   ├── api-addresses.php
 │   │   │   │   └── api-addresses.php.backup
@@ -83,8 +82,6 @@
 │   │   │   │   └── api-list-customers.php
 │   │   │   ├── knx-dispatcher
 │   │   │   ├── knx-drivers
-│   │   │   │   ├── api-drivers-crud.php
-│   │   │   │   └── api-drivers.php
 │   │   │   │   ├── api-drivers-crud.php
 │   │   │   │   └── api-drivers.php
 │   │   │   ├── knx-explore
@@ -121,7 +118,6 @@
 │   │   │   ├── knx-location
 │   │   │   │   ├── api-check-coverage.php
 │   │   │   │   └── api-location-search.php
-
 │   │   │   ├── knx-orders
 │   │   │   ├── knx-payments
 │   │   │   │   ├── api-create-payment-intent.php
@@ -168,10 +164,14 @@
 │   │   │   ├── admin-style.css
 │   │   │   └── admin-users.php
 │   │   ├── auth
+│   │   │   ├── auth-emails.php
 │   │   │   ├── auth-handler.php
 │   │   │   ├── auth-redirects.php
 │   │   │   ├── auth-shortcode.php
-│   │   │   └── auth-style.css
+│   │   │   ├── auth-style.css
+│   │   │   ├── auth-toast.php
+│   │   │   ├── email-verification.php
+│   │   │   └── reset-shortcode.php
 │   │   ├── cart
 │   │   │   ├── cart-drawer.css
 │   │   │   └── cart-drawer.js
@@ -187,7 +187,10 @@
 │   │   │   ├── customers-script.js
 │   │   │   ├── customers-shortcode.php
 │   │   │   └── customers-style.css
-│   │   ├── dispatcher
+│   │   ├── dispatch
+│   │   │   ├── dispatcher-shortcode.php
+│   │   │   └── templates
+│   │   │       └── dispatcher-shell.php
 │   │   ├── fees
 │   │   │   ├── fees-script.js
 │   │   │   ├── fees-shortcode.php
@@ -239,6 +242,7 @@
 │   │   │   ├── knx-edit-city-script.js
 │   │   │   ├── knx-edit-city-style.css
 │   │   │   └── knx-edit-city.php
+│   │   ├── live-orders
 │   │   ├── navbar
 │   │   │   ├── navbar-render.php
 │   │   │   ├── navbar-script.js
@@ -294,11 +298,17 @@
 │   │       └── profile-style.css
 │   └── shortcodes
 │       └── cities-grid-shortcode.php
+├── inc.zip
 ├── kingdom-nexus.php
-├── nexus-db-export-1.sql
-├── nexus-db-export-2.sql
 ├── nexus-schema-y05.sql
-├── pages-list.md
-└── project-tree.txt
+├── project-tree.txt
+├── public
+│   ├── css
+│   │   └── dispatcher.css
+│   └── js
+│       ├── dispatcher.js
+│       └── mocks
+│           └── knx_dispatcher_mock.js
+└── reset-knx-users.sql
 
-75 directories, 239 files
+80 directories, 232 files
