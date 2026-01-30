@@ -149,13 +149,12 @@ $maps_key = get_option('knx_google_maps_key', '');
 <script>
   window.KNX_MAPS_KEY = <?php echo $maps_key ? '"' . esc_js($maps_key) . '"' : 'null'; ?>;
 </script>
-
 <?php
-wp_enqueue_script(
-  'knx-edit-hub-location',
-  KNX_URL . 'inc/modules/hubs/edit-hub-location.js',
-  [],
-  KNX_VERSION,
-  true
-);
+/**
+ * Legacy editor loader intentionally disabled.
+ * The legacy script has been preserved as `edit-hub-location.js.bak`.
+ * Reason: legacy UI isolated per NEXUS checklist — do not enqueue.
+ */
+// NOTE: legacy file moved to: inc/modules/hubs/edit-hub-location.js.bak
+// wp_enqueue_script(...) intentionally removed to keep canonical v5 editor active.
 ?>

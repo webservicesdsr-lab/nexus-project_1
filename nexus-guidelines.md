@@ -1,7 +1,277 @@
 
+This file is the canonical engineering guide for the Kingdom Nexus / Our Local Collective plugin. Any AI assistant (Copilot, ChatGPT, etc.) MUST follow these rules when editing this codebase.
+
+Scope note (incremental): This document consolidates verified architectural rules. Anything not explicitly corroborated by the current codebase is preserved but not expanded. New rules are additive and conservative.
+
+0. How assistants must use this file
+
+Always read and respect these rules before changing any file.
+
+Never rewrite a whole file unless the user explicitly authorizes it (e.g. “full rewrite is ok”).
+
+Prefer small, localized edits:
+
+Modify only the function, block, or section discussed.
+
+If a file is large, propose extraction instead of adding noise.
+
+When uncertain, ask before creating new files or folders that alter architecture.
+
+When deprecating logic, do not delete immediately:
+
+Mark legacy files as .bak and remove loaders/references only after confirmation.
+
+1. Project architecture (Kingdom Nexus)
+
+High-level structure (WordPress plugin container):
+
+Root bootstrap: kingdom-nexus.php (load order, constants, guards).
+
+inc/core/ → Authoritative domain logic (REST, guards, engines).
+
+inc/modules/ → UI modules, dashboards, shortcodes (no authority).
+
+inc/functions/ → Small shared helpers (pure, reusable).
+
+Canonical rules
+
+Authority lives in inc/core/ only.
+
+UI never decides business rules; it only requests.
+
+REST endpoints live in inc/core/ and are exposed under /wp-json/knx/v1/....
+
+Shared logic must not be duplicated. Prefer reuse via helpers or core functions.
+
+2. File size & modularity
+
+Target size
+
+Ideal: < 400 lines
+
+Soft limit: 700–800 lines (justify if exceeded)
+
+If a file grows:
+
+Extract helpers to inc/functions/
+
+Extract related APIs to inc/core/resources/{domain}/
+
+Extract UI components to inc/modules/{domain}/
+
+Avoid dumping large inline CSS/JS in PHP unless explicitly requested.
+
+3. Update strategy (critical)
+
+Local changes by default — touch only what is requested.
+
+Behavior preservation — refactors must be behavior‑neutral unless approved.
+
+Backward compatibility
+
+Do not rename tables, routes, or option keys without migration approval.
+
+Always respect dynamic table prefixes ($wpdb->prefix).
+
+No debug artifacts in production
+
+No var_dump, print_r, die, exit, or stray console.log.
+
+4. Coding style – Global rules
+
+Comments language
+
+Block comments (/** */) MUST be in English.
+
+Naming conventions
+
+PHP functions: knx_{domain}_{action}
+
+REST routes: /knx/v1/{domain}-{action}
+
+JS: camelCase
+
+Security
+
+Escape output (esc_html, esc_attr, esc_url).
+
+Sanitize all inputs.
+
+Nonces + capability checks for mutations.
+
+5. Frontend (HTML & CSS)
+Principles
+
+Mobile-first always.
+
+No new frameworks unless explicitly approved.
+
+Scope styles per module (no global bleed).
+
+HTML
+
+Prefer semantic tags.
+
+Keep DOM depth reasonable (depth > 5 is a smell).
+
+Reuse existing class conventions.
+
+CSS
+
+One CSS file per major module, scoped.
+
+Avoid inline styles except minimal dynamic cases.
+
+Respect existing color tokens (e.g. --olc-green).
+
+6. JavaScript guidelines
+
+Vanilla JS only unless approved.
+
+Canonical init pattern:
+
+document.addEventListener('DOMContentLoaded', function () {
+  'use strict';
+  const root = document.querySelector('#scope');
+  if (!root) return;
+  // state, helpers, init
+});
+
+Scope selectors to root.
+
+Prefer small pure helpers.
+
+Avoid globals; document them if unavoidable.
+
+7. PHP / REST specifics
+Shortcodes
+
+Live in inc/modules/{domain}/.
+
+Use ob_start() / ob_get_clean().
+
+No heavy logic inside templates.
+
+REST APIs
+
+Registered via rest_api_init.
+
+Wrapped by knx_rest_wrap / guarded by knx-rest-guard.
+
+Must return stable shapes (success, data/items, message).
+
+Rewrite rules & routing (CRITICAL)
+
+Rewrite rules are part of system authority
+
+Any rewrite registered by Nexus (e.g. menu, hubs, checkout flows) is canonical routing, not cosmetic.
+
+Rewrite rules must live in core-controlled locations (e.g. inc/core/ or explicitly approved public modules).
+
+Do NOT casually modify rewrites
+
+Never delete, rename, or alter rewrite slugs without confirming:
+
+What templates consume them
+
+What REST endpoints assume them
+
+Whether orders, carts, or navigation depend on them
+
+No shadow rewrites
+
+Do not create alternative rewrites that overlap existing ones.
+
+One URL → one authority.
+
+Flushing rules is controlled
+
+Never call flush_rewrite_rules() on every load.
+
+Only flush on:
+
+plugin activation
+
+explicit admin action
+
+Backwards compatibility
+
+If a rewrite must change, propose a transition plan:
+
+temporary dual support
+
+redirects if necessary
+
+RFC approval before execution
+
+8. Authority, snapshots & fail‑closed (verified)
+
+Server-side authority is absolute
+
+Validation, normalization, persistence occur in core APIs.
+
+Snapshots are immutable
+
+Orders already created must never be recalculated or rewritten.
+
+Fail‑closed by design
+
+If validation cannot be guaranteed, the operation must not persist.
+
+Autocomplete and UX helpers are non-authoritative
+
+They may suggest but never decide.
+
+9. Logging, errors & UX
+
+User-facing errors must be friendly.
+
+Internal errors are logged, never dumped.
+
+No raw SQL/PHP errors exposed to users.
+
+10. Performance expectations
+
+Debounce/throttle high-frequency events.
+
+Paginate admin lists.
+
+Keep DOM light on public pages.
+
+11. Assistant behavior (enforced)
+Good
+
+Change only the requested function or block.
+
+Propose extraction before expansion.
+
+Preserve IDs, classes, and contracts.
+
+Bad
+
+Rewriting entire files unnecessarily.
+
+Introducing global CSS/JS side effects.
+
+Inventing new architecture without approval.
+
+12. Large changes & RFC workflow
+
+If a change affects authority, contracts, or core flows:
+
+Propose an RFC first.
+
+Document invariants and risks.
+
+Wait for explicit approval before implementation.
+
+End of NEXUS-GUIDELINES TEXTUAL EDITION
+
+
+
 # Kingdom Nexus – Engineering Guidelines (NEXUS-GUIDELINES)
 
-> This file is the **canonical engineering guide** for the Kingdom Nexus / Our Local Collective plugin.
+> This file is complements the guidelines to follow but in a **canonical engineering guide** for the Kingdom Nexus / Our Local Collective plugin.
 > Any AI assistant (Copilot, ChatGPT, etc.) MUST follow these rules when editing this codebase.
 
 ---
@@ -215,3 +485,7 @@ If a file is already messy and the user explicitly approves a refactor, assistan
 3. Split work into **small, reviewable steps**, not a single 1,000-line diff.
 
 ---
+
+
+----
+

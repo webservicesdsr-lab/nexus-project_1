@@ -66,6 +66,10 @@
   // Initialization
   document.addEventListener('DOMContentLoaded', init);
 
+  // DIAGNOSTIC FLAG: when true we load Places JS but do NOT initialize any map (client-side experiments)
+  // Set to `false` in production. This is temporary and reversible.
+  const DIAG_PLACES_ONLY = false;
+
   function init() {
     DOM.wrapper = document.querySelector('.knx-hub-location-editor');
     if (!DOM.wrapper) return;
@@ -140,6 +144,16 @@
 
     loadGoogleMaps()
       .then(() => {
+        // Diagnostic mode: optionally skip creating a Google Map so we can test Places-only autocomplete.
+        if (typeof DIAG_PLACES_ONLY !== 'undefined' && DIAG_PLACES_ONLY) {
+          try {
+            if (DOM.mapDiv) DOM.mapDiv.style.display = 'none';
+          } catch (e) {}
+          // Do not initialize map; only bind event listeners needed for the editor.
+          setupEventListeners();
+          return;
+        }
+
         initGoogleMap();
         setupEventListeners();
       })
@@ -153,8 +167,10 @@
   function loadGoogleMaps() {
     return new Promise((resolve, reject) => {
       if (window.google && window.google.maps) return resolve();
+      const needsPlaces = (typeof window.KNX_LOCATION_PROVIDER !== 'undefined' && window.KNX_LOCATION_PROVIDER === 'google') || (typeof DIAG_PLACES_ONLY !== 'undefined' && DIAG_PLACES_ONLY);
+      const libs = needsPlaces ? '&libraries=places' : '';
       const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${STATE.mapsKey}&libraries=places`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${STATE.mapsKey}${libs}`;
       script.async = true;
       script.onload = () => {
         setTimeout(() => {
@@ -178,8 +194,9 @@
       const p = STATE.googleMarker.getPosition();
       updateCoordinates(p.lat(), p.lng());
     });
-
-    setupGoogleAutocomplete();
+    // Google Places autocomplete intentionally disabled by default.
+    // Nominatim provides the canonical autocomplete for address interpretation.
+    // setupGoogleAutocomplete();
     loadExistingPolygons();
   }
 
@@ -233,7 +250,8 @@ function initLeafletMap() {
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors', maxZoom: 19 }).addTo(STATE.leafletMap);
     STATE.leafletMarker = L.marker([lat, lng], { draggable: true }).addTo(STATE.leafletMap);
     STATE.leafletMarker.on('dragend', () => { const p = STATE.leafletMarker.getLatLng(); updateCoordinates(p.lat, p.lng); });
-    setupLeafletGeocoding();
+    // Leaflet geocoding disabled: Nominatim handles address text interpretation.
+    // setupLeafletGeocoding();
     loadExistingPolygons();
   }
 
@@ -444,5 +462,32 @@ function initLeafletMap() {
   function updateCoordinates(lat, lng) { if (DOM.latInput) DOM.latInput.value = lat; if (DOM.lngInput) DOM.lngInput.value = lng; }
 
   function showToast(message, type = 'info') { if (typeof knxToast === 'function') knxToast(message, type); else console.log(`[${type.toUpperCase()}] ${message}`); }
+
+  // Expose a single, minimal hook so external autocomplete can apply a selected location
+  function applySelectedLocation(obj) {
+    try {
+      if (!obj) return;
+      const address = obj.address || obj.display || '';
+      if (DOM.addressInput) DOM.addressInput.value = address;
+      if (typeof obj.lat !== 'undefined' && typeof obj.lng !== 'undefined') {
+        const lat = parseFloat(obj.lat);
+        const lng = parseFloat(obj.lng);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          // Update internal coordinates and markers
+          updateCoordinates(lat, lng);
+          if (STATE.useLeaflet && STATE.leafletMap && STATE.leafletMarker) {
+            try { STATE.leafletMap.setView([lat, lng], 15); STATE.leafletMarker.setLatLng([lat, lng]); } catch(e) {}
+          } else if (STATE.googleMap && STATE.googleMarker) {
+            try { STATE.googleMap.setCenter({ lat, lng }); STATE.googleMap.setZoom(15); STATE.googleMarker.setPosition({ lat, lng }); } catch(e) {}
+          }
+        }
+      }
+    } catch (e) {
+      console.error('applySelectedLocation error', e);
+    }
+  }
+
+  window.KNX_HUB_LOCATION = window.KNX_HUB_LOCATION || {};
+  window.KNX_HUB_LOCATION.applySelectedLocation = applySelectedLocation;
 
 })();

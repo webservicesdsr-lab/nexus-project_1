@@ -185,6 +185,8 @@ add_action('plugins_loaded', function() {
      * ====================================================== */
     knx_require('inc/core/resources/knx-location/api-check-coverage.php');
     knx_require('inc/core/resources/knx-location/api-location-search.php');
+    // Nominatim geocode endpoint (server-side): returns normalized items for autocomplete
+    knx_require('inc/core/resources/knx-geocode-search.php');
 
     /* ======================================================
      * RESOURCES — KNX EXPLORE

@@ -443,11 +443,16 @@ window.KNX_MAPS_CONFIG = {
 </script>
 
 <?php
-wp_enqueue_script(
-  'knx-hub-location-editor',
-  KNX_URL . 'inc/modules/hubs/hub-location-editor.js',
-  [],
-  KNX_VERSION,
-  true
-);
+// Location provider configuration (server-driven default)
+// Possible values: 'nominatim' (default), 'google'
+$location_provider = defined('KNX_LOCATION_PROVIDER') ? KNX_LOCATION_PROVIDER : get_option('knx_location_provider', 'nominatim');
+
+echo '<script>window.KNX_LOCATION_PROVIDER = "' . esc_js($location_provider) . '";';
+echo 'window.KNX_GEOCODE_API = "' . esc_js(rest_url('knx/v1/geocode-search')) . '";';
+echo '</script>\n';
+
+// Load the canonical editor and Nominatim-based autocomplete assets directly (in-order)
+echo '<script src="' . KNX_URL . 'inc/modules/hubs/hub-location-editor.js"></script>\n';
+echo '<link rel="stylesheet" href="' . KNX_URL . 'inc/modules/hubs/hub-location-autocomplete.css">\n';
+echo '<script src="' . KNX_URL . 'inc/modules/hubs/hub-location-autocomplete-nominatim.js"></script>\n';
 ?>
