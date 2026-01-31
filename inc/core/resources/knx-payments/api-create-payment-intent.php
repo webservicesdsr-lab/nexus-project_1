@@ -328,14 +328,6 @@ if (!function_exists('knx_api_create_payment_intent')) {
                 'intent' => $provider_intent_id
             ]
         );
-        // Attempt immediate reconciliation if webhook arrived early
-        if (function_exists('knx_reconcile_deferred_webhook_for_intent')) {
-            try {
-                knx_reconcile_deferred_webhook_for_intent($provider_intent_id);
-            } catch (\Throwable $e) {
-                // Non-fatal: reconciliation best-effort
-            }
-        }
         
         return knx_rest_response(true, 'Payment intent created', [
             'client_secret' => $client_secret,

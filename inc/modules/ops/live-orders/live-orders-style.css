@@ -1,0 +1,12 @@
+.knx-live-orders-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.knx-live-orders-select{min-width:220px;padding:6px}
+.knx-live-orders-state{color:#666;margin:8px 0}
+.knx-live-orders-list{display:flex;flex-direction:column;gap:10px}
+.knx-live-order-card{display:flex;justify-content:space-between;padding:12px;border:1px solid #eee;border-radius:6px;background:#fff}
+.knx-live-order-title{margin:0;font-size:16px}
+.knx-live-order-meta{color:#777;font-size:13px}
+.knx-live-order-stats{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.knx-live-order-amount{font-weight:700}
+.knx-live-order-status{padding:4px 8px;border-radius:4px;background:#f0f0f0;font-size:12px}
+.knx-live-order-assigned{font-size:12px;color:#333}
+.knx-live-order-actions .knx-btn{margin-left:6px}

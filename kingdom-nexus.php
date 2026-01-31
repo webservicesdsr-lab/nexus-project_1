@@ -260,6 +260,8 @@ add_action('plugins_loaded', function() {
      * MODULES — OPS ORDERS (Admin / Manager)
      * NOTE: legacy OPS UI removed in PHASE 13.CLEAN — UI modules are deleted
      * ====================================================== */
+    /* Live Orders (OPS) — scaffolded module */
+    knx_require('inc/modules/ops/live-orders/live-orders-shortcode.php');
 
     /* ======================================================
      * MODULES — ORDERS (Live admin dashboard)
