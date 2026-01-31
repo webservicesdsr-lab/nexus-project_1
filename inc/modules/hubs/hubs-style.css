@@ -562,3 +562,15 @@
 
 .knx-badge--featured { display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:999px; background: linear-gradient(180deg, rgba(255,250,230,1), rgba(255,245,220,1)); color:#DAA520; border:1px solid rgba(218,165,32,0.08); margin-left:6px; }
 .knx-badge--featured i { margin:0; }
+
+/* Confirm modal tweaks */
+.knx-confirm-content { max-width: 460px; padding:20px 22px; text-align: left; }
+.knx-confirm-message { color: var(--nxs-muted); margin: 8px 0 0; line-height:1.4; }
+.knx-confirm-actions .knx-btn { background: #b30000; border-radius: 10px; }
+.knx-confirm-actions .knx-btn:hover { background: #990000; }
+.knx-confirm-actions .knx-btn-secondary { background: transparent; border:1px solid rgba(11,18,32,0.04); }
+
+/* Ensure confirm modal centers nicely on very small screens */
+@media (max-width: 420px) {
+  .knx-confirm-content { width: 92%; padding: 16px; }
+}

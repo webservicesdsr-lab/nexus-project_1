@@ -163,6 +163,18 @@ add_shortcode('knx_hubs', function() {
         </div>
     </div>
 
+    <!-- Modal: Confirm Deactivate Hub -->
+    <div id="knxConfirmDeactivate" class="knx-modal" aria-hidden="true">
+        <div class="knx-modal-content knx-confirm-content" role="dialog" aria-modal="true" aria-labelledby="knxConfirmTitle">
+            <h3 id="knxConfirmTitle">Deactivate Hub</h3>
+            <p class="knx-confirm-message">Are you sure you want to deactivate this hub? This will make it unavailable to customers.</p>
+            <div class="knx-confirm-actions" style="display:flex; gap:10px; justify-content:flex-end; margin-top:12px;">
+                <button id="knxCancelDeactivate" type="button" class="knx-btn-secondary">Cancel</button>
+                <button id="knxConfirmDeactivateBtn" type="button" class="knx-btn">Deactivate</button>
+            </div>
+        </div>
+    </div>
+
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         const wrapper = document.querySelector('.knx-hubs-wrapper');
