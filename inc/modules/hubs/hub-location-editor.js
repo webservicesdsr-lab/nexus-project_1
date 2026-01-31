@@ -378,18 +378,55 @@ function initLeafletMap() {
     if (!STATE.hubData || !STATE.hubData.delivery_zones) return;
     const zones = STATE.hubData.delivery_zones; if (!zones.length) return;
     const zone = zones[0]; if (!zone.polygon_points || zone.polygon_points.length < 3) return;
-    if (STATE.useLeaflet) loadLeafletPolygon(zone); else loadGooglePolygon(zone);
+    // Normalize polygon points to canonical [{lat,lng}, ...] objects
+    const normalized = normalizePolygonPoints(zone.polygon_points);
+    if (!normalized || normalized.length < 3) return;
+    const enrichedZone = Object.assign({}, zone, { polygon_points: normalized });
+    if (STATE.useLeaflet) loadLeafletPolygon(enrichedZone); else loadGooglePolygon(enrichedZone);
+  }
+
+  // Normalize various polygon storage shapes into [{lat,lng}, ...]
+  function normalizePolygonPoints(points) {
+    if (!points || !Array.isArray(points)) return [];
+    const out = [];
+    for (let i = 0; i < points.length; i++) {
+      const p = points[i];
+      if (!p) continue;
+      // Legacy array form: [lat, lng]
+      if (Array.isArray(p) && p.length >= 2) {
+        const lat = parseFloat(p[0]);
+        const lng = parseFloat(p[1]);
+        if (!isNaN(lat) && !isNaN(lng)) out.push({ lat, lng });
+        continue;
+      }
+      // Object form: {lat, lng} or {lat:..., lng:...}
+      if (typeof p === 'object') {
+        const lat = (typeof p.lat !== 'undefined') ? parseFloat(p.lat) : (typeof p[0] !== 'undefined' ? parseFloat(p[0]) : NaN);
+        const lng = (typeof p.lng !== 'undefined') ? parseFloat(p.lng) : (typeof p[1] !== 'undefined' ? parseFloat(p[1]) : NaN);
+        if (!isNaN(lat) && !isNaN(lng)) out.push({ lat, lng });
+        continue;
+      }
+    }
+    return out;
   }
 
   function loadGooglePolygon(zone) {
     const path = zone.polygon_points.map(p => ({ lat: p.lat, lng: p.lng }));
-    STATE.googlePolygon = new google.maps.Polygon({ paths: path, strokeColor: zone.stroke_color || '#0b793a', strokeOpacity: 1, strokeWeight: zone.stroke_weight || 2, fillColor: zone.fill_color || '#0b793a', fillOpacity: zone.fill_opacity || 0.35, editable: false, map: STATE.googleMap });
+    try {
+      STATE.googlePolygon = new google.maps.Polygon({ paths: path, strokeColor: zone.stroke_color || '#0b793a', strokeOpacity: 1, strokeWeight: zone.stroke_weight || 2, fillColor: zone.fill_color || '#0b793a', fillOpacity: zone.fill_opacity || 0.35, editable: false, map: STATE.googleMap });
+    } catch (e) {
+      console.warn('Google polygon failed to create', e);
+    }
     STATE.polygonPath = zone.polygon_points; DOM.clearPolygonBtn.disabled = false; updateCoverageStatus();
   }
 
   function loadLeafletPolygon(zone) {
     const latLngs = zone.polygon_points.map(p => [p.lat, p.lng]);
-    STATE.leafletPolygon = L.polygon(latLngs, { color: zone.stroke_color || '#0b793a', weight: zone.stroke_weight || 2, fillColor: zone.fill_color || '#0b793a', fillOpacity: zone.fill_opacity || 0.35 }).addTo(STATE.leafletMap);
+    try {
+      STATE.leafletPolygon = L.polygon(latLngs, { color: zone.stroke_color || '#0b793a', weight: zone.stroke_weight || 2, fillColor: zone.fill_color || '#0b793a', fillOpacity: zone.fill_opacity || 0.35 }).addTo(STATE.leafletMap);
+    } catch (e) {
+      console.warn('Leaflet polygon failed to create', e);
+    }
     STATE.polygonPath = zone.polygon_points; DOM.clearPolygonBtn.disabled = false; updateCoverageStatus();
   }
 

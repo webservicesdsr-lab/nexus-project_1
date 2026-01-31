@@ -306,6 +306,77 @@ function knx_save_delivery_fee_rule($data) {
 }
 
 /**
+ * Canonical sync:
+ * City delivery_rates -> Hub-scoped delivery_fee_rules
+ *
+ * Materializes a hub-scoped delivery_fee_rules entry for every hub in the city
+ * so the canonical quote flow (which only passes hub_id) will find a rule.
+ */
+function knx_sync_fee_rules_from_city_rates($city_id) {
+    global $wpdb;
+
+    $rates_table = $wpdb->prefix . 'knx_delivery_rates';
+    $rules_table = $wpdb->prefix . 'knx_delivery_fee_rules';
+    $hubs_table  = $wpdb->prefix . 'knx_hubs';
+
+    $rate = $wpdb->get_row($wpdb->prepare(
+        "SELECT flat_rate, rate_per_distance, distance_unit, status
+         FROM {$rates_table}
+         WHERE city_id = %d
+         LIMIT 1",
+        $city_id
+    ));
+    if (!$rate) return false;
+
+    $hubs = $wpdb->get_results($wpdb->prepare(
+        "SELECT id FROM {$hubs_table} WHERE city_id = %d",
+        $city_id
+    ));
+    if (!$hubs) return false;
+
+    $is_active = (isset($rate->status) && $rate->status === 'active') ? 1 : 0;
+
+    // Normalize per_km
+    $per_km = 0.0;
+    $rate_per_distance = isset($rate->rate_per_distance) ? (float)$rate->rate_per_distance : 0.0;
+    $distance_unit = isset($rate->distance_unit) ? strtolower(trim((string)$rate->distance_unit)) : 'mile';
+    if ($rate_per_distance > 0) {
+        $per_km = ($distance_unit === 'mile') ? ($rate_per_distance / 1.60934) : $rate_per_distance;
+    }
+
+    $flat_fee = isset($rate->flat_rate) ? (float)$rate->flat_rate : 0.0;
+
+    foreach ($hubs as $hub) {
+        $hub_id = (int)$hub->id;
+
+        $existing = $wpdb->get_row($wpdb->prepare(
+            "SELECT id FROM {$rules_table} WHERE hub_id = %d AND zone_id IS NULL LIMIT 1",
+            $hub_id
+        ));
+
+        $data = [
+            'hub_id'      => $hub_id,
+            'city_id'     => $city_id,
+            'zone_id'     => null,
+            'rule_name'   => 'City rate (auto)',
+            'is_active'   => $is_active,
+            'priority'    => 20,
+            'fee_type'    => ($per_km > 0 ? 'distance_based' : 'flat'),
+            'flat_fee'    => $flat_fee > 0 ? $flat_fee : null,
+            'per_km_rate' => $per_km > 0 ? $per_km : null,
+        ];
+
+        if ($existing) {
+            $wpdb->update($rules_table, $data, ['id' => (int)$existing->id]);
+        } else {
+            $wpdb->insert($rules_table, $data);
+        }
+    }
+
+    return true;
+}
+
+/**
  * Admin helper: Delete delivery fee rule
  * 
  * @param int $rule_id Rule ID

@@ -193,6 +193,15 @@ function knx_update_city_delivery_rates(WP_REST_Request $request) {
         return knx_rest_error('Updated but unable to load delivery rates.', 500);
     }
 
+    // Materialize city rates into hub-scoped fee rules so quote flow finds rules by hub_id
+    if (function_exists('knx_sync_fee_rules_from_city_rates')) {
+        try {
+            knx_sync_fee_rules_from_city_rates($city_id);
+        } catch (\Throwable $e) {
+            error_log('[KNX-SYNC] knx_sync_fee_rules_from_city_rates failed city_id=' . $city_id . ' err=' . $e->getMessage());
+        }
+    }
+
     return knx_rest_success([
         'message'           => '✅ Delivery rates updated successfully',
         'flat_rate'         => (string)$row['flat_rate'],

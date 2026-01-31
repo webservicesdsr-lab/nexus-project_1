@@ -172,6 +172,45 @@ function knx_api_update_hub_location_v5(WP_REST_Request $r) {
         }
     }
 
+    // Normalize incoming polygon shapes to legacy array-of-arrays [lat, lng]
+    // Support incoming shapes:
+    // - array of objects [{lat:..., lng:...}, ...]
+    // - array of associative arrays [['lat'=>..., 'lng'=>...], ...]
+    // - already array-of-arrays [[lat, lng], ...]
+    if (is_array($polygon_points) && count($polygon_points) > 0) {
+        $first = $polygon_points[0];
+        $need_normalize = false;
+        if (is_object($first) || (is_array($first) && (isset($first['lat']) || isset($first['lng'])))) {
+            $need_normalize = true;
+        }
+
+        if ($need_normalize) {
+            $normalized = [];
+            foreach ($polygon_points as $p) {
+                $plat = null; $plng = null;
+                if (is_object($p)) {
+                    if (isset($p->lat)) $plat = $p->lat;
+                    if (isset($p->lng)) $plng = $p->lng;
+                } elseif (is_array($p)) {
+                    if (isset($p['lat'])) $plat = $p['lat'];
+                    if (isset($p['lng'])) $plng = $p['lng'];
+                }
+
+                if (!is_numeric($plat) || !is_numeric($plng)) {
+                    // malformed point — abort normalization and keep original to allow later validation to fail-closed
+                    $normalized = null;
+                    break;
+                }
+
+                $normalized[] = [(float)$plat, (float)$plng];
+            }
+
+            if (is_array($normalized)) {
+                $polygon_points = $normalized;
+            }
+        }
+    }
+
     // Validation
     if ($hub_id <= 0) {
         return new WP_REST_Response([
