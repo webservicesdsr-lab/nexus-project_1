@@ -187,6 +187,8 @@ add_action('plugins_loaded', function() {
     knx_require('inc/core/resources/knx-location/api-location-search.php');
     // Nominatim geocode endpoint (server-side): returns normalized items for autocomplete
     knx_require('inc/core/resources/knx-geocode-search.php');
+    // Software fees REST resource (admin UI + resolution)
+    knx_require('inc/core/resources/knx-fees/api-software-fees.php');
 
     /* ======================================================
      * RESOURCES — KNX EXPLORE

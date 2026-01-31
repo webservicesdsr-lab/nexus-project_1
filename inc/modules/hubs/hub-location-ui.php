@@ -55,6 +55,45 @@ $hub_address = isset($hub->address) ? $hub->address : '';
       value="<?php echo esc_attr($hub_address); ?>"
       placeholder="Enter full street address..."
     />
+    <div class="knx-address-assist" style="margin-top:10px; display:flex; gap:12px; align-items:center;">
+      <div style="display:flex; gap:10px; align-items:center;">
+        <button type="button" id="knxSearchAddress" class="knx-btn knx-btn-primary knx-btn-sm" aria-label="Search address with Nominatim">
+          🔎 Search address
+        </button>
+        <button type="button" id="knxGoogleAssist" class="knx-btn knx-btn-secondary knx-btn-sm" aria-label="Get coordinates from Google Maps">
+          📍 Get coordinates from Google Maps
+        </button>
+      </div>
+      <div class="knx-helper-text" style="margin:0;">If autocomplete doesn't find an exact house number, open Google Maps, find the pin, copy lat/lng and paste them into the map marker or the latitude/longitude inputs.</div>
+    </div>
+    <div id="knxAddressStatusBadge" style="margin-top:8px; font-size:13px; color:#374151;"></div>
+
+    <!-- Geocode Results (populated by JS) -->
+    <div id="knxGeocodeResults" style="margin-top:12px; display:none;">
+      <div id="knxGeocodeStatus" class="knx-helper-text" style="margin-bottom:8px;"></div>
+      <div id="knxGeocodeList" style="display:grid; gap:8px;"></div>
+      <div id="knxSelectedPreview" style="margin-top:8px; display:none; padding:10px; border:1px solid #e5e7eb; border-radius:8px; background:#fff;">
+        <div id="knxSelectedDisplay" style="font-weight:600;"></div>
+        <div id="knxSelectedCoords" style="font-size:13px; color:#6b7280; margin-top:6px;"></div>
+        <div style="margin-top:8px; display:flex; gap:8px;">
+          <button type="button" id="knxUseSelected" class="knx-btn knx-btn-primary knx-btn-sm">Use this location</button>
+          <button type="button" id="knxReplaceAddress" class="knx-btn knx-btn-secondary knx-btn-sm">Replace address text</button>
+          <button type="button" id="knxClearSelection" class="knx-btn knx-btn-secondary knx-btn-sm">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Coordinate Mode (manual fallback) -->
+    <div id="knxCoordinateMode" style="margin-top:12px; display:none; padding:12px; border:1px dashed #e5e7eb; border-radius:8px; background:#fafafa;">
+      <div style="font-weight:600; margin-bottom:6px;">Enter coordinates manually</div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input type="text" id="knxManualLat" class="knx-input knx-input-sm" placeholder="Latitude" style="width:140px;" />
+        <input type="text" id="knxManualLng" class="knx-input knx-input-sm" placeholder="Longitude" style="width:140px;" />
+        <button type="button" id="knxApplyManualCoords" class="knx-btn knx-btn-primary knx-btn-sm">Apply coordinates</button>
+        <button type="button" id="knxCancelManualCoords" class="knx-btn knx-btn-secondary knx-btn-sm">Cancel</button>
+      </div>
+      <div class="knx-helper-text" style="margin-top:8px;">Paste lat,lng and click "Apply coordinates". Pin will move only after you confirm.</div>
+    </div>
   </div>
 
   <!-- Map Container (right after address) -->
@@ -446,13 +485,31 @@ window.KNX_MAPS_CONFIG = {
 // Location provider configuration (server-driven default)
 // Possible values: 'nominatim' (default), 'google'
 $location_provider = defined('KNX_LOCATION_PROVIDER') ? KNX_LOCATION_PROVIDER : get_option('knx_location_provider', 'nominatim');
+?>
+<script>
+  window.KNX_LOCATION_PROVIDER = "<?php echo esc_js($location_provider); ?>";
+  window.KNX_GEOCODE_API = "<?php echo esc_js(rest_url('knx/v1/geocode-search')); ?>";
+</script>
 
-echo '<script>window.KNX_LOCATION_PROVIDER = "' . esc_js($location_provider) . '";';
-echo 'window.KNX_GEOCODE_API = "' . esc_js(rest_url('knx/v1/geocode-search')) . '";';
-echo '</script>\n';
+<!-- Load the canonical editor and Nominatim-based autocomplete assets directly (in-order) -->
+<script src="<?php echo KNX_URL; ?>inc/modules/hubs/hub-location-editor.js"></script>
+<link rel="stylesheet" href="<?php echo KNX_URL; ?>inc/modules/hubs/hub-location-autocomplete.css">
+<script src="<?php echo KNX_URL; ?>inc/modules/hubs/hub-location-autocomplete-nominatim.js"></script>
 
-// Load the canonical editor and Nominatim-based autocomplete assets directly (in-order)
-echo '<script src="' . KNX_URL . 'inc/modules/hubs/hub-location-editor.js"></script>\n';
-echo '<link rel="stylesheet" href="' . KNX_URL . 'inc/modules/hubs/hub-location-autocomplete.css">\n';
-echo '<script src="' . KNX_URL . 'inc/modules/hubs/hub-location-autocomplete-nominatim.js"></script>\n';
+<script>
+  // Coordinate Assist: expose a global helper to open Google Maps search in new tab (no API)
+  // This function is intentionally global so existing editor code can bind it.
+  function openGoogleMaps(address) {
+    try {
+      var query = (address && typeof address === 'string') ? address.trim() : '';
+      var url = query && query.length ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(query) : 'https://www.google.com/maps';
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (e) {
+      console.warn('Unable to open Google Maps', e);
+    }
+  }
+  // also expose explicitly on window for callers that reference window.openGoogleMaps
+  window.openGoogleMaps = openGoogleMaps;
+</script>
+<?php
 ?>

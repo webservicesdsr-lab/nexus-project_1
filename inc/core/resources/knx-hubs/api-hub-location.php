@@ -98,18 +98,49 @@ function knx_api_get_hub_location_v5(WP_REST_Request $r) {
         }
     }
 
+    // Provide address_label and metadata if available. Use WP options as a safe fallback
+    $meta_key = 'knx_hub_location_meta_' . intval($hub_id);
+    $meta = get_option($meta_key, null);
+
+    // address_label preference: prefer explicit column if present, otherwise fallback to option or address
+    $address_label = null;
+    if (isset($hub->address_label)) {
+        $address_label = $hub->address_label;
+    } elseif (is_array($meta) && !empty($meta['address_label'])) {
+        $address_label = $meta['address_label'];
+    } else {
+        $address_label = $hub->address;
+    }
+
+    $location_source = null;
+    if (isset($hub->location_source)) {
+        $location_source = $hub->location_source;
+    } elseif (is_array($meta) && !empty($meta['location_source'])) {
+        $location_source = $meta['location_source'];
+    }
+
+    $address_resolution_status = null;
+    if (isset($hub->address_resolution_status)) {
+        $address_resolution_status = $hub->address_resolution_status;
+    } elseif (is_array($meta) && !empty($meta['address_resolution_status'])) {
+        $address_resolution_status = $meta['address_resolution_status'];
+    }
+
     // Response
     return new WP_REST_Response([
         'success' => true,
         'data' => [
-            'hub_id'             => intval($hub->id),
-            'hub_name'           => $hub->name,
-            'address'            => $hub->address,
-            'lat'                => floatval($hub->latitude ?? 0),
-            'lng'                => floatval($hub->longitude ?? 0),
-            'delivery_radius'    => floatval($hub->delivery_radius ?? 5),
-            'delivery_zone_type' => $hub->delivery_zone_type ?? 'radius',
-            'delivery_zones'     => $zones_formatted,
+            'hub_id'                 => intval($hub->id),
+            'hub_name'               => $hub->name,
+            'address'                => $hub->address,
+            'address_label'          => $address_label,
+            'lat'                    => floatval($hub->latitude ?? 0),
+            'lng'                    => floatval($hub->longitude ?? 0),
+            'delivery_radius'        => floatval($hub->delivery_radius ?? 5),
+            'delivery_zone_type'     => $hub->delivery_zone_type ?? 'radius',
+            'delivery_zones'         => $zones_formatted,
+            'location_source'        => $location_source,
+            'address_resolution_status' => $address_resolution_status,
         ]
     ], 200);
 }
@@ -124,6 +155,9 @@ function knx_api_update_hub_location_v5(WP_REST_Request $r) {
     // Extract and validate parameters
     $hub_id  = intval($r->get_param('hub_id'));
     $address = sanitize_text_field($r->get_param('address'));
+    $address_label = sanitize_text_field($r->get_param('address_label'));
+    $location_source = sanitize_text_field($r->get_param('location_source'));
+    $address_resolution_status = sanitize_text_field($r->get_param('address_resolution_status'));
     $lat     = floatval($r->get_param('lat'));
     $lng     = floatval($r->get_param('lng'));
     $radius  = floatval($r->get_param('delivery_radius'));
@@ -147,7 +181,10 @@ function knx_api_update_hub_location_v5(WP_REST_Request $r) {
         ], 400);
     }
 
-    if (empty($address) || $lat === 0.0 || $lng === 0.0) {
+    // Determine effective address to validate: prefer address_label when provided
+    $effective_address = !empty($address_label) ? $address_label : $address;
+
+    if (empty($effective_address) || $lat === 0.0 || $lng === 0.0) {
         return new WP_REST_Response([
             'success' => false,
             'error' => 'missing_required_fields',
@@ -161,20 +198,68 @@ function knx_api_update_hub_location_v5(WP_REST_Request $r) {
 
     // Update hub location
     $table_hubs = $wpdb->prefix . 'knx_hubs';
+    // Attempt to save address_label and metadata if hub table has columns, otherwise fall back to updating
+    // the main `address` column and store metadata in WP options for compatibility.
+    $has_col = function($col) use ($wpdb, $table_hubs) {
+        $count = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+            $table_hubs,
+            $col
+        ));
+        return intval($count) > 0;
+    };
+
+    $update_data = [
+        'latitude'           => $lat,
+        'longitude'          => $lng,
+        'delivery_radius'    => $radius,
+        'delivery_zone_type' => $zone_type,
+        'updated_at'         => current_time('mysql'),
+    ];
+
+    if ($has_col('address_label')) {
+        $update_data['address_label'] = $address_label ? $address_label : $address;
+    } else {
+        // fallback: overwrite existing address field with address_label when provided
+        $update_data['address'] = $address_label ? $address_label : $address;
+    }
+
+    // Persist location_source and address_resolution_status if columns exist, else keep them in options
+    $meta_to_store = [];
+    if ($has_col('location_source')) {
+        $update_data['location_source'] = $location_source;
+    } else {
+        if (!empty($location_source)) $meta_to_store['location_source'] = $location_source;
+    }
+
+    if ($has_col('address_resolution_status')) {
+        $update_data['address_resolution_status'] = $address_resolution_status;
+    } else {
+        if (!empty($address_resolution_status)) $meta_to_store['address_resolution_status'] = $address_resolution_status;
+    }
+
+    // Build formats array to match update_data
+    $formats = [];
+    foreach ($update_data as $k => $v) {
+        if (in_array($k, ['address', 'address_label', 'location_source', 'address_resolution_status', 'delivery_zone_type', 'updated_at'])) $formats[] = '%s';
+        else $formats[] = '%f';
+    }
+
     $updated = $wpdb->update(
         $table_hubs,
-        [
-            'address'            => $address,
-            'latitude'           => $lat,
-            'longitude'          => $lng,
-            'delivery_radius'    => $radius,
-            'delivery_zone_type' => $zone_type,
-            'updated_at'         => current_time('mysql'),
-        ],
+        $update_data,
         ['id' => $hub_id],
-        ['%s', '%f', '%f', '%f', '%s', '%s'],
+        $formats,
         ['%d']
     );
+
+    // If any metadata couldn't be stored in columns, persist safely in WP options
+    if (!empty($meta_to_store)) {
+        $existing_meta = get_option('knx_hub_location_meta_' . intval($hub_id), []);
+        if (!is_array($existing_meta)) $existing_meta = [];
+        $existing_meta = array_merge($existing_meta, $meta_to_store);
+        update_option('knx_hub_location_meta_' . intval($hub_id), $existing_meta);
+    }
 
     if ($updated === false) {
         return new WP_REST_Response([
