@@ -34,6 +34,7 @@ if (!function_exists('knx_render_corporate_sidebar')) {
         // Private pages only
         $private_pages = [
             'dashboard',
+            'knx-dashboard',
             'hubs',
             'menus',
             'hub-categories',
@@ -44,6 +45,9 @@ if (!function_exists('knx_render_corporate_sidebar')) {
             'edit-hub-items',
             'edit-item-categories',
             'edit-hub',
+            // OPS pages
+            'live-orders',
+            'orders',
         ];
         
         // Role check (admin roles only)
@@ -62,6 +66,21 @@ if (!function_exists('knx_render_corporate_sidebar')) {
             if (knx_can_render_nav_item($item, $context)) {
                 $filtered_items[] = $item;
             }
+        }
+
+        // If super_admin, override with canonical corporate tabs in desired order
+        if ($context['role'] === 'super_admin') {
+            $filtered_items = [
+                ['id' => 'dashboard', 'label' => 'Dashboard', 'route' => '/knx-dashboard', 'icon' => 'tachometer-alt', 'roles' => ['super_admin'], 'active_slugs' => ['knx-dashboard', 'dashboard']],
+                ['id' => 'live-orders', 'label' => 'Live Orders', 'route' => '/live-orders', 'icon' => 'bolt', 'roles' => ['super_admin'], 'active_slugs' => ['live-orders']],
+                ['id' => 'orders', 'label' => 'Orders', 'route' => '/orders', 'icon' => 'receipt', 'roles' => ['super_admin'], 'active_slugs' => ['orders']],
+                ['id' => 'hubs', 'label' => 'Hubs', 'route' => '/hubs', 'icon' => 'store', 'roles' => ['super_admin'], 'active_slugs' => ['hubs']],
+                ['id' => 'cities', 'label' => 'Cities', 'route' => '/knx-cities', 'icon' => 'city', 'roles' => ['super_admin'], 'active_slugs' => ['knx-cities']],
+                ['id' => 'customers', 'label' => 'Customers', 'route' => '/customers', 'icon' => 'users', 'roles' => ['super_admin'], 'active_slugs' => ['customers']],
+                ['id' => 'drivers', 'label' => 'Drivers', 'route' => '/drivers', 'icon' => 'truck', 'roles' => ['super_admin'], 'active_slugs' => ['drivers']],
+                ['id' => 'coupons', 'label' => 'Coupons', 'route' => '/coupons', 'icon' => 'tags', 'roles' => ['super_admin'], 'active_slugs' => ['coupons']],
+                ['id' => 'settings', 'label' => 'Settings', 'route' => '/settings', 'icon' => 'cog', 'roles' => ['super_admin'], 'active_slugs' => ['settings']],
+            ];
         }
         
         // No items = no sidebar

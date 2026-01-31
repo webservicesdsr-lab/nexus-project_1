@@ -232,6 +232,7 @@ add_action('plugins_loaded', function() {
      * ====================================================== */
     // OPS Live Orders (push endpoint removed)
     knx_require('inc/core/resources/knx-ops/api-live-orders.php');
+    knx_require('inc/core/resources/knx-ops/api-view-order.php');
 
     /* ======================================================
      * RESOURCES — KNX DRIVERS (Driver App MVP)
@@ -263,6 +264,7 @@ add_action('plugins_loaded', function() {
      * ====================================================== */
     /* Live Orders (OPS) — scaffolded module */
     knx_require('inc/modules/ops/live-orders/live-orders-shortcode.php');
+    knx_require('inc/modules/ops/view-order/view-order-shortcode.php');
 
     /* ======================================================
      * MODULES — ORDERS (Live admin dashboard)
