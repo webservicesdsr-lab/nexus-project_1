@@ -132,6 +132,119 @@ if (!function_exists('knx_get_payment_by_order_id')) {
     }
 }
 
+    /**
+     * Attempt to reconcile deferred Stripe webhook events for a given intent.
+     * Idempotent and safe to call multiple times.
+     *
+     * @param string $intent_id
+     * @return bool
+     */
+    if (!function_exists('knx_reconcile_deferred_webhook_for_intent')) {
+        function knx_reconcile_deferred_webhook_for_intent($intent_id) {
+            global $wpdb;
+
+            $events_table = $wpdb->prefix . 'knx_webhook_events';
+            $orders_table = $wpdb->prefix . 'knx_orders';
+
+            // Find deferred/unprocessed events for this intent (processed_at IS NULL)
+            $events = $wpdb->get_results($wpdb->prepare(
+                "SELECT * FROM {$events_table} WHERE intent_id = %s AND processed_at IS NULL ORDER BY created_at ASC",
+                $intent_id
+            ));
+
+            if (!$events) {
+                return false;
+            }
+
+            // Payment must now exist
+            $payment = knx_get_payment_by_provider_intent('stripe', $intent_id);
+            if (!$payment) {
+                return false;
+            }
+
+            foreach ($events as $event) {
+                $wpdb->query('START TRANSACTION');
+
+                try {
+                    // Lock event row
+                    $locked = $wpdb->get_row($wpdb->prepare(
+                        "SELECT * FROM {$events_table} WHERE id = %d FOR UPDATE",
+                        (int) $event->id
+                    ));
+
+                    if (!$locked || !empty($locked->processed_at)) {
+                        $wpdb->query('COMMIT');
+                        continue;
+                    }
+
+                    // Update payment -> paid (idempotent guard in knx_update_payment_status)
+                    if (function_exists('knx_update_payment_status')) {
+                        @knx_update_payment_status((int) $payment->id, 'paid');
+                    }
+
+                    // Promote order if present and in allowed pre-confirmation state
+                    $order = $wpdb->get_row($wpdb->prepare(
+                        "SELECT * FROM {$orders_table} WHERE id = %d FOR UPDATE",
+                        (int) $payment->order_id
+                    ));
+
+                    if ($order) {
+                        $allowed_pre = ['placed', 'pending'];
+                        if (in_array((string) $order->status, $allowed_pre, true)) {
+                            $order_updated = $wpdb->update(
+                                $orders_table,
+                                [
+                                    'status'                 => 'confirmed',
+                                    'payment_status'         => 'paid',
+                                    'payment_method'         => 'stripe',
+                                    'payment_transaction_id' => $intent_id,
+                                    'updated_at'             => current_time('mysql'),
+                                ],
+                                ['id' => (int) $order->id],
+                                ['%s','%s','%s','%s','%s'],
+                                ['%d']
+                            );
+
+                            if ($order_updated !== false) {
+                                $wpdb->insert(
+                                    $wpdb->prefix . 'knx_order_status_history',
+                                    [
+                                        'order_id'   => (int) $order->id,
+                                        'status'     => 'confirmed',
+                                        'created_at' => current_time('mysql'),
+                                    ],
+                                    ['%d','%s','%s']
+                                );
+                            }
+                        }
+                    }
+
+                    // Mark webhook event as processed
+                    $wpdb->update(
+                        $events_table,
+                        [
+                            'processed_at' => current_time('mysql'),
+                            'order_id'     => (int) $payment->order_id,
+                        ],
+                        ['id' => (int) $event->id],
+                        ['%s','%d'],
+                        ['%d']
+                    );
+
+                    $wpdb->query('COMMIT');
+
+                    error_log('[KNX][RECONCILE] Deferred webhook reconciled | intent=' . $intent_id);
+
+                } catch (\Throwable $e) {
+                    $wpdb->query('ROLLBACK');
+                    error_log('[KNX][RECONCILE][ERROR] ' . substr($e->getMessage(), 0, 200));
+                }
+            }
+
+            return true;
+        }
+    }
+
 /**
  * Check if order can have a new payment created
  * 

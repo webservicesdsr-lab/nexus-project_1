@@ -19,8 +19,10 @@
  *
  * IMPORTANT (RETRY-SAFE):
  * - If the webhook arrives BEFORE the payment record exists in DB,
- *   we MUST return 503 to force Stripe retries.
- * - We must NOT mark the event as processed (no dedup insert) in that case.
+ *   the event is DEFERRED and acknowledged (200). The deferred event
+ *   is persisted to `knx_webhook_events` and will be reconciled once
+ *   the payment record becomes available.
+ * - We must NOT mark the event as processed until reconciliation completes.
  *
  * DEPENDENCIES (expected to exist in your codebase):
  * - knx_get_stripe_webhook_secret()
@@ -241,13 +243,66 @@ if (!function_exists('knx_api_payment_webhook')) {
 
         if (!$payment) {
             if (function_exists('knx_stripe_authority_log')) {
-                knx_stripe_authority_log('info', 'webhook_payment_unmapped', 'Payment not found yet for intent (will retry)', [
+                knx_stripe_authority_log('info', 'webhook_payment_unmapped', 'Payment not found yet for intent (deferring event)', [
                     'event_id'   => $event->id,
                     'event_type' => $event->type,
                     'intent_id'  => $intent_id,
                 ]);
             }
-            return knx_rest_error('Payment not mapped yet', 503);
+
+            // Ensure events table exists before attempting to persist deferred event
+            if (!knx_payments_ensure_webhook_events_table()) {
+                if (function_exists('knx_stripe_authority_log')) {
+                    knx_stripe_authority_log('error', 'webhook_events_table_missing', 'Webhook events table missing while deferring event', [
+                        'intent_id' => $intent_id,
+                        'event_id'  => $event->id,
+                    ]);
+                }
+                return knx_rest_error('DB not ready', 500);
+            }
+
+            $events_table = $wpdb->prefix . 'knx_webhook_events';
+
+            $insert_ok = $wpdb->insert(
+                $events_table,
+                [
+                    'provider'     => 'stripe',
+                    'event_id'     => (string) $event->id,
+                    'event_type'   => (string) $event->type,
+                    'intent_id'    => (string) $intent_id,
+                    'order_id'     => null,
+                    'processed_at' => null,
+                    'created_at'   => current_time('mysql'),
+                ],
+                ['%s','%s','%s','%s','%d','%s','%s']
+            );
+
+            if ($insert_ok === false) {
+                // If duplicate (rare), treat as deferred success
+                $last_error = (string) ($wpdb->last_error ?? '');
+                if (stripos($last_error, 'duplicate') !== false) {
+                    if (function_exists('knx_stripe_authority_log')) {
+                        knx_stripe_authority_log('info', 'webhook_event_deferred_duplicate', 'Deferred webhook event already recorded', [
+                            'event_id' => $event->id,
+                            'intent_id' => $intent_id,
+                        ]);
+                    }
+                } else {
+                    if (function_exists('knx_stripe_authority_log')) {
+                        knx_stripe_authority_log('error', 'webhook_event_defer_failed', 'Failed to persist deferred webhook event', [
+                            'event_id' => $event->id,
+                            'intent_id' => $intent_id,
+                            'db_error' => $last_error,
+                        ]);
+                    }
+                    return knx_rest_error('DB error', 500);
+                }
+            }
+
+            error_log('[KNX][WEBHOOK] Payment not mapped yet → deferred | intent=' . $intent_id);
+
+            // Acknowledge webhook so Stripe will not retry indefinitely
+            return knx_rest_response(true, 'Event deferred', null, 200);
         }
 
         // ───────────────────────────────────────────────────────────
