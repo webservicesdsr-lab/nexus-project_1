@@ -42,6 +42,35 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.classList.remove("knx-modal-open");
   });
 
+  // Accessibility & UX helpers: focus management, ESC to close, prevent body scroll
+  (function modalEnhancements(){
+    const firstInput = addForm?.querySelector('input[name="name"]');
+
+    // When modal opens, focus first input and trap body scroll
+    addBtn?.addEventListener('click', () => {
+      setTimeout(() => { firstInput?.focus(); }, 150);
+      document.body.style.overflow = 'hidden';
+    });
+
+    // When modal closes, restore body scroll
+    const cleanup = () => { document.body.style.overflow = ''; };
+    closeModal?.addEventListener('click', cleanup);
+
+    // Close modal on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (modal?.classList.contains('active')) {
+          modal.classList.remove('active');
+          document.body.classList.remove('knx-modal-open');
+          cleanup();
+        }
+        if (confirmModal?.classList.contains('active')) {
+          confirmModal.classList.remove('active');
+        }
+      }
+    });
+  })();
+
   /** ------------------------------------------------------
    * Handle toggle switch (Active / Inactive)
    * ------------------------------------------------------ */
@@ -60,7 +89,14 @@ document.addEventListener("DOMContentLoaded", () => {
       // Ask confirmation only when deactivating
       if (status === "inactive") {
         pendingHub = { id, nonce };
-        confirmModal?.classList.add("active");
+        // If a confirm modal exists in DOM, show it; otherwise fall back to native confirm
+        if (confirmModal) {
+          confirmModal.classList.add("active");
+        } else {
+          const ok = window.confirm('Are you sure you want to deactivate this hub?');
+          if (ok) updateHubStatus(id, status, nonce);
+          else e.target.checked = true;
+        }
       } else {
         updateHubStatus(id, status, nonce);
       }

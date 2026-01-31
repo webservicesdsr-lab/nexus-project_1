@@ -94,11 +94,16 @@ add_shortcode('knx_hubs', function() {
                 <?php if ($hubs): foreach ($hubs as $hub): ?>
                     <tr data-id="<?php echo esc_attr($hub->id); ?>">
                         <td>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <?php echo esc_html(stripslashes($hub->name)); ?>
+                            <div class="knx-hub-identity" style="display: flex; align-items: center; gap: 12px;">
+                                <?php if (!empty($hub->logo_url)): ?>
+                                    <img class="knx-hub-thumb" src="<?php echo esc_url($hub->logo_url); ?>" alt="<?php echo esc_attr(stripslashes($hub->name)); ?>">
+                                <?php endif; ?>
+                                <div class="knx-hub-name-wrap">
+                                    <div class="knx-hub-name"><?php echo esc_html(stripslashes($hub->name)); ?></div>
+                                </div>
                                 <?php if (($hub->is_featured ?? 0) == 1): ?>
-                                    <span class="knx-badge--featured" title="Featured in Locals Love These">
-                                        <i class="fas fa-star"></i> Featured
+                                    <span class="knx-badge--featured" title="Featured in Locals Love These" aria-hidden="false">
+                                        <i class="fas fa-star" aria-hidden="true"></i>
                                     </span>
                                 <?php endif; ?>
                             </div>
@@ -171,9 +176,33 @@ add_shortcode('knx_hubs', function() {
         const openBtn = document.getElementById('knxAddHubBtn');
         const closeBtn = document.getElementById('knxCloseModal');
         const form = document.getElementById('knxAddHubForm');
+        const firstInput = form?.querySelector('input[name="name"]');
 
-        openBtn.addEventListener('click', () => modal.classList.add('active'));
-        closeBtn.addEventListener('click', () => modal.classList.remove('active'));
+        const openModal = () => {
+            modal.classList.add('active');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('knx-modal-open');
+            document.body.style.overflow = 'hidden';
+            setTimeout(() => firstInput?.focus(), 120);
+        };
+
+        const closeModal = () => {
+            modal.classList.remove('active');
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('knx-modal-open');
+            document.body.style.overflow = '';
+            openBtn?.focus();
+        };
+
+        openBtn.addEventListener('click', openModal);
+        closeBtn.addEventListener('click', closeModal);
+
+        // close on ESC
+        document.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Escape') {
+                if (modal.classList.contains('active')) closeModal();
+            }
+        });
 
         form.addEventListener('submit', async e => {
             e.preventDefault();
@@ -185,13 +214,14 @@ add_shortcode('knx_hubs', function() {
                 const out = await res.json();
 
                 if (out.success) {
-                    knxToast('Hub added successfully ✅', 'success');
-                    setTimeout(() => location.reload(), 1000);
+                    knxToast('Hub added successfully', 'success');
+                    setTimeout(() => location.reload(), 800);
                 } else {
-                    knxToast(out.error || 'Error adding hub ❌', 'error');
+                    knxToast(out.error || 'Error adding hub', 'error');
                 }
-            } catch {
-                knxToast('Network error while adding hub ⚠️', 'error');
+            } catch (err) {
+                console.error('Add Hub error', err);
+                knxToast('Network error while adding hub', 'error');
             }
         });
 
@@ -202,29 +232,55 @@ add_shortcode('knx_hubs', function() {
                 const id = row.dataset.id;
                 const status = e.target.checked ? 'active' : 'inactive';
 
-                try {
-                    const res = await fetch(apiToggle, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ id, status, nonce: nonceToggle })
-                    });
-                    const out = await res.json();
+                // Confirm deactivation with a nicer UX: if there's a confirm modal use it, otherwise fallback
+                if (status === 'inactive') {
+                    const confirmModal = document.getElementById('knxConfirmDeactivate');
+                    if (confirmModal) {
+                        confirmModal.classList.add('active');
+                        // wire up confirm buttons if present
+                        const confirmBtn = document.getElementById('knxConfirmDeactivateBtn');
+                        const cancelBtn = document.getElementById('knxCancelDeactivate');
+                        const cleanup = () => { confirmModal.classList.remove('active'); };
+                        cancelBtn?.addEventListener('click', () => { e.target.checked = true; cleanup(); });
+                        confirmBtn?.addEventListener('click', async () => { cleanup(); await doToggle(); });
+                        return; // wait for confirmation
+                    }
 
-                    if (out.success) {
-                        const label = row.querySelector('.status-active, .status-inactive');
-                        if (label) {
-                            label.textContent = status.charAt(0).toUpperCase() + status.slice(1);
-                            label.className = 'status-' + status;
+                    if (!window.confirm('Are you sure you want to deactivate this hub?')) {
+                        e.target.checked = true;
+                        return;
+                    }
+                }
+
+                // perform toggle
+                async function doToggle() {
+                    try {
+                        const res = await fetch(apiToggle, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id, status, nonce: nonceToggle })
+                        });
+                        const out = await res.json();
+
+                        if (out.success) {
+                            const label = row.querySelector('.status-active, .status-inactive');
+                            if (label) {
+                                label.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+                                label.className = 'status-' + status;
+                            }
+                            knxToast('Hub ' + status + ' successfully', 'success');
+                        } else {
+                            knxToast(out.error || 'Toggle failed', 'error');
+                            e.target.checked = !e.target.checked;
                         }
-                        knxToast('Hub ' + status + ' successfully ⚙️', 'success');
-                    } else {
-                        knxToast('Toggle failed ❌', 'error');
+                    } catch (err) {
+                        console.error('Toggle error', err);
+                        knxToast('Network error toggling hub', 'error');
                         e.target.checked = !e.target.checked;
                     }
-                } catch {
-                    knxToast('Network error toggling hub ⚠️', 'error');
-                    e.target.checked = !e.target.checked;
                 }
+
+                if (status === 'active') await doToggle();
             });
         });
     });
