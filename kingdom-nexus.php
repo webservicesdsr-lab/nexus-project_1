@@ -231,6 +231,7 @@ add_action('plugins_loaded', function() {
      * RESOURCES — MVP DELIVERY (PHASE 3)
      * ====================================================== */
     // OPS Live Orders (push endpoint removed)
+    knx_require('inc/core/resources/knx-ops/api-live-orders.php');
 
     /* ======================================================
      * RESOURCES — KNX DRIVERS (Driver App MVP)

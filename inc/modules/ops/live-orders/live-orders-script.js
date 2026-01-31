@@ -1,182 +1,388 @@
-/* Live Orders — Scaffold JS
- * - Polls /knx/v1/ops/live-orders with selected city_ids
- * - Simple UI: selector, state, list
+/**
+ * KNX OPS — Live Orders Script (NEXUS SHELL UX)
+ * Replace this file completely.
+ *
+ * Features:
+ * - Accessible modal for city selection
+ * - Polling for live orders with graceful backoff and restart
+ * - Render orders as cards (new / in progress / completed)
+ * - Use data-* attributes from the shortcode container
+ * - Use knxToast() if available for feedback
  */
-(function(){
-    if (!document) return;
 
-    document.addEventListener('DOMContentLoaded', function(){
-        const app = document.getElementById('knxLiveOrdersApp');
-        if (!app) return;
+(function () {
+  'use strict';
 
-        const apiUrl = app.dataset.apiUrl;
-        const citiesUrl = app.dataset.citiesUrl;
-        const role = app.dataset.sessionRole || '';
-        const managedCities = JSON.parse(app.dataset.managedCities || '[]');
+  document.addEventListener('DOMContentLoaded', () => {
+    const app = document.getElementById('knxLiveOrdersApp');
+    if (!app) return;
 
-        const stateEl = document.getElementById('knxLiveOrdersState');
-        const listEl = document.getElementById('knxLiveOrdersList');
-        const selectorContainer = document.getElementById('knxCitySelectorContainer');
+    // Read dataset
+    const apiUrl = app.dataset.apiUrl;
+    const citiesUrl = app.dataset.citiesUrl;
+    const role = app.dataset.role || '';
+    const managedCities = (() => {
+      try { return JSON.parse(app.dataset.managedCities || '[]'); } catch (e) { return []; }
+    })();
+    const viewOrderUrl = app.dataset.viewOrderUrl || '/ops-view-order';
+    const pollMs = Math.max(6000, Math.min(60000, parseInt(app.dataset.pollMs, 10) || 12000));
+    const includeResolved = app.dataset.includeResolved === '1';
+    const resolvedHours = parseInt(app.dataset.resolvedHours || '24', 10);
 
-        let selectedCities = [];
-        let pollTimer = null;
-        const POLL_INTERVAL = 12000; // 12s
+    // Nodes
+    const selectedCitiesPill = document.getElementById('knxLOSelectedCitiesPill');
+    const selectCitiesBtn = document.getElementById('knxLOSelectCitiesBtn');
+    const pulse = document.getElementById('knxLOPulse');
+    const stateLine = document.getElementById('knxLOState');
 
-        function setState(msg) {
-            stateEl.textContent = msg;
-        }
+    const listNew = document.getElementById('knxLOListNew');
+    const listProgress = document.getElementById('knxLOListProgress');
+    const listDone = document.getElementById('knxLOListDone');
 
-        function renderCard(o) {
-            const div = document.createElement('div');
-            div.className = 'knx-live-order-card';
+    const countNew = document.getElementById('knxLOCountNew');
+    const countProgress = document.getElementById('knxLOCountProgress');
+    const countDone = document.getElementById('knxLOCountDone');
 
-            div.innerHTML = `
-                <div class="knx-live-order-main">
-                    <h3 class="knx-live-order-title">${escapeHtml(o.restaurant_name)}</h3>
-                    <div class="knx-live-order-meta">${escapeHtml(o.hub_name)} &middot; ${escapeHtml(o.customer_name)}</div>
-                </div>
-                <div class="knx-live-order-stats">
-                    <div class="knx-live-order-created">${escapeHtml(o.created_human)}</div>
-                    <div class="knx-live-order-amount">$${numberFormat(o.total_amount)}</div>
-                    <div class="knx-live-order-tip">Tip: $${numberFormat(o.tip_amount)}</div>
-                    <div class="knx-live-order-status">${escapeHtml(o.status)}</div>
-                    <div class="knx-live-order-assigned">${o.assigned_driver ? 'Assigned' : 'Unassigned'}</div>
-                    <div class="knx-live-order-actions">
-                        <button class="knx-btn knx-view-location">View Location</button>
-                        <button class="knx-btn knx-view-order">View Order</button>
-                    </div>
-                </div>
-            `;
+    // Modal nodes
+    const modal = document.getElementById('knxLOModal');
+    const modalPanel = modal && modal.querySelector('.knx-lo-modal__panel');
+    const cityListNode = document.getElementById('knxLOCityList');
+    const applyBtn = document.getElementById('knxLOApplyBtn');
+    const selectAllBtn = document.getElementById('knxLOSelectAllBtn');
+    const clearBtn = document.getElementById('knxLOClearBtn');
 
-            return div;
-        }
+    // State
+    let selectedCities = []; // array of city ids (integers)
+    let polling = false;
+    let pollTimer = null;
+    let abortController = null;
 
-        function numberFormat(n){
-            return (Number(n) || 0).toFixed(2);
-        }
+    // Utility: toast
+    function toast(msg, type = 'info') {
+      if (typeof knxToast === 'function') return knxToast(msg, type);
+      console.log('[knx-toast]', type, msg);
+    }
 
-        function escapeHtml(s){
-            if (s === null || s === undefined) return '';
-            return String(s).replace(/[&<>"']/g, function(c){
-                return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
-            });
-        }
+    // Set initial pill text
+    function updatePill() {
+      if (!selectedCities || selectedCities.length === 0) {
+        selectedCitiesPill.textContent = 'No cities selected';
+        selectedCitiesPill.setAttribute('aria-live', 'polite');
+        return;
+      }
+      selectedCitiesPill.textContent = `${selectedCities.length} city${selectedCities.length > 1 ? 'ies' : ''} selected`;
+    }
 
-        async function fetchLive() {
-            if (!selectedCities || selectedCities.length === 0) {
-                setState('Select a city to view live orders');
-                listEl.innerHTML = '';
-                stopPolling();
-                return;
-            }
+    // Open modal
+    function openModal() {
+      if (!modal) return;
+      modal.setAttribute('aria-hidden', 'false');
+      // fetch cities if empty
+      if (!cityListNode || cityListNode.children.length === 0 || cityListNode.querySelector('.knx-lo-skel')) {
+        loadCities();
+      }
+      // focus on modal
+      setTimeout(() => {
+        const firstCheckbox = cityListNode && cityListNode.querySelector('input[type="checkbox"]');
+        if (firstCheckbox) firstCheckbox.focus();
+      }, 140);
+      document.body.style.overflow = 'hidden';
+    }
 
-            setState('Loading...');
+    // Close modal
+    function closeModal() {
+      if (!modal) return;
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      selectCitiesBtn.focus();
+    }
 
-            try {
-                const params = new URLSearchParams();
-                selectedCities.forEach(c => params.append('city_ids[]', c));
-                const url = apiUrl + '?' + params.toString();
-                const res = await fetch(url, { credentials: 'same-origin' });
-                const j = await res.json();
-                if (!j || !j.success) {
-                    setState('Error loading live orders');
-                    return;
-                }
+    // Modal backdrop click (close)
+    if (modal) {
+      modal.addEventListener('click', (ev) => {
+        if (ev.target.matches('[data-close]') || ev.target === modal) closeModal();
+      });
+    }
 
-                const data = j.data || [];
-                if (data.length === 0) {
-                    setState('No live orders');
-                    listEl.innerHTML = '';
-                    return;
-                }
-
-                setState('');
-                listEl.innerHTML = '';
-                data.forEach(o => listEl.appendChild(renderCard(o)));
-            } catch (err) {
-                console.error('Live orders fetch error', err);
-                setState('Network error');
-            }
-        }
-
-        function startPolling(){
-            stopPolling();
-            pollTimer = setInterval(fetchLive, POLL_INTERVAL);
-            fetchLive();
-        }
-
-        function stopPolling(){
-            if (pollTimer) clearInterval(pollTimer);
-            pollTimer = null;
-        }
-
-        // Build selector UI
-        async function initSelector(){
-            // Manager: if only one managed city, hide selector and use that city
-            if (role === 'manager') {
-                if (managedCities.length === 1) {
-                    selectedCities = [managedCities[0]];
-                    startPolling();
-                    return;
-                }
-                // multiple: render limited selector
-                const sel = document.createElement('select');
-                sel.multiple = true;
-                sel.className = 'knx-live-orders-select';
-                managedCities.forEach(c => {
-                    const opt = document.createElement('option'); opt.value = c; opt.text = 'City ' + c; sel.appendChild(opt);
-                });
-                sel.addEventListener('change', () => {
-                    selectedCities = Array.from(sel.selectedOptions).map(o=>o.value);
-                    if (selectedCities.length) startPolling(); else stopPolling();
-                });
-                selectorContainer.appendChild(sel);
-                return;
-            }
-
-            // Super admin: fetch cities list and render multi-select + "All cities" checkbox
-            try {
-                const res = await fetch(citiesUrl, { credentials: 'same-origin' });
-                const j = await res.json();
-                const cities = (j && j.data && j.data.cities) ? j.data.cities : [];
-
-                const allCheckbox = document.createElement('label');
-                allCheckbox.innerHTML = '<input type="checkbox" id="knxLiveOrdersAll"> All Cities';
-                selectorContainer.appendChild(allCheckbox);
-                const sel = document.createElement('select'); sel.multiple = true; sel.className='knx-live-orders-select';
-                cities.forEach(c => {
-                    const opt = document.createElement('option'); opt.value = c.id; opt.text = c.name; sel.appendChild(opt);
-                });
-                selectorContainer.appendChild(sel);
-
-                document.getElementById('knxLiveOrdersAll').addEventListener('change', function(e){
-                    if (this.checked) {
-                        // select all
-                        selectedCities = cities.map(c=>c.id);
-                        Array.from(sel.options).forEach(o=>o.selected=true);
-                        startPolling();
-                    } else {
-                        selectedCities = [];
-                        Array.from(sel.options).forEach(o=>o.selected=false);
-                        stopPolling();
-                    }
-                });
-
-                sel.addEventListener('change', function(){
-                    selectedCities = Array.from(sel.selectedOptions).map(o=>o.value);
-                    if (selectedCities.length) startPolling(); else stopPolling();
-                });
-
-            } catch (err){
-                console.error('cities fetch failed', err);
-                // fallback: empty
-                selectorContainer.textContent = '';
-            }
-        }
-
-        // Initialize
-        initSelector();
-
+    // Keyboard: ESC closes modal
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape') {
+        if (modal && modal.getAttribute('aria-hidden') === 'false') closeModal();
+      }
     });
 
+    // Load cities from API
+    async function loadCities() {
+      if (!cityListNode) return;
+      cityListNode.innerHTML = '<div class="knx-lo-skel">Loading cities…</div>';
+      try {
+        const res = await fetch(citiesUrl, { credentials: 'same-origin' });
+        if (!res.ok) throw new Error('Failed to fetch cities');
+        const json = await res.json();
+        // expected: array of { id, name }
+        renderCityList(Array.isArray(json) ? json : (json.results || []));
+      } catch (err) {
+        console.warn('Cities load failed', err);
+        cityListNode.innerHTML = '<div class="knx-lo-empty">Unable to load cities</div>';
+      }
+    }
+
+    function renderCityList(cities) {
+      if (!cityListNode) return;
+      cityListNode.innerHTML = '';
+      if (!cities || cities.length === 0) {
+        cityListNode.innerHTML = '<div class="knx-lo-empty">No cities available</div>';
+        return;
+      }
+
+      // If manager has managedCities, restrict view but still show them as checked
+      const allowed = (role === 'manager' && Array.isArray(managedCities) && managedCities.length > 0)
+        ? cities.filter(c => managedCities.includes(Number(c.id)))
+        : cities;
+
+      // Render each city
+      allowed.forEach(c => {
+        const id = Number(c.id);
+        const el = document.createElement('label');
+        el.className = 'knx-lo-city';
+        el.tabIndex = 0;
+        el.innerHTML = `
+          <input type="checkbox" data-city-id="${id}" ${selectedCities.includes(id) ? 'checked' : ''} />
+          <div class="knx-lo-city-name">${escapeHtml(c.name)}</div>
+        `;
+        // Toggle when clicking label
+        el.addEventListener('click', (ev) => {
+          if (ev.target.tagName === 'INPUT') return; // native toggle
+          const cb = el.querySelector('input[type="checkbox"]');
+          cb.checked = !cb.checked;
+        });
+        cityListNode.appendChild(el);
+      });
+    }
+
+    // Helper: escapeHtml
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"]/g, (s) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[s]));
+    }
+
+    // Apply selection from modal
+    function applySelection() {
+      const boxes = cityListNode.querySelectorAll('input[type="checkbox"]');
+      const sel = [];
+      boxes.forEach(cb => {
+        if (cb.checked) sel.push(Number(cb.dataset.cityId || cb.getAttribute('data-city-id') || cb.value));
+      });
+      selectedCities = [...new Set(sel)].filter(Boolean);
+      updatePill();
+      closeModal();
+      restartPolling(); // refresh immediately with new filters
+    }
+
+    // Select all / Clear handlers
+    function selectAllCities() {
+      const boxes = cityListNode.querySelectorAll('input[type="checkbox"]');
+      boxes.forEach(cb => cb.checked = true);
+    }
+    function clearCities() {
+      const boxes = cityListNode.querySelectorAll('input[type="checkbox"]');
+      boxes.forEach(cb => cb.checked = false);
+      // Clear selection state and stop polling (fail-closed UX)
+      selectedCities = [];
+      updatePill();
+      stopPolling();
+      if (stateLine) stateLine.textContent = 'Select at least one city to view live orders.';
+    }
+
+    // Build API query params
+    function buildQueryParams() {
+      const p = new URLSearchParams();
+      if (selectedCities && selectedCities.length) p.set('cities', selectedCities.join(','));
+      if (includeResolved) {
+        p.set('include_resolved', '1');
+        p.set('resolved_hours', String(resolvedHours || 24));
+      } else {
+        p.set('include_resolved', '0');
+      }
+      return p.toString();
+    }
+
+    // Render orders into columns
+    function renderOrders(data) {
+      // expected structure: array of orders each with { id, status, hub_name, display_text, thumbnail_url, created_at }
+      if (!Array.isArray(data)) data = [];
+
+      const newList = [];
+      const progressList = [];
+      const doneList = [];
+
+      data.forEach(o => {
+        const st = (o.status || 'new').toLowerCase();
+        if (st === 'new') newList.push(o);
+        else if (st === 'in_progress' || st === 'accepted' || st === 'preparing') progressList.push(o);
+        else doneList.push(o);
+      });
+
+      populateList(listNew, newList, 'new');
+      populateList(listProgress, progressList, 'progress');
+      populateList(listDone, doneList, 'done');
+
+      countNew.textContent = String(newList.length);
+      countProgress.textContent = String(progressList.length);
+      countDone.textContent = String(doneList.length);
+
+      // Update state line
+      const total = newList.length + progressList.length + doneList.length;
+      stateLine.textContent = total === 0 ? 'No orders currently in selection.' : `Showing ${total} order${total !== 1 ? 's' : ''}.`;
+    }
+
+    function populateList(container, items, type) {
+      container.innerHTML = '';
+      if (!items || items.length === 0) {
+        container.innerHTML = '<div class="knx-lo-empty">No orders in this column</div>';
+        return;
+      }
+      items.forEach(it => {
+        const card = document.createElement('div');
+        card.className = 'knx-order-card';
+        card.innerHTML = `
+          <img class="knx-order-thumb" src="${it.thumbnail_url || ''}" alt="" onerror="this.style.opacity=0.6; this.style.background='#f4f5f6';" />
+          <div class="knx-order-meta">
+            <div class="knx-order-row">
+              <div>
+                <div class="knx-order-title">${escapeHtml(it.display_text || ('Order #' + (it.id || '')))}</div>
+                <div class="knx-order-sub">${escapeHtml(it.hub_name || '')} · ${escapeHtml(it.created_at || '')}</div>
+              </div>
+              <div class="knx-order-badges">
+                ${renderStatusBadge(type)}
+              </div>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:6px;" class="knx-order-actions">
+              <button data-order-id="${it.id}" class="knx-view-order-btn">View</button>
+            </div>
+          </div>
+        `;
+        // View button
+        const btn = card.querySelector('.knx-view-order-btn');
+        btn.addEventListener('click', () => {
+          // navigate to view order page with id
+          const url = new URL(viewOrderUrl, window.location.origin);
+          url.searchParams.set('order_id', String(it.id || ''));
+          window.location.href = url.toString();
+        });
+        container.appendChild(card);
+      });
+    }
+
+    function renderStatusBadge(type) {
+      if (type === 'new') return `<span class="knx-status-new">NEW</span>`;
+      if (type === 'progress') return `<span class="knx-status-progress">IN PROGRESS</span>`;
+      return `<span class="knx-status-done">COMPLETED</span>`;
+    }
+
+    // Polling logic
+    async function fetchOrdersOnce() {
+      if (!apiUrl) return [];
+      // Fail-closed: do not call API when no cities are selected
+      if (!Array.isArray(selectedCities) || selectedCities.length === 0) {
+        if (stateLine) stateLine.textContent = 'Select at least one city to view live orders.';
+        return [];
+      }
+      // abort previous fetch if running
+      if (abortController) {
+        try { abortController.abort(); } catch(e) {}
+        abortController = null;
+      }
+      abortController = new AbortController();
+      const signal = abortController.signal;
+      try {
+        const q = buildQueryParams();
+        const url = q ? `${apiUrl}?${q}` : apiUrl;
+        pulse.style.opacity = '1';
+        const res = await fetch(url, { credentials: 'same-origin', signal });
+        pulse.style.opacity = '0.6';
+        if (!res.ok) {
+          const txt = await res.text().catch(()=>null);
+          throw new Error(res.status + ' ' + (txt || res.statusText));
+        }
+        const json = await res.json();
+        pulse.style.opacity = '1';
+        return Array.isArray(json) ? json : (json.results || []);
+      } catch (err) {
+        if (err.name === 'AbortError') return [];
+        console.warn('Fetch orders failed', err);
+        toast('Unable to fetch live orders', 'error');
+        return [];
+      } finally {
+        try { pulse.style.opacity = '1'; } catch(e){}
+      }
+    }
+
+    async function pollLoop() {
+      // Protect: do not poll if polling already active or no cities selected
+      if (polling) return;
+      if (!Array.isArray(selectedCities) || selectedCities.length === 0) {
+        stopPolling();
+        return;
+      }
+      polling = true;
+      try {
+        const orders = await fetchOrdersOnce();
+        renderOrders(orders || []);
+      } finally {
+        polling = false;
+        // schedule next poll
+        if (pollTimer) clearTimeout(pollTimer);
+        pollTimer = setTimeout(() => pollLoop(), pollMs);
+      }
+    }
+
+    function startPolling() {
+      // Do not start polling if there are no selected cities (fail-closed)
+      if (!Array.isArray(selectedCities) || selectedCities.length === 0) {
+        stopPolling();
+        return;
+      }
+      if (pollTimer) clearTimeout(pollTimer);
+      pollLoop();
+    }
+    function stopPolling() {
+      if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+      if (abortController) { try { abortController.abort(); } catch(e){} abortController = null; }
+      polling = false;
+    }
+    function restartPolling() {
+      stopPolling();
+      startPolling();
+    }
+
+    // Wire up UI handlers
+    selectCitiesBtn && selectCitiesBtn.addEventListener('click', openModal);
+    applyBtn && applyBtn.addEventListener('click', applySelection);
+    selectAllBtn && selectAllBtn.addEventListener('click', selectAllCities);
+    clearBtn && clearBtn.addEventListener('click', clearCities);
+
+    // Initialize selectedCities and polling behavior.
+    // Manager: auto-select managed cities and start polling when at least one exists.
+    // Super Admin: do NOT start polling automatically; wait for user selection.
+    if (role === 'manager' && Array.isArray(managedCities) && managedCities.length > 0) {
+      selectedCities = managedCities.slice();
+      updatePill();
+      startPolling();
+    } else {
+      updatePill();
+      stopPolling();
+    }
+
+    // Clean up on unload
+    window.addEventListener('beforeunload', () => {
+      stopPolling();
+    });
+
+    // Expose small debug API on app element
+    app.knxOps = {
+      restart: restartPolling,
+      stop: stopPolling,
+      getSelectedCities: () => selectedCities.slice()
+    };
+  });
 })();
