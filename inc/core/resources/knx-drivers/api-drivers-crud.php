@@ -63,6 +63,20 @@ add_action('rest_api_init', function () {
         'callback' => knx_rest_wrap('knx_v2_drivers_reset_password'),
         'permission_callback' => knx_rest_permission_roles(['super_admin', 'manager']),
     ]);
+
+    // Allowed cities for current session (SSOT for UIs)
+    register_rest_route('knx/v2', '/drivers/allowed-cities', [
+        'methods'  => 'GET',
+        'callback' => knx_rest_wrap('knx_v2_drivers_allowed_cities'),
+        'permission_callback' => knx_rest_permission_roles(['super_admin', 'manager']),
+    ]);
+
+    // Soft-delete (mark only)
+    register_rest_route('knx/v2', '/drivers/(?P<id>\d+)/delete', [
+        'methods'  => 'POST',
+        'callback' => knx_rest_wrap('knx_v2_drivers_soft_delete'),
+        'permission_callback' => knx_rest_permission_roles(['super_admin', 'manager']),
+    ]);
 });
 
 /**
@@ -87,6 +101,118 @@ function knx_v2_table_users() {
 function knx_v2_table_drivers() {
     global $wpdb;
     return $wpdb->prefix . 'knx_drivers';
+}
+
+function knx_v2_table_driver_cities() {
+    global $wpdb;
+    return $wpdb->prefix . 'knx_driver_cities';
+}
+
+/**
+ * Return allowed cities for current session (SSOT)
+ * - super_admin => all cities
+ * - manager => cities where manager has hubs
+ * - else => [] (but permission callback should prevent)
+ */
+function knx_v2_drivers_allowed_cities(WP_REST_Request $req) {
+    global $wpdb;
+
+    $session = function_exists('knx_get_session') ? knx_get_session() : null;
+    if (!$session) return knx_v2_drivers_resp(false, 'Session required', null, 401);
+
+    $role = $session->role ?? 'guest';
+
+    $tC = $wpdb->prefix . 'knx_cities';
+    $tH = $wpdb->prefix . 'knx_hubs';
+
+    if ($role === 'super_admin') {
+        // defensive: include deleted_at filter only if column exists
+        $has_deleted_at = (bool)$wpdb->get_var("SHOW COLUMNS FROM {$tC} LIKE 'deleted_at'");
+        $where = $has_deleted_at ? "WHERE deleted_at IS NULL" : "";
+        $rows = $wpdb->get_results("SELECT id, name FROM {$tC} {$where} ORDER BY name ASC");
+        $cities = [];
+        foreach (($rows ?: []) as $r) $cities[] = ['id' => (int)$r->id, 'name' => (string)$r->name];
+        return knx_v2_drivers_resp(true, 'Cities', ['cities' => $cities]);
+    }
+
+    if ($role === 'manager') {
+        $manager_id = (int)$session->id;
+        // hubs where manager_user_id = manager_id
+        $hub_city_ids = $wpdb->get_col($wpdb->prepare("SELECT DISTINCT city_id FROM {$tH} WHERE manager_user_id = %d AND city_id IS NOT NULL", $manager_id));
+        if (empty($hub_city_ids)) {
+            return knx_v2_drivers_resp(false, 'No allowed cities for manager', ['cities' => []], 403);
+        }
+        $placeholders = implode(',', array_fill(0, count($hub_city_ids), '%d'));
+        // defensive: only filter by deleted_at if column exists
+        $has_deleted_at = (bool)$wpdb->get_var("SHOW COLUMNS FROM {$tC} LIKE 'deleted_at'");
+        $deleted_where = $has_deleted_at ? 'AND deleted_at IS NULL' : '';
+        $sql = $wpdb->prepare("SELECT id, name FROM {$tC} WHERE id IN ({$placeholders}) {$deleted_where} ORDER BY name ASC", ...$hub_city_ids);
+        $rows = $wpdb->get_results($sql);
+        $cities = [];
+        foreach (($rows ?: []) as $r) $cities[] = ['id' => (int)$r->id, 'name' => (string)$r->name];
+        return knx_v2_drivers_resp(true, 'Cities', ['cities' => $cities]);
+    }
+
+    return knx_v2_drivers_resp(false, 'Forbidden', null, 403);
+}
+
+/**
+ * Helper: get city_ids for a given driver
+ */
+function knx_v2_get_driver_city_ids($driver_id) {
+    global $wpdb;
+    $t = knx_v2_table_driver_cities();
+    $rows = $wpdb->get_col($wpdb->prepare("SELECT city_id FROM {$t} WHERE driver_id = %d", (int)$driver_id));
+    return array_map('intval', $rows ?: []);
+}
+
+/**
+ * Helper: allowed city ids for current session (returns array)
+ * - super_admin => all city ids
+ * - manager => city ids where they manage hubs
+ */
+function knx_v2_allowed_city_ids_for_session() {
+    global $wpdb;
+    $session = function_exists('knx_get_session') ? knx_get_session() : null;
+    if (!$session) return [];
+    $role = $session->role ?? 'guest';
+    $tC = $wpdb->prefix . 'knx_cities';
+    $tH = $wpdb->prefix . 'knx_hubs';
+
+    if ($role === 'super_admin') {
+        // defensive: only filter by deleted_at when the column exists
+        $has_deleted_at = (bool)$wpdb->get_var("SHOW COLUMNS FROM {$tC} LIKE 'deleted_at'");
+        $where = $has_deleted_at ? "WHERE deleted_at IS NULL" : "";
+        $rows = $wpdb->get_col("SELECT id FROM {$tC} {$where}");
+        return array_map('intval', $rows ?: []);
+    }
+
+    if ($role === 'manager') {
+        $manager_id = (int)$session->id;
+        $rows = $wpdb->get_col($wpdb->prepare("SELECT DISTINCT city_id FROM {$tH} WHERE manager_user_id = %d AND city_id IS NOT NULL", $manager_id));
+        return array_map('intval', $rows ?: []);
+    }
+
+    return [];
+}
+
+/**
+ * Helper: set city_ids for driver (delete previous mappings, insert new). Returns true on success
+ */
+function knx_v2_set_driver_city_ids($driver_id, array $city_ids) {
+    global $wpdb;
+    $t = knx_v2_table_driver_cities();
+
+    // delete existing
+    $wpdb->delete($t, ['driver_id' => (int)$driver_id], ['%d']);
+
+    if (empty($city_ids)) return true;
+
+    foreach ($city_ids as $cid) {
+        $ok = $wpdb->insert($t, ['driver_id' => (int)$driver_id, 'city_id' => (int)$cid, 'created_at' => current_time('mysql')], ['%d','%d','%s']);
+        if ($ok === false) return false;
+    }
+    return true;
 }
 
 /**
@@ -211,13 +337,30 @@ function knx_v2_drivers_list(WP_REST_Request $req) {
         $vals[] = $status;
     }
 
+    // exclude soft-deleted drivers
+    $where[] = "d.deleted_at IS NULL";
+
+    // enforce manager scoping (fail-closed). If session is manager, restrict to drivers mapped to allowed cities
+    $session = function_exists('knx_get_session') ? knx_get_session() : null;
+    $role = $session->role ?? 'guest';
+    if ($role === 'manager') {
+        $allowed = knx_v2_allowed_city_ids_for_session();
+        if (empty($allowed)) {
+            return knx_v2_drivers_resp(false, 'No allowed cities for manager', ['drivers' => []], 403);
+        }
+        $tDC = knx_v2_table_driver_cities();
+        $placeholders = implode(',', array_fill(0, count($allowed), '%d'));
+        $where[] = "d.id IN (SELECT DISTINCT driver_id FROM {$tDC} WHERE city_id IN ({$placeholders}))";
+        $vals = array_merge($vals, $allowed);
+    }
+
     $where_sql = implode(' AND ', $where);
 
-    $count_sql = "SELECT COUNT(*) FROM {$tD} d LEFT JOIN {$tU} u ON u.id = d.id WHERE {$where_sql}";
+    $count_sql = "SELECT COUNT(DISTINCT d.id) FROM {$tD} d LEFT JOIN {$tU} u ON u.id = d.id WHERE {$where_sql}";
     $count_sql = $vals ? $wpdb->prepare($count_sql, ...$vals) : $count_sql;
     $total = (int)$wpdb->get_var($count_sql);
 
-    $sql = "SELECT
+        $sql = "SELECT
               d.id,
               d.full_name,
               d.phone,
@@ -232,6 +375,7 @@ function knx_v2_drivers_list(WP_REST_Request $req) {
             FROM {$tD} d
             LEFT JOIN {$tU} u ON u.id = d.id
             WHERE {$where_sql}
+            GROUP BY d.id
             ORDER BY d.created_at DESC
             LIMIT %d OFFSET %d";
 
@@ -254,6 +398,7 @@ function knx_v2_drivers_list(WP_REST_Request $req) {
                 'role'     => (string)($r->role ?? ''),
                 'status'   => (string)($r->user_status ?? ''),
             ],
+            'city_ids'     => knx_v2_get_driver_city_ids($r->id),
         ];
     }
 
@@ -314,7 +459,14 @@ function knx_v2_drivers_create(WP_REST_Request $req) {
 
     $now = current_time('mysql');
 
+    // city_ids is required by contract
+    if (!isset($body['city_ids']) || !is_array($body['city_ids']) || empty($body['city_ids'])) {
+        return knx_v2_drivers_resp(false, 'city_ids is required.', null, 400);
+    }
+
     // 1) Insert knx_users
+    // start DB transaction to ensure atomicity across multiple tables
+    $wpdb->query('START TRANSACTION');
     $okU = $wpdb->insert($tU, [
         'username'   => $username,
         'email'      => $email,
@@ -349,10 +501,36 @@ function knx_v2_drivers_create(WP_REST_Request $req) {
     ], ['%d','%s','%s','%s','%s','%s','%s','%s']);
 
     if (!$okD) {
-        // Rollback user (fail-closed)
-        $wpdb->delete($tU, ['id' => $user_id], ['%d']);
-        return knx_v2_drivers_resp(false, 'Failed to create driver profile. Rolled back user.', null, 500);
+        $wpdb->query('ROLLBACK');
+        return knx_v2_drivers_resp(false, 'Failed to create driver profile.', null, 500);
     }
+
+    // persist city mappings (required)
+    $city_ids = array_map('intval', array_values($body['city_ids']));
+    // enforce session scoping
+    $session = function_exists('knx_get_session') ? knx_get_session() : null;
+    $role = $session->role ?? 'guest';
+    if ($role === 'manager') {
+        $allowed = knx_v2_allowed_city_ids_for_session();
+        if (empty($allowed)) {
+            $wpdb->query('ROLLBACK');
+            return knx_v2_drivers_resp(false, 'No allowed cities for manager', null, 403);
+        }
+        foreach ($city_ids as $cid) {
+            if (!in_array((int)$cid, $allowed, true)) {
+                $wpdb->query('ROLLBACK');
+                return knx_v2_drivers_resp(false, 'City id not allowed for manager', null, 403);
+            }
+        }
+    }
+
+    $okMap = knx_v2_set_driver_city_ids($user_id, $city_ids);
+    if ($okMap === false) {
+        $wpdb->query('ROLLBACK');
+        return knx_v2_drivers_resp(false, 'Failed to persist driver city mappings. Rolled back.', null, 500);
+    }
+
+    $wpdb->query('COMMIT');
 
     return knx_v2_drivers_resp(true, 'Driver created.', [
         'driver_id' => $user_id,
@@ -382,12 +560,23 @@ function knx_v2_drivers_get(WP_REST_Request $req) {
            u.username, u.role, u.status AS user_status
          FROM {$tD} d
          LEFT JOIN {$tU} u ON u.id = d.id
-         WHERE d.id = %d
+         WHERE d.id = %d AND d.deleted_at IS NULL
          LIMIT 1",
         $id
     ));
 
     if (!$row) return knx_v2_drivers_resp(false, 'Not found.', null, 404);
+
+    // Manager scoping: ensure manager can view this driver
+    $session = function_exists('knx_get_session') ? knx_get_session() : null;
+    $role = $session->role ?? 'guest';
+    if ($role === 'manager') {
+        $allowed = knx_v2_allowed_city_ids_for_session();
+        if (empty($allowed)) return knx_v2_drivers_resp(false, 'No allowed cities for manager', null, 403);
+        $driver_city_ids = knx_v2_get_driver_city_ids($id);
+        $intersect = array_intersect($allowed, $driver_city_ids);
+        if (empty($intersect)) return knx_v2_drivers_resp(false, 'Driver out of scope for manager', null, 403);
+    }
 
     return knx_v2_drivers_resp(true, 'Driver', [
         'id'           => (int)$row->id,
@@ -404,6 +593,7 @@ function knx_v2_drivers_get(WP_REST_Request $req) {
             'role'     => (string)($row->role ?? ''),
             'status'   => (string)($row->user_status ?? ''),
         ],
+        'city_ids' => knx_v2_get_driver_city_ids($id),
     ]);
 }
 
@@ -432,6 +622,20 @@ function knx_v2_drivers_update(WP_REST_Request $req) {
 
     if (!$curD) return knx_v2_drivers_resp(false, 'Driver not found.', null, 404);
     if (!$curU) return knx_v2_drivers_resp(false, 'User not found for this driver id.', null, 404);
+
+    // fail-closed: ensure not soft-deleted
+    if (!empty($curD->deleted_at)) return knx_v2_drivers_resp(false, 'Driver not found.', null, 404);
+
+    // Manager scoping: ensure manager can operate on this driver
+    $session = function_exists('knx_get_session') ? knx_get_session() : null;
+    $role = $session->role ?? 'guest';
+    if ($role === 'manager') {
+        $allowed = knx_v2_allowed_city_ids_for_session();
+        if (empty($allowed)) return knx_v2_drivers_resp(false, 'No allowed cities for manager', null, 403);
+        $driver_city_ids = knx_v2_get_driver_city_ids($id);
+        $intersect = array_intersect($allowed, $driver_city_ids);
+        if (empty($intersect)) return knx_v2_drivers_resp(false, 'Driver out of scope for manager', null, 403);
+    }
 
     $updD = [];
     $updU = [];
@@ -485,13 +689,44 @@ function knx_v2_drivers_update(WP_REST_Request $req) {
     $updD['updated_at'] = current_time('mysql');
     $updU['updated_at'] = current_time('mysql');
 
-    // Update driver
-    $okD = $wpdb->update($tD, $updD, ['id' => $id]);
-    if ($okD === false) return knx_v2_drivers_resp(false, 'Failed to update driver (DB).', null, 500);
+    // Keep previous state for rollback if needed
+    // Use DB transaction for update + mapping to ensure atomicity
+    $wpdb->query('START TRANSACTION');
 
-    // Update user
+    $okD = $wpdb->update($tD, $updD, ['id' => $id]);
+    if ($okD === false) {
+        $wpdb->query('ROLLBACK');
+        return knx_v2_drivers_resp(false, 'Failed to update driver (DB).', null, 500);
+    }
+
     $okU = $wpdb->update($tU, $updU, ['id' => $id]);
-    if ($okU === false) return knx_v2_drivers_resp(false, 'Failed to update user (DB).', null, 500);
+    if ($okU === false) {
+        $wpdb->query('ROLLBACK');
+        return knx_v2_drivers_resp(false, 'Failed to update user (DB).', null, 500);
+    }
+
+    // Handle city_ids transactionally if provided
+    if (isset($body['city_ids']) && is_array($body['city_ids'])) {
+        $new_city_ids = array_map('intval', array_values($body['city_ids']));
+        // manager may not assign outside their allowed cities
+        if ($role === 'manager') {
+            $allowed = knx_v2_allowed_city_ids_for_session();
+            foreach ($new_city_ids as $cid) {
+                if (!in_array((int)$cid, $allowed, true)) {
+                    $wpdb->query('ROLLBACK');
+                    return knx_v2_drivers_resp(false, 'City id not allowed for manager', null, 403);
+                }
+            }
+        }
+
+        $okMap = knx_v2_set_driver_city_ids($id, $new_city_ids);
+        if ($okMap === false) {
+            $wpdb->query('ROLLBACK');
+            return knx_v2_drivers_resp(false, 'Failed to persist driver city mappings. Rolled back.', null, 500);
+        }
+    }
+
+    $wpdb->query('COMMIT');
 
     return knx_v2_drivers_resp(true, 'Driver updated.', ['id' => $id]);
 }
@@ -513,11 +748,33 @@ function knx_v2_drivers_toggle(WP_REST_Request $req) {
     $tD = knx_v2_table_drivers();
     $tU = knx_v2_table_users();
 
-    $row = $wpdb->get_row($wpdb->prepare("SELECT id, status FROM {$tD} WHERE id = %d LIMIT 1", $id));
+    $row = $wpdb->get_row($wpdb->prepare("SELECT id, status, deleted_at FROM {$tD} WHERE id = %d LIMIT 1", $id));
     if (!$row) return knx_v2_drivers_resp(false, 'Not found.', null, 404);
+
+    // fail-closed: cannot operate on soft-deleted
+    if (!empty($row->deleted_at)) return knx_v2_drivers_resp(false, 'Not found.', null, 404);
+
+    // Manager scoping
+    $session = function_exists('knx_get_session') ? knx_get_session() : null;
+    $role = $session->role ?? 'guest';
+    if ($role === 'manager') {
+        $allowed = knx_v2_allowed_city_ids_for_session();
+        if (empty($allowed)) return knx_v2_drivers_resp(false, 'No allowed cities for manager', null, 403);
+        $driver_city_ids = knx_v2_get_driver_city_ids($id);
+        $intersect = array_intersect($allowed, $driver_city_ids);
+        if (empty($intersect)) return knx_v2_drivers_resp(false, 'Driver out of scope for manager', null, 403);
+    }
 
     $new_status = ((string)$row->status === 'active') ? 'inactive' : 'active';
     $now = current_time('mysql');
+
+    // Prevent activating a driver that has no assigned cities
+    if ($new_status === 'active') {
+        $assigned = knx_v2_get_driver_city_ids($id);
+        if (empty($assigned)) {
+            return knx_v2_drivers_resp(false, 'Driver has no assigned cities.', null, 409);
+        }
+    }
 
     $okD = $wpdb->update($tD, ['status' => $new_status, 'updated_at' => $now], ['id' => $id], ['%s','%s'], ['%d']);
     if ($okD === false) return knx_v2_drivers_resp(false, 'Failed to toggle driver status.', null, 500);
@@ -526,6 +783,57 @@ function knx_v2_drivers_toggle(WP_REST_Request $req) {
     if ($okU === false) return knx_v2_drivers_resp(false, 'Failed to toggle user status.', null, 500);
 
     return knx_v2_drivers_resp(true, 'Status toggled.', ['status' => $new_status]);
+}
+
+/**
+ * ==========================================================
+ * POST SOFT-DELETE — mark driver as deleted (soft)
+ * ==========================================================
+ */
+function knx_v2_drivers_soft_delete(WP_REST_Request $req) {
+    global $wpdb;
+
+    $id = (int)$req->get_param('id');
+    if ($id <= 0) return knx_v2_drivers_resp(false, 'Invalid id.', null, 400);
+
+    $body = knx_v2_body($req);
+    if ($deny = knx_v2_require_knx_nonce($body)) return $deny;
+
+    $tD = knx_v2_table_drivers();
+    $tU = knx_v2_table_users();
+
+    $row = $wpdb->get_row($wpdb->prepare("SELECT id, deleted_at FROM {$tD} WHERE id = %d LIMIT 1", $id));
+    if (!$row) return knx_v2_drivers_resp(false, 'Not found.', null, 404);
+    if (!empty($row->deleted_at)) return knx_v2_drivers_resp(false, 'Not found.', null, 404);
+
+    // Manager scoping
+    $session = function_exists('knx_get_session') ? knx_get_session() : null;
+    $role = $session->role ?? 'guest';
+    if ($role === 'manager') {
+        $allowed = knx_v2_allowed_city_ids_for_session();
+        if (empty($allowed)) return knx_v2_drivers_resp(false, 'No allowed cities for manager', null, 403);
+        $driver_city_ids = knx_v2_get_driver_city_ids($id);
+        $intersect = array_intersect($allowed, $driver_city_ids);
+        if (empty($intersect)) return knx_v2_drivers_resp(false, 'Driver out of scope for manager', null, 403);
+    }
+
+    $now = current_time('mysql');
+    $deleted_by = $session ? (int)($session->id ?? 0) : 0;
+    $reason = isset($body['reason']) ? trim(sanitize_text_field((string)$body['reason'])) : null;
+
+    $ok = $wpdb->update($tD, [
+        'deleted_at'    => $now,
+        'deleted_by'    => $deleted_by,
+        'deleted_reason'=> ($reason !== '' ? $reason : null),
+        'updated_at'    => $now,
+    ], ['id' => $id], ['%s','%d','%s','%s'], ['%d']);
+
+    if ($ok === false) return knx_v2_drivers_resp(false, 'Failed to soft-delete driver.', null, 500);
+
+    // Also mark user as inactive to prevent login
+    $wpdb->update($tU, ['status' => 'inactive', 'updated_at' => $now], ['id' => $id]);
+
+    return knx_v2_drivers_resp(true, 'Driver soft-deleted.', ['id' => $id]);
 }
 
 /**
@@ -542,8 +850,13 @@ function knx_v2_drivers_reset_password(WP_REST_Request $req) {
     $body = knx_v2_body($req);
     if ($deny = knx_v2_require_knx_nonce($body)) return $deny;
 
-    $tU = knx_v2_table_users();
+    // fail-closed: ensure driver exists and is not soft-deleted
+    $tD = knx_v2_table_drivers();
+    $driver = $wpdb->get_row($wpdb->prepare("SELECT id, deleted_at FROM {$tD} WHERE id = %d LIMIT 1", $id));
+    if (!$driver) return knx_v2_drivers_resp(false, 'Not found.', null, 404);
+    if (!empty($driver->deleted_at)) return knx_v2_drivers_resp(false, 'Not found.', null, 404);
 
+    $tU = knx_v2_table_users();
     $user = $wpdb->get_row($wpdb->prepare("SELECT id, username, email FROM {$tU} WHERE id = %d LIMIT 1", $id));
     if (!$user) return knx_v2_drivers_resp(false, 'User not found.', null, 404);
 

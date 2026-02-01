@@ -1,5 +1,10 @@
 /* =========================================================
-   KINGDOM NEXUS — y05 schema (CLEAN)
+   KINGDOM NEXUS — y05 schema 
+
+   ***NEXUS SCHEMA es un archivo que debe 
+   ser canónico y mantenerse actualizado 
+   para correr de cero en una instalación nueva)***
+   
    - No data dumps
    - No AUTO_INCREMENT=seed values
    - FK + indexes preserved
@@ -206,17 +211,45 @@ CREATE TABLE `y05_knx_delivery_zones` (
 -- y05_knx_drivers
 -- --------------------------------------------------------
 CREATE TABLE `y05_knx_drivers` (
-  `id` bigint UNSIGNED NOT NULL,
-  `driver_user_id` bigint UNSIGNED NOT NULL,
-  `user_id` bigint UNSIGNED DEFAULT NULL,
-  `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
-  `full_name` varchar(190) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `email` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `vehicle_info` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `phone` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id` BIGINT UNSIGNED NULL,
+  `full_name` VARCHAR(190) NOT NULL,
+  `phone` VARCHAR(50) NULL,
+  `email` VARCHAR(190) NULL,
+
+  `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+
+  -- Soft delete
+  `deleted_at` DATETIME NULL DEFAULT NULL,
+  `deleted_by` BIGINT UNSIGNED NULL DEFAULT NULL,
+  `deleted_reason` VARCHAR(255) NULL DEFAULT NULL,
+
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (`id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_active` (`is_active`),
+  KEY `idx_deleted_at` (`deleted_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+-- y05_knx_driver_cities
+-- --------------------------------------------------------
+
+CREATE TABLE `y05_knx_driver_cities` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `driver_id` BIGINT UNSIGNED NOT NULL,
+  `city_id` BIGINT UNSIGNED NOT NULL,
+
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_driver_city` (`driver_id`, `city_id`),
+  KEY `idx_driver_id` (`driver_id`),
+  KEY `idx_city_id` (`city_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 
 -- --------------------------------------------------------
 -- y05_knx_driver_availability

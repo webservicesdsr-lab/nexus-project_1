@@ -81,6 +81,8 @@ if (!function_exists('knx_install_pages')) {
             // Additional operational/admin pages
             ['title' => 'Driver Dashboard', 'slug' => 'driver-dashboard', 'content' => '[knx_driver_dashboard]'],
             ['title' => 'Drivers Admin', 'slug' => 'drivers-admin', 'content' => '[knx_drivers_admin]'],
+            // Canonical drivers admin page (matches navigation-engine admin nav)
+            ['title' => 'Drivers', 'slug' => 'drivers', 'content' => '[knx_drivers_admin]'],
             ['title' => 'Live Orders', 'slug' => 'live-orders', 'content' => '[knx_ops_live_orders]'],
             ['title' => 'View Order', 'slug' => 'orders', 'content' => '[knx-view-orders]'],
             // Legacy OPS pages removed as part of PHASE 13.CLEAN

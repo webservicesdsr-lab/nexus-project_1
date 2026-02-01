@@ -38,7 +38,7 @@ if (!function_exists('knx_render_corporate_sidebar')) {
             'hubs',
             'menus',
             'hub-categories',
-            'drivers',
+            'drivers-admin',
             'customers',
             'knx-cities',
             'settings',

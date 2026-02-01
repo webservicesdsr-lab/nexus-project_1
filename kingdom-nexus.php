@@ -277,6 +277,9 @@ add_action('plugins_loaded', function() {
      * Backend driver resources were reviewed and ops backend removed.
      * ====================================================== */
 
+    // Drivers admin UI (plugin-first) — restore admin module
+    knx_require('inc/modules/drivers/drivers-shortcode.php');
+
     /* ======================================================
      * RESOURCES — KNX COUPONS
      * ====================================================== */
