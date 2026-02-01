@@ -69,15 +69,9 @@ add_action('wp_body_open', function () {
           </a>
 
           <?php if ($is_logged): ?>
-            <?php if ($is_admin): ?>
-              <button class="knx-nav__username-btn" id="knxAdminMenuBtn" aria-label="User menu">
-                <span class="knx-nav__username-text"><?php echo esc_html($username); ?></span>
-              </button>
-            <?php else: ?>
-              <div class="knx-nav__username-btn">
-                <span class="knx-nav__username-text"><?php echo esc_html($username); ?></span>
-              </div>
-            <?php endif; ?>
+            <div class="knx-nav__username-btn">
+              <span class="knx-nav__username-text"><?php echo esc_html($username); ?></span>
+            </div>
 
             <form method="post" class="knx-nav__logout knx-nav__logout--desktop">
               <?php wp_nonce_field('knx_logout_action','knx_logout_nonce'); ?>
@@ -102,10 +96,7 @@ add_action('wp_body_open', function () {
       </div>
     </nav>
 
-    <?php if ($is_admin): ?>
-      <div class="knx-admin-overlay" id="knxAdminOverlay"></div>
-      <div class="knx-admin-sidebar" id="knxAdminSidebar"> ... <!-- (igual que ya tienes) --> </div>
-    <?php endif; ?>
+    <!-- Admin overlay/sidebar removed by maintainers to avoid duplicate sidebars -->
 
     <!-- ===== Cart Drawer (derecha, sin overlay) ===== -->
     <aside class="knx-cart-drawer" id="knxCartDrawer" role="dialog" aria-modal="true" aria-labelledby="knxCartTitle">

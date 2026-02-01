@@ -70,6 +70,22 @@ function knx_home_shortcode() {
     </div>
 </div>
 <?php
+
+    // Server-side: render corporate sidebar on home only for super_admin
+    $role = '';
+    if (function_exists('knx_get_session')) {
+        $sess = knx_get_session();
+        if (is_array($sess) && isset($sess['role'])) {
+            $role = $sess['role'];
+        } elseif (is_object($sess) && isset($sess->role)) {
+            $role = $sess->role;
+        }
+    }
+
+    if ($role === 'super_admin' && function_exists('knx_get_corporate_sidebar_html')) {
+        echo knx_get_corporate_sidebar_html(true);
+    }
+
     return ob_get_clean();
 }
 add_shortcode('knx_home', 'knx_home_shortcode');

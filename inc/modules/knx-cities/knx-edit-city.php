@@ -130,9 +130,6 @@ add_shortcode('knx_edit_city', function () {
         <!-- This module styles -->
         <link rel="stylesheet" href="<?php echo esc_url(KNX_URL . 'inc/modules/knx-cities/knx-edit-city-style.css?ver=' . rawurlencode($ver)); ?>">
 
-        <!-- Sidebar assets (inline usage) -->
-        <link rel="stylesheet" href="<?php echo esc_url(KNX_URL . 'inc/modules/sidebar/sidebar-style.css?ver=' . rawurlencode($ver)); ?>">
-
         <!-- Hide KNX top navbar only (do not touch theme header) -->
         <style>
             .knx-edit-city-signed #knxTopNavbar,
@@ -144,32 +141,7 @@ add_shortcode('knx_edit_city', function () {
 
         <div class="knx-edit-city-shell">
 
-            <!-- =========================
-                 SIDEBAR (inline)
-                 ========================= -->
-            <aside class="knx-sidebar" id="knxSidebar">
-                <div class="knx-sidebar-header">
-                    <button id="knxExpandMobile" class="knx-expand-btn" aria-label="Toggle Sidebar">
-                        <i class="fas fa-angles-right"></i>
-                    </button>
-                    <a href="<?php echo esc_url(site_url('/dashboard')); ?>" class="knx-logo" title="Dashboard">
-                        <i class="fas fa-home"></i>
-                    </a>
-                </div>
-
-                <div class="knx-sidebar-scroll">
-                    <ul class="knx-sidebar-menu">
-                        <li><a href="<?php echo esc_url(site_url('/dashboard')); ?>"><i class="fas fa-chart-line"></i><span>Dashboard</span></a></li>
-                        <li><a href="<?php echo esc_url(site_url('/hubs')); ?>"><i class="fas fa-store"></i><span>Hubs</span></a></li>
-                        <li><a href="<?php echo esc_url(site_url('/menus')); ?>"><i class="fas fa-utensils"></i><span>Menus</span></a></li>
-                        <li><a href="<?php echo esc_url(site_url('/hub-categories')); ?>"><i class="fas fa-list"></i><span>Hub Categories</span></a></li>
-                        <li><a href="<?php echo esc_url(site_url('/drivers')); ?>"><i class="fas fa-car"></i><span>Drivers</span></a></li>
-                        <li><a href="<?php echo esc_url(site_url('/customers')); ?>"><i class="fas fa-users"></i><span>Customers</span></a></li>
-                        <li><a href="<?php echo esc_url(site_url('/knx-cities')); ?>"><i class="fas fa-city"></i><span>Cities</span></a></li>
-                        <li><a href="<?php echo esc_url(site_url('/settings')); ?>"><i class="fas fa-cog"></i><span>Settings</span></a></li>
-                    </ul>
-                </div>
-            </aside>
+            <!-- Note: sidebar is provided by the canonical corporate sidebar (knx-corporate-sidebar). -->
 
             <!-- =========================
                  MAIN CONTENT
@@ -273,7 +245,6 @@ add_shortcode('knx_edit_city', function () {
         </div>
 
         <!-- JS (no enqueue) -->
-        <script src="<?php echo esc_url(KNX_URL . 'inc/modules/sidebar/sidebar-script.js?ver=' . rawurlencode($ver)); ?>"></script>
         <script src="<?php echo esc_url(KNX_URL . 'inc/modules/knx-cities/knx-edit-city-script.js?ver=' . rawurlencode($ver)); ?>"></script>
     </div>
     <?php

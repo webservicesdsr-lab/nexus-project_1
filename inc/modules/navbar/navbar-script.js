@@ -33,37 +33,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   setLocText(readStoredLocation());
 
-  /* =========================================================
-   * Admin Sidebar
-   * ========================================================= */
-  const adminBtn     = document.getElementById("knxAdminMenuBtn");
-  const adminSidebar = document.getElementById("knxAdminSidebar");
-  const adminOverlay = document.getElementById("knxAdminOverlay");
-  const adminClose   = document.getElementById("knxAdminClose");
-
-  function openAdminSidebar() {
-    if (!adminSidebar || !adminOverlay) return;
-    adminSidebar.classList.add("active");
-    adminOverlay.classList.add("active");
-    document.body.style.overflow = "hidden";
-  }
-
-  function closeAdminSidebar() {
-    if (!adminSidebar || !adminOverlay) return;
-    adminSidebar.classList.remove("active");
-    adminOverlay.classList.remove("active");
-    document.body.style.overflow = "";
-  }
-
-  adminBtn?.addEventListener("click", openAdminSidebar);
-  adminClose?.addEventListener("click", closeAdminSidebar);
-  adminOverlay?.addEventListener("click", closeAdminSidebar);
-
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && adminSidebar?.classList.contains("active")) {
-      closeAdminSidebar();
-    }
-  });
+  // Admin sidebar removed — no-op placeholders kept for backward compatibility
+  function openAdminSidebar() { /* no-op */ }
+  function closeAdminSidebar() { /* no-op */ }
 
   /* =========================================================
    * Explore Submenu Toggle

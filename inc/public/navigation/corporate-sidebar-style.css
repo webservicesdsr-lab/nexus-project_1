@@ -147,8 +147,8 @@
     display: none !important;
   }
 
-  /* Push body content to the right */
-  body {
+  /* Push body content to the right only when body has the sidebar class */
+  body.knx-has-corporate-sidebar {
     margin-left: 230px;
   }
 }

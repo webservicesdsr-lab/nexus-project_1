@@ -25,11 +25,31 @@ if (!defined('ABSPATH')) exit;
  */
 
 if (!function_exists('knx_render_corporate_sidebar')) {
-    function knx_render_corporate_sidebar() {
+    /**
+     * Return the corporate sidebar HTML. By default it obeys the existing
+     * private_pages + role checks. If $force === true the caller is
+     * requesting a forced render and must itself ensure the caller has
+     * permission (caller-side server check required).
+     *
+     * This function sets a request-scoped global flag so the sidebar
+     * is never printed twice (manual render + wp_footer hook).
+     *
+     * @param bool $force
+     * @return string
+     */
+    function knx_get_corporate_sidebar_html($force = false) {
+        // request-scope guard
+        if (!isset($GLOBALS['knx_corporate_sidebar_rendered'])) {
+            $GLOBALS['knx_corporate_sidebar_rendered'] = false;
+        }
+        if ($GLOBALS['knx_corporate_sidebar_rendered']) {
+            return '';
+        }
+
         global $post;
-        
+
         $context = knx_get_navigation_context();
-        $slug = $context['current_slug'];
+        $slug = isset($context['current_slug']) ? $context['current_slug'] : '';
         
         // Private pages only
         $private_pages = [
@@ -41,6 +61,7 @@ if (!function_exists('knx_render_corporate_sidebar')) {
             'drivers-admin',
             'customers',
             'knx-cities',
+            'knx-edit-city',
             'settings',
             'edit-hub-items',
             'edit-item-categories',
@@ -52,11 +73,18 @@ if (!function_exists('knx_render_corporate_sidebar')) {
         
         // Role check (admin roles only)
         $admin_roles = ['super_admin', 'manager', 'hub_management', 'menu_uploader'];
-        $has_access = in_array($context['role'], $admin_roles, true);
-        
-        // Fail-closed: Only render on private pages with admin access
-        if (!in_array($slug, $private_pages, true) || !$has_access) {
-            return;
+        $has_access = isset($context['role']) && in_array($context['role'], $admin_roles, true);
+
+        // Fail-closed: Only render on private pages with admin access, unless forced by caller
+        if (!$force) {
+            if (!in_array($slug, $private_pages, true) || !$has_access) {
+                return '';
+            }
+        } else {
+            // when forced, still prefer to be conservative: if no role info, do not render
+            if (empty($context['role']) && !$force) {
+                return '';
+            }
         }
         
         // Get role-filtered nav items
@@ -85,9 +113,12 @@ if (!function_exists('knx_render_corporate_sidebar')) {
         
         // No items = no sidebar
         if (empty($filtered_items)) {
-            return;
+            return '';
         }
-        
+
+        // Capture markup into a string and return
+        ob_start();
+
         // Load assets (echo, not enqueue)
         echo '<link rel="stylesheet" href="' . esc_url(KNX_URL . 'inc/public/navigation/corporate-sidebar-style.css?v=' . KNX_VERSION) . '">';
         echo '<script src="' . esc_url(KNX_URL . 'inc/public/navigation/corporate-sidebar-script.js?v=' . KNX_VERSION) . '" defer></script>';
@@ -123,8 +154,71 @@ if (!function_exists('knx_render_corporate_sidebar')) {
         </aside>
 
         <?php
+        $html = ob_get_clean();
+
+        // Mark as rendered for this request to avoid duplicate output
+        $GLOBALS['knx_corporate_sidebar_rendered'] = true;
+
+        return $html;
+    }
+
+    /**
+     * Backwards-compatible render function used by the footer hook.
+     * It simply echoes the HTML produced by knx_get_corporate_sidebar_html().
+     */
+    function knx_render_corporate_sidebar() {
+        echo knx_get_corporate_sidebar_html(false);
     }
 }
 
 // Render in footer (after body content)
 add_action('wp_footer', 'knx_render_corporate_sidebar');
+
+/**
+ * Determine whether the corporate sidebar should be rendered on this request.
+ * This mirrors the logic used by knx_get_corporate_sidebar_html but returns
+ * a boolean and is safe to call early (for body classes).
+ *
+ * @return bool
+ */
+function knx_should_render_corporate_sidebar() {
+    $context = knx_get_navigation_context();
+    $slug = isset($context['current_slug']) ? $context['current_slug'] : '';
+
+    $private_pages = [
+        'dashboard', 'knx-dashboard', 'hubs', 'menus', 'hub-categories', 'drivers-admin',
+        'customers', 'knx-cities', 'knx-edit-city', 'settings', 'edit-hub-items',
+        'edit-item-categories', 'edit-hub', 'live-orders', 'orders',
+    ];
+
+    $admin_roles = ['super_admin', 'manager', 'hub_management', 'menu_uploader'];
+
+    // If context role is set and is admin, and the page is private -> true
+    if (!empty($context['role']) && in_array($context['role'], $admin_roles, true) && in_array($slug, $private_pages, true)) {
+        return true;
+    }
+
+    // Special case: home should show for super_admin (we consider session too)
+    if (!empty($context['role']) && $context['role'] === 'super_admin' && ($slug === 'home' || $slug === '' || $slug === null)) {
+        return true;
+    }
+
+    // As a fallback, check the request-scoped rendered flag (if something forced rendering)
+    if (!empty($GLOBALS['knx_corporate_sidebar_rendered'])) {
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * Add a body class when the corporate sidebar will be present. This allows
+ * shortcodes and theme layouts to be shifted before rendering, avoiding
+ * visual overlap.
+ */
+add_filter('body_class', function($classes) {
+    if (function_exists('knx_should_render_corporate_sidebar') && knx_should_render_corporate_sidebar()) {
+        $classes[] = 'knx-has-corporate-sidebar';
+    }
+    return $classes;
+});

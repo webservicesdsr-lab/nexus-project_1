@@ -13,6 +13,16 @@
   padding: 100px;
 }
 
+/* When the canonical corporate sidebar is present (server-side body class),
+   avoid visual overlap by removing the extra wrapper margin on desktop.
+   The body itself is pushed by the corporate sidebar styles so we only
+   need to reset the wrapper margin. */
+@media (min-width: 901px) {
+  body.knx-has-corporate-sidebar .knx-hubs-wrapper {
+    margin-left: 0;
+  }
+}
+
 @media (max-width: 768px) {
 .knx-hubs-wrapper {
 

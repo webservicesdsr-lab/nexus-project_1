@@ -89,16 +89,9 @@ if (!function_exists('knx_render_navbar')) {
                     
                     <!-- User Menu -->
                     <?php if ($context['is_logged']): ?>
-                        <!-- [KNX-TASK-NAV-003] Fix 3: Username clickable for admin -->
-                        <?php if ($context['is_admin']): ?>
-                            <button class="knx-nav__username-btn" id="knxAdminMenuBtn" aria-label="User menu">
-                                <span class="knx-nav__username-text"><?php echo esc_html($context['username']); ?></span>
-                            </button>
-                        <?php else: ?>
-                            <div class="knx-nav__username">
-                                <span class="knx-nav__username-text"><?php echo esc_html($context['username']); ?></span>
-                            </div>
-                        <?php endif; ?>
+                        <div class="knx-nav__username">
+                            <span class="knx-nav__username-text"><?php echo esc_html($context['username']); ?></span>
+                        </div>
                         
                         <!-- [KNX-TASK-NAV-003] Fix 4: Desktop/mobile logout separation -->
                         <form method="post" class="knx-nav__logout knx-nav__logout--desktop">
@@ -156,48 +149,7 @@ if (!function_exists('knx_render_navbar')) {
         </aside>
         <?php endif; ?>
 
-        <!-- [KNX-TASK-NAV-003] Fix 1: Admin Sidebar Overlay on PUBLIC Pages -->
-        <!-- Only renders on public/customer pages for admin users -->
-        <?php if ($context['is_admin']): ?>
-            <div class="knx-admin-overlay" id="knxAdminOverlay"></div>
-            <aside class="knx-admin-sidebar" id="knxAdminSidebar">
-                <header class="knx-admin-sidebar__header">
-                    <a href="<?php echo esc_url(site_url('/dashboard')); ?>" class="knx-admin-sidebar__logo">🍃</a>
-                    <button type="button" class="knx-admin-sidebar__close" id="knxAdminClose" aria-label="Close menu">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                        </svg>
-                    </button>
-                </header>
-
-                <nav class="knx-admin-sidebar__nav">
-                    <?php 
-                    $admin_items = knx_get_nav_items('admin');
-                    foreach ($admin_items as $item):
-                        if (!knx_can_render_nav_item($item, $context)) continue;
-                        $is_active = knx_is_nav_item_active($item, $context['current_slug']);
-                        $active_class = $is_active ? ' knx-admin-sidebar__link--active' : '';
-                    ?>
-                        <a href="<?php echo esc_url(site_url($item['route'])); ?>" 
-                           class="knx-admin-sidebar__link<?php echo $active_class; ?>">
-                            <i class="fas fa-<?php echo esc_attr($item['icon']); ?>"></i>
-                            <span><?php echo esc_html($item['label']); ?></span>
-                        </a>
-                    <?php endforeach; ?>
-
-                    <hr class="knx-admin-sidebar__divider">
-
-                    <!-- [KNX-TASK-NAV-003] Fix 4: Mobile logout inside sidebar -->
-                    <form method="post" class="knx-nav__logout knx-nav__logout--mobile">
-                        <?php wp_nonce_field('knx_logout_action', 'knx_logout_nonce'); ?>
-                        <button type="submit" name="knx_logout" class="knx-admin-sidebar__link knx-admin-sidebar__logout">
-                            <i class="fas fa-sign-out-alt"></i>
-                            <span>Logout</span>
-                        </button>
-                    </form>
-                </nav>
-            </aside>
-        <?php endif; ?>
+        <!-- Admin overlay/sidebar removed to keep corporate sidebar canonical -->
 
         <?php
     }

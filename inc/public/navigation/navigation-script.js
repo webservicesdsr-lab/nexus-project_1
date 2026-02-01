@@ -62,45 +62,10 @@
     }
 
     // ========================================
-    // ADMIN SIDEBAR (Open/Close)
+    // ADMIN SIDEBAR REMOVED — no-op placeholders
     // ========================================
-    const adminSidebar = document.getElementById('knxAdminSidebar');
-    const adminOverlay = document.getElementById('knxAdminOverlay');
-    const adminMenuBtn = document.getElementById('knxAdminMenuBtn');
-    const adminCloseBtn = document.getElementById('knxAdminClose');
-
-    function openAdminSidebar() {
-        if (!adminSidebar || !adminOverlay) return;
-        adminSidebar.classList.add('active');
-        adminOverlay.classList.add('active');
-        document.body.style.overflow = 'hidden'; // Lock scroll
-    }
-
-    function closeAdminSidebar() {
-        if (!adminSidebar || !adminOverlay) return;
-        adminSidebar.classList.remove('active');
-        adminOverlay.classList.remove('active');
-        document.body.style.overflow = ''; // Unlock scroll
-    }
-
-    if (adminMenuBtn) {
-        adminMenuBtn.addEventListener('click', openAdminSidebar);
-    }
-
-    if (adminCloseBtn) {
-        adminCloseBtn.addEventListener('click', closeAdminSidebar);
-    }
-
-    if (adminOverlay) {
-        adminOverlay.addEventListener('click', closeAdminSidebar);
-    }
-
-    // ESC key closes sidebar
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && adminSidebar && adminSidebar.classList.contains('active')) {
-            closeAdminSidebar();
-        }
-    });
+    function openAdminSidebar() { /* no-op */ }
+    function closeAdminSidebar() { /* no-op */ }
 
     // ========================================
     // CART BADGE (Canonical Safe Reader)
