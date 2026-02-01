@@ -91,9 +91,6 @@ document.addEventListener('DOMContentLoaded', function () {
     pendingToggle: null, // {id, inputEl}
   };
 
-  // Keep last focused element to restore focus on modal close
-  let _lastActiveElement = null;
-
   // ------------------------------------------------------
   // Toast (uses global knxToast if available)
   // ------------------------------------------------------
@@ -171,39 +168,6 @@ document.addEventListener('DOMContentLoaded', function () {
     modalEl.setAttribute('aria-hidden', 'false');
     document.body.classList.add('knx-drv-modal-open');
     document.body.style.overflow = 'hidden';
-    // save previously focused element to restore later
-    try { _lastActiveElement = document.activeElement; } catch (_) { _lastActiveElement = null; }
-
-    // ensure dialog content is focusable and move focus there
-    const content = modalEl.querySelector('[role="dialog"]') || modalEl.querySelector('.knx-drv-modal__content');
-    if (content) {
-      content.setAttribute('tabindex', '-1');
-      setTimeout(() => { try { content.focus(); } catch (_) {} }, 90);
-    }
-
-    // install a simple focus trap for accessibility
-    if (!modalEl._knxTrap) {
-      modalEl._knxTrap = function (e) {
-        if (e.key !== 'Tab') return;
-        const focusable = Array.from(modalEl.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'))
-          .filter(el => el.offsetParent !== null);
-        if (!focusable.length) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (e.shiftKey) {
-          if (document.activeElement === first) {
-            e.preventDefault();
-            last.focus();
-          }
-        } else {
-          if (document.activeElement === last) {
-            e.preventDefault();
-            first.focus();
-          }
-        }
-      };
-      document.addEventListener('keydown', modalEl._knxTrap);
-    }
   }
 
   function closeModal(modalEl) {
@@ -214,29 +178,17 @@ document.addEventListener('DOMContentLoaded', function () {
       document.body.classList.remove('knx-drv-modal-open');
       document.body.style.overflow = '';
     }
-    // remove focus trap listener
-    if (modalEl._knxTrap) {
-      try { document.removeEventListener('keydown', modalEl._knxTrap); } catch (_) {}
-      modalEl._knxTrap = null;
-    }
-
-    // restore focus
-    try { if (_lastActiveElement && typeof _lastActiveElement.focus === 'function') _lastActiveElement.focus(); } catch (_) {}
   }
 
   function wireModalClosers(modalEl) {
     if (!modalEl) return;
-
-    // Avoid duplicate bindings
-    if (modalEl.__knxBound) return;
-    modalEl.__knxBound = true;
 
     // Close button(s)
     $$('.knx-drv-x', modalEl).forEach(btn => {
       btn.addEventListener('click', () => closeModal(modalEl));
     });
 
-    // Overlay click (close when clicking backdrop)
+    // Overlay click
     modalEl.addEventListener('click', (e) => {
       if (e.target === modalEl) closeModal(modalEl);
     });
