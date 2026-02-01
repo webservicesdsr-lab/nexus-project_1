@@ -17,6 +17,7 @@
 │   │   └── guest-capability.md
 │   ├── Manager Capability & Navigation
 │   │   └── manager-capability.md
+│   ├── NEXUS-SHELL-UX-GUIDELINES.md
 │   ├── Super Admin Capability & Navigation
 │   │   ├── super-admin-capability-es.md
 │   │   └── super-admin-capability.md
@@ -57,6 +58,7 @@
 │   │   │   └── api-update-order-status.php
 │   │   ├── pages-installer.php
 │   │   ├── resources
+│   │   │   ├── .DS_Store
 │   │   │   ├── knx-addresses
 │   │   │   │   ├── api-addresses.php
 │   │   │   │   └── api-addresses.php.backup
@@ -118,6 +120,13 @@
 │   │   │   ├── knx-location
 │   │   │   │   ├── api-check-coverage.php
 │   │   │   │   └── api-location-search.php
+│   │   │   ├── knx-ops
+│   │   │   │   ├── api-assign-driver.php
+│   │   │   │   ├── api-drivers.php
+│   │   │   │   ├── api-live-orders.php
+│   │   │   │   ├── api-unassign-driver.php
+│   │   │   │   ├── api-update-status.php
+│   │   │   │   └── api-view-order.php
 │   │   │   ├── knx-orders
 │   │   │   ├── knx-payments
 │   │   │   │   ├── api-create-payment-intent.php
@@ -187,10 +196,10 @@
 │   │   │   ├── customers-script.js
 │   │   │   ├── customers-shortcode.php
 │   │   │   └── customers-style.css
-│   │   ├── dispatch
-│   │   │   ├── dispatcher-shortcode.php
-│   │   │   └── templates
-│   │   │       └── dispatcher-shell.php
+│   │   ├── drivers
+│   │   │   ├── drivers-script.js
+│   │   │   ├── drivers-shortcode.php
+│   │   │   └── drivers-style.css
 │   │   ├── fees
 │   │   │   ├── fees-script.js
 │   │   │   ├── fees-shortcode.php
@@ -248,6 +257,17 @@
 │   │   │   ├── navbar-render.php
 │   │   │   ├── navbar-script.js
 │   │   │   └── navbar-style.css
+│   │   ├── ops
+│   │   │   ├── live-orders
+│   │   │   │   ├── live-orders-script.js
+│   │   │   │   ├── live-orders-shortcode.php
+│   │   │   │   └── live-orders-style.css
+│   │   │   └── view-order
+│   │   │       ├── view-order-actions.css
+│   │   │       ├── view-order-actions.js
+│   │   │       ├── view-order-script.js
+│   │   │       ├── view-order-shortcode.php
+│   │   │       └── view-order-style.css
 │   │   ├── payments
 │   │   │   ├── payments-api.php
 │   │   │   ├── payments-helpers.php
@@ -301,18 +321,8 @@
 │       └── cities-grid-shortcode.php
 ├── inc.zip
 ├── kingdom-nexus.php
-├── knx-truncate-orders-carts-y05.sql
 ├── nexus-guidelines.md
 ├── nexus-schema-y05.sql
-├── project-tree.txt
-├── public
-│   ├── css
-│   │   └── dispatcher.css
-│   └── js
-│       ├── dispatcher.js
-│       └── mocks
-│           └── knx_dispatcher_mock.js
-├── reset-knx-users.sql
-└── scripts
+└── project-tree.txt
 
-80 directories, 236 files
+78 directories, 248 files

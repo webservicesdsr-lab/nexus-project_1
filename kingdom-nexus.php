@@ -233,6 +233,10 @@ add_action('plugins_loaded', function() {
     // OPS Live Orders (push endpoint removed)
     knx_require('inc/core/resources/knx-ops/api-live-orders.php');
     knx_require('inc/core/resources/knx-ops/api-view-order.php');
+    knx_require('inc/core/resources/knx-ops/api-drivers.php');
+    knx_require('inc/core/resources/knx-ops/api-assign-driver.php');
+    knx_require('inc/core/resources/knx-ops/api-update-status.php');
+    knx_require('inc/core/resources/knx-ops/api-unassign-driver.php');
 
     /* ======================================================
      * RESOURCES — KNX DRIVERS (Driver App MVP)

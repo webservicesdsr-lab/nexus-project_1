@@ -6,10 +6,11 @@ if (!defined('ABSPATH')) exit;
  * KNX OPS — Live Orders (Operational Board)
  * Endpoint: GET /wp-json/knx/v1/ops/live-orders
  *
- * Notes:
- * - Fail-closed: requires session + role + scoped cities for managers.
- * - Hubs are the "restaurants" (no separate restaurants table).
- * - Response may include order_id for internal navigation, but UI must not display IDs.
+ * Production notes:
+ * - Fail-closed: requires session + role + scoped cities (manager).
+ * - Block 1: Accept city_ids[] (array) AND legacy cities=1,2 (CSV).
+ * - Block 2: HARD filter only canonical live statuses (no historical statuses).
+ * - Always use $wpdb->prefix (no hardcoded table prefixes).
  * ==========================================================
  */
 
@@ -26,6 +27,8 @@ add_action('rest_api_init', function () {
 /**
  * Resolve manager allowed city IDs based on hubs.manager_user_id.
  *
+ * Fail-closed if assignment column does not exist or no rows found.
+ *
  * @param int $manager_user_id
  * @return array<int>
  */
@@ -34,8 +37,10 @@ function knx_ops_live_orders_manager_city_ids($manager_user_id) {
 
     $hubs_table = $wpdb->prefix . 'knx_hubs';
 
-    // Fail-closed if assignment column doesn't exist
-    $col = $wpdb->get_var($wpdb->prepare("SHOW COLUMNS FROM {$hubs_table} LIKE %s", 'manager_user_id'));
+    $col = $wpdb->get_var($wpdb->prepare(
+        "SHOW COLUMNS FROM {$hubs_table} LIKE %s",
+        'manager_user_id'
+    ));
     if (empty($col)) return [];
 
     $ids = $wpdb->get_col($wpdb->prepare(
@@ -47,19 +52,22 @@ function knx_ops_live_orders_manager_city_ids($manager_user_id) {
     ));
 
     $ids = array_map('intval', (array)$ids);
-    $ids = array_values(array_filter($ids, function($v){ return $v > 0; }));
+    $ids = array_values(array_filter($ids, static function ($v) {
+        return $v > 0;
+    }));
 
     return $ids;
 }
 
 /**
  * Best-effort: detect a lat/lng pair on orders table for "View Location".
- * We keep this defensive because schema may evolve.
+ * Cached per-request to avoid repeated SHOW COLUMNS calls.
  *
  * @return array{lat:string,lng:string}|null
  */
 function knx_ops_live_orders_detect_latlng_columns() {
     global $wpdb;
+
     static $cache = null;
     if ($cache !== null) return $cache;
 
@@ -91,12 +99,71 @@ function knx_ops_live_orders_detect_latlng_columns() {
  * @return string
  */
 function knx_ops_live_orders_human_age($age_seconds) {
+    $age_seconds = (int)$age_seconds;
+
     if ($age_seconds <= 60) return 'Just now';
+
     if (function_exists('human_time_diff')) {
-        return human_time_diff(time() - (int)$age_seconds, time()) . ' ago';
+        $now = (int)current_time('timestamp');
+        $from = max(0, $now - $age_seconds);
+        return human_time_diff($from, $now) . ' ago';
     }
-    $mins = max(1, floor($age_seconds / 60));
+
+    $mins = max(1, (int)floor($age_seconds / 60));
     return $mins . ' min ago';
+}
+
+/**
+ * Parse and normalize city IDs from request:
+ * - city_ids[]=1&city_ids[]=2
+ * - city_ids=[1,2] (JSON string)
+ * - cities=1,2 (legacy CSV)
+ * - cities[]=1&cities[]=2 (legacy repeated)
+ *
+ * @param WP_REST_Request $request
+ * @return array<int>
+ */
+function knx_ops_live_orders_parse_city_ids(WP_REST_Request $request) {
+    $city_ids = [];
+
+    // Primary: city_ids (array) OR JSON string
+    $raw = $request->get_param('city_ids');
+
+    if (is_string($raw)) {
+        $maybe = json_decode($raw, true);
+        if (is_array($maybe)) $raw = $maybe;
+    }
+
+    if (is_array($raw)) {
+        foreach ($raw as $c) {
+            $n = (int)$c;
+            if ($n > 0) $city_ids[] = $n;
+        }
+    }
+
+    // Backwards compatibility: cities CSV or cities[]
+    if (empty($city_ids)) {
+        $legacy = $request->get_param('cities');
+
+        if (is_string($legacy)) {
+            $legacy = trim($legacy);
+            if ($legacy !== '') {
+                $parts = preg_split('/\s*,\s*/', $legacy);
+                foreach ((array)$parts as $p) {
+                    $n = (int)$p;
+                    if ($n > 0) $city_ids[] = $n;
+                }
+            }
+        } elseif (is_array($legacy)) {
+            foreach ($legacy as $p) {
+                $n = (int)$p;
+                if ($n > 0) $city_ids[] = $n;
+            }
+        }
+    }
+
+    $city_ids = array_values(array_unique($city_ids));
+    return $city_ids;
 }
 
 function knx_ops_live_orders(WP_REST_Request $request) {
@@ -112,32 +179,11 @@ function knx_ops_live_orders(WP_REST_Request $request) {
     $role = isset($session->role) ? (string)$session->role : '';
     $user_id = isset($session->user_id) ? (int)$session->user_id : 0;
 
-    // Parse city_ids (supports query array or JSON string)
-    $raw = $request->get_param('city_ids');
-    if (is_string($raw)) {
-        $maybe = json_decode($raw, true);
-        if (is_array($maybe)) $raw = $maybe;
-    }
-
-    $city_ids = [];
-    if (is_array($raw)) {
-        foreach ($raw as $c) {
-            $c = (int)$c;
-            if ($c > 0) $city_ids[] = $c;
-        }
-    }
-
-    $city_ids = array_values(array_unique($city_ids));
+    // BLOCK 1 — City param contract normalization (fail-closed)
+    $city_ids = knx_ops_live_orders_parse_city_ids($request);
     if (empty($city_ids)) {
         return knx_rest_error('city_ids is required and must be a non-empty array', 400);
     }
-
-    $include_resolved = (int)$request->get_param('include_resolved');
-    $include_resolved = ($include_resolved === 0) ? 0 : 1;
-
-    $resolved_hours = (int)$request->get_param('resolved_hours');
-    if ($resolved_hours <= 0) $resolved_hours = 24;
-    if ($resolved_hours > 168) $resolved_hours = 168; // Hard cap 7 days
 
     // Manager scope enforcement (fail-closed)
     if ($role === 'manager') {
@@ -148,6 +194,7 @@ function knx_ops_live_orders(WP_REST_Request $request) {
             return knx_rest_error('Manager city assignment not configured', 403);
         }
 
+        // Fail-closed if any requested city is outside scope
         foreach ($city_ids as $c) {
             if (!in_array($c, $allowed, true)) {
                 return knx_rest_error('Forbidden: city outside manager scope', 403);
@@ -158,40 +205,31 @@ function knx_ops_live_orders(WP_REST_Request $request) {
     $orders_table = $wpdb->prefix . 'knx_orders';
     $hubs_table   = $wpdb->prefix . 'knx_hubs';
 
-    // Status sets
-    $live_statuses = ['placed','confirmed','preparing','ready','assigned','in_progress'];
-    $resolved_statuses = ['completed','cancelled'];
+    // BLOCK 2 — OPERATIVE LIVE STATES (HARD FILTER)
+    // Decision: Live Orders (OPS v1) returns ONLY operationally active orders.
+    // Allowed live statuses for this endpoint:
+    //   - placed
+    //   - confirmed
+    //   - preparing
+    //   - assigned
+    //   - in_progress
+    // Any other status (e.g. ready, completed, cancelled, etc.) is excluded.
+    // Historical data will be handled by a separate archive endpoint in a later phase.
+    $live_statuses = ['placed', 'confirmed', 'preparing', 'assigned', 'in_progress'];
 
-    // For resolved orders, only include recent ones (board convenience)
-    $cutoff_ts = current_time('timestamp') - ($resolved_hours * 3600);
-    $cutoff_dt = date('Y-m-d H:i:s', $cutoff_ts);
-
-    // Determine optional lat/lng columns
+    // Optional lat/lng columns
     $latlng = knx_ops_live_orders_detect_latlng_columns();
     $lat_col = $latlng ? $latlng['lat'] : null;
     $lng_col = $latlng ? $latlng['lng'] : null;
 
-    // Build placeholders for city_ids
-    $city_ph = implode(',', array_fill(0, count($city_ids), '%d'));
-
-    // Build placeholders for statuses
-    $live_ph = implode(',', array_fill(0, count($live_statuses), '%s'));
-    $resolved_ph = implode(',', array_fill(0, count($resolved_statuses), '%s'));
-
-    // Select list (defensive: some schemas may not have tip_amount/driver_id; keep as-is, expect existing)
     $select_latlng = '';
     if ($lat_col && $lng_col) {
         $select_latlng = ", o.`{$lat_col}` AS lat, o.`{$lng_col}` AS lng";
     }
 
-    // Include resolved (recent) or not
-    $where_status_block = "o.status IN ({$live_ph})";
-    $params = array_merge($city_ids, $live_statuses);
-
-    if ($include_resolved) {
-        $where_status_block = "(o.status IN ({$live_ph}) OR (o.status IN ({$resolved_ph}) AND o.created_at >= %s))";
-        $params = array_merge($city_ids, $live_statuses, $resolved_statuses, [$cutoff_dt]);
-    }
+    // Placeholders
+    $city_ph   = implode(',', array_fill(0, count($city_ids), '%d'));
+    $status_ph = implode(',', array_fill(0, count($live_statuses), '%s'));
 
     $query = "
         SELECT
@@ -209,15 +247,16 @@ function knx_ops_live_orders(WP_REST_Request $request) {
         FROM {$orders_table} o
         INNER JOIN {$hubs_table} h ON o.hub_id = h.id
         WHERE o.city_id IN ({$city_ph})
-          AND {$where_status_block}
+          AND o.status IN ({$status_ph})
         ORDER BY o.created_at DESC
         LIMIT 250
     ";
 
+    $params = array_merge($city_ids, $live_statuses);
     $prepared = $wpdb->prepare($query, $params);
     $rows = $wpdb->get_results($prepared);
 
-    $now_ts = current_time('timestamp');
+    $now_ts = (int)current_time('timestamp');
 
     $orders = [];
     foreach ((array)$rows as $r) {
@@ -225,7 +264,7 @@ function knx_ops_live_orders(WP_REST_Request $request) {
         $age = ($created_ts > 0) ? max(0, $now_ts - $created_ts) : 0;
 
         $view_location_url = null;
-        if (isset($r->lat) && isset($r->lng)) {
+        if (isset($r->lat, $r->lng)) {
             $lat = (float)$r->lat;
             $lng = (float)$r->lng;
             if ($lat !== 0.0 || $lng !== 0.0) {
@@ -236,7 +275,7 @@ function knx_ops_live_orders(WP_REST_Request $request) {
         $hub_name = trim((string)$r->hub_name);
 
         $orders[] = [
-            'order_id' => (int)$r->order_id, // internal use only (View Order page)
+            'order_id' => (int)$r->order_id, // internal use only (View Order navigation)
             'restaurant_name' => $hub_name,  // hubs are restaurants visually
             'hub_name' => $hub_name,
             'city_id' => (int)$r->city_id,
@@ -256,10 +295,8 @@ function knx_ops_live_orders(WP_REST_Request $request) {
         'orders' => $orders,
         'meta' => [
             'role' => $role,
-            'include_resolved' => (int)$include_resolved,
-            'resolved_hours' => (int)$resolved_hours,
             'generated_at' => current_time('mysql'),
             'count' => count($orders),
-        ]
+        ],
     ], 200);
 }

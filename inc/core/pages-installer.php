@@ -85,6 +85,8 @@ if (!function_exists('knx_install_pages')) {
             ['title' => 'Drivers', 'slug' => 'drivers', 'content' => '[knx_drivers_admin]'],
             ['title' => 'Live Orders', 'slug' => 'live-orders', 'content' => '[knx_ops_live_orders]'],
             ['title' => 'View Order', 'slug' => 'orders', 'content' => '[knx-view-orders]'],
+            // Alternate path for OPS view-order (helps install a direct route)
+            ['title' => 'View Order (OPS)', 'slug' => 'view-order', 'content' => '[knx-view-orders]'],
             // Legacy OPS pages removed as part of PHASE 13.CLEAN
         ];
 

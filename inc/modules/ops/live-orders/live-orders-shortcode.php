@@ -29,7 +29,8 @@ add_shortcode('knx_ops_live_orders', function ($atts = []) {
 
     $atts = shortcode_atts([
         // Where "View Order" should navigate (shortcode page you will create)
-        'view_order_url'   => site_url('/ops-view-order'),
+        // Updated to match installed pages-installer route `/view-order`.
+        'view_order_url'   => site_url('/view-order'),
         // Poll interval
         'poll_ms'          => 12000,
         // Include "Completed/Cancelled" column (recent only)
