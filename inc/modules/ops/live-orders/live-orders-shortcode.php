@@ -9,6 +9,7 @@ if (!defined('ABSPATH')) exit;
  * Notes:
  * - Assets injected inline via echo/file_get_contents (no wp_footer dependency).
  * - Managers and super_admins share the same UI, scoped by role.
+ * - Board uses tabs to render a single list (space-optimized).
  * ==========================================================
  */
 
@@ -28,14 +29,9 @@ add_shortcode('knx_ops_live_orders', function ($atts = []) {
     }
 
     $atts = shortcode_atts([
-        // Where "View Order" should navigate (shortcode page you will create)
-        // Updated to match installed pages-installer route `/view-order`.
         'view_order_url'   => site_url('/view-order'),
-        // Poll interval
         'poll_ms'          => 12000,
-        // Include "Completed/Cancelled" column (recent only)
         'include_resolved' => 1,
-        // How many hours back to show resolved items
         'resolved_hours'   => 24,
     ], (array)$atts, 'knx_ops_live_orders');
 
@@ -78,14 +74,14 @@ add_shortcode('knx_ops_live_orders', function ($atts = []) {
         }
     }
 
-    $api_url = esc_url(rest_url('knx/v1/ops/live-orders'));
+    $api_url    = esc_url(rest_url('knx/v1/ops/live-orders'));
     $cities_url = esc_url(rest_url('knx/v2/cities/get'));
 
     $view_order_url = esc_url($atts['view_order_url']);
 
     // Inline assets (fail-safe)
     $css = '';
-    $js = '';
+    $js  = '';
 
     $css_path = defined('KNX_PATH') ? (KNX_PATH . 'inc/modules/ops/live-orders/live-orders-style.css') : '';
     if ($css_path && file_exists($css_path)) {
@@ -135,30 +131,47 @@ add_shortcode('knx_ops_live_orders', function ($atts = []) {
             Select a city to view live orders.
         </div>
 
+        <!-- Tabs (space-optimized board) -->
         <div class="knx-live-orders__board">
-            <section class="knx-lo-col" aria-label="New Orders">
-                <div class="knx-lo-col__head">
-                    <h3>New Orders</h3>
-                    <span class="knx-lo-col__count" id="knxLOCountNew">0</span>
-                </div>
-                <div class="knx-lo-col__list" id="knxLOListNew"></div>
-            </section>
+            <div class="knx-live-orders__tabs" role="tablist" aria-label="Order buckets">
+                <button type="button"
+                        class="knx-lo-tab is-active"
+                        data-tab="new"
+                        role="tab"
+                        aria-selected="true"
+                        aria-controls="knxLOTabPanel"
+                        tabindex="0">
+                    <span class="knx-lo-tab__label">New Orders</span>
+                    <span class="knx-lo-tab__count" id="knxLOCountNew">0</span>
+                </button>
 
-            <section class="knx-lo-col" aria-label="In Progress">
-                <div class="knx-lo-col__head">
-                    <h3>In Progress</h3>
-                    <span class="knx-lo-col__count" id="knxLOCountProgress">0</span>
-                </div>
-                <div class="knx-lo-col__list" id="knxLOListProgress"></div>
-            </section>
+                <button type="button"
+                        class="knx-lo-tab"
+                        data-tab="progress"
+                        role="tab"
+                        aria-selected="false"
+                        aria-controls="knxLOTabPanel"
+                        tabindex="-1">
+                    <span class="knx-lo-tab__label">In Progress</span>
+                    <span class="knx-lo-tab__count" id="knxLOCountProgress">0</span>
+                </button>
 
-            <section class="knx-lo-col" aria-label="Completed">
-                <div class="knx-lo-col__head">
-                    <h3>Completed</h3>
-                    <span class="knx-lo-col__count" id="knxLOCountDone">0</span>
-                </div>
-                <div class="knx-lo-col__list" id="knxLOListDone"></div>
-            </section>
+                <button type="button"
+                        class="knx-lo-tab"
+                        data-tab="done"
+                        role="tab"
+                        aria-selected="false"
+                        aria-controls="knxLOTabPanel"
+                        tabindex="-1">
+                    <span class="knx-lo-tab__label">Completed</span>
+                    <span class="knx-lo-tab__count" id="knxLOCountDone">0</span>
+                </button>
+            </div>
+
+            <div id="knxLOTabPanel" class="knx-live-orders__panel" role="tabpanel" aria-label="Orders list">
+                <div id="knxLOEmptyBoard" class="knx-lo-empty-board" style="display:none;"></div>
+                <div class="knx-lo-list" id="knxLOActiveList"></div>
+            </div>
         </div>
 
         <!-- Cities modal -->

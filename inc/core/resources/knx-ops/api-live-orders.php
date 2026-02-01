@@ -180,9 +180,20 @@ function knx_ops_live_orders(WP_REST_Request $request) {
     $user_id = isset($session->user_id) ? (int)$session->user_id : 0;
 
     // BLOCK 1 — City param contract normalization (fail-closed)
-    $city_ids = knx_ops_live_orders_parse_city_ids($request);
-    if (empty($city_ids)) {
-        return knx_rest_error('city_ids is required and must be a non-empty array', 400);
+    // Accept `city_id=all` for super_admin to indicate all cities (no city filter).
+    $all_cities = false;
+    $city_id_param = $request->get_param('city_id');
+    if (is_string($city_id_param) && strtolower($city_id_param) === 'all') {
+        if ($role !== 'super_admin') {
+            return knx_rest_error('Forbidden: city_id=all is only allowed for super_admin', 403);
+        }
+        $all_cities = true;
+        $city_ids = [];
+    } else {
+        $city_ids = knx_ops_live_orders_parse_city_ids($request);
+        if (empty($city_ids)) {
+            return knx_rest_error('city_ids is required and must be a non-empty array', 400);
+        }
     }
 
     // Manager scope enforcement (fail-closed)
@@ -228,10 +239,36 @@ function knx_ops_live_orders(WP_REST_Request $request) {
     }
 
     // Placeholders
-    $city_ph   = implode(',', array_fill(0, count($city_ids), '%d'));
     $status_ph = implode(',', array_fill(0, count($live_statuses), '%s'));
 
-    $query = "
+    if ($all_cities) {
+        // No city filter; only filter by status
+        $query = "
+        SELECT
+            o.id AS order_id,
+            o.city_id AS city_id,
+            o.hub_id AS hub_id,
+            o.customer_name AS customer_name,
+            o.created_at AS created_at,
+            o.total AS total_amount,
+            o.tip_amount AS tip_amount,
+            o.status AS status,
+            o.driver_id AS driver_id,
+            h.name AS hub_name
+            {$select_latlng}
+        FROM {$orders_table} o
+        INNER JOIN {$hubs_table} h ON o.hub_id = h.id
+        WHERE o.status IN ({$status_ph})
+        ORDER BY o.created_at DESC
+        LIMIT 250
+    ";
+
+        $params = $live_statuses;
+        $prepared = $wpdb->prepare($query, $params);
+    } else {
+        $city_ph   = implode(',', array_fill(0, count($city_ids), '%d'));
+
+        $query = "
         SELECT
             o.id AS order_id,
             o.city_id AS city_id,
@@ -252,8 +289,9 @@ function knx_ops_live_orders(WP_REST_Request $request) {
         LIMIT 250
     ";
 
-    $params = array_merge($city_ids, $live_statuses);
-    $prepared = $wpdb->prepare($query, $params);
+        $params = array_merge($city_ids, $live_statuses);
+        $prepared = $wpdb->prepare($query, $params);
+    }
     $rows = $wpdb->get_results($prepared);
 
     $now_ts = (int)current_time('timestamp');
