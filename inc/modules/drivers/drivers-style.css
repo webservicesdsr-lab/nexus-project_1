@@ -2,33 +2,24 @@
  * ==========================================================
  * Kingdom Nexus — Drivers Admin Styles (v2.2)
  * ----------------------------------------------------------
- * - Mobile-first
- * - Scoped to .knx-drivers-wrapper
- * - Modern, clean, low-noise
- * - Works even if table becomes "card rows" on mobile
- * - Includes Cities Modal (single instance) styles
+ * - Scoped to #knx-drivers-admin
+ * - Mobile-first + desktop inline table
+ * - Single Cities modal styles
+ * - Includes minimal fallback toast (no alerts)
  * ==========================================================
  */
 
-:root{
+#knx-drivers-admin.knx-drivers-wrapper{
   --knx-green: #0b793a;
-  --knx-amber: #f39b1f;
-  --knx-bg: #f6f7f9;
-  --knx-card: #ffffff;
   --knx-text: #0b1220;
   --knx-muted: #6b7280;
   --knx-border: rgba(11,18,32,0.08);
+  --knx-card: #ffffff;
   --knx-shadow: 0 18px 44px rgba(11,18,32,0.08);
   --knx-shadow-sm: 0 10px 26px rgba(11,18,32,0.06);
   --knx-radius: 14px;
   --knx-radius-sm: 10px;
-}
 
-/* ==========================================================
-   WRAPPER / LAYOUT
-========================================================== */
-
-.knx-drivers-wrapper{
   max-width: 1100px;
   margin: 18px auto;
   padding: 18px;
@@ -40,52 +31,47 @@
 }
 
 @media (min-width: 769px){
-  .knx-drivers-wrapper{
+  #knx-drivers-admin.knx-drivers-wrapper{
     margin: 42px auto;
     padding: 26px;
   }
 }
 
-.knx-drivers-wrapper.is-loading{
-  opacity: 0.75;
+#knx-drivers-admin.knx-drivers-wrapper.is-loading{
+  opacity: 0.78;
   pointer-events: none;
 }
 
-/* ==========================================================
-   HEADER / CONTROLS
-========================================================== */
-
-.knx-drivers-header{
+/* Header */
+#knx-drivers-admin .knx-drivers-header{
   display: flex;
   flex-direction: column;
   gap: 12px;
   margin-bottom: 14px;
 }
 
-.knx-drivers-header h2{
+#knx-drivers-admin .knx-drivers-header h2{
   margin: 0;
   font-size: 1.2rem;
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: -0.01em;
 }
 
-.knx-drivers-controls{
+#knx-drivers-admin .knx-drivers-controls{
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
 }
 
 @media (min-width: 520px){
-  .knx-drivers-controls{
-    grid-template-columns: 1fr 140px auto;
+  #knx-drivers-admin .knx-drivers-controls{
+    grid-template-columns: 1fr 160px auto;
     align-items: center;
   }
 }
 
-.knx-drivers-controls .knx-search,
-.knx-drivers-controls input[type="text"],
-.knx-drivers-controls input[name="q"],
-.knx-drivers-controls input[name="search"]{
+#knx-drivers-admin .knx-drivers-controls input,
+#knx-drivers-admin .knx-drivers-controls select{
   width: 100%;
   padding: 12px 12px;
   border-radius: 12px;
@@ -96,31 +82,19 @@
   transition: border-color .15s ease, box-shadow .15s ease;
 }
 
-.knx-drivers-controls select,
-.knx-drivers-controls select[name="status"]{
-  width: 100%;
-  padding: 12px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--knx-border);
-  background: transparent;
-  color: var(--knx-text);
-  outline: none;
-}
-
-.knx-drivers-controls input:focus,
-.knx-drivers-controls select:focus{
+#knx-drivers-admin .knx-drivers-controls input:focus,
+#knx-drivers-admin .knx-drivers-controls select:focus{
   border-color: rgba(11,121,58,0.35);
   box-shadow: 0 0 0 4px rgba(11,121,58,0.12);
 }
 
-.knx-btn,
-.knx-add-btn{
+#knx-drivers-admin .knx-btn{
   appearance: none;
   border: 0;
   background: var(--knx-green);
   color: #fff;
-  font-weight: 800;
-  border-radius: 12px;
+  font-weight: 900;
+  border-radius: 16px;
   padding: 12px 14px;
   cursor: pointer;
   display: inline-flex;
@@ -128,115 +102,68 @@
   justify-content: center;
   gap: 8px;
   transition: transform .12s ease, box-shadow .18s ease, background .18s ease;
-  box-shadow: 0 10px 22px rgba(11,121,58,0.12);
+  box-shadow: var(--knx-shadow-sm);
   user-select: none;
 }
 
-.knx-btn:hover,
-.knx-add-btn:hover{
-  transform: translateY(-1px);
-  background: #096c33;
-}
+#knx-drivers-admin .knx-btn:hover{ transform: translateY(-1px); background:#096c33; }
+#knx-drivers-admin .knx-btn:active{ transform: translateY(0); }
 
-.knx-btn:active,
-.knx-add-btn:active{
-  transform: translateY(0);
-}
-
-.knx-btn-secondary{
+#knx-drivers-admin .knx-btn-secondary{
   appearance: none;
   border: 1px solid var(--knx-border);
   background: transparent;
   color: var(--knx-muted);
-  font-weight: 800;
-  border-radius: 12px;
+  font-weight: 900;
+  border-radius: 14px;
   padding: 12px 14px;
   cursor: pointer;
   transition: background .18s ease, transform .12s ease;
 }
 
-.knx-btn-secondary:hover{
+#knx-drivers-admin .knx-btn-secondary:hover{
   background: rgba(11,18,32,0.03);
   transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(11,18,32,0.06);
 }
 
-/* ==========================================================
-   TABLE (DESKTOP) + LIST STRUCTURE
-========================================================== */
+/* Table (Desktop inline row) */
+#knx-drivers-admin .knx-drivers-table-wrap{ width:100%; }
 
-.knx-drivers-table{
+#knx-drivers-admin .knx-drivers-table{
   width: 100%;
   border-collapse: collapse;
 }
 
-.knx-drivers-table th,
-.knx-drivers-table td{
+#knx-drivers-admin .knx-drivers-table th,
+#knx-drivers-admin .knx-drivers-table td{
   text-align: left;
   padding: 14px 12px;
   border-bottom: 1px solid rgba(11,18,32,0.05);
-  vertical-align: top;
+  vertical-align: middle;
 }
 
-.knx-drivers-table th{
+#knx-drivers-admin .knx-drivers-table th{
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: .06em;
   color: var(--knx-muted);
-  font-weight: 800;
+  font-weight: 900;
 }
 
-.knx-drivers-table tr:hover td{
+#knx-drivers-admin .knx-drivers-table tr:hover td{
   background: rgba(11,18,32,0.02);
 }
 
-.knx-driver__who{
+#knx-drivers-admin .knx-col-center{
+  text-align: center;
+  width: 72px;
+}
+
+#knx-drivers-admin .knx-driver__who{
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-
-.knx-driver__name{
-  font-weight: 900;
-  letter-spacing: -0.01em;
-}
-
-.knx-driver__meta{
-  color: var(--knx-muted);
-  font-size: 13px;
-  line-height: 1.35;
-}
-
-/* ==========================================================
-   STATUS PILLS
-========================================================== */
-
-.status-active,
-.status-inactive{
-  display: inline-flex;
-  align-items: center;
-  padding: 7px 11px;
-  border-radius: 999px;
-  font-weight: 800;
-  font-size: 12px;
-  border: 1px solid rgba(11,18,32,0.06);
-}
-
-.status-active{
-  background: #F0FCF4;
-  color: #0B6623;
-}
-
-.status-inactive{
-  background: #FFF6F6;
-  color: #7A1010;
-}
-
-/* ==========================================================
-   ACTIONS / ICON BUTTONS
-========================================================== */
-
-.knx-actions{
-  white-space: nowrap;
 }
 
 .knx-icon-btn{
@@ -247,51 +174,83 @@
   border-radius: 12px;
   padding: 10px 10px;
   cursor: pointer;
-  transition: transform .12s ease, background .18s ease, border-color .18s ease;
+  transition: transform .12s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease;
   line-height: 1;
   margin-right: 8px;
+  box-shadow: 0 6px 14px rgba(11,18,32,0.04);
 }
 
 .knx-icon-btn:hover{
   background: rgba(11,18,32,0.03);
   border-color: rgba(11,18,32,0.10);
   transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(11,18,32,0.06);
 }
 
 .knx-icon-btn:active{
   transform: translateY(0);
 }
+#knx-drivers-admin .status-active,
+#knx-drivers-admin .status-inactive{
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 11px;
+  border-radius: 999px;
+  font-weight: 900;
+  font-size: 12px;
+  border: 1px solid rgba(11,18,32,0.06);
+}
 
-.knx-icon-btn.danger{
+#knx-drivers-admin .status-active{ background:#F0FCF4; color:#0B6623; }
+#knx-drivers-admin .status-inactive{ background:#FFF6F6; color:#7A1010; }
+
+/* Icon buttons */
+#knx-drivers-admin .knx-icon-btn{
+  appearance: none;
+  border: 1px solid rgba(11,18,32,0.06);
+  background: transparent;
+  color: var(--knx-text);
+  border-radius: 12px;
+  padding: 10px 10px;
+  cursor: pointer;
+  transition: transform .12s ease, background .18s ease, border-color .18s ease;
+  line-height: 1;
+}
+
+#knx-drivers-admin .knx-icon-btn:hover{
+  background: rgba(11,18,32,0.03);
+  border-color: rgba(11,18,32,0.10);
+  transform: translateY(-1px);
+}
+
+#knx-drivers-admin .knx-icon-btn:active{ transform: translateY(0); }
+
+#knx-drivers-admin .knx-icon-btn.danger{
   border-color: rgba(179,0,0,0.20);
   color: #7A1010;
 }
 
-.knx-icon-btn.danger:hover{
+#knx-drivers-admin .knx-icon-btn.danger:hover{
   background: rgba(179,0,0,0.06);
   border-color: rgba(179,0,0,0.25);
 }
 
-/* ==========================================================
-   TOGGLE SWITCH (matches hubs style)
-========================================================== */
-
-.knx-switch{
+/* Toggle */
+#knx-drivers-admin .knx-switch{
   position: relative;
   display: inline-block;
   width: 46px;
   height: 26px;
   vertical-align: middle;
-  margin-right: 8px;
 }
 
-.knx-switch input{
+#knx-drivers-admin .knx-switch input{
   opacity: 0;
   width: 0;
   height: 0;
 }
 
-.knx-slider{
+#knx-drivers-admin .knx-slider{
   position: absolute;
   cursor: pointer;
   inset: 0;
@@ -300,7 +259,7 @@
   transition: 0.25s;
 }
 
-.knx-slider:before{
+#knx-drivers-admin .knx-slider:before{
   position: absolute;
   content: "";
   height: 18px;
@@ -313,34 +272,25 @@
   box-shadow: 0 6px 16px rgba(11,18,32,0.12);
 }
 
-.knx-switch input:checked + .knx-slider{
+#knx-drivers-admin .knx-switch input:checked + .knx-slider{
   background-color: var(--knx-green);
 }
 
-.knx-switch input:checked + .knx-slider:before{
+#knx-drivers-admin .knx-switch input:checked + .knx-slider:before{
   transform: translateX(20px);
 }
 
-/* ==========================================================
-   EMPTY STATE
-========================================================== */
-
-.knx-empty,
-.knx-drivers-empty,
-[data-knx-empty]{
+/* Empty */
+#knx-drivers-admin .knx-drivers-empty{
   padding: 14px 12px;
   color: var(--knx-muted);
   border: 1px dashed rgba(11,18,32,0.14);
   border-radius: 12px;
   background: rgba(11,18,32,0.02);
-  margin-top: 12px;
 }
 
-/* ==========================================================
-   PAGINATION (button-based)
-========================================================== */
-
-.knx-pagination{
+/* Pagination */
+#knx-drivers-admin .knx-pagination{
   display: flex;
   gap: 8px;
   justify-content: center;
@@ -349,7 +299,7 @@
   flex-wrap: wrap;
 }
 
-.knx-pagination .knx-page{
+#knx-drivers-admin .knx-pagination .knx-page{
   appearance: none;
   border: 1px solid rgba(11,18,32,0.06);
   background: transparent;
@@ -357,33 +307,59 @@
   border-radius: 12px;
   padding: 10px 12px;
   cursor: pointer;
-  font-weight: 800;
+  font-weight: 900;
   transition: background .18s ease, transform .12s ease, color .18s ease, border-color .18s ease;
 }
 
-.knx-pagination .knx-page:hover{
+#knx-drivers-admin .knx-pagination .knx-page:hover{
   background: rgba(11,18,32,0.03);
   transform: translateY(-1px);
   border-color: rgba(11,18,32,0.10);
 }
 
-.knx-pagination .knx-page.active{
+#knx-drivers-admin .knx-pagination .knx-page.active{
   background: var(--knx-green);
   color: #fff;
   border-color: var(--knx-green);
   cursor: default;
 }
 
-.knx-pagination .knx-page.disabled{
+#knx-drivers-admin .knx-pagination .knx-page.disabled{
   opacity: 0.45;
   cursor: not-allowed;
 }
 
+/* Mobile: Table -> Cards */
+@media (max-width: 768px){
+  #knx-drivers-admin .knx-drivers-table thead{ display:none; }
+
+  #knx-drivers-admin .knx-drivers-table tr{
+    display: block;
+    border: 1px solid rgba(11,18,32,0.06);
+    border-radius: 14px;
+    box-shadow: var(--knx-shadow-sm);
+    background: var(--knx-card);
+    padding: 12px 12px;
+    margin-bottom: 12px;
+  }
+
+  #knx-drivers-admin .knx-drivers-table td{
+    display: block;
+    padding: 6px 0;
+    border: 0;
+  }
+
+  #knx-drivers-admin .knx-col-center{
+    text-align: left;
+    width: auto;
+  }
+}
+
 /* ==========================================================
-   MODALS (shared)
+   MODALS (Drivers only)
 ========================================================== */
 
-.knx-modal{
+.knx-drv-modal{
   display: none;
   position: fixed;
   inset: 0;
@@ -394,113 +370,165 @@
   padding: 10px;
 }
 
-.knx-modal.active{
-  display: flex;
-}
+.knx-drv-modal.active{ display:flex; }
 
-.knx-modal-content{
+
+.knx-drv-modal__content{
   width: 100%;
-  max-width: 520px;
-  background: var(--knx-card);
-  border-radius: 16px;
-  border: 1px solid rgba(11,18,32,0.06);
-  box-shadow: var(--knx-shadow);
-  padding: 18px;
-  animation: knxFadeIn .16s ease;
+  max-width: 620px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,250,250,0.98));
+  border-radius: 18px;
+  border: 1px solid rgba(11,18,32,0.04);
+  box-shadow: 0 36px 80px rgba(11,18,32,0.12), 0 8px 18px rgba(11,18,32,0.06);
+  padding: 20px;
+  animation: knxDrvFade .18s cubic-bezier(.2,.9,.3,1);
+  backdrop-filter: blur(6px);
 }
 
 @media (min-width: 769px){
-  .knx-modal-content{
-    padding: 20px 22px;
-  }
+  .knx-drv-modal__content{ padding: 20px 22px; }
 }
 
-.knx-modal-content h3{
-  margin: 0 0 10px;
-  font-size: 1.05rem;
-  font-weight: 900;
+
+.knx-drv-modal__head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(11,18,32,0.04);
+}
+
+.knx-drv-modal__head h3{
+  margin:0;
+  font-size: 1.125rem;
+  font-weight: 950;
   letter-spacing: -0.01em;
 }
 
-.knx-modal-content p{
-  margin: 8px 0 0;
+.knx-drv-modal__head .knx-drv-sub{
   color: var(--knx-muted);
-  line-height: 1.4;
+  font-size: 13px;
+  font-weight: 800;
 }
 
-.knx-modal-content input[type="text"],
-.knx-modal-content input[type="email"],
-.knx-modal-content input[type="tel"],
-.knx-modal-content textarea,
-.knx-modal-content select{
+.knx-drv-x{
+  appearance:none;
+  border: 1px solid rgba(11,18,32,0.06);
+  background: #fff;
+  border-radius: 12px;
+  width: 42px;
+  height: 42px;
+  cursor:pointer;
+  font-weight: 900;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow: 0 8px 20px rgba(11,18,32,0.08);
+  transition: transform .12s ease, box-shadow .18s ease, background .12s ease;
+}
+
+.knx-drv-x:hover{ transform: translateY(-2px); box-shadow: 0 18px 44px rgba(11,18,32,0.10); }
+
+.knx-drv-form{ display:grid; gap: 10px; }
+
+.knx-drv-field label{
+  display:block;
+  font-size: 12px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #6b7280;
+  font-weight: 900;
+  margin-bottom: 6px;
+}
+
+.knx-drv-field input,
+.knx-drv-field select{
   width: 100%;
   padding: 12px 12px;
   border-radius: 12px;
   border: 1px solid rgba(11,18,32,0.08);
-  background: transparent;
-  color: var(--knx-text);
+  background: linear-gradient(180deg, #fff, #fbfbfb);
+  color: #0b1220;
   outline: none;
-  transition: border-color .15s ease, box-shadow .15s ease;
+  box-shadow: inset 0 2px 6px rgba(11,18,32,0.03);
 }
 
-.knx-modal-content input:focus,
-.knx-modal-content textarea:focus,
-.knx-modal-content select:focus{
-  border-color: rgba(11,121,58,0.35);
-  box-shadow: 0 0 0 4px rgba(11,121,58,0.12);
+.knx-drv-field input:focus,
+.knx-drv-field select:focus{
+  border-color: rgba(11,121,58,0.45);
+  box-shadow: 0 6px 20px rgba(11,121,58,0.06), 0 0 0 6px rgba(11,121,58,0.06);
 }
 
-.knx-modal-content form{
-  display: grid;
-  gap: 10px;
-}
-
-.knx-modal-content .knx-form-row{
-  display: grid;
+.knx-drv-grid{
+  display:grid;
   gap: 10px;
 }
 
 @media (min-width: 560px){
-  .knx-modal-content .knx-form-row.two{
+  .knx-drv-grid.two{
     grid-template-columns: 1fr 1fr;
   }
 }
 
-.knx-modal-content .knx-modal-actions{
-  display: flex;
-  gap: 10px;
+.knx-drv-cities{
+  display:flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.knx-drv-chips{
+  display:flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.knx-chip{
+  display:inline-flex;
+  align-items:center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(11,121,58,0.10);
+  color: #0b793a;
+  border: 1px solid rgba(11,121,58,0.12);
+  font-weight: 950;
+  font-size: 12px;
+}
+
+.knx-muted{ color:#6b7280; font-weight: 800; }
+
+.knx-drv-hint{
+  margin-top: 6px;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.knx-drv-modal__actions{
+  display:flex;
+  gap: 12px;
   justify-content: flex-end;
   align-items: center;
-  margin-top: 8px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(11,18,32,0.04);
 }
 
-/* ==========================================================
-   CITIES MODAL (single instance)
-========================================================== */
-
-.knx-cities-modal .knx-cities-content{
-  max-width: 560px;
+.knx-drv-divider{
+  height: 1px;
+  background: rgba(11,18,32,0.06);
+  margin: 12px 0;
 }
 
-.knx-cities-head{
-  display: flex;
-  align-items: center;
+.knx-drv-secondary-actions{
   justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 10px;
 }
 
-.knx-cities-head h3{
-  margin: 0;
-}
-
-.knx-cities-tools{
-  margin-bottom: 10px;
-}
-
-.knx-cities-list{
+/* Cities modal list */
+.knx-drv-cities-list{
   max-height: min(52vh, 420px);
-  overflow: auto;
+  overflow:auto;
   border: 1px solid rgba(11,18,32,0.06);
   border-radius: 12px;
   background: rgba(11,18,32,0.015);
@@ -508,14 +536,13 @@
 }
 
 .knx-city-row{
-  display: flex;
-  align-items: center;
+  display:flex;
+  align-items:center;
   gap: 10px;
   padding: 10px 10px;
   border-radius: 10px;
-  cursor: pointer;
-  user-select: none;
-  transition: background .15s ease;
+  cursor:pointer;
+  user-select:none;
 }
 
 .knx-city-row:hover{
@@ -528,139 +555,82 @@
 }
 
 .knx-city-name{
-  font-weight: 800;
-  color: var(--knx-text);
+  font-weight: 950;
+  color: #0b1220;
 }
 
-.knx-cities-actions{
-  display: flex;
+/* Credentials box */
+.knx-drv-credentials{
+  border: 1px solid rgba(11,18,32,0.06);
+  background: linear-gradient(180deg, rgba(11,18,32,0.02), rgba(255,255,255,0.00));
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: inset 0 2px 6px rgba(11,18,32,0.02);
+}
+
+.knx-drv-cred-title{
+  font-weight: 950;
+  margin-bottom: 8px;
+}
+
+.knx-drv-cred-row{
+  display:flex;
   gap: 10px;
-  justify-content: flex-end;
-  margin-top: 12px;
-}
-
-/* Chips in the driver form */
-.knx-chip{
-  display: inline-flex;
   align-items: center;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(11,121,58,0.10);
-  color: var(--knx-green);
-  border: 1px solid rgba(11,121,58,0.12);
-  font-weight: 900;
+  margin-top: 8px;
+}
+
+.knx-drv-cred-box{
+  flex: 1;
+  border: 1px solid rgba(11,18,32,0.06);
+  background: #fff;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.knx-drv-cred-label{
   font-size: 12px;
-  margin-right: 6px;
-  margin-bottom: 6px;
+  color: #6b7280;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .04em;
 }
 
-.knx-muted{
-  color: var(--knx-muted);
+.knx-drv-cred-value{
+  margin-top: 6px;
+  font-weight: 950;
+  word-break: break-word;
 }
 
-/* ==========================================================
-   MOBILE: Table -> Cards
-========================================================== */
-
-@media (max-width: 768px){
-  .knx-drivers-table thead{
-    display: none;
-  }
-
-  .knx-drivers-table tr{
-    display: block;
-    border: 1px solid rgba(11,18,32,0.06);
-    border-radius: 14px;
-    box-shadow: var(--knx-shadow-sm);
-    background: var(--knx-card);
-    padding: 12px 12px;
-    margin-bottom: 12px;
-  }
-
-  .knx-drivers-table td{
-    display: block;
-    padding: 6px 0;
-    border: 0;
-  }
-
-  .knx-actions{
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-top: 6px;
-  }
-
-  .knx-icon-btn{
-    margin-right: 0;
-  }
+/* Fallback toast (only if global knxToast is missing) */
+.knx-drv-toast{
+  position: fixed;
+  bottom: 18px;
+  right: 18px;
+  background: #0b1220;
+  color: #fff;
+  padding: 12px 14px;
+  border-radius: 12px;
+  box-shadow: 0 10px 26px rgba(11,18,32,0.18);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity .18s ease, transform .18s ease;
+  z-index: 100000;
+  font-weight: 900;
+  max-width: min(92vw, 420px);
 }
 
-/* ==========================================================
-   ACCESSIBILITY / FOCUS
-========================================================== */
-
-.knx-btn:focus,
-.knx-btn-secondary:focus,
-.knx-icon-btn:focus,
-.knx-drivers-controls input:focus,
-.knx-drivers-controls select:focus{
-  outline: 3px solid rgba(11,121,58,0.16);
-  outline-offset: 2px;
+.knx-drv-toast.show{
+  opacity: 1;
+  transform: translateY(0);
 }
 
-/* ==========================================================
-   ANIMATIONS
-========================================================== */
+.knx-drv-toast[data-type="error"]{ background:#7A1010; }
+.knx-drv-toast[data-type="success"]{ background:#0b793a; }
+.knx-drv-toast[data-type="warning"]{ background:#7a5b10; }
 
-@keyframes knxFadeIn{
-  from{ opacity: 0; transform: translateY(6px); }
-  to{ opacity: 1; transform: translateY(0); }
-}
-
-/* ==========================================================
-   DESKTOP: Compact rows (hubs-like "row mínimo")
-   - Make driver row horizontal, reduce paddings, align actions
-   - Keeps mobile card behavior intact
-========================================================== */
-
-@media (min-width: 980px) {
-  .knx-drivers-table th,
-  .knx-drivers-table td {
-    padding: 10px 12px;
-  }
-
-  .knx-driver__who{
-    flex-direction: row;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .knx-driver__name{ font-size: 14px; font-weight: 900; }
-
-  .knx-driver__meta{
-    margin: 0;
-    font-size: 13px;
-    color: var(--knx-muted);
-    white-space: nowrap;
-    opacity: 0.9;
-  }
-
-  /* Give the first column room, actions compressed to the right */
-  .knx-drivers-table td:first-child{ width: 60%; }
-
-  .knx-actions{
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 8px;
-  }
-
-  .knx-icon-btn{ padding: 8px; border-radius: 10px; }
-
-  /* Slightly smaller toggle / align vertically */
-  .knx-switch{ width:46px; height:26px; margin:0 6px; }
-
-  /* Reduce visual noise on desktop rows */
-  .knx-drivers-table tr td{ border-bottom: 1px solid rgba(11,18,32,0.04); }
+/* Animation */
+@keyframes knxDrvFade{
+  from{ opacity:0; transform: translateY(6px); }
+  to{ opacity:1; transform: translateY(0); }
 }
