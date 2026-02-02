@@ -265,7 +265,14 @@ add_action('init', function () {
         }
 
         knx_auto_login_user_by_id((int)$user->id, !empty($_POST['knx_remember']));
-        wp_safe_redirect(site_url('/cart'));
+
+        // Redirect drivers to the Driver Ops dashboard; others keep previous behavior.
+        $redirect_url = site_url('/cart');
+        if (isset($user->role) && $user->role === 'driver') {
+            $redirect_url = site_url('/driver-ops');
+        }
+
+        wp_safe_redirect($redirect_url);
         exit;
     }
 

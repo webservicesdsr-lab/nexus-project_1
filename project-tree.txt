@@ -47,6 +47,7 @@
 ├── inc
 │   ├── .DS_Store
 │   ├── core
+│   │   ├── .DS_Store
 │   │   ├── cart
 │   │   │   └── cart-cleanup.php
 │   │   ├── install
@@ -122,6 +123,8 @@
 │   │   │   │   └── api-location-search.php
 │   │   │   ├── knx-ops
 │   │   │   │   ├── api-assign-driver.php
+│   │   │   │   ├── api-driver-available-orders.php
+│   │   │   │   ├── api-driver-self-assign.php
 │   │   │   │   ├── api-drivers.php
 │   │   │   │   ├── api-live-orders.php
 │   │   │   │   ├── api-unassign-driver.php
@@ -258,6 +261,12 @@
 │   │   │   ├── navbar-script.js
 │   │   │   └── navbar-style.css
 │   │   ├── ops
+│   │   │   ├── .DS_Store
+│   │   │   ├── driver-ops
+│   │   │   │   ├── driver-notifier-shortcode.php
+│   │   │   │   ├── driver-ops-script.js
+│   │   │   │   ├── driver-ops-shortcode.php
+│   │   │   │   └── driver-ops-style.css
 │   │   │   ├── live-orders
 │   │   │   │   ├── live-orders-script.js
 │   │   │   │   ├── live-orders-shortcode.php
@@ -272,11 +281,7 @@
 │   │   │   ├── payments-api.php
 │   │   │   ├── payments-helpers.php
 │   │   │   └── payments-service.php
-│   │   ├── profile
-│   │   └── sidebar
-│   │       ├── sidebar-render.php
-│   │       ├── sidebar-script.js
-│   │       └── sidebar-style.css
+│   │   └── profile
 │   ├── public
 │   │   ├── addresses
 │   │   │   ├── my-addresses-script.js
@@ -311,8 +316,7 @@
 │   │   │   ├── corporate-sidebar.php
 │   │   │   ├── navbar.php
 │   │   │   ├── navigation-script.js
-│   │   │   ├── navigation-style.css
-│   │   │   └── sidebar.php
+│   │   │   └── navigation-style.css
 │   │   └── profile
 │   │       ├── profile-script.js
 │   │       ├── profile-shortcode.php
@@ -325,4 +329,4 @@
 ├── nexus-schema-y05.sql
 └── project-tree.txt
 
-78 directories, 248 files
+78 directories, 252 files

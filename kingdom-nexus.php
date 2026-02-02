@@ -237,6 +237,9 @@ add_action('plugins_loaded', function() {
     knx_require('inc/core/resources/knx-ops/api-assign-driver.php');
     knx_require('inc/core/resources/knx-ops/api-update-status.php');
     knx_require('inc/core/resources/knx-ops/api-unassign-driver.php');
+    // Driver-facing OPS endpoints
+    knx_require('inc/core/resources/knx-ops/api-driver-available-orders.php');
+    knx_require('inc/core/resources/knx-ops/api-driver-self-assign.php');
 
     /* ======================================================
      * RESOURCES — KNX DRIVERS (Driver App MVP)
@@ -269,6 +272,9 @@ add_action('plugins_loaded', function() {
     /* Live Orders (OPS) — scaffolded module */
     knx_require('inc/modules/ops/live-orders/live-orders-shortcode.php');
     knx_require('inc/modules/ops/view-order/view-order-shortcode.php');
+    // Driver Ops UI
+    knx_require('inc/modules/ops/driver-ops/driver-ops-shortcode.php');
+    knx_require('inc/modules/ops/driver-ops/driver-notifier-shortcode.php');
 
     /* ======================================================
      * MODULES — ORDERS (Live admin dashboard)

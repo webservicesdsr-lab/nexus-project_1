@@ -331,35 +331,58 @@ function knx_get_driver_context() {
         }
     }
 
+    // Primary lookup using the detected canonical column
     $sql = $wpdb->prepare("SELECT * FROM {$table_drivers} WHERE {$driver_key} = %d LIMIT 1", $driver_id);
     $driver_row = $wpdb->get_row($sql);
+
+    // Fallbacks: attempt to find a driver row by any common linkage column
     if (!$driver_row) {
-        return false;
+        $fallback_sql = $wpdb->prepare(
+            "SELECT * FROM {$table_drivers} WHERE user_id = %d OR driver_user_id = %d OR id = %d LIMIT 1",
+            $driver_id, $driver_id, $driver_id
+        );
+        $driver_row = $wpdb->get_row($fallback_sql);
     }
+
+    // If still not found, synthesize a minimal driver object from the session
+    // This simplifies canonicalization by allowing the system to treat the
+    // WP user as the driver when a dedicated drivers row is not present.
+    if ( ! $driver_row ) {
+        $driver_row = (object) [
+            'id' => 0,
+            'driver_user_id' => $driver_id,
+            'user_id' => $driver_id,
+            'status' => 'active',
+            'full_name' => isset($session->username) ? $session->username : '',
+            'email' => isset($session->email) ? $session->email : '',
+        ];
+    }
+
     if (isset($driver_row->status) && (string)$driver_row->status !== 'active') {
         return false;
     }
 
     // Minimal hubs resolution: map via canonical mapping table if present.
     $hub_ids = [];
+    // Resolve hubs: try multiple common column linkages in a robust order.
     $driver_hubs_table = knx_table('driver_hubs');
     $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $driver_hubs_table));
     if ($exists) {
         $dh_cols = $wpdb->get_results("SHOW COLUMNS FROM {$driver_hubs_table}", ARRAY_A);
         $dh_col_names = $dh_cols ? array_map(function($c){ return $c['Field']; }, $dh_cols) : [];
-        $dh_key = null;
-        if (in_array('driver_id', $dh_col_names, true)) {
-            $dh_key = 'driver_id';
-        } elseif (in_array('driver_user_id', $dh_col_names, true)) {
-            $dh_key = 'driver_user_id';
-        } elseif (in_array('user_id', $dh_col_names, true)) {
-            $dh_key = 'user_id';
-        }
 
-        if ($dh_key) {
+        // Candidate keys we'll try in order: driver_id, driver_user_id, user_id
+        $candidates = [];
+        if (in_array('driver_id', $dh_col_names, true)) $candidates[] = 'driver_id';
+        if (in_array('driver_user_id', $dh_col_names, true)) $candidates[] = 'driver_user_id';
+        if (in_array('user_id', $dh_col_names, true)) $candidates[] = 'user_id';
+
+        // Always try to query using each candidate key until we find hubs
+        foreach ($candidates as $dh_key) {
             $found = $wpdb->get_col($wpdb->prepare("SELECT hub_id FROM {$driver_hubs_table} WHERE {$dh_key} = %d", $driver_id));
-            if ($found && is_array($found)) {
+            if ($found && is_array($found) && count($found) > 0) {
                 $hub_ids = array_map('intval', $found);
+                break;
             }
         }
     }
