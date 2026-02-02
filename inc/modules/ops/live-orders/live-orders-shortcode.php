@@ -9,7 +9,6 @@ if (!defined('ABSPATH')) exit;
  * Notes:
  * - Assets injected inline via echo/file_get_contents (no wp_footer dependency).
  * - Managers and super_admins share the same UI, scoped by role.
- * - Board uses tabs to render a single list (space-optimized).
  * ==========================================================
  */
 
@@ -66,6 +65,7 @@ add_shortcode('knx_ops_live_orders', function ($atts = []) {
                AND city_id IS NOT NULL",
             $user_id
         ));
+
         $managed_cities = array_map('intval', (array)$managed_cities);
         $managed_cities = array_values(array_filter($managed_cities, function($v){ return $v > 0; }));
 
@@ -110,20 +110,33 @@ add_shortcode('knx_ops_live_orders', function ($atts = []) {
          data-include-resolved="<?php echo (int)$include_resolved; ?>"
          data-resolved-hours="<?php echo (int)$resolved_hours; ?>">
 
-        <div class="knx-live-orders__top">
-            <div class="knx-live-orders__title">
-                <h2>Live Orders</h2>
-                <div class="knx-live-orders__subtitle">
-                    Operational board (New → In Progress → Completed)
-                </div>
-            </div>
+        <h2 class="knx-visually-hidden">Live Orders</h2>
 
+        <div class="knx-live-orders__top">
             <div class="knx-live-orders__controls">
                 <button type="button" class="knx-lo-btn knx-lo-btn--primary" id="knxLOSelectCitiesBtn">
-                    Select Cities
+                    Cities
                 </button>
+
                 <div class="knx-live-orders__pill" id="knxLOSelectedCitiesPill">No cities selected</div>
+
                 <div class="knx-live-orders__pulse" id="knxLOPulse" aria-hidden="true"></div>
+            </div>
+
+            <!-- Tabs (now used on desktop too) -->
+            <div class="knx-lo-tabs" role="tablist" aria-label="Order tabs">
+                <button type="button" class="knx-lo-tab is-active" data-tab="new" role="tab" aria-selected="true" id="knxLOTabNew">
+                    <span class="knx-lo-tab__label">New</span>
+                    <span class="knx-lo-tab__count" id="knxLOCountNewTab">0</span>
+                </button>
+                <button type="button" class="knx-lo-tab" data-tab="progress" role="tab" aria-selected="false" id="knxLOTabProgress">
+                    <span class="knx-lo-tab__label">Progress</span>
+                    <span class="knx-lo-tab__count" id="knxLOCountProgressTab">0</span>
+                </button>
+                <button type="button" class="knx-lo-tab" data-tab="done" role="tab" aria-selected="false" id="knxLOTabDone">
+                    <span class="knx-lo-tab__label">Done</span>
+                    <span class="knx-lo-tab__count" id="knxLOCountDoneTab">0</span>
+                </button>
             </div>
         </div>
 
@@ -131,47 +144,30 @@ add_shortcode('knx_ops_live_orders', function ($atts = []) {
             Select a city to view live orders.
         </div>
 
-        <!-- Tabs (space-optimized board) -->
-        <div class="knx-live-orders__board">
-            <div class="knx-live-orders__tabs" role="tablist" aria-label="Order buckets">
-                <button type="button"
-                        class="knx-lo-tab is-active"
-                        data-tab="new"
-                        role="tab"
-                        aria-selected="true"
-                        aria-controls="knxLOTabPanel"
-                        tabindex="0">
-                    <span class="knx-lo-tab__label">New Orders</span>
-                    <span class="knx-lo-tab__count" id="knxLOCountNew">0</span>
-                </button>
+        <div class="knx-live-orders__board" aria-live="polite">
+            <section class="knx-lo-col" data-tab-panel="new" aria-label="New Orders" role="tabpanel" aria-labelledby="knxLOTabNew">
+                <div class="knx-lo-col__head">
+                    <h3>New Orders</h3>
+                    <span class="knx-lo-col__count" id="knxLOCountNew">0</span>
+                </div>
+                <div class="knx-lo-col__list" id="knxLOListNew"></div>
+            </section>
 
-                <button type="button"
-                        class="knx-lo-tab"
-                        data-tab="progress"
-                        role="tab"
-                        aria-selected="false"
-                        aria-controls="knxLOTabPanel"
-                        tabindex="-1">
-                    <span class="knx-lo-tab__label">In Progress</span>
-                    <span class="knx-lo-tab__count" id="knxLOCountProgress">0</span>
-                </button>
+            <section class="knx-lo-col" data-tab-panel="progress" aria-label="In Progress" role="tabpanel" aria-labelledby="knxLOTabProgress">
+                <div class="knx-lo-col__head">
+                    <h3>In Progress</h3>
+                    <span class="knx-lo-col__count" id="knxLOCountProgress">0</span>
+                </div>
+                <div class="knx-lo-col__list" id="knxLOListProgress"></div>
+            </section>
 
-                <button type="button"
-                        class="knx-lo-tab"
-                        data-tab="done"
-                        role="tab"
-                        aria-selected="false"
-                        aria-controls="knxLOTabPanel"
-                        tabindex="-1">
-                    <span class="knx-lo-tab__label">Completed</span>
-                    <span class="knx-lo-tab__count" id="knxLOCountDone">0</span>
-                </button>
-            </div>
-
-            <div id="knxLOTabPanel" class="knx-live-orders__panel" role="tabpanel" aria-label="Orders list">
-                <div id="knxLOEmptyBoard" class="knx-lo-empty-board" style="display:none;"></div>
-                <div class="knx-lo-list" id="knxLOActiveList"></div>
-            </div>
+            <section class="knx-lo-col" data-tab-panel="done" aria-label="Completed" role="tabpanel" aria-labelledby="knxLOTabDone">
+                <div class="knx-lo-col__head">
+                    <h3>Completed</h3>
+                    <span class="knx-lo-col__count" id="knxLOCountDone">0</span>
+                </div>
+                <div class="knx-lo-col__list" id="knxLOListDone"></div>
+            </section>
         </div>
 
         <!-- Cities modal -->
@@ -200,6 +196,7 @@ add_shortcode('knx_ops_live_orders', function ($atts = []) {
                 </div>
             </div>
         </div>
+
     </div>
 
     <?php if (!empty($js)) : ?>
@@ -207,6 +204,7 @@ add_shortcode('knx_ops_live_orders', function ($atts = []) {
             <?php echo $js; ?>
         </script>
     <?php endif; ?>
+
     <?php
     return ob_get_clean();
 });

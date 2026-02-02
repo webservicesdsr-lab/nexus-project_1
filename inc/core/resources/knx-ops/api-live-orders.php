@@ -254,7 +254,8 @@ function knx_ops_live_orders(WP_REST_Request $request) {
             o.tip_amount AS tip_amount,
             o.status AS status,
             o.driver_id AS driver_id,
-            h.name AS hub_name
+            h.name AS hub_name,
+            COALESCE(NULLIF(h.logo_url, ''), NULL) AS hub_thumbnail
             {$select_latlng}
         FROM {$orders_table} o
         INNER JOIN {$hubs_table} h ON o.hub_id = h.id
@@ -279,7 +280,8 @@ function knx_ops_live_orders(WP_REST_Request $request) {
             o.tip_amount AS tip_amount,
             o.status AS status,
             o.driver_id AS driver_id,
-            h.name AS hub_name
+            h.name AS hub_name,
+            COALESCE(NULLIF(h.logo_url, ''), NULL) AS hub_thumbnail
             {$select_latlng}
         FROM {$orders_table} o
         INNER JOIN {$hubs_table} h ON o.hub_id = h.id
@@ -316,6 +318,7 @@ function knx_ops_live_orders(WP_REST_Request $request) {
             'order_id' => (int)$r->order_id, // internal use only (View Order navigation)
             'restaurant_name' => $hub_name,  // hubs are restaurants visually
             'hub_name' => $hub_name,
+            'hub_thumbnail' => isset($r->hub_thumbnail) && $r->hub_thumbnail !== '' ? (string)$r->hub_thumbnail : null,
             'city_id' => (int)$r->city_id,
             'customer_name' => trim((string)$r->customer_name),
             'created_at' => (string)$r->created_at,
