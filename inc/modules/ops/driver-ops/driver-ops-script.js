@@ -1,537 +1,537 @@
-// File: inc/modules/ops/driver-ops/driver-ops-script.js
 /**
- * KNX DRIVER OPS — Available Orders Script (Production)
- *
- * Canon behaviors:
- * - Single list: available orders only.
- * - One expandable panel open at a time.
- * - Self-assign (auto-assign) action from the expand panel.
- * - Polling with abort, fail-closed UX (no noisy logs).
- *
- * Expected REST shapes (best-effort):
- * - Array of orders
- * - { success, data: { orders: [...] } }
- * - { orders: [...] }
+ * ==========================================================
+ * Kingdom Nexus — Driver OPS Dashboard Script (v1.0)
+ * ----------------------------------------------------------
+ * - No console logs, no browser alerts
+ * - No hardcoded REST paths (reads from dataset/config)
+ * - Uses nonces for POST assign
+ * - Canon modals + focus restore + ESC close
+ * - Live refresh with pause when modal open / tab hidden
+ * ==========================================================
  */
 
-(function () {
+document.addEventListener('DOMContentLoaded', function () {
   'use strict';
 
-  document.addEventListener('DOMContentLoaded', function () {
-    var app = document.getElementById('knxDriverOpsApp');
-    if (!app) return;
+  var root = document.getElementById('knx-driver-ops-dashboard');
+  if (!root) return;
 
-    var apiUrl = app.dataset.apiUrl || '';
-    var assignUrl = app.dataset.assignUrl || '';
-    var viewOrderUrl = app.dataset.viewOrderUrl || '/view-order';
-    var nonce = (app.dataset.nonce || '').trim();
-    var pollMs = parseInt(app.dataset.pollMs || '12000', 10);
-    if (!isFinite(pollMs) || pollMs < 6000) pollMs = 12000;
-    if (pollMs > 60000) pollMs = 60000;
+  var cfg = (window.KNX_DRIVER_OPS_CONFIG || {});
+  var apiAvailable = root.dataset.apiAvailable || cfg.apiAvailable || '';
+  var apiBase = root.dataset.apiBase || cfg.apiBase || '';
+  var knxNonce = root.dataset.knxNonce || cfg.knxNonce || '';
+  var wpRestNonce = root.dataset.wpRestNonce || cfg.wpRestNonce || '';
+  var pollMs = parseInt(cfg.pollMs, 10) || 15000;
 
-    var stateLine = document.getElementById('knxDOState');
-    var listNode = document.getElementById('knxDOList');
-    var pulse = document.getElementById('knxDOPulse');
-    var refreshBtn = document.getElementById('knxDORefreshBtn');
-    var toastWrap = document.getElementById('knxDOToasts');
+  var listEl = document.getElementById('knxDriverOpsList');
+  var metaEl = document.getElementById('knxDriverOpsMetaText');
 
-    var LS_EXPANDED = 'knx_driver_ops_expanded';
-    var LS_SEEN = 'knx_driver_ops_seen';
+  var searchEl = document.getElementById('knxDriverOpsSearch');
+  var liveEl = document.getElementById('knxDriverOpsLive');
+  var refreshBtn = document.getElementById('knxDriverOpsRefresh');
 
-    var expandedOrderId = loadExpanded();
-    var polling = false;
-    var timer = null;
-    var abortController = null;
-    var lastHash = '';
+  // Modals
+  var modalOrder = document.getElementById('knxDriverOpsOrderModal');
+  var modalConfirm = document.getElementById('knxDriverOpsConfirm');
 
-    function escapeHtml(str) {
-      return String(str == null ? '' : str).replace(/[&<>"]/g, function (s) {
-        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[s];
-      });
+  var modalOrderBody = document.getElementById('knxDriverOpsOrderBody');
+  var modalOrderTitle = document.getElementById('knxDriverOpsOrderTitle');
+
+  var lastFocusEl = null;
+
+  var state = {
+    loading: false,
+    orders: [],
+    filtered: [],
+    meta: null,
+    selectedOrderId: null,
+    pendingAcceptId: null,
+    pollTimer: null,
+    isModalOpen: false,
+    aborter: null
+  };
+
+  function $(sel, el) { return (el || root).querySelector(sel); }
+  function $all(sel, el) { return Array.prototype.slice.call((el || root).querySelectorAll(sel)); }
+
+  // Toast: use global knxToast if available; otherwise fallback.
+  function toast(message, type) {
+    var msg = (message || '').toString().trim() || 'Something went wrong.';
+    var t = (type || 'info').toString();
+
+    if (typeof window.knxToast === 'function') {
+      window.knxToast(msg, t);
+      return;
     }
 
-    function toast(title, msg) {
-      if (!toastWrap) return;
-      var el = document.createElement('div');
-      el.className = 'knx-do-toast';
-      el.innerHTML = '<strong>' + escapeHtml(title) + '</strong><div>' + escapeHtml(msg) + '</div>';
-      toastWrap.appendChild(el);
+    var box = document.getElementById('knxDriverOpsToastFallback');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'knxDriverOpsToastFallback';
+      box.className = 'knx-toast-stack';
+      document.body.appendChild(box);
+    }
+
+    var el = document.createElement('div');
+    el.className = 'knx-toast';
+    el.setAttribute('data-type', t);
+    el.textContent = msg;
+    box.appendChild(el);
+
+    setTimeout(function () {
+      el.classList.add('out');
       setTimeout(function () {
-        try { el.remove(); } catch (e) {}
-      }, 3200);
+        try { box.removeChild(el); } catch (e) {}
+      }, 260);
+    }, 2600);
+  }
+
+  function escHtml(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function debounce(fn, wait) {
+    var t = null;
+    return function () {
+      var args = arguments;
+      clearTimeout(t);
+      t = setTimeout(function () { fn.apply(null, args); }, wait);
+    };
+  }
+
+  function parseMysqlToDate(mysql) {
+    // Parse "YYYY-MM-DD HH:MM:SS" as UTC (best-effort)
+    if (!mysql || typeof mysql !== 'string') return null;
+    var parts = mysql.split(' ');
+    if (parts.length !== 2) return null;
+    var d = parts[0].split('-').map(Number);
+    var t = parts[1].split(':').map(Number);
+    if (d.length !== 3 || t.length < 2) return null;
+    return new Date(Date.UTC(d[0], d[1] - 1, d[2], t[0] || 0, t[1] || 0, t[2] || 0));
+  }
+
+  function relTime(mysql) {
+    var dt = parseMysqlToDate(mysql);
+    if (!dt) return '';
+    var diff = Date.now() - dt.getTime();
+    if (diff < 0) diff = 0;
+    var sec = Math.floor(diff / 1000);
+    if (sec < 60) return sec + 's ago';
+    var min = Math.floor(sec / 60);
+    if (min < 60) return min + 'm ago';
+    var hr = Math.floor(min / 60);
+    if (hr < 24) return hr + 'h ago';
+    var day = Math.floor(hr / 24);
+    return day + 'd ago';
+  }
+
+  function money(val) {
+    var n = parseFloat(val);
+    if (!isFinite(n)) return '$—';
+    try {
+      return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(n);
+    } catch (e) {
+      return '$' + n.toFixed(2);
+    }
+  }
+
+  function setMeta(text, isLive) {
+    var live = !!isLive;
+    var dot = root.querySelector('.knx-meta-dot');
+    if (dot) dot.setAttribute('data-live', live ? '1' : '0');
+    metaEl.textContent = text;
+  }
+
+  function modalOpen(modal) {
+    if (!modal) return;
+    lastFocusEl = document.activeElement;
+    modal.classList.add('active');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    state.isModalOpen = true;
+
+    // Focus first relevant control
+    setTimeout(function () {
+      var focusable = modal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+      if (focusable) focusable.focus();
+    }, 120);
+  }
+
+  function modalClose(modal) {
+    if (!modal) return;
+    modal.classList.remove('active');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    state.isModalOpen = false;
+
+    if (lastFocusEl && typeof lastFocusEl.focus === 'function') {
+      setTimeout(function () { try { lastFocusEl.focus(); } catch (e) {} }, 0);
+    }
+  }
+
+  function wireModal(modal) {
+    if (!modal) return;
+
+    // Close X
+    $all('.knx-modal-x', modal).forEach(function (btn) {
+      btn.addEventListener('click', function () { modalClose(modal); });
+    });
+
+    // Cancel buttons
+    $all('.knx-modal-cancel, .knx-confirm-cancel', modal).forEach(function (btn) {
+      btn.addEventListener('click', function () { modalClose(modal); });
+    });
+
+    // Overlay click
+    modal.addEventListener('click', function (e) {
+      if (e.target === modal) modalClose(modal);
+    });
+  }
+
+  wireModal(modalOrder);
+  wireModal(modalConfirm);
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (modalConfirm && modalConfirm.classList.contains('active')) return modalClose(modalConfirm);
+    if (modalOrder && modalOrder.classList.contains('active')) return modalClose(modalOrder);
+  });
+
+  function buildAssignUrl(orderId) {
+    var id = parseInt(orderId, 10) || 0;
+    if (!id || !apiBase) return '';
+    // apiBase ends with "/driver/orders/"
+    return apiBase + id + '/assign';
+  }
+
+  async function fetchJson(url, opts) {
+    if (!url) return { ok: false, status: 0, data: null };
+
+    // Abort previous request (list only)
+    if (opts && opts._abortKey === 'list') {
+      try { if (state.aborter) state.aborter.abort(); } catch (e) {}
+      state.aborter = new AbortController();
+      opts.signal = state.aborter.signal;
     }
 
-    function setState(text) {
-      if (!stateLine) return;
-      stateLine.textContent = String(text || '');
+    var res = await fetch(url, Object.assign({
+      credentials: 'same-origin'
+    }, opts || {}));
+
+    var data = null;
+    try { data = await res.json(); } catch (e) { data = null; }
+    return { ok: res.ok, status: res.status, data: data };
+  }
+
+  function applyFilter() {
+    var q = (searchEl.value || '').trim().toLowerCase();
+    if (!q) {
+      state.filtered = state.orders.slice();
+      return;
+    }
+    state.filtered = state.orders.filter(function (o) {
+      var num = String(o.order_number || o.id || '').toLowerCase();
+      var addr = String(o.delivery_address || '').toLowerCase();
+      return num.indexOf(q) !== -1 || addr.indexOf(q) !== -1;
+    });
+  }
+
+  function statusPill(status) {
+    var s = String(status || '').toLowerCase();
+    if (!s) s = 'unknown';
+    var label = s.charAt(0).toUpperCase() + s.slice(1);
+    var cls = 'knx-pill';
+    if (s === 'confirmed' || s === 'ready') cls += ' is-good';
+    if (s === 'placed' || s === 'preparing') cls += ' is-warn';
+    if (s === 'out_for_delivery') cls += ' is-info';
+    return '<span class="' + cls + '">' + escHtml(label) + '</span>';
+  }
+
+  function payPill(paymentStatus, method) {
+    var ps = String(paymentStatus || '').toLowerCase();
+    var pm = String(method || '').toLowerCase();
+
+    var cls = 'knx-pill is-muted';
+    var label = 'Payment';
+    if (ps === 'paid') { cls = 'knx-pill is-good'; label = 'Paid'; }
+    else if (ps === 'pending') { cls = 'knx-pill is-warn'; label = 'Pending'; }
+
+    if (pm) label += ' • ' + pm.toUpperCase();
+    return '<span class="' + cls + '">' + escHtml(label) + '</span>';
+  }
+
+  function renderList() {
+    if (!listEl) return;
+
+    if (state.loading) {
+      listEl.innerHTML = '<div class="knx-empty">Loading available orders…</div>';
+      return;
     }
 
-    function setPulse(on) {
-      if (!pulse) return;
-      pulse.style.opacity = on ? '1' : '0.85';
+    if (!state.filtered.length) {
+      listEl.innerHTML = '<div class="knx-empty">No available orders right now.</div>';
+      return;
     }
 
-    function getHeaders(isJson) {
-      var h = { 'Accept': 'application/json' };
-      if (isJson) h['Content-Type'] = 'application/json';
-      if (nonce) h['X-WP-Nonce'] = nonce;
-      return h;
-    }
+    var html = state.filtered.map(function (o) {
+      var id = parseInt(o.id, 10) || 0;
+      var ord = o.order_number || ('Order #' + id);
+      var addr = o.delivery_address || '—';
+      var total = money(o.total);
+      var when = relTime(o.created_at);
 
-    function parseOrdersPayload(json) {
-      if (json && typeof json === 'object') {
-        if (json.data && Array.isArray(json.data.orders)) return json.data.orders;
-        if (Array.isArray(json.orders)) return json.orders;
-        if (Array.isArray(json.results)) return json.results;
-      }
-      return Array.isArray(json) ? json : [];
-    }
-
-    function statusLabel(status) {
-      var st = String(status || '').toLowerCase();
-      var map = {
-        placed: 'Placed',
-        confirmed: 'Confirmed',
-        preparing: 'Preparing',
-        assigned: 'Assigned',
-        in_progress: 'In progress',
-        completed: 'Completed',
-        cancelled: 'Cancelled'
-      };
-      return map[st] || (st ? st.replace(/_/g, ' ') : 'Status');
-    }
-
-    function statusClass(status) {
-      var st = String(status || '').toLowerCase();
-      if (st === 'placed' || st === 'confirmed') return 'is-new';
-      if (st === 'assigned' || st === 'preparing' || st === 'in_progress') return 'is-busy';
-      return '';
-    }
-
-    function money(n) {
-      var v = Number(n || 0);
-      if (!isFinite(v)) v = 0;
-      return v.toFixed(2);
-    }
-
-    function buildViewUrl(orderId) {
-      var oid = Number(orderId || 0);
-      if (!isFinite(oid) || oid <= 0) oid = 0;
-
-      try {
-        var u = new URL(viewOrderUrl, window.location.origin);
-        u.searchParams.set('order_id', String(oid));
-        return u.toString();
-      } catch (e) {
-        // Fallback (no logging)
-        return viewOrderUrl + (viewOrderUrl.indexOf('?') >= 0 ? '&' : '?') + 'order_id=' + encodeURIComponent(String(oid));
-      }
-    }
-
-    function loadExpanded() {
-      try {
-        var v = localStorage.getItem(LS_EXPANDED);
-        var n = Number(v || 0);
-        return (isFinite(n) && n > 0) ? n : 0;
-      } catch (e) { return 0; }
-    }
-
-    function saveExpanded(n) {
-      try {
-        if (n > 0) localStorage.setItem(LS_EXPANDED, String(n));
-        else localStorage.removeItem(LS_EXPANDED);
-      } catch (e) {}
-    }
-
-    function getSeenSet() {
-      try {
-        var raw = localStorage.getItem(LS_SEEN);
-        var arr = raw ? JSON.parse(raw) : [];
-        if (!Array.isArray(arr)) arr = [];
-        var set = {};
-        for (var i = 0; i < arr.length; i++) set[String(arr[i])] = true;
-        return set;
-      } catch (e) {
-        return {};
-      }
-    }
-
-    function saveSeenSet(set) {
-      try {
-        var keys = Object.keys(set || {});
-        if (keys.length > 1200) keys = keys.slice(keys.length - 1200);
-        localStorage.setItem(LS_SEEN, JSON.stringify(keys));
-      } catch (e) {}
-    }
-
-    function animateOpen(panel) {
-      if (!panel) return;
-      panel.style.display = 'block';
-      panel.style.height = '0px';
-      panel.offsetHeight;
-      var target = panel.scrollHeight;
-      panel.style.height = target + 'px';
-
-      var onEnd = function () {
-        panel.removeEventListener('transitionend', onEnd);
-        panel.style.height = 'auto';
-      };
-      panel.addEventListener('transitionend', onEnd);
-    }
-
-    function animateClose(panel) {
-      if (!panel) return;
-      var current = panel.scrollHeight;
-      panel.style.height = current + 'px';
-      panel.offsetHeight;
-      panel.style.height = '0px';
-
-      var onEnd = function () {
-        panel.removeEventListener('transitionend', onEnd);
-      };
-      panel.addEventListener('transitionend', onEnd);
-    }
-
-    function closeExpandedInDom() {
-      if (!expandedOrderId) return;
-      var item = app.querySelector('.knx-do-item[data-order-id="' + expandedOrderId + '"]');
-      if (!item) return;
-      var panel = item.querySelector('.knx-do-expand');
-      item.classList.remove('is-expanded');
-      if (panel) animateClose(panel);
-    }
-
-    function openExpandedInDom(orderId, animate) {
-      var item = app.querySelector('.knx-do-item[data-order-id="' + orderId + '"]');
-      if (!item) return;
-      var panel = item.querySelector('.knx-do-expand');
-
-      item.classList.add('is-expanded');
-      if (!panel) return;
-
-      panel.style.display = 'block';
-      panel.style.overflow = 'hidden';
-
-      if (animate) animateOpen(panel);
-      else panel.style.height = 'auto';
-    }
-
-    function toggleExpand(orderId) {
-      var oid = Number(orderId || 0);
-      if (!isFinite(oid) || oid <= 0) return;
-
-      if (expandedOrderId === oid) {
-        closeExpandedInDom();
-        expandedOrderId = 0;
-        saveExpanded(0);
-        return;
-      }
-
-      if (expandedOrderId) closeExpandedInDom();
-
-      expandedOrderId = oid;
-      saveExpanded(oid);
-      openExpandedInDom(oid, true);
-    }
-
-    function renderOrders(orders, opts) {
-      var options = opts || {};
-      var data = Array.isArray(orders) ? orders : [];
-
-      var hash = '';
-      try {
-        hash = data.map(function (o) {
-          return String(o.order_id || '') + ':' + String(o.status || '') + ':' + String(o.created_at || o.created_human || '') + ':' + String(o.total_amount || o.total || '');
-        }).join('|');
-      } catch (e) {
-        hash = String(Date.now());
-      }
-
-      if (hash && hash === lastHash && !options.force) {
-        // Restore expanded without re-render
-        if (expandedOrderId > 0) openExpandedInDom(expandedOrderId, false);
-        return;
-      }
-      lastHash = hash;
-
-      if (!listNode) return;
-
-      listNode.innerHTML = '';
-
-      if (data.length === 0) {
-        listNode.innerHTML = '<div class="knx-do-empty">No available orders right now.</div>';
-        setState('No available orders.');
-        expandedOrderId = 0;
-        saveExpanded(0);
-        return;
-      }
-
-      var seen = getSeenSet();
-      var nowNewCount = 0;
-
-      data.forEach(function (it) {
-        var oid = Number(it.order_id || 0);
-        if (!isFinite(oid) || oid <= 0) return;
-
-        var restaurant = escapeHtml(it.restaurant_name || it.hub_name || 'Restaurant');
-        var created = escapeHtml(it.created_human || it.created_at || '');
-        var st = String(it.status || '');
-        var stLabel = escapeHtml(statusLabel(st));
-        var stCls = statusClass(st);
-
-        var customer = escapeHtml(it.customer_name || 'Customer');
-        var total = money(it.total_amount || it.total || 0);
-        var tip = money(it.tip_amount || it.tip || 0);
-
-        var mapUrl = String(it.view_location_url || it.map_url || '');
-        var thumbUrl = String(it.hub_thumbnail || it.logo_url || '');
-
-        var isNewForYou = !seen[String(oid)];
-        if (isNewForYou) nowNewCount++;
-
-        var itemEl = document.createElement('div');
-        itemEl.className = 'knx-do-item';
-        itemEl.setAttribute('data-order-id', String(oid));
-
-        var thumbHtml = thumbUrl
-          ? '<div class="knx-do-thumb"><img src="' + escapeHtml(thumbUrl) + '" alt="" loading="lazy" /></div>'
-          : '<div class="knx-do-thumb" aria-hidden="true"></div>';
-
-        var viewUrl = buildViewUrl(oid);
-
-        // Expand actions:
-        // - Map (red) optional
-        // - Accept (primary) (self-assign)
-        // - View Order (blue)
-        itemEl.innerHTML =
-          '<div class="knx-do-row" role="button" tabindex="0">' +
-            '<a class="knx-do-idview" data-action="open-order" href="' + escapeHtml(viewUrl) + '">#' + escapeHtml(oid) + '</a>' +
-            thumbHtml +
-            '<div class="knx-do-main">' +
-              '<div class="knx-do-restaurant">' + restaurant + '</div>' +
-              '<div class="knx-do-time">' + created + '</div>' +
+      return (
+        '<div class="knx-order-card" data-id="' + id + '">' +
+          '<div class="knx-order-main">' +
+            '<div class="knx-order-top">' +
+              '<div class="knx-order-id">' +
+                '<div class="knx-order-number">' + escHtml(ord) + '</div>' +
+                '<div class="knx-order-sub">' +
+                  statusPill(o.status) +
+                  payPill(o.payment_status, o.payment_method) +
+                  (when ? '<span class="knx-time">' + escHtml(when) + '</span>' : '') +
+                '</div>' +
+              '</div>' +
+              '<div class="knx-order-total">' + escHtml(total) + '</div>' +
             '</div>' +
-            '<div class="knx-do-status ' + escapeHtml(stCls) + '">' + stLabel + '</div>' +
-            '<div class="knx-do-chevron" aria-hidden="true">' +
-              '<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">' +
-                '<path d="M5 8l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
-              '</svg>' +
+
+            '<div class="knx-order-addr" title="' + escHtml(addr) + '">' +
+              '<span class="knx-addr-icon" aria-hidden="true">📍</span>' +
+              '<span>' + escHtml(addr) + '</span>' +
             '</div>' +
           '</div>' +
 
-          '<div class="knx-do-expand" aria-hidden="true">' +
-            '<div class="knx-do-expand__inner">' +
-              '<div class="knx-do-detail">' +
-                '<div class="knx-do-detail__title">Customer</div>' +
-                '<div class="knx-do-detail__value">' + customer + '</div>' +
-                '<div class="knx-do-detail__sub">' + (isNewForYou ? 'New for you' : ' ') + '</div>' +
-              '</div>' +
+          '<div class="knx-order-actions">' +
+            '<button type="button" class="knx-btn-secondary knx-order-view" data-id="' + id + '">View</button>' +
+            '<button type="button" class="knx-btn knx-order-accept" data-id="' + id + '">Accept</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join('');
 
-              '<div class="knx-do-detail">' +
-                '<div class="knx-do-detail__title">Totals</div>' +
-                '<div class="knx-do-detail__value">$' + escapeHtml(total) + '</div>' +
-                '<div class="knx-do-detail__sub">Tip: $' + escapeHtml(tip) + '</div>' +
-              '</div>' +
+    listEl.innerHTML = html;
 
-              '<div class="knx-do-actions">' +
-                (mapUrl
-                  ? '<a class="knx-do-action knx-do-action--danger" href="' + escapeHtml(mapUrl) + '" target="_blank" rel="noopener">Map</a>'
-                  : '<span class="knx-do-action knx-do-action--muted">No map</span>'
-                ) +
-                '<button type="button" class="knx-do-action knx-do-action--primary" data-action="accept" data-order-id="' + escapeHtml(oid) + '">Accept</button>' +
-                '<a class="knx-do-action knx-do-action--blue" data-action="open-order" href="' + escapeHtml(viewUrl) + '">View order</a>' +
-              '</div>' +
-            '</div>' +
-          '</div>';
-
-        var row = itemEl.querySelector('.knx-do-row');
-        var panel = itemEl.querySelector('.knx-do-expand');
-
-        if (panel) panel.style.height = '0px';
-
-        if (row) {
-          row.addEventListener('click', function (ev) {
-            var t = ev.target;
-            if (t && t.closest && t.closest('[data-action="open-order"]')) return;
-            toggleExpand(oid);
-          });
-
-          row.addEventListener('keydown', function (ev) {
-            if (ev.key === 'Enter' || ev.key === ' ') {
-              ev.preventDefault();
-              toggleExpand(oid);
-            }
-          });
-        }
-
-        listNode.appendChild(itemEl);
+    // Wire actions
+    $all('.knx-order-view', listEl).forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = parseInt(btn.getAttribute('data-id'), 10) || 0;
+        openOrderModal(id);
       });
+    });
 
-      // Mark seen (available list) after render
-      data.forEach(function (o) {
-        var id = Number(o.order_id || 0);
-        if (isFinite(id) && id > 0) seen[String(id)] = true;
+    $all('.knx-order-accept', listEl).forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = parseInt(btn.getAttribute('data-id'), 10) || 0;
+        openConfirm(id);
       });
-      saveSeenSet(seen);
+    });
+  }
 
-      setState('Showing ' + data.length + ' available order' + (data.length === 1 ? '' : 's') + '.');
+  function openOrderModal(id) {
+    var o = state.orders.find(function (x) { return parseInt(x.id, 10) === id; });
+    if (!o) return;
 
-      // Restore expanded panel without animation after re-render
-      if (expandedOrderId > 0) {
-        var exists = data.some(function (o) { return Number(o.order_id || 0) === expandedOrderId; });
-        if (!exists) {
-          expandedOrderId = 0;
-          saveExpanded(0);
-        } else {
-          openExpandedInDom(expandedOrderId, false);
-        }
+    state.selectedOrderId = id;
+    modalOrderTitle.textContent = o.order_number ? ('Order ' + o.order_number) : ('Order #' + id);
+
+    var body = '';
+    body += '<div class="knx-modal-grid">';
+    body +=   '<div class="knx-modal-row"><div class="knx-k">Status</div><div class="knx-v">' + statusPill(o.status) + '</div></div>';
+    body +=   '<div class="knx-modal-row"><div class="knx-k">Payment</div><div class="knx-v">' + payPill(o.payment_status, o.payment_method) + '</div></div>';
+    body +=   '<div class="knx-modal-row"><div class="knx-k">Total</div><div class="knx-v"><strong>' + escHtml(money(o.total)) + '</strong></div></div>';
+    body +=   '<div class="knx-modal-row"><div class="knx-k">Address</div><div class="knx-v">' + escHtml(o.delivery_address || '—') + '</div></div>';
+    body += '</div>';
+
+    body += '<div class="knx-breakdown">';
+    body +=   '<div class="knx-break-row"><span>Subtotal</span><span>' + escHtml(money(o.subtotal)) + '</span></div>';
+    body +=   '<div class="knx-break-row"><span>Tax</span><span>' + escHtml(money(o.tax_amount)) + '</span></div>';
+    body +=   '<div class="knx-break-row"><span>Delivery fee</span><span>' + escHtml(money(o.delivery_fee)) + '</span></div>';
+    body +=   '<div class="knx-break-row"><span>Software fee</span><span>' + escHtml(money(o.software_fee)) + '</span></div>';
+    body +=   '<div class="knx-break-row"><span>Tip</span><span>' + escHtml(money(o.tip_amount)) + '</span></div>';
+    body +=   '<div class="knx-break-row"><span>Discount</span><span>' + escHtml(money(o.discount_amount)) + '</span></div>';
+    body += '</div>';
+
+    modalOrderBody.innerHTML = body;
+
+    // Hook accept button in modal
+    var acceptBtn = $('.knx-modal-accept', modalOrder);
+    if (acceptBtn) {
+      acceptBtn.disabled = false;
+      acceptBtn.textContent = 'Accept Order';
+      acceptBtn.onclick = function () {
+        openConfirm(id);
+      };
+    }
+
+    modalOpen(modalOrder);
+  }
+
+  function openConfirm(orderId) {
+    if (!orderId) return;
+
+    state.pendingAcceptId = orderId;
+
+    // Update confirm text
+    var t = modalConfirm.querySelector('.knx-confirm-text');
+    var o = state.orders.find(function (x) { return parseInt(x.id, 10) === parseInt(orderId, 10); });
+    var label = o && o.order_number ? o.order_number : ('#' + orderId);
+    if (t) t.textContent = 'You’ll be assigned to order ' + label + '. Continue?';
+
+    // Wire confirm ok
+    var okBtn = $('.knx-confirm-ok', modalConfirm);
+    if (okBtn) {
+      okBtn.disabled = false;
+      okBtn.textContent = 'Accept';
+      okBtn.onclick = function () {
+        doAssign(orderId);
+      };
+    }
+
+    modalOpen(modalConfirm);
+  }
+
+  async function doAssign(orderId) {
+    var id = parseInt(orderId, 10) || 0;
+    if (!id) return;
+
+    var url = buildAssignUrl(id);
+    if (!url) {
+      toast('Assign endpoint missing.', 'error');
+      modalClose(modalConfirm);
+      return;
+    }
+
+    var okBtn = $('.knx-confirm-ok', modalConfirm);
+    if (okBtn) {
+      okBtn.disabled = true;
+      okBtn.textContent = 'Assigning…';
+    }
+
+    // Also disable list button if present
+    var listBtn = listEl ? listEl.querySelector('.knx-order-accept[data-id="' + id + '"]') : null;
+    if (listBtn) {
+      listBtn.disabled = true;
+      listBtn.textContent = 'Assigning…';
+    }
+
+    var out = await fetchJson(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-WP-Nonce': wpRestNonce || ''
+      },
+      body: JSON.stringify({ knx_nonce: knxNonce || '' })
+    });
+
+    var json = out.data;
+
+    if (!out.ok || !json || json.success !== true) {
+      var reason = (json && json.data && (json.data.reason || json.data.message)) ? (json.data.reason || json.data.message) : 'Assign failed.';
+      toast(reason, 'error');
+
+      if (listBtn) {
+        listBtn.disabled = false;
+        listBtn.textContent = 'Accept';
       }
-    }
-
-    function wireAcceptButtons() {
-      if (!listNode) return;
-
-      listNode.querySelectorAll('[data-action="accept"]').forEach(function (btn) {
-        btn.addEventListener('click', function (ev) {
-          ev.preventDefault();
-          ev.stopPropagation();
-
-          var oid = Number(btn.getAttribute('data-order-id') || 0);
-          if (!isFinite(oid) || oid <= 0) return;
-
-          if (!assignUrl) {
-            toast('Error', 'Assign endpoint is not configured.');
-            return;
-          }
-
-          btn.disabled = true;
-          btn.textContent = 'Accepting…';
-
-          fetch(assignUrl, {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: getHeaders(true),
-            body: JSON.stringify({ order_id: oid })
-          })
-            .then(function (res) {
-              return res.json().catch(function () { return {}; }).then(function (json) {
-                if (!res.ok) {
-                  var msg = (json && (json.message || json.error)) ? (json.message || json.error) : ('HTTP ' + res.status);
-                  throw new Error(msg);
-                }
-                return json;
-              });
-            })
-            .then(function (json) {
-              // Best-effort success detection
-              var ok = false;
-              if (json && typeof json === 'object') {
-                if (json.success === true) ok = true;
-                if (json.assigned === true) ok = true;
-                if (json.data && json.data.assigned === true) ok = true;
-              }
-
-              if (ok) toast('Assigned', 'Order accepted.');
-              else toast('Info', 'No change.');
-
-              fetchOnce(true);
-            })
-            .catch(function (err) {
-              toast('Error', err && err.message ? err.message : 'Failed to accept order.');
-              btn.disabled = false;
-              btn.textContent = 'Accept';
-            });
-        });
-      });
-    }
-
-    function fetchOnce(force) {
-      if (!apiUrl) {
-        setState('Driver API is not configured.');
-        if (listNode) listNode.innerHTML = '<div class="knx-do-empty">Unable to load orders.</div>';
-        return;
+      if (okBtn) {
+        okBtn.disabled = false;
+        okBtn.textContent = 'Accept';
       }
-
-      if (abortController) {
-        try { abortController.abort(); } catch (e) {}
-        abortController = null;
-      }
-      abortController = new AbortController();
-
-      setPulse(true);
-
-      fetch(apiUrl, {
-        method: 'GET',
-        credentials: 'same-origin',
-        headers: getHeaders(false),
-        signal: abortController.signal
-      })
-        .then(function (res) {
-          return res.json().catch(function () { return {}; }).then(function (json) {
-            if (!res.ok) {
-              var msg = (json && (json.message || json.error)) ? (json.message || json.error) : ('HTTP ' + res.status);
-              throw new Error(msg);
-            }
-            return json;
-          });
-        })
-        .then(function (json) {
-          var orders = parseOrdersPayload(json);
-
-          // Keep only "available" best-effort if API leaks assigned rows:
-          orders = (Array.isArray(orders) ? orders : []).filter(function (o) {
-            // If assigned_to_you exists and is true, not "available" anymore.
-            if (typeof o.assigned_to_you === 'boolean' && o.assigned_to_you) return false;
-            // If assigned_driver_user_id exists (taken), not available.
-            if (o.assigned_driver_user_id != null) return false;
-            return true;
-          });
-
-          renderOrders(orders, { force: !!force });
-          wireAcceptButtons();
-        })
-        .catch(function (err) {
-          if (err && err.name === 'AbortError') return;
-          setState('Unable to load available orders.');
-          if (listNode) listNode.innerHTML = '<div class="knx-do-empty">Unable to load orders. Please refresh.</div>';
-          toast('Error', err && err.message ? err.message : 'Request failed.');
-        })
-        .finally(function () {
-          setPulse(false);
-        });
+      modalClose(modalConfirm);
+      return;
     }
 
-    function pollLoop() {
-      if (polling) return;
-      polling = true;
+    toast('Order assigned.', 'success');
 
-      fetchOnce(false);
+    // Remove from state and UI
+    state.orders = state.orders.filter(function (o) { return parseInt(o.id, 10) !== id; });
+    applyFilter();
+    renderList();
 
-      polling = false;
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(pollLoop, pollMs);
+    modalClose(modalConfirm);
+    if (modalOrder && modalOrder.classList.contains('active')) modalClose(modalOrder);
+  }
+
+  async function loadOrders(opts) {
+    if (!apiAvailable) {
+      toast('Available orders endpoint missing.', 'error');
+      return;
     }
 
-    function start() {
-      if (refreshBtn) {
-        refreshBtn.addEventListener('click', function () {
-          fetchOnce(true);
-        });
-      }
+    state.loading = true;
+    renderList();
 
-      // Initial
-      fetchOnce(true);
+    var out = await fetchJson(apiAvailable, { method: 'GET', _abortKey: 'list' });
+    var json = out.data;
 
-      // Poll
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(pollLoop, pollMs);
+    state.loading = false;
 
-      window.addEventListener('beforeunload', function () {
-        if (timer) { clearTimeout(timer); timer = null; }
-        if (abortController) { try { abortController.abort(); } catch (e) {} abortController = null; }
-      });
+    if (!out.ok || !json || json.success !== true) {
+      setMeta('API error. Try refresh.', liveEl && liveEl.checked);
+      listEl.innerHTML = '<div class="knx-empty">Unable to load orders.</div>';
+      return;
     }
 
-    start();
+    var data = json.data || {};
+    state.orders = Array.isArray(data.orders) ? data.orders : [];
+    state.meta = data.meta || null;
+
+    applyFilter();
+    renderList();
+
+    var count = state.orders.length;
+    var live = liveEl && liveEl.checked;
+    var range = state.meta && state.meta.days ? ('last ' + state.meta.days + ' days') : 'recent';
+    setMeta(count + ' available • ' + range, live);
+  }
+
+  function startPolling() {
+    stopPolling();
+    if (!liveEl || !liveEl.checked) return;
+
+    state.pollTimer = setInterval(function () {
+      if (document.hidden) return;
+      if (state.isModalOpen) return;
+      loadOrders({ silent: true });
+    }, pollMs);
+  }
+
+  function stopPolling() {
+    if (state.pollTimer) {
+      clearInterval(state.pollTimer);
+      state.pollTimer = null;
+    }
+  }
+
+  // Events
+  searchEl.addEventListener('input', debounce(function () {
+    applyFilter();
+    renderList();
+  }, 180));
+
+  liveEl.addEventListener('change', function () {
+    startPolling();
+    setMeta((state.orders.length || 0) + ' available', liveEl.checked);
   });
-})();
+
+  refreshBtn.addEventListener('click', function () {
+    loadOrders();
+  });
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) return;
+    if (liveEl && liveEl.checked && !state.isModalOpen) loadOrders({ silent: true });
+  });
+
+  // Init
+  (function init() {
+    setMeta('Loading…', true);
+    loadOrders();
+    startPolling();
+  })();
+});

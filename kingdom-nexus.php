@@ -240,13 +240,19 @@ add_action('plugins_loaded', function() {
     // Driver-facing OPS endpoints
     knx_require('inc/core/resources/knx-ops/api-driver-available-orders.php');
     knx_require('inc/core/resources/knx-ops/api-driver-self-assign.php');
+    // Canonical availability engine for OPS/DRIVER
+    knx_require('inc/core/resources/knx-ops/knx-ops-availability.php');
+    // Canonical v2 driver orders API (new)
+    knx_require('inc/core/resources/knx-ops/api-driver-orders.php');
+    // Canonical v2 driver orders API (new)
+    knx_require('inc/core/resources/knx-ops/api-driver-orders.php');
 
     /* ======================================================
      * RESOURCES — KNX DRIVERS (Driver App MVP)
      * ====================================================== */
     // Runtime APIs removed in PHASE 13/14 CLEAN (deleted)
     // Administrative drivers endpoints (CRUD) remain loaded.
-    knx_require('inc/core/resources/knx-drivers/api-drivers.php');
+
     knx_require('inc/core/resources/knx-drivers/api-drivers-crud.php');
     // Push subscriptions and test endpoints removed (PHASE 13.CLEAN)
 

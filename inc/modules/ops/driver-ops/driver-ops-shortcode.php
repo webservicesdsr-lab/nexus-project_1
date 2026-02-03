@@ -1,136 +1,152 @@
 <?php
-// File: inc/modules/ops/driver-ops/driver-ops-shortcode.php
 if (!defined('ABSPATH')) exit;
 
 /**
  * ==========================================================
- * KNX DRIVER OPS — Available Orders (NEXUS Shell)
+ * Kingdom Nexus — Driver OPS Dashboard (Shortcode) (v1.0)
  * Shortcode: [knx_driver_ops_dashboard]
- *
- * Canon notes:
- * - UX-only module. Authority remains in core REST.
- * - Assets injected inline via file_get_contents (no wp_footer, no wp_enqueue).
- * - Focus: available orders + self-assign (auto-assignable).
+ * ----------------------------------------------------------
+ * Notes:
+ * - Assets injected via <link>/<script> (no wp_footer, no enqueue).
+ * - UI is NON-authoritative; all actions via REST.
+ * - Uses:
+ *   GET  /knx/v2/driver/orders/available
+ *   POST /knx/v2/driver/orders/{id}/assign
  * ==========================================================
  */
 
-add_shortcode('knx_driver_ops_dashboard', function ($atts = []) {
+add_shortcode('knx_driver_ops_dashboard', function () {
 
-    if (!function_exists('knx_get_session')) {
-        return '<div class="knx-driver-ops-error">Session unavailable.</div>';
+    // Prefer strict driver context if available
+    if (function_exists('knx_get_driver_context')) {
+        $ctx = knx_get_driver_context();
+        if (empty($ctx) || empty($ctx->session) || empty($ctx->session->user_id)) {
+            wp_safe_redirect(site_url('/login'));
+            exit;
+        }
+    } else {
+        // Fallback to session role check (best-effort)
+        if (!function_exists('knx_get_session')) {
+            return '<div class="knx-drivers-err">Session unavailable.</div>';
+        }
+        $session = knx_get_session();
+        $role = $session && isset($session->role) ? (string)$session->role : '';
+        if (!$session || !in_array($role, array('driver','super_admin'), true)) {
+            wp_safe_redirect(site_url('/login'));
+            exit;
+        }
     }
 
-    $session = knx_get_session();
-    $role = $session && isset($session->role) ? (string)$session->role : '';
+    // Nonces
+    $knx_nonce     = wp_create_nonce('knx_nonce');
+    $wp_rest_nonce = wp_create_nonce('wp_rest');
 
-    // Canon: drivers + super_admin only (fail-closed).
-    if (!in_array($role, ['super_admin', 'driver'], true)) {
-        wp_safe_redirect(site_url('/login'));
-        exit;
-    }
+    // API URLs
+    $api_available = rest_url('knx/v2/driver/orders/available');
+    $api_base      = rest_url('knx/v2/driver/orders/'); // {base}{id}/assign
 
-    $atts = shortcode_atts([
-        'poll_ms'        => 12000,
-        'view_order_url' => site_url('/view-order'),
-        'my_orders_url'  => '', // optional: link to another shortcode/page (future)
-        'title'          => 'Available Orders',
-    ], (array)$atts, 'knx_driver_ops_dashboard');
+    // Asset URLs
+    $ver = defined('KNX_VERSION') ? KNX_VERSION : '1.0';
+    $plugin_root = dirname(__FILE__, 4); // .../plugin-root
+    $base_url = defined('KNX_URL') ? KNX_URL : plugin_dir_url($plugin_root . '/kingdom-nexus.php');
 
-    $poll_ms = (int)$atts['poll_ms'];
-    if ($poll_ms < 6000) $poll_ms = 6000;
-    if ($poll_ms > 60000) $poll_ms = 60000;
-
-    $api_url = esc_url(rest_url('knx/v1/ops/driver-available-orders'));
-    $assign_url = esc_url(rest_url('knx/v1/ops/driver-self-assign'));
-
-    $view_order_url = esc_url($atts['view_order_url']);
-    $my_orders_url  = trim((string)$atts['my_orders_url']);
-    $my_orders_url  = $my_orders_url !== '' ? esc_url($my_orders_url) : '';
-
-    $title = trim((string)$atts['title']);
-    if ($title === '') $title = 'Available Orders';
-
-    // REST nonce (best-effort).
-    $nonce = '';
-    if (function_exists('knx_rest_get_nonce')) {
-        $n = knx_rest_get_nonce();
-        $nonce = is_string($n) ? $n : '';
-    }
-    if ($nonce === '' && function_exists('wp_create_nonce')) {
-        $nonce = (string) wp_create_nonce('wp_rest');
-    }
-
-    // Inline assets (fail-safe).
-    $css = '';
-    $js  = '';
-
-    $css_path = defined('KNX_PATH') ? (KNX_PATH . 'inc/modules/ops/driver-ops/driver-ops-style.css') : '';
-    if ($css_path && file_exists($css_path)) {
-        $css = (string)file_get_contents($css_path);
-    }
-
-    $js_path = defined('KNX_PATH') ? (KNX_PATH . 'inc/modules/ops/driver-ops/driver-ops-script.js') : '';
-    if ($js_path && file_exists($js_path)) {
-        $js = (string)file_get_contents($js_path);
-    }
+    // Correct asset paths (module is under inc/modules/ops/driver-ops)
+    $css_url = esc_url($base_url . 'inc/modules/ops/driver-ops/driver-ops-style.css?v=' . $ver);
+    $js_url  = esc_url($base_url . 'inc/modules/ops/driver-ops/driver-ops-script.js?v=' . $ver);
 
     ob_start();
     ?>
-    <?php if (!empty($css)) : ?>
-        <style data-knx="driver-ops-style"><?php echo $css; ?></style>
-    <?php endif; ?>
+    <link rel="stylesheet" href="<?php echo $css_url; ?>">
 
-    <div id="knxDriverOpsApp"
-         class="knx-driver-ops"
-         data-api-url="<?php echo $api_url; ?>"
-         data-assign-url="<?php echo $assign_url; ?>"
-         data-view-order-url="<?php echo $view_order_url; ?>"
-         data-my-orders-url="<?php echo $my_orders_url; ?>"
-         data-role="<?php echo esc_attr($role); ?>"
-         data-nonce="<?php echo esc_attr($nonce); ?>"
-         data-poll-ms="<?php echo (int)$poll_ms; ?>">
+    <div id="knx-driver-ops-dashboard"
+         class="knx-driver-ops-wrapper"
+         data-api-available="<?php echo esc_url($api_available); ?>"
+         data-api-base="<?php echo esc_url($api_base); ?>"
+         data-knx-nonce="<?php echo esc_attr($knx_nonce); ?>"
+         data-wp-rest-nonce="<?php echo esc_attr($wp_rest_nonce); ?>">
 
-        <h2 class="knx-visually-hidden"><?php echo esc_html($title); ?></h2>
-
-        <div class="knx-driver-ops__top">
-            <div class="knx-driver-ops__controls">
-                <button type="button" class="knx-do-btn knx-do-btn--primary" id="knxDORefreshBtn">
-                    Refresh
-                </button>
-
-                <div class="knx-driver-ops__pill" id="knxDOPill">
-                    <?php echo esc_html($title); ?>
-                </div>
-
-                <div class="knx-driver-ops__pulse" id="knxDOPulse" aria-hidden="true"></div>
+        <div class="knx-driver-ops-header">
+            <div class="knx-driver-ops-title">
+                <h2>Available Orders</h2>
+                <div class="knx-driver-ops-sub">Accept an order to assign it to yourself.</div>
             </div>
 
-            <?php if (!empty($my_orders_url)) : ?>
-                <div class="knx-driver-ops__actions">
-                    <a class="knx-do-btn knx-do-btn--ghost" href="<?php echo $my_orders_url; ?>">
-                        My Orders
-                    </a>
+            <div class="knx-driver-ops-controls">
+                <div class="knx-field">
+                    <label class="sr-only" for="knxDriverOpsSearch">Search</label>
+                    <input id="knxDriverOpsSearch" class="knx-input" type="text" inputmode="search"
+                           placeholder="Search by order # or address…" autocomplete="off">
                 </div>
-            <?php endif; ?>
+
+                <div class="knx-live">
+                    <label class="knx-live-label" for="knxDriverOpsLive">Live</label>
+                    <label class="knx-switch" aria-label="Toggle live refresh">
+                        <input id="knxDriverOpsLive" type="checkbox" checked>
+                        <span class="knx-slider"></span>
+                    </label>
+                </div>
+
+                <button type="button" class="knx-btn-secondary" id="knxDriverOpsRefresh">
+                    Refresh
+                </button>
+            </div>
         </div>
 
-        <div class="knx-driver-ops__state" id="knxDOState">
-            Loading available orders…
+        <div class="knx-driver-ops-meta" aria-live="polite">
+            <span class="knx-meta-dot" aria-hidden="true"></span>
+            <span id="knxDriverOpsMetaText">Loading…</span>
         </div>
 
-        <div class="knx-driver-ops__list" id="knxDOList" aria-live="polite">
-            <div class="knx-do-skel">Loading…</div>
+        <div id="knxDriverOpsList" class="knx-driver-ops-list" aria-label="Available orders list">
+            <div class="knx-empty">Loading available orders…</div>
         </div>
-
-        <div class="knx-do-toastwrap" id="knxDOToasts" aria-live="polite" aria-atomic="true"></div>
     </div>
 
-    <?php if (!empty($js)) : ?>
-        <script data-knx="driver-ops-script">
-            <?php echo $js; ?>
-        </script>
-    <?php endif; ?>
+    <!-- Order Details Modal (canon) -->
+    <div id="knxDriverOpsOrderModal" class="knx-modal" aria-hidden="true">
+        <div class="knx-modal-content" role="dialog" aria-modal="true" aria-labelledby="knxDriverOpsOrderTitle">
+            <div class="knx-modal-head">
+                <h3 id="knxDriverOpsOrderTitle">Order</h3>
+                <button type="button" class="knx-modal-x" aria-label="Close">✕</button>
+            </div>
 
+            <div class="knx-modal-body" id="knxDriverOpsOrderBody">
+                <!-- filled by JS -->
+            </div>
+
+            <div class="knx-modal-actions">
+                <button type="button" class="knx-btn-secondary knx-modal-cancel">Close</button>
+                <button type="button" class="knx-btn knx-modal-accept">Accept Order</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Accept Modal (canon confirm dialog) -->
+    <div id="knxDriverOpsConfirm" class="knx-modal" aria-hidden="true">
+        <div class="knx-modal-content knx-confirm" role="dialog" aria-modal="true" aria-labelledby="knxDriverOpsConfirmTitle">
+            <div class="knx-modal-head">
+                <h3 id="knxDriverOpsConfirmTitle">Accept Order</h3>
+                <button type="button" class="knx-modal-x" aria-label="Close">✕</button>
+            </div>
+            <p class="knx-confirm-text">You’ll be assigned to this order. Continue?</p>
+            <div class="knx-modal-actions">
+                <button type="button" class="knx-btn-secondary knx-confirm-cancel">Cancel</button>
+                <button type="button" class="knx-btn knx-confirm-ok">Accept</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+      window.KNX_DRIVER_OPS_CONFIG = {
+        apiAvailable: <?php echo wp_json_encode($api_available); ?>,
+        apiBase: <?php echo wp_json_encode($api_base); ?>,
+        knxNonce: <?php echo wp_json_encode($knx_nonce); ?>,
+        wpRestNonce: <?php echo wp_json_encode($wp_rest_nonce); ?>,
+        pollMs: 15000
+      };
+    </script>
+
+    <script src="<?php echo $js_url; ?>"></script>
     <?php
     return ob_get_clean();
 });

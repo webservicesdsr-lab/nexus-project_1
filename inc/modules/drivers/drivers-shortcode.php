@@ -3,7 +3,7 @@ if (!defined('ABSPATH')) exit;
 
 /**
  * ==========================================================
- * Kingdom Nexus — Drivers Admin (Shortcode) (v2.2)
+ * Kingdom Nexus — Drivers Admin (Shortcode) (v2.4)
  * Shortcode: [knx_drivers_admin]
  * ----------------------------------------------------------
  * UI is NON-authoritative:
@@ -16,7 +16,6 @@ if (!defined('ABSPATH')) exit;
  *   GET  /knx/v2/drivers/list
  *   GET  /knx/v2/drivers/allowed-cities
  *   POST /knx/v2/drivers/create
- *   GET  /knx/v2/drivers/{id}
  *   POST /knx/v2/drivers/{id}/update
  *   POST /knx/v2/drivers/{id}/toggle
  *   POST /knx/v2/drivers/{id}/reset-password
@@ -39,21 +38,29 @@ add_shortcode('knx_drivers_admin', function () {
     }
 
     // Nonces
-    $knx_nonce = wp_create_nonce('knx_nonce');   // Required by your drivers API
-    $wp_rest_nonce = wp_create_nonce('wp_rest'); // Required by WP cookie REST auth on POST
+    $knx_nonce = wp_create_nonce('knx_nonce');    // Required by your drivers API
+    $wp_rest_nonce = wp_create_nonce('wp_rest');  // Required by WP cookie REST auth on POST
 
     // URLs (absolute)
     $api_list   = rest_url('knx/v2/drivers/list');
     $api_create = rest_url('knx/v2/drivers/create');
-    $api_base   = rest_url('knx/v2/drivers/'); // will be used as {base}{id}/update etc
+    $api_base   = rest_url('knx/v2/drivers/'); // {base}{id}/update etc
     $api_cities = rest_url('knx/v2/drivers/allowed-cities');
 
-    // Asset URLs
-    $base_url = defined('KNX_URL') ? KNX_URL : plugin_dir_url(__FILE__);
-    $ver = defined('KNX_VERSION') ? KNX_VERSION : '2.2';
+    // Asset URLs (robust)
+    $ver = defined('KNX_VERSION') ? KNX_VERSION : '2.4';
 
-    $css_url = esc_url($base_url . 'inc/modules/drivers/drivers-style.css?v=' . $ver);
-    $js_url  = esc_url($base_url . 'inc/modules/drivers/drivers-script.js?v=' . $ver);
+    if (defined('KNX_URL') && KNX_URL) {
+        $plugin_base_url = rtrim(KNX_URL, '/') . '/';
+    } else {
+        // drivers-shortcode.php -> /inc/modules/drivers/
+        // plugin root is 4 levels up: /inc/modules/drivers -> /plugin-root
+        $plugin_root_path = dirname(__FILE__, 4) . '/kingdom-nexus.php';
+        $plugin_base_url  = rtrim(plugins_url('/', $plugin_root_path), '/') . '/';
+    }
+
+    $css_url = esc_url($plugin_base_url . 'inc/modules/drivers/drivers-style.css?v=' . $ver);
+    $js_url  = esc_url($plugin_base_url . 'inc/modules/drivers/drivers-script.js?v=' . $ver);
 
     ob_start();
     ?>
@@ -122,6 +129,7 @@ add_shortcode('knx_drivers_admin', function () {
 
             <form id="knxDriverForm" class="knx-drv-form">
                 <input type="hidden" name="driver_id" value="">
+
                 <div class="knx-drv-grid two">
                     <div class="knx-drv-field">
                         <label>Full name</label>
@@ -143,7 +151,7 @@ add_shortcode('knx_drivers_admin', function () {
                     </div>
                     <div class="knx-drv-field">
                         <label>Phone</label>
-                        <input type="text" name="phone" placeholder="(optional)">
+                        <input type="text" name="phone" placeholder="Required" required>
                     </div>
                 </div>
 
@@ -163,6 +171,7 @@ add_shortcode('knx_drivers_admin', function () {
 
                 <div class="knx-drv-credentials" hidden>
                     <div class="knx-drv-cred-title">New credentials</div>
+
                     <div class="knx-drv-cred-row">
                         <div class="knx-drv-cred-box">
                             <div class="knx-drv-cred-label">Username</div>
@@ -170,6 +179,7 @@ add_shortcode('knx_drivers_admin', function () {
                         </div>
                         <button type="button" class="knx-icon-btn knx-drv-copy" data-copy="username" aria-label="Copy username">⧉</button>
                     </div>
+
                     <div class="knx-drv-cred-row">
                         <div class="knx-drv-cred-box">
                             <div class="knx-drv-cred-label">Temp password</div>
@@ -190,11 +200,29 @@ add_shortcode('knx_drivers_admin', function () {
                     <button type="button" class="knx-icon-btn danger knx-drv-reset" title="Reset password" hidden>Reset Password</button>
                     <button type="button" class="knx-icon-btn danger knx-drv-delete" title="Soft delete" hidden>Delete</button>
                 </div>
+
+                <!-- Inline confirmation panel (Reset/Delete) -->
+                <div class="knx-drv-inline-confirm" hidden>
+                    <div class="knx-drv-inline-confirm__top">
+                        <div class="knx-drv-inline-confirm__title"></div>
+                        <button type="button" class="knx-drv-inline-confirm__x" aria-label="Close">✕</button>
+                    </div>
+                    <div class="knx-drv-inline-confirm__msg"></div>
+                    <div class="knx-drv-inline-confirm__reason" hidden>
+                        <label class="knx-drv-inline-confirm__label">Reason (optional)</label>
+                        <textarea class="knx-drv-inline-confirm__textarea" rows="2" placeholder="Optional reason…"></textarea>
+                    </div>
+                    <div class="knx-drv-inline-confirm__actions">
+                        <button type="button" class="knx-btn-secondary" data-inline-cancel>Cancel</button>
+                        <button type="button" class="knx-btn danger" data-inline-ok>Confirm</button>
+                    </div>
+                </div>
+
             </form>
         </div>
     </div>
 
-    <!-- Confirm Deactivate Modal -->
+    <!-- Confirm Deactivate Modal (toggle only) -->
     <div id="knxDriverConfirmModal" class="knx-drv-modal" aria-hidden="true">
         <div class="knx-drv-modal__content knx-drv-confirm" role="dialog" aria-modal="true" aria-labelledby="knxDriverConfirmTitle">
             <div class="knx-drv-modal__head">

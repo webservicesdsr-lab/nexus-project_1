@@ -1,10 +1,10 @@
 /**
  * ==========================================================
- * Kingdom Nexus — Drivers Admin Styles (v2.3)
+ * Kingdom Nexus — Drivers Admin Styles (v2.4)
  * ----------------------------------------------------------
  * - Scoped to #knx-drivers-admin
  * - Mobile-first + desktop inline rows
- * - Modern modal button overrides (no layout change)
+ * - Modals modern + inline confirm (Reset/Delete)
  * ==========================================================
  */
 
@@ -96,7 +96,7 @@
   box-shadow: var(--knx-focus);
 }
 
-/* Primary button (keeps desktop exactly as you had) */
+/* Primary button */
 #knx-drivers-admin .knx-btn{
   appearance: none;
   border: 0;
@@ -121,7 +121,15 @@
 }
 #knx-drivers-admin .knx-btn:active{ transform: translateY(0); }
 
-/* Secondary button (keeps layout; modal gets its own override below) */
+#knx-drivers-admin .knx-btn.danger{
+  background: #7A1010;
+  box-shadow: 0 10px 22px rgba(122,16,16,0.14);
+}
+#knx-drivers-admin .knx-btn.danger:hover{
+  background: #6a0e0e;
+}
+
+/* Secondary button */
 #knx-drivers-admin .knx-btn-secondary{
   appearance: none;
   border: 1px solid var(--knx-border);
@@ -213,7 +221,7 @@
 #knx-drivers-admin .status-active{ background:#F0FCF4; color:#0B6623; }
 #knx-drivers-admin .status-inactive{ background:#FFF6F6; color:#7A1010; }
 
-/* Icon buttons */
+/* Icon buttons (table) */
 #knx-drivers-admin .knx-icon-btn{
   appearance: none;
   border: 1px solid rgba(11,18,32,0.06);
@@ -344,7 +352,7 @@
 }
 
 /* =========================================
-   Mobile: Table -> Cards (UNCHANGED layout)
+   Mobile: Table -> Cards
 ========================================= */
 
 @media (max-width: 768px){
@@ -373,8 +381,7 @@
 }
 
 /* ==========================================================
-   MODALS (Drivers only)
-   - Button look is modernized here (fixes Windows 98 feel)
+   MODALS (Drivers)
 ========================================================== */
 
 .knx-drv-modal{
@@ -420,7 +427,6 @@
   letter-spacing: -0.01em;
 }
 
-/* Close button (modern) */
 .knx-drv-x{
   appearance:none;
   border: 1px solid rgba(11,18,32,0.08);
@@ -532,9 +538,25 @@
 
 .knx-drv-secondary-actions{
   justify-content: space-between;
+  gap: 10px;
 }
 
-/* ---- Modern button overrides INSIDE modals only ---- */
+/* Make Reset/Delete look like real modern buttons (no Windows 98) */
+.knx-drv-secondary-actions .knx-icon-btn{
+  flex: 1;
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-weight: 950;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  background: rgba(11,18,32,0.02);
+}
+
+.knx-drv-secondary-actions .knx-icon-btn:hover{
+  background: rgba(11,18,32,0.05);
+}
+
+/* Modern overrides inside modals */
 .knx-drv-modal .knx-btn{
   border-radius: 14px;
   padding: 12px 14px;
@@ -636,7 +658,88 @@
   word-break: break-word;
 }
 
-/* Fallback toast (only if global knxToast is missing) */
+/* INLINE CONFIRM (inside driver modal) */
+.knx-drv-inline-confirm{
+  border: 1px solid rgba(11,18,32,0.08);
+  background: rgba(11,18,32,0.02);
+  border-radius: 16px;
+  padding: 12px;
+  margin-top: 10px;
+}
+
+.knx-drv-inline-confirm.is-delete{
+  border-color: rgba(122,16,16,0.18);
+  background: rgba(122,16,16,0.04);
+}
+
+.knx-drv-inline-confirm__top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom: 6px;
+}
+
+.knx-drv-inline-confirm__title{
+  font-weight: 950;
+  letter-spacing: -0.01em;
+}
+
+.knx-drv-inline-confirm__x{
+  appearance:none;
+  border: 1px solid rgba(11,18,32,0.08);
+  background: rgba(255,255,255,0.8);
+  border-radius: 12px;
+  width: 38px;
+  height: 38px;
+  cursor: pointer;
+  font-weight: 950;
+}
+
+.knx-drv-inline-confirm__msg{
+  color: #0b1220;
+  font-weight: 800;
+  line-height: 1.35;
+  margin-bottom: 10px;
+}
+
+.knx-drv-inline-confirm__reason{
+  margin-bottom: 10px;
+}
+
+.knx-drv-inline-confirm__label{
+  display:block;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: #6b7280;
+  font-weight: 900;
+  margin-bottom: 6px;
+}
+
+.knx-drv-inline-confirm__textarea{
+  width: 100%;
+  resize: vertical;
+  min-height: 54px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(11,18,32,0.10);
+  outline: none;
+  background: #fff;
+}
+
+.knx-drv-inline-confirm__textarea:focus{
+  border-color: rgba(11,121,58,0.35);
+  box-shadow: 0 0 0 4px rgba(11,121,58,0.12);
+}
+
+.knx-drv-inline-confirm__actions{
+  display:flex;
+  gap: 10px;
+  justify-content:flex-end;
+}
+
+/* Fallback toast */
 .knx-drv-toast{
   position: fixed;
   bottom: 18px;
