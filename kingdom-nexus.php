@@ -281,6 +281,8 @@ add_action('plugins_loaded', function() {
     // Driver Ops UI
     knx_require('inc/modules/ops/driver-ops/driver-ops-shortcode.php');
     knx_require('inc/modules/ops/driver-ops/driver-notifier-shortcode.php');
+    // Driver Active Orders (execution-focused)
+    knx_require('inc/modules/ops/driver-active-orders/driver-active-orders-shortcode.php');
 
     /* ======================================================
      * MODULES — ORDERS (Live admin dashboard)

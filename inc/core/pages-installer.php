@@ -80,6 +80,7 @@ if (!function_exists('knx_install_pages')) {
             ['title' => 'Edit Item Categories', 'slug' => 'edit-item-categories', 'content' => '[knx_edit_item_categories]'],
             // Additional operational/admin pages
             ['title' => 'Driver Ops', 'slug' => 'driver-ops', 'content' => '[knx_driver_ops_dashboard]'],
+            ['title' => 'Active Orders', 'slug' => 'driver-active-orders', 'content' => '[knx_driver_active_orders]'],
             ['title' => 'Drivers Admin', 'slug' => 'drivers-admin', 'content' => '[knx_drivers_admin]'],
             // Canonical drivers admin page (matches navigation-engine admin nav)
             ['title' => 'Drivers', 'slug' => 'drivers', 'content' => '[knx_drivers_admin]'],

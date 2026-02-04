@@ -335,3 +335,6 @@ knx_orders.driver_id = driver_profile_id (canon)
 knx_driver_ops.driver_user_id = WP user id (operación/auditoría)
 
 Fail-closed en scope y en mapping de driver_profile_id.
+
+
+-----
