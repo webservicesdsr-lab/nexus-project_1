@@ -44,6 +44,7 @@
 │       │   └── nexus-theme-shell-error-handling-english.md
 │       └── users-roles
 │           └── users-roles-identity-territory.md
+├── driver-ops-dashboard_foundations.md
 ├── inc
 │   ├── .DS_Store
 │   ├── core
@@ -82,10 +83,8 @@
 │   │   │   ├── knx-customers
 │   │   │   │   ├── api-customers-crud.php
 │   │   │   │   └── api-list-customers.php
-│   │   │   ├── knx-dispatcher
 │   │   │   ├── knx-drivers
-│   │   │   │   ├── api-drivers-crud.php
-│   │   │   │   └── api-drivers.php
+│   │   │   │   └── api-drivers-crud.php
 │   │   │   ├── knx-explore
 │   │   │   │   └── api-explore-hubs.php
 │   │   │   ├── knx-fees
@@ -124,12 +123,14 @@
 │   │   │   ├── knx-ops
 │   │   │   │   ├── api-assign-driver.php
 │   │   │   │   ├── api-driver-available-orders.php
+│   │   │   │   ├── api-driver-orders.php
 │   │   │   │   ├── api-driver-self-assign.php
 │   │   │   │   ├── api-drivers.php
 │   │   │   │   ├── api-live-orders.php
 │   │   │   │   ├── api-unassign-driver.php
 │   │   │   │   ├── api-update-status.php
-│   │   │   │   └── api-view-order.php
+│   │   │   │   ├── api-view-order.php
+│   │   │   │   └── knx-ops-availability.php
 │   │   │   ├── knx-orders
 │   │   │   ├── knx-payments
 │   │   │   │   ├── api-create-payment-intent.php
@@ -327,6 +328,7 @@
 ├── kingdom-nexus.php
 ├── nexus-guidelines.md
 ├── nexus-schema-y05.sql
-└── project-tree.txt
+├── project-tree.txt
+└── z_important.md
 
-78 directories, 252 files
+77 directories, 255 files

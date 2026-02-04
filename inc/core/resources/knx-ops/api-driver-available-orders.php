@@ -1,12 +1,22 @@
 <?php
 /**
  * FILE: inc/core/resources/knx-ops/api-driver-available-orders.php
- * Replace the entire file with this version.
+ * Kingdom Nexus — Driver Available Orders (Snapshot-Sealed)
  *
- * Fixes:
- * - Uses the correct driver profile PK (knx_drivers.id) when querying knx_driver_cities / knx_driver_hubs.
- * - Aligns SELECT columns with your actual schema (knx_orders.total, knx_driver_ops.assigned_by, etc.).
- * - Adds range support: today / recent (default) / all (role-gated).
+ * Architecture:
+ * - Pickup address/coordinates sourced from immutable cart_snapshot (v5)
+ * - Fallback to live hub JOIN for legacy orders (pre-snapshot)
+ * - Snapshot versioning enforced (v5 = namespaced hub object)
+ * - Backward compatible with flat snapshot structure
+ *
+ * Technical Debt:
+ * - JSON decode per-row for snapshot parsing (acceptable for now)
+ * - TODO: Move to projection layer for high-volume feeds (200+ orders)
+ * - Consider pre-parsing snapshots during order insert or via scheduled job
+ *
+ * Version History:
+ * - v5: Namespaced hub object in snapshot (hub.id, hub.city_id, hub.name, hub.address, hub.lat, hub.lng)
+ * - legacy: Flat snapshot structure (hub_name, hub_address, hub_latitude, hub_longitude)
  */
 
 if (!defined('ABSPATH')) exit;
@@ -142,38 +152,55 @@ if (!function_exists('knx_v1_driver_available_orders')) {
         if ($days < 1) $days = 1;
         if ($days > 60) $days = 60;
 
+        $limit = intval($req->get_param('limit'));
+        if ($limit < 1) $limit = 1;
+        if ($limit > 200) $limit = 200;
+
+        $offset = intval($req->get_param('offset'));
+        if ($offset < 0) $offset = 0;
+
+        $statuses_csv = (string) $req->get_param('statuses');
+        $statuses = knx_v1_driver_available_orders_parse_statuses($statuses_csv);
+        if (empty($statuses)) {
+            $statuses = array('placed', 'confirmed', 'preparing', 'ready', 'out_for_delivery');
+        }
+
         $after = $req->get_param('after');
         $after_mysql = null;
+        $no_after_filter = false;
 
-        // If an explicit after is provided, honor it (best effort).
+        // Explicit after parameter overrides range computation
         if (is_string($after) && $after !== '') {
             $parsed = knx_v1_driver_available_orders_parse_after($after);
-            if ($parsed) $after_mysql = $parsed;
-            // Delegate to canonical availability engine (OPS may request relaxed mode)
-            if (!function_exists('knx_ops_get_available_orders')) {
-                return knx_v1_driver_available_orders_ok(array(), array('reason' => 'availability_engine_missing'));
+            if ($parsed) {
+                $after_mysql = $parsed;
             }
+        }
 
-            $avail = knx_ops_get_available_orders(array(
-                'limit' => $limit,
-                'offset' => $offset,
-                'days' => $days,
-                'statuses' => $statuses,
-                'no_after_filter' => $no_after_filter,
-                'after_mysql' => $after_mysql,
-                'allowed_city_ids' => $allowed_city_ids,
-                'allowed_hub_ids' => $allowed_hub_ids,
-                'relaxed' => true, // OPS gets relaxed visibility by default
-            ));
+        // Compute after timestamp based on range if not explicitly provided
+        if ($after_mysql === null) {
+            if ($range === 'all') {
+                $no_after_filter = true;
+            } else {
+                $after_mysql = knx_v1_driver_available_orders_compute_after_mysql($range, $days);
+            }
+        }
 
-            $rows = isset($avail['orders']) && is_array($avail['orders']) ? $avail['orders'] : array();
-            $meta = isset($avail['meta']) && is_array($avail['meta']) ? $avail['meta'] : array();
+        // ---------- Build WHERE clause ----------
+        $where = array();
+        $params = array();
 
-            // Add driver context info to meta for diagnostics
-            $meta['driver_user_id'] = $driver_user_id;
-            $meta['driver_profile_id'] = $driver_profile_id;
+        // Status filter
+        if (!empty($statuses)) {
+            $status_ph = implode(',', array_fill(0, count($statuses), '%s'));
+            $where[] = "o.status IN ($status_ph)";
+            foreach ($statuses as $s) {
+                $params[] = (string) $s;
+            }
+        }
 
-            return knx_v1_driver_available_orders_ok($rows, $meta);
+        // Time filter
+        if (!$no_after_filter && $after_mysql !== null) {
             $where[] = "o.created_at >= %s";
             $params[] = $after_mysql;
         }
@@ -203,6 +230,11 @@ if (!function_exists('knx_v1_driver_available_orders')) {
 
         $where[] = '(' . implode(' OR ', $scope_parts) . ')';
 
+        // Table definitions
+        $orders_table = $wpdb->prefix . 'knx_orders';
+        $driver_ops_table = $wpdb->prefix . 'knx_driver_ops';
+        $hubs_table = $wpdb->prefix . 'knx_hubs';
+
         // ---------- SQL ----------
         $sql =
             "SELECT
@@ -215,6 +247,12 @@ if (!function_exists('knx_v1_driver_available_orders')) {
                 o.customer_phone,
                 o.customer_email,
                 o.delivery_address,
+                o.delivery_address AS delivery_address_text,
+                o.cart_snapshot,
+                h.name AS hub_name_live,
+                h.address AS pickup_address_live,
+                h.latitude AS pickup_lat_live,
+                h.longitude AS pickup_lng_live,
                 o.subtotal,
                 o.tax_amount,
                 o.delivery_fee,
@@ -235,6 +273,8 @@ if (!function_exists('knx_v1_driver_available_orders')) {
             FROM {$orders_table} o
             LEFT JOIN {$driver_ops_table} dop
                 ON dop.order_id = o.id
+            LEFT JOIN {$hubs_table} h
+                ON h.id = o.hub_id
             WHERE " . implode(' AND ', $where) . "
             ORDER BY o.created_at DESC
             LIMIT %d OFFSET %d";
@@ -246,6 +286,55 @@ if (!function_exists('knx_v1_driver_available_orders')) {
         $rows = $wpdb->get_results($prepared, ARRAY_A);
 
         if (!is_array($rows)) $rows = array();
+
+        // ---------- Post-process: Prefer snapshot (v5+), fallback to live ----------
+        // NOTE: JSON decode per-row is acceptable for now (technical debt for large feeds)
+        foreach ($rows as &$row) {
+            $snapshot = null;
+            $snapshot_version = null;
+
+            if (!empty($row['cart_snapshot'])) {
+                $decoded = json_decode($row['cart_snapshot'], true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $snapshot = $decoded;
+                    $snapshot_version = isset($decoded['version']) ? $decoded['version'] : 'legacy';
+                }
+            }
+
+            // Resolve pickup fields based on snapshot version
+            if ($snapshot_version === 'v5' && isset($snapshot['hub']) && is_array($snapshot['hub'])) {
+                // v5 snapshot: namespaced hub object
+                $hub = $snapshot['hub'];
+                $row['hub_name'] = isset($hub['name']) ? $hub['name'] : null;
+                $row['pickup_address_text'] = isset($hub['address']) ? $hub['address'] : null;
+                $row['pickup_lat'] = isset($hub['lat']) ? $hub['lat'] : null;
+                $row['pickup_lng'] = isset($hub['lng']) ? $hub['lng'] : null;
+                $row['address_source'] = 'snapshot';
+            } elseif ($snapshot && isset($snapshot['hub_name'])) {
+                // Legacy flat snapshot structure (backward compatible)
+                $row['hub_name'] = $snapshot['hub_name'];
+                $row['pickup_address_text'] = isset($snapshot['hub_address']) ? $snapshot['hub_address'] : null;
+                $row['pickup_lat'] = isset($snapshot['hub_latitude']) ? $snapshot['hub_latitude'] : null;
+                $row['pickup_lng'] = isset($snapshot['hub_longitude']) ? $snapshot['hub_longitude'] : null;
+                $row['address_source'] = 'snapshot_legacy';
+            } else {
+                // Fallback to live hub data (pre-snapshot orders or missing data)
+                $row['hub_name'] = isset($row['hub_name_live']) ? $row['hub_name_live'] : null;
+                $row['pickup_address_text'] = isset($row['pickup_address_live']) ? $row['pickup_address_live'] : null;
+                $row['pickup_lat'] = isset($row['pickup_lat_live']) ? $row['pickup_lat_live'] : null;
+                $row['pickup_lng'] = isset($row['pickup_lng_live']) ? $row['pickup_lng_live'] : null;
+                $row['address_source'] = 'live';
+            }
+
+            // Clean up temporary fields
+            unset($row['cart_snapshot']);
+            unset($row['hub_name_live']);
+            unset($row['pickup_address_live']);
+            unset($row['pickup_lat_live']);
+            unset($row['pickup_lng_live']);
+        }
+        unset($row); // Break reference
+
 
         // ---------- Meta (helps debug without breaking fail-closed) ----------
         $meta = array(
@@ -274,9 +363,12 @@ if (!function_exists('knx_v1_driver_available_orders')) {
 if (!function_exists('knx_v1_driver_available_orders_ok')) {
     function knx_v1_driver_available_orders_ok($orders, $meta = array()) {
         return new WP_REST_Response(array(
-            'ok'     => true,
-            'orders' => $orders,
-            'meta'   => $meta,
+            'success' => true,
+            'ok'      => true,
+            'data'    => array(
+                'orders' => $orders,
+                'meta'   => $meta,
+            ),
         ), 200);
     }
 }

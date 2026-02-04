@@ -54,36 +54,14 @@ document.addEventListener('DOMContentLoaded', function () {
   function $(sel, el) { return (el || root).querySelector(sel); }
   function $all(sel, el) { return Array.prototype.slice.call((el || root).querySelectorAll(sel)); }
 
-  // Toast: use global knxToast if available; otherwise fallback.
+  // Toast: delegate to global knxToast (loaded by shortcode)
   function toast(message, type) {
     var msg = (message || '').toString().trim() || 'Something went wrong.';
     var t = (type || 'info').toString();
 
     if (typeof window.knxToast === 'function') {
       window.knxToast(msg, t);
-      return;
     }
-
-    var box = document.getElementById('knxDriverOpsToastFallback');
-    if (!box) {
-      box = document.createElement('div');
-      box.id = 'knxDriverOpsToastFallback';
-      box.className = 'knx-toast-stack';
-      document.body.appendChild(box);
-    }
-
-    var el = document.createElement('div');
-    el.className = 'knx-toast';
-    el.setAttribute('data-type', t);
-    el.textContent = msg;
-    box.appendChild(el);
-
-    setTimeout(function () {
-      el.classList.add('out');
-      setTimeout(function () {
-        try { box.removeChild(el); } catch (e) {}
-      }, 260);
-    }, 2600);
   }
 
   function escHtml(str) {
@@ -236,8 +214,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     state.filtered = state.orders.filter(function (o) {
       var num = String(o.order_number || o.id || '').toLowerCase();
-      var addr = String(o.delivery_address || '').toLowerCase();
-      return num.indexOf(q) !== -1 || addr.indexOf(q) !== -1;
+      var delivery = String(o.delivery_address_text || o.delivery_address || '').toLowerCase();
+      var pickup = String(o.pickup_address_text || o.pickup_address || '').toLowerCase();
+      var hub = String(o.hub_name || o.restaurant_name || '').toLowerCase();
+      return num.indexOf(q) !== -1 || delivery.indexOf(q) !== -1 || pickup.indexOf(q) !== -1 || hub.indexOf(q) !== -1;
     });
   }
 
@@ -279,36 +259,57 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     var html = state.filtered.map(function (o) {
-      var id = parseInt(o.id, 10) || 0;
-      var ord = o.order_number || ('Order #' + id);
-      var addr = o.delivery_address || '—';
-      var total = money(o.total);
-      var when = relTime(o.created_at);
+      var id = parseInt(o && (o.id || o.order_id), 10) || 0;
+      var ord = (o && (o.order_number || o.id)) ? String(o.order_number || o.id) : ('#' + id);
+      var orderLabel = ord ? ('Order ' + escHtml(ord)) : ('Order #' + id);
+
+      var restaurant = (o && (o.hub_name || o.restaurant_name || o.restaurant)) ? String(o.hub_name || o.restaurant_name || o.restaurant) : '';
+
+      var pickup = (o && (o.pickup_address_text || o.pickup_address || o.pickup || o.pickup_address_line)) ? String(o.pickup_address_text || o.pickup_address || o.pickup || o.pickup_address_line) : '';
+      var delivery = (o && (o.delivery_address_text || o.delivery_address || o.delivery || o.dropoff_address)) ? String(o.delivery_address_text || o.delivery_address || o.delivery || o.dropoff_address) : '';
+
+      var totalVal = (o && (o.total_amount || o.total || o.amount)) ? (o.total_amount || o.total || o.amount) : null;
+      var tipVal = (o && (o.tip_amount || o.tip || o.tip_amount)) ? (o.tip_amount || o.tip || o.tip_amount) : null;
+      var total = money(totalVal);
+      var tip = money(tipVal);
+
+      var distance = null;
+      if (o && (o.distance_miles || o.distance || o.distance_mi)) {
+        var d = o.distance_miles || o.distance || o.distance_mi;
+        var n = parseFloat(d);
+        if (isFinite(n)) distance = (Math.round(n * 10) / 10) + ' mi';
+      }
+
+      // 'is_new' is authoritative; do not infer from timestamps here (pure renderer)
+      var isNew = !!(o && o.is_new === true);
 
       return (
-        '<div class="knx-order-card" data-id="' + id + '">' +
+        '<div class="knx-order-card" data-order-id="' + id + '" data-id="' + id + '">' +
           '<div class="knx-order-main">' +
             '<div class="knx-order-top">' +
-              '<div class="knx-order-id">' +
-                '<div class="knx-order-number">' + escHtml(ord) + '</div>' +
-                '<div class="knx-order-sub">' +
-                  statusPill(o.status) +
-                  payPill(o.payment_status, o.payment_method) +
-                  (when ? '<span class="knx-time">' + escHtml(when) + '</span>' : '') +
-                '</div>' +
-              '</div>' +
-              '<div class="knx-order-total">' + escHtml(total) + '</div>' +
+              '<div class="knx-order-id-pill">' + escHtml('Order #' + String(id)) + '</div>' +
+              (isNew ? '<div class="knx-order-new">New Order</div>' : '') +
             '</div>' +
 
-            '<div class="knx-order-addr" title="' + escHtml(addr) + '">' +
-              '<span class="knx-addr-icon" aria-hidden="true">📍</span>' +
-              '<span>' + escHtml(addr) + '</span>' +
+            '<div class="knx-restaurant-name" style="margin-top:8px; font-size:1.08rem; font-weight:900;">' + escHtml(restaurant || '—') + '</div>' +
+
+            '<div class="knx-address-block" style="margin-top:10px;">' +
+              '<div class="knx-address-row"><span class="knx-addr-icon" aria-hidden="true">📍</span><span class="knx-address-label">PICKUP</span><span class="knx-address-text">' + escHtml(pickup || '—') + '</span></div>' +
+              '<div class="knx-address-row" style="margin-top:6px;"><span class="knx-addr-icon" aria-hidden="true">📦</span><span class="knx-address-label">DELIVERY</span><span class="knx-address-text">' + escHtml(delivery || '—') + '</span></div>' +
+            '</div>' +
+
+            '<div class="knx-money-distance" style="margin-top:12px;">' +
+              '<div class="knx-money-group">' +
+                '<div class="knx-money-item"><div class="label">Total</div><div class="amount">' + escHtml(total) + '</div></div>' +
+                '<div class="knx-money-item"><div class="label">Tips</div><div class="amount">' + escHtml(tip) + '</div></div>' +
+              '</div>' +
+              '<div class="knx-distance">' + escHtml(distance || '') + '</div>' +
             '</div>' +
           '</div>' +
 
           '<div class="knx-order-actions">' +
-            '<button type="button" class="knx-btn-secondary knx-order-view" data-id="' + id + '">View</button>' +
             '<button type="button" class="knx-btn knx-order-accept" data-id="' + id + '">Accept</button>' +
+            '<button type="button" class="knx-btn-secondary knx-order-view" data-id="' + id + '">See Map</button>' +
           '</div>' +
         '</div>'
       );
@@ -330,6 +331,25 @@ document.addEventListener('DOMContentLoaded', function () {
         openConfirm(id);
       });
     });
+  }
+
+  // Update header new-count badge (if present)
+  function updateNewBadge() {
+    var badge = document.getElementById('knxDriverNewBadge');
+    if (!badge) return;
+    var NEW_MS = 1000 * 60 * 15;
+    var now = Date.now();
+    var newCount = state.orders.filter(function (o) {
+      var c = parseMysqlToDate(o.created_at);
+      return c ? ((now - c.getTime()) < NEW_MS) : false;
+    }).length;
+    if (newCount > 0) {
+      badge.style.display = '';
+      badge.textContent = String(newCount) + ' New';
+    } else {
+      badge.style.display = 'none';
+      badge.textContent = '';
+    }
   }
 
   function openOrderModal(id) {
@@ -452,6 +472,9 @@ document.addEventListener('DOMContentLoaded', function () {
     state.orders = state.orders.filter(function (o) { return parseInt(o.id, 10) !== id; });
     applyFilter();
     renderList();
+    updateNewBadge();
+    // Update new badge in header
+    updateNewBadge();
 
     modalClose(modalConfirm);
     if (modalOrder && modalOrder.classList.contains('active')) modalClose(modalOrder);
@@ -522,6 +545,15 @@ document.addEventListener('DOMContentLoaded', function () {
   refreshBtn.addEventListener('click', function () {
     loadOrders();
   });
+
+  var pastBtn = document.getElementById('knxViewPastOrders');
+  if (pastBtn) {
+    pastBtn.addEventListener('click', function () {
+      var url = root.dataset.pastUrl || cfg.pastUrl || '';
+      if (url) return window.location.href = url;
+      toast('View past orders not available here.');
+    });
+  }
 
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) return;

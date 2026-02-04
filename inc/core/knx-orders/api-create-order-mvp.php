@@ -2,8 +2,12 @@
 if (!defined('ABSPATH')) exit;
 
 // KNX-A0.8.1: Snapshot version authority (centralized, guarded)
+// v5 = Namespaced snapshot structure with explicit version enforcement
+// - cart_snapshot.version: 'v5' (explicit versioning)
+// - cart_snapshot.hub: { id, city_id, name, address, lat, lng } (namespaced hub data)
+// - Immutable: pickup address frozen at order creation
 if (!defined('KNX_ORDER_SNAPSHOT_VERSION')) {
-    define('KNX_ORDER_SNAPSHOT_VERSION', 'v5_snapshot_locked');
+    define('KNX_ORDER_SNAPSHOT_VERSION', 'v5');
 }
 
 if (!function_exists('knx_debug_log')) {
@@ -330,7 +334,7 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
     }
 
     $hub = $wpdb->get_row($wpdb->prepare(
-        "SELECT id, name, city_id, status
+        "SELECT id, name, city_id, status, address, latitude, longitude
          FROM {$table_hubs}
          WHERE id = %d
          LIMIT 1",
@@ -805,8 +809,15 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
         }
 
         $cart_snapshot = [
-            'hub_id'        => $hub_id,
-            'hub_name'      => (string) ($hub->name ?? ''),
+            'version'       => 'v5',
+            'hub' => [
+                'id'      => $hub_id,
+                'city_id' => (int) ($hub->city_id ?? 0),
+                'name'    => (string) ($hub->name ?? ''),
+                'address' => isset($hub->address) ? (string) $hub->address : null,
+                'lat'     => isset($hub->latitude) ? (float) $hub->latitude : null,
+                'lng'     => isset($hub->longitude) ? (float) $hub->longitude : null,
+            ],
             'session_token' => (string) $session_token,
             'items'         => $snapshot_items,
             'subtotal'      => $subtotal,

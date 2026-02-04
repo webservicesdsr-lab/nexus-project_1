@@ -10,7 +10,7 @@ if (!defined('ABSPATH')) exit;
  * - Assets injected via <link>/<script> (no wp_footer, no enqueue).
  * - UI is NON-authoritative; all actions via REST.
  * - Uses:
- *   GET  /knx/v2/driver/orders/available
+ *   GET  /knx/v1/ops/driver-available-orders (snapshot-sealed pickup addresses)
  *   POST /knx/v2/driver/orders/{id}/assign
  * ==========================================================
  */
@@ -41,8 +41,8 @@ add_shortcode('knx_driver_ops_dashboard', function () {
     $knx_nonce     = wp_create_nonce('knx_nonce');
     $wp_rest_nonce = wp_create_nonce('wp_rest');
 
-    // API URLs
-    $api_available = rest_url('knx/v2/driver/orders/available');
+    // API URLs (snapshot-sealed pickup addresses)
+    $api_available = rest_url('knx/v1/ops/driver-available-orders');
     $api_base      = rest_url('knx/v2/driver/orders/'); // {base}{id}/assign
 
     // Asset URLs
@@ -54,8 +54,13 @@ add_shortcode('knx_driver_ops_dashboard', function () {
     $css_url = esc_url($base_url . 'inc/modules/ops/driver-ops/driver-ops-style.css?v=' . $ver);
     $js_url  = esc_url($base_url . 'inc/modules/ops/driver-ops/driver-ops-script.js?v=' . $ver);
 
+    // Global toast system (shared UI component)
+    $toast_css_url = esc_url($base_url . 'inc/modules/core/knx-toast.css?v=' . $ver);
+    $toast_js_url  = esc_url($base_url . 'inc/modules/core/knx-toast.js?v=' . $ver);
+
     ob_start();
     ?>
+    <link rel="stylesheet" href="<?php echo $toast_css_url; ?>">
     <link rel="stylesheet" href="<?php echo $css_url; ?>">
 
     <div id="knx-driver-ops-dashboard"
@@ -89,6 +94,10 @@ add_shortcode('knx_driver_ops_dashboard', function () {
                 <button type="button" class="knx-btn-secondary" id="knxDriverOpsRefresh">
                     Refresh
                 </button>
+                <button type="button" class="knx-btn-secondary" id="knxViewPastOrders" title="View past orders">
+                    View Past Orders
+                </button>
+                <span id="knxDriverNewBadge" class="knx-pill is-info" style="display:none; margin-left:6px;"></span>
             </div>
         </div>
 
@@ -146,6 +155,7 @@ add_shortcode('knx_driver_ops_dashboard', function () {
       };
     </script>
 
+    <script src="<?php echo $toast_js_url; ?>"></script>
     <script src="<?php echo $js_url; ?>"></script>
     <?php
     return ob_get_clean();
