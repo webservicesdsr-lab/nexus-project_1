@@ -37,6 +37,14 @@ add_shortcode('knx_driver_ops_dashboard', function () {
         }
     }
 
+    // Get driver name for personalized greeting
+    $driver_name = '';
+    if (isset($ctx->session->username)) {
+        $driver_name = $ctx->session->username;
+    } elseif (isset($session->username)) {
+        $driver_name = $session->username;
+    }
+
     // Nonces
     $knx_nonce     = wp_create_nonce('knx_nonce');
     $wp_rest_nonce = wp_create_nonce('wp_rest');
@@ -72,16 +80,20 @@ add_shortcode('knx_driver_ops_dashboard', function () {
 
         <div class="knx-driver-ops-header">
             <div class="knx-driver-ops-title">
-                <h2>Available Orders</h2>
-                <div class="knx-driver-ops-sub">Accept an order to assign it to yourself.</div>
+                <h2>Hi<?php echo $driver_name ? ', ' . esc_html($driver_name) : ''; ?>! 👋</h2>
             </div>
 
             <div class="knx-driver-ops-controls">
-                <div class="knx-field">
-                    <label class="sr-only" for="knxDriverOpsSearch">Search</label>
-                    <input id="knxDriverOpsSearch" class="knx-input" type="text" inputmode="search"
-                           placeholder="Search by order # or address…" autocomplete="off">
-                </div>
+                <button type="button" class="knx-btn-icon" id="knxDriverOpsSearchToggle" title="Search" aria-label="Toggle search">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.35-4.35"></path>
+                    </svg>
+                </button>
+
+                <button type="button" class="knx-btn-secondary" id="knxDriverOpsRefresh" title="Refresh">
+                    ↻
+                </button>
 
                 <div class="knx-live">
                     <label class="knx-live-label" for="knxDriverOpsLive">Live</label>
@@ -90,21 +102,18 @@ add_shortcode('knx_driver_ops_dashboard', function () {
                         <span class="knx-slider"></span>
                     </label>
                 </div>
-
-                <button type="button" class="knx-btn-secondary" id="knxDriverOpsRefresh">
-                    Refresh
-                </button>
-                <button type="button" class="knx-btn-secondary" id="knxViewPastOrders" title="View past orders">
-                    View Past Orders
-                </button>
-                <span id="knxDriverNewBadge" class="knx-pill is-info" style="display:none; margin-left:6px;"></span>
             </div>
         </div>
 
-        <div class="knx-driver-ops-meta" aria-live="polite">
-            <span class="knx-meta-dot" aria-hidden="true"></span>
-            <span id="knxDriverOpsMetaText">Loading…</span>
+        <div class="knx-search-container" id="knxSearchContainer" style="display:none;">
+            <label class="sr-only" for="knxDriverOpsSearch">Search</label>
+            <input id="knxDriverOpsSearch" class="knx-input" type="text" inputmode="search"
+                   placeholder="Search by order # or address…" autocomplete="off">
         </div>
+
+        <button type="button" class="knx-today-orders-bar" id="knxViewPastOrders">
+            Today's Orders
+        </button>
 
         <div id="knxDriverOpsList" class="knx-driver-ops-list" aria-label="Available orders list">
             <div class="knx-empty">Loading available orders…</div>

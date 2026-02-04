@@ -27,6 +27,8 @@ document.addEventListener('DOMContentLoaded', function () {
   var metaEl = document.getElementById('knxDriverOpsMetaText');
 
   var searchEl = document.getElementById('knxDriverOpsSearch');
+  var searchContainer = document.getElementById('knxSearchContainer');
+  var searchToggleBtn = document.getElementById('knxDriverOpsSearchToggle');
   var liveEl = document.getElementById('knxDriverOpsLive');
   var refreshBtn = document.getElementById('knxDriverOpsRefresh');
 
@@ -118,12 +120,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  function setMeta(text, isLive) {
-    var live = !!isLive;
-    var dot = root.querySelector('.knx-meta-dot');
-    if (dot) dot.setAttribute('data-live', live ? '1' : '0');
-    metaEl.textContent = text;
-  }
+
 
   function modalOpen(modal) {
     if (!modal) return;
@@ -285,17 +282,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
       return (
         '<div class="knx-order-card" data-order-id="' + id + '" data-id="' + id + '">' +
-          '<div class="knx-order-main">' +
-            '<div class="knx-order-top">' +
-              '<div class="knx-order-id-pill">' + escHtml('Order #' + String(id)) + '</div>' +
-              (isNew ? '<div class="knx-order-new">New Order</div>' : '') +
+            '<div class="knx-order-header-inline">' +
+              '<span class="knx-restaurant-name">' + escHtml(restaurant || '—') + '</span>' +
+              '<span class="knx-order-id">#' + String(id) + '</span>' +
             '</div>' +
 
-            '<div class="knx-restaurant-name" style="margin-top:8px; font-size:1.08rem; font-weight:900;">' + escHtml(restaurant || '—') + '</div>' +
-
-            '<div class="knx-address-block" style="margin-top:10px;">' +
-              '<div class="knx-address-row"><span class="knx-addr-icon" aria-hidden="true">📍</span><span class="knx-address-label">PICKUP</span><span class="knx-address-text">' + escHtml(pickup || '—') + '</span></div>' +
-              '<div class="knx-address-row" style="margin-top:6px;"><span class="knx-addr-icon" aria-hidden="true">📦</span><span class="knx-address-label">DELIVERY</span><span class="knx-address-text">' + escHtml(delivery || '—') + '</span></div>' +
+            '<div class="knx-address-block">' +
+              '<div class="knx-address-row">' +
+                '<div class="knx-address-header"><span class="knx-addr-icon" aria-hidden="true">📍</span><span class="knx-address-label">PICKUP</span></div>' +
+                '<div class="knx-address-text">' + escHtml(pickup || '—') + '</div>' +
+              '</div>' +
+              '<div class="knx-address-row">' +
+                '<div class="knx-address-header"><span class="knx-addr-icon" aria-hidden="true">📦</span><span class="knx-address-label">DELIVERY</span></div>' +
+                '<div class="knx-address-text">' + escHtml(delivery || '—') + '</div>' +
+              '</div>' +
             '</div>' +
 
             '<div class="knx-money-distance" style="margin-top:12px;">' +
@@ -305,7 +305,6 @@ document.addEventListener('DOMContentLoaded', function () {
               '</div>' +
               '<div class="knx-distance">' + escHtml(distance || '') + '</div>' +
             '</div>' +
-          '</div>' +
 
           '<div class="knx-order-actions">' +
             '<button type="button" class="knx-btn knx-order-accept" data-id="' + id + '">Accept</button>' +
@@ -328,7 +327,8 @@ document.addEventListener('DOMContentLoaded', function () {
     $all('.knx-order-accept', listEl).forEach(function (btn) {
       btn.addEventListener('click', function () {
         var id = parseInt(btn.getAttribute('data-id'), 10) || 0;
-        openConfirm(id);
+        // Direct assignment - no confirmation modal (drivers need speed)
+        doAssign(id);
       });
     });
   }
@@ -378,13 +378,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     modalOrderBody.innerHTML = body;
 
-    // Hook accept button in modal
+    // Hook accept button in modal - direct assignment (no confirmation)
     var acceptBtn = $('.knx-modal-accept', modalOrder);
     if (acceptBtn) {
       acceptBtn.disabled = false;
       acceptBtn.textContent = 'Accept Order';
       acceptBtn.onclick = function () {
-        openConfirm(id);
+        doAssign(id);
       };
     }
 
@@ -422,17 +422,10 @@ document.addEventListener('DOMContentLoaded', function () {
     var url = buildAssignUrl(id);
     if (!url) {
       toast('Assign endpoint missing.', 'error');
-      modalClose(modalConfirm);
       return;
     }
 
-    var okBtn = $('.knx-confirm-ok', modalConfirm);
-    if (okBtn) {
-      okBtn.disabled = true;
-      okBtn.textContent = 'Assigning…';
-    }
-
-    // Also disable list button if present
+    // Disable list button during assignment
     var listBtn = listEl ? listEl.querySelector('.knx-order-accept[data-id="' + id + '"]') : null;
     if (listBtn) {
       listBtn.disabled = true;
@@ -454,15 +447,11 @@ document.addEventListener('DOMContentLoaded', function () {
       var reason = (json && json.data && (json.data.reason || json.data.message)) ? (json.data.reason || json.data.message) : 'Assign failed.';
       toast(reason, 'error');
 
+      // Re-enable button on failure
       if (listBtn) {
         listBtn.disabled = false;
         listBtn.textContent = 'Accept';
       }
-      if (okBtn) {
-        okBtn.disabled = false;
-        okBtn.textContent = 'Accept';
-      }
-      modalClose(modalConfirm);
       return;
     }
 
@@ -473,11 +462,18 @@ document.addEventListener('DOMContentLoaded', function () {
     applyFilter();
     renderList();
     updateNewBadge();
-    // Update new badge in header
-    updateNewBadge();
 
-    modalClose(modalConfirm);
+    // Close modal if open
     if (modalOrder && modalOrder.classList.contains('active')) modalClose(modalOrder);
+
+    // KNX-TASK 06: Redirect after accept to active orders page
+    // Driver OPS is discovery-only, accepted orders are managed elsewhere
+    // TODO: Future enhancement - bottom navbar for app-like navigation
+    // For now, redirect to placeholder active orders page
+    setTimeout(function() {
+      var redirectUrl = '/driver-active-orders/'; // TODO: Replace with actual route
+      window.location.href = redirectUrl;
+    }, 800);
   }
 
   async function loadOrders(opts) {
@@ -495,7 +491,6 @@ document.addEventListener('DOMContentLoaded', function () {
     state.loading = false;
 
     if (!out.ok || !json || json.success !== true) {
-      setMeta('API error. Try refresh.', liveEl && liveEl.checked);
       listEl.innerHTML = '<div class="knx-empty">Unable to load orders.</div>';
       return;
     }
@@ -506,11 +501,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     applyFilter();
     renderList();
-
-    var count = state.orders.length;
-    var live = liveEl && liveEl.checked;
-    var range = state.meta && state.meta.days ? ('last ' + state.meta.days + ' days') : 'recent';
-    setMeta(count + ' available • ' + range, live);
   }
 
   function startPolling() {
@@ -532,6 +522,20 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // Events
+  if (searchToggleBtn) {
+    searchToggleBtn.addEventListener('click', function () {
+      if (searchContainer.style.display === 'none') {
+        searchContainer.style.display = 'block';
+        setTimeout(function() { searchEl.focus(); }, 50);
+      } else {
+        searchContainer.style.display = 'none';
+        searchEl.value = '';
+        applyFilter();
+        renderList();
+      }
+    });
+  }
+
   searchEl.addEventListener('input', debounce(function () {
     applyFilter();
     renderList();
@@ -539,7 +543,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
   liveEl.addEventListener('change', function () {
     startPolling();
-    setMeta((state.orders.length || 0) + ' available', liveEl.checked);
   });
 
   refreshBtn.addEventListener('click', function () {
@@ -562,7 +565,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Init
   (function init() {
-    setMeta('Loading…', true);
     loadOrders();
     startPolling();
   })();

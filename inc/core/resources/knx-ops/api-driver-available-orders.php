@@ -21,6 +21,77 @@
 
 if (!defined('ABSPATH')) exit;
 
+/**
+ * Helper: Clean address for driver display
+ * Removes: building names, ZIP codes, country, redundant state names
+ * Keeps: Street, City, State abbreviation (IL, CA, NY, etc.)
+ * 
+ * Examples:
+ * IN:  "801 Main St NW • Red Wall House • Bourbonnais, IL 60914 • USA"
+ * OUT: "801 Main St NW, Bourbonnais, IL"
+ * 
+ * IN:  "670 w Station St. Kankakee, IL, United States, Illinois 60901"
+ * OUT: "670 w Station St, Kankakee, IL"
+ */
+if (!function_exists('knx_clean_driver_address')) {
+    function knx_clean_driver_address($address) {
+        if (empty($address)) return '';
+        
+        $addr = trim($address);
+        
+        // First, handle bullet-separated format (building names between bullets)
+        if (strpos($addr, '•') !== false) {
+            $parts = array_map('trim', explode('•', $addr));
+            $cleaned_parts = array();
+            
+            foreach ($parts as $part) {
+                if (empty($part)) continue;
+                
+                // Keep first part (street)
+                if (empty($cleaned_parts)) {
+                    $cleaned_parts[] = $part;
+                    continue;
+                }
+                
+                // Keep parts with city/state pattern (contains comma)
+                if (strpos($part, ',') !== false) {
+                    $cleaned_parts[] = $part;
+                }
+            }
+            
+            $addr = implode(', ', $cleaned_parts);
+        }
+        
+        // Remove ZIP codes (5 digits or 5+4 format)
+        $addr = preg_replace('/\s*\d{5}(-\d{4})?\s*/', ' ', $addr);
+        
+        // Remove country names (anywhere in string, not just at end)
+        $addr = preg_replace('/[,\s]+(United States|USA|US|Estados Unidos)([,\s]+|$)/i', '$2', $addr);
+        
+        // Remove full state names (Illinois, California, etc.) keeping abbreviations
+        $states = array('Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 
+                       'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 
+                       'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 
+                       'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 
+                       'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 
+                       'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 
+                       'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 
+                       'Wisconsin', 'Wyoming');
+        
+        foreach ($states as $state) {
+            $addr = preg_replace('/[,\s]+' . preg_quote($state, '/') . '\s*$/i', '', $addr);
+        }
+        
+        // Clean up: multiple commas, extra spaces
+        $addr = preg_replace('/\s*,\s*,+\s*/', ', ', $addr);
+        $addr = preg_replace('/\s*,\s*/', ', ', $addr);
+        $addr = preg_replace('/\s+/', ' ', $addr);
+        $addr = trim($addr, ', ');
+        
+        return $addr;
+    }
+}
+
 if (!function_exists('knx_v1_register_driver_available_orders_routes')) {
     add_action('rest_api_init', 'knx_v1_register_driver_available_orders_routes');
 
@@ -230,6 +301,11 @@ if (!function_exists('knx_v1_driver_available_orders')) {
 
         $where[] = '(' . implode(' OR ', $scope_parts) . ')';
 
+        // KNX-TASK 01: Filter to show only NEW orders (hard rule)
+        // NEW = unassigned AND created within last 15 minutes
+        $where[] = "(COALESCE(dop.ops_status, 'unassigned') = 'unassigned')";
+        $where[] = "o.created_at >= DATE_SUB(NOW(), INTERVAL 15 MINUTE)";
+
         // Table definitions
         $orders_table = $wpdb->prefix . 'knx_orders';
         $driver_ops_table = $wpdb->prefix . 'knx_driver_ops';
@@ -306,24 +382,29 @@ if (!function_exists('knx_v1_driver_available_orders')) {
                 // v5 snapshot: namespaced hub object
                 $hub = $snapshot['hub'];
                 $row['hub_name'] = isset($hub['name']) ? $hub['name'] : null;
-                $row['pickup_address_text'] = isset($hub['address']) ? $hub['address'] : null;
+                $row['pickup_address_text'] = isset($hub['address']) ? knx_clean_driver_address($hub['address']) : null;
                 $row['pickup_lat'] = isset($hub['lat']) ? $hub['lat'] : null;
                 $row['pickup_lng'] = isset($hub['lng']) ? $hub['lng'] : null;
                 $row['address_source'] = 'snapshot';
             } elseif ($snapshot && isset($snapshot['hub_name'])) {
                 // Legacy flat snapshot structure (backward compatible)
                 $row['hub_name'] = $snapshot['hub_name'];
-                $row['pickup_address_text'] = isset($snapshot['hub_address']) ? $snapshot['hub_address'] : null;
+                $row['pickup_address_text'] = isset($snapshot['hub_address']) ? knx_clean_driver_address($snapshot['hub_address']) : null;
                 $row['pickup_lat'] = isset($snapshot['hub_latitude']) ? $snapshot['hub_latitude'] : null;
                 $row['pickup_lng'] = isset($snapshot['hub_longitude']) ? $snapshot['hub_longitude'] : null;
                 $row['address_source'] = 'snapshot_legacy';
             } else {
                 // Fallback to live hub data (pre-snapshot orders or missing data)
                 $row['hub_name'] = isset($row['hub_name_live']) ? $row['hub_name_live'] : null;
-                $row['pickup_address_text'] = isset($row['pickup_address_live']) ? $row['pickup_address_live'] : null;
+                $row['pickup_address_text'] = isset($row['pickup_address_live']) ? knx_clean_driver_address($row['pickup_address_live']) : null;
                 $row['pickup_lat'] = isset($row['pickup_lat_live']) ? $row['pickup_lat_live'] : null;
                 $row['pickup_lng'] = isset($row['pickup_lng_live']) ? $row['pickup_lng_live'] : null;
                 $row['address_source'] = 'live';
+            }
+
+            // Clean delivery address
+            if (!empty($row['delivery_address_text'])) {
+                $row['delivery_address_text'] = knx_clean_driver_address($row['delivery_address_text']);
             }
 
             // Clean up temporary fields
@@ -332,6 +413,10 @@ if (!function_exists('knx_v1_driver_available_orders')) {
             unset($row['pickup_address_live']);
             unset($row['pickup_lat_live']);
             unset($row['pickup_lng_live']);
+
+            // KNX-TASK 01 + 02: Set is_new flag (all orders from this endpoint are NEW)
+            // Since SQL already filters to unassigned + last 15 min, all results are NEW
+            $row['is_new'] = true;
         }
         unset($row); // Break reference
 

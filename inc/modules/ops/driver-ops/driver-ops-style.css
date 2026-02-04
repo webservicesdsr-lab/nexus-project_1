@@ -56,18 +56,10 @@
 /* Header */
 #knx-driver-ops-dashboard .knx-driver-ops-header{
   display:flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
-}
-
-@media (min-width: 820px){
-  #knx-driver-ops-dashboard .knx-driver-ops-header{
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-  }
+  margin-bottom: 12px;
 }
 
 #knx-driver-ops-dashboard .knx-driver-ops-title h2{
@@ -77,37 +69,86 @@
   letter-spacing: -0.01em;
 }
 
-#knx-driver-ops-dashboard .knx-driver-ops-sub{
-  margin-top: 4px;
-  color: var(--nxs-muted);
-  font-size: 0.95rem;
-}
-
 #knx-driver-ops-dashboard .knx-driver-ops-controls{
   display:flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
 }
 
-#knx-driver-ops-dashboard .knx-field{
-  flex: 1 1 280px;
+/* Search container (collapsible) */
+#knx-driver-ops-dashboard .knx-search-container{
+  margin-bottom: 12px;
 }
 
 #knx-driver-ops-dashboard .knx-input{
   width: 100%;
-  padding: 12px 14px;
+  padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid var(--nxs-border-2);
   background: #fff;
   color: var(--nxs-text);
   outline: none;
+  font-size: 14px;
 }
 
 #knx-driver-ops-dashboard .knx-input:focus{
   outline: 3px solid rgba(11,121,58,0.14);
   outline-offset: 2px;
   border-color: rgba(11,121,58,0.35);
+}
+
+/* Icon button (search toggle) */
+#knx-driver-ops-dashboard .knx-btn-icon{
+  background: transparent;
+  border: 1px solid var(--nxs-border-2);
+  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--nxs-muted);
+  transition: transform .12s ease, background .18s ease, border-color .18s ease;
+  padding: 0;
+}
+
+#knx-driver-ops-dashboard .knx-btn-icon:hover{
+  background: rgba(11,18,32,0.03);
+  transform: translateY(-1px);
+  border-color: rgba(11,18,32,0.10);
+}
+
+#knx-driver-ops-dashboard .knx-btn-icon:focus-visible{
+  outline: 3px solid rgba(11,121,58,0.14);
+  outline-offset: 2px;
+}
+
+/* Today's Orders bar */
+#knx-driver-ops-dashboard .knx-today-orders-bar{
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--nxs-border-2);
+  background: rgba(11,18,32,0.02);
+  color: var(--nxs-text);
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+  transition: transform .12s ease, background .18s ease, border-color .18s ease;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+#knx-driver-ops-dashboard .knx-today-orders-bar:hover{
+  background: rgba(11,18,32,0.04);
+  transform: translateY(-1px);
+  border-color: rgba(11,18,32,0.10);
+}
+
+#knx-driver-ops-dashboard .knx-today-orders-bar:focus-visible{
+  outline: 3px solid rgba(11,121,58,0.14);
+  outline-offset: 2px;
 }
 
 #knx-driver-ops-dashboard .knx-live{
@@ -147,10 +188,16 @@
   color: var(--nxs-muted);
   border: 1px solid var(--nxs-border-2);
   border-radius: 10px;
-  padding: 12px 14px;
+  padding: 8px 12px;
   cursor: pointer;
-  font-weight: 700;
+  font-weight: 800;
+  font-size: 16px;
   transition: transform .12s ease, background .18s ease, border-color .18s ease;
+  min-width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 #knx-driver-ops-dashboard .knx-btn-secondary:hover{
@@ -209,40 +256,13 @@
   transform: translateX(20px);
 }
 
-/* Meta line */
-#knx-driver-ops-dashboard .knx-driver-ops-meta{
-  display:flex;
-  align-items:center;
-  gap: 10px;
-  color: var(--nxs-muted);
-  font-weight: 700;
-  font-size: 14px;
-  margin: 6px 0 16px;
-}
 
-#knx-driver-ops-dashboard .knx-meta-dot{
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: #cfd3d8;
-  box-shadow: 0 0 0 4px rgba(11,18,32,0.04);
-}
-
-#knx-driver-ops-dashboard .knx-meta-dot[data-live="1"]{
-  background: var(--nxs-primary);
-  box-shadow: 0 0 0 4px rgba(11,121,58,0.14);
-}
 
 /* List + cards */
 #knx-driver-ops-dashboard .knx-driver-ops-list{
   display: grid;
   gap: 12px;
-}
-
-@media (min-width: 900px){
-  #knx-driver-ops-dashboard .knx-driver-ops-list{
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  grid-template-columns: 1fr;
 }
 
 #knx-driver-ops-dashboard .knx-empty{
@@ -254,28 +274,55 @@
   font-weight: 700;
 }
 
+/* KNX-TASK 04: Card layout 1:1 with Figma - balanced proportions */
 #knx-driver-ops-dashboard .knx-order-card{
   background: var(--nxs-card);
   border: 1px solid var(--nxs-border-2);
   border-radius: 14px;
   box-shadow: var(--nxs-shadow-sm);
-  padding: 14px;
+  padding: 18px;
   display:flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 1px;
+  transition: all 0.2s ease;
+  min-width: 0;
+  overflow: hidden;
 }
 
-@media (min-width: 900px){
-  #knx-driver-ops-dashboard .knx-order-card{
-    padding: 16px;
-  }
+#knx-driver-ops-dashboard .knx-order-card:hover{
+  box-shadow: 0 4px 16px rgba(11,18,32,0.12);
+  transform: translateY(-2px);
 }
 
-#knx-driver-ops-dashboard .knx-order-top{
-  display:flex;
-  align-items:flex-start;
-  justify-content: space-between;
-  gap: 12px;
+/* Compact single-line header: Restaurant name + Order ID */
+#knx-driver-ops-dashboard .knx-order-header-inline{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+#knx-driver-ops-dashboard .knx-restaurant-name{
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: var(--nxs-text);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#knx-driver-ops-dashboard .knx-order-id{
+  font-size: 10px;
+  font-weight: 800;
+  color: rgba(11, 121, 58, 0.85);
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(11, 121, 58, 0.08);
+  border: 1px solid rgba(11, 121, 58, 0.15);
+  letter-spacing: 0.02em;
 }
 
 /* New-order badge + total layout tweaks */
@@ -285,20 +332,6 @@
   align-items: flex-end;
   font-weight: 900;
   font-size: 1.05rem;
-}
-
-#knx-driver-ops-dashboard .knx-order-new{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  margin-top:6px;
-  padding:6px 8px;
-  border-radius:999px;
-  background: linear-gradient(180deg, rgba(239,246,255,1), rgba(235,245,255,1));
-  color:#1E3A8A;
-  font-weight:800;
-  font-size:12px;
-  border: 1px solid rgba(30,58,138,0.08);
 }
 
 /* Order ID pill (top-left) */
@@ -315,10 +348,24 @@
 }
 
 /* Addresses */
+#knx-driver-ops-dashboard .knx-address-block{
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-bottom: 2px;
+  min-width: 0;
+}
+
 #knx-driver-ops-dashboard .knx-address-row{
   display:flex;
-  gap:10px;
-  align-items:flex-start;
+  flex-direction: column;
+ 
+  min-width: 0;
+}
+
+#knx-driver-ops-dashboard .knx-address-header{
+  display:flex;
+  align-items:center;
 }
 
 #knx-driver-ops-dashboard .knx-address-label{
@@ -326,7 +373,17 @@
   font-weight:800;
   text-transform:uppercase;
   color:var(--nxs-muted);
-  margin-right:6px;
+}
+
+#knx-driver-ops-dashboard .knx-address-text{
+  font-size:14px;
+  font-weight:600;
+  color:var(--nxs-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  min-width: 0;
 }
 
 #knx-driver-ops-dashboard .knx-addr-icon{
@@ -335,57 +392,82 @@
   opacity:0.9;
 }
 
-/* Money + distance row */
+/* Money + distance row - redesigned for visual balance */
 #knx-driver-ops-dashboard .knx-money-distance{
-  display:flex;
   align-items:center;
-  justify-content:space-between;
   gap:12px;
 }
 
 #knx-driver-ops-dashboard .knx-money-group{
   display:flex;
-  gap:18px;
-  align-items:flex-end;
+  gap:10px;
+  align-items:stretch;
 }
 
 #knx-driver-ops-dashboard .knx-money-item{
   display:flex;
   flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding: 3px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(11, 121, 58, 0.08);
+  min-width: 0;
+}
+
+#knx-driver-ops-dashboard .knx-money-item:first-child{
+  flex: 1.2 1 0;
+}
+
+#knx-driver-ops-dashboard .knx-money-item:last-child{
+  flex: 1 1 0;
 }
 
 #knx-driver-ops-dashboard .knx-money-item .label{
-  font-size:11px;
+  font-size:10px;
   font-weight:800;
   color:var(--nxs-muted);
   text-transform:uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 4px;
 }
 
 #knx-driver-ops-dashboard .knx-money-item .amount{
-  font-size:1.05rem;
+  font-size:1.1rem;
   font-weight:900;
-  color: #0b793a; /* green for amounts */
+  color: #0b793a;
+  line-height: 1;
 }
 
 #knx-driver-ops-dashboard .knx-distance{
   font-weight:800;
   color:var(--nxs-muted);
   font-size:13px;
+  white-space: nowrap;
 }
 
-/* Action buttons: mobile stacked but side-by-side on wide screens */
+/* KNX-TASK 05: Action buttons inline (single row) - equal height, balanced width */
 #knx-driver-ops-dashboard .knx-order-actions{
   display:flex;
   gap:10px;
+  margin-top: 8px;
+  flex-direction: row;
 }
 
-@media (max-width: 899px){
-  #knx-driver-ops-dashboard .knx-order-actions{ flex-direction: column; }
+#knx-driver-ops-dashboard .knx-order-actions .knx-btn{
+  flex: 1.2 1 0;
+  min-width: 0;
+  padding: 14px 16px;
+  font-size: 14px;
+  font-weight: 800;
 }
 
-@media (min-width: 900px){
-  #knx-driver-ops-dashboard .knx-order-actions .knx-btn,
-  #knx-driver-ops-dashboard .knx-order-actions .knx-btn-secondary{ padding: 14px 18px; }
+#knx-driver-ops-dashboard .knx-order-actions .knx-btn-secondary{
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 14px 16px;
+  font-size: 14px;
+  font-weight: 800;
 }
 
 #knx-driver-ops-dashboard .knx-order-number{
@@ -417,16 +499,6 @@
 
 #knx-driver-ops-dashboard .knx-addr-icon{
   margin-top: 1px;
-}
-
-#knx-driver-ops-dashboard .knx-order-actions{
-  display:flex;
-  gap: 10px;
-}
-
-#knx-driver-ops-dashboard .knx-order-actions .knx-btn,
-#knx-driver-ops-dashboard .knx-order-actions .knx-btn-secondary{
-  flex: 1 1 auto;
 }
 
 /* Pills */
