@@ -1,13 +1,4 @@
-Perfecto. Esto es **exactamente** lo correcto en modo Nexus.
-Lo que necesitas no es “más instrucciones”, sino un **documento de alineación cognitiva** para Copilot: *por qué aquí rompe todo cuando actúa como AI genérica*.
-
-Abajo te dejo un **REPORTE PARA COPILOT** listo para pegar tal cual en el repo (README, `/documentation/COPILOT_CONTEXT.md`, o como comentario inicial antes de pedirle tareas).
-
-No es técnico solamente: es **correctivo de comportamiento**.
-
----
-
-# 🚨 COPILOT CONTEXT REPORT — KINGDOM NEXUS
+CONTEXT REPORT — KINGDOM NEXUS
 
 ## READ THIS BEFORE MAKING ANY CHANGE
 

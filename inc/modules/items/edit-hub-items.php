@@ -47,6 +47,7 @@ add_shortcode('knx_edit_hub_items', function() {
       data-api-add="<?php echo esc_url(rest_url('knx/v1/add-hub-item')); ?>"
       data-api-delete="<?php echo esc_url(rest_url('knx/v1/delete-hub-item')); ?>"
       data-api-reorder="<?php echo esc_url(rest_url('knx/v1/reorder-item')); ?>"
+      data-api-upload-csv="<?php echo esc_url(rest_url('knx/v1/upload-hub-items-csv')); ?>"
       data-api-cats="<?php echo esc_url(rest_url('knx/v1/get-item-categories')); ?>"
       data-hub-id="<?php echo esc_attr($hub_id); ?>"
       data-nonce="<?php echo esc_attr($nonce); ?>"
@@ -67,7 +68,7 @@ add_shortcode('knx_edit_hub_items', function() {
           </form>
 
           <!-- Action Buttons -->
-          <div class="knx-hubs-buttons">
+            <div class="knx-hubs-buttons">
             <a class="knx-btn-secondary" href="<?php echo $back_hubs_url; ?>">
               <i class="fas fa-arrow-left"></i> Back to Hubs
             </a>
@@ -78,6 +79,10 @@ add_shortcode('knx_edit_hub_items', function() {
 
             <button id="knxAddItemBtn" class="knx-add-btn">
               <i class="fas fa-plus"></i> Add Item
+            </button>
+
+            <button id="knxUploadCsvBtn" class="knx-btn-secondary" title="Upload CSV">
+              <i class="fas fa-file-csv"></i> Upload CSV
             </button>
           </div>
         </div>
@@ -140,6 +145,24 @@ add_shortcode('knx_edit_hub_items', function() {
     <input type="hidden" id="knxDeleteItemId" value="">
   </div>
 </div>
+
+  <!-- ====== MODAL: CSV UPLOAD ====== -->
+  <div id="knxUploadCsvModal" class="knx-modal" role="dialog" aria-modal="true" aria-labelledby="knxUploadCsvTitle">
+    <div class="knx-modal-content">
+      <h3 id="knxUploadCsvTitle">Upload Items CSV</h3>
+      <p>Expected columns: <code>name</code> (required), <code>price</code> (required), <code>category_id</code> or <code>category_name</code>, <code>description</code>, <code>status</code>, <code>image_url</code>.</p>
+      <form id="knxUploadCsvForm" enctype="multipart/form-data">
+        <div class="knx-form-group">
+          <label for="knxCsvFile">CSV file</label>
+          <input type="file" id="knxCsvFile" name="items_csv" accept=".csv, text/csv" required>
+        </div>
+        <div class="knx-modal-actions">
+          <button type="submit" class="knx-btn">Upload</button>
+          <button type="button" id="knxCloseCsvModal" class="knx-btn-secondary">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
 <noscript>
   <p style="text-align:center;color:#b00020;margin-top:10px;">

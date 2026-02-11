@@ -244,6 +244,43 @@ if (!function_exists('knx_get_nav_items')) {
                         'area' => 'driver',
                         'active_slugs' => ['my-deliveries'],
                     ],
+                    // App-style driver bottom navigation (quick/ops/live/profile)
+                    [
+                        'id' => 'driver-quick',
+                        'label' => 'Quick',
+                        'route' => '/driver-quick-menu',
+                        'icon' => 'bars',
+                        'roles' => ['driver'],
+                        'area' => 'driver',
+                        'active_slugs' => ['driver-quick-menu'],
+                    ],
+                    [
+                        'id' => 'driver-ops',
+                        'label' => 'Driver OPS',
+                        'route' => '/driver-ops',
+                        'icon' => 'tools',
+                        'roles' => ['driver'],
+                        'area' => 'driver',
+                        'active_slugs' => ['driver-ops'],
+                    ],
+                    [
+                        'id' => 'driver-live',
+                        'label' => 'Live',
+                        'route' => '/driver-live-orders',
+                        'icon' => 'shipping-fast',
+                        'roles' => ['driver'],
+                        'area' => 'driver',
+                        'active_slugs' => ['driver-live-orders'],
+                    ],
+                    [
+                        'id' => 'driver-profile',
+                        'label' => 'Profile',
+                        'route' => '/driver-profile',
+                        'icon' => 'user',
+                        'roles' => ['driver'],
+                        'area' => 'driver',
+                        'active_slugs' => ['driver-profile'],
+                    ],
                 ];
                 break;
         }

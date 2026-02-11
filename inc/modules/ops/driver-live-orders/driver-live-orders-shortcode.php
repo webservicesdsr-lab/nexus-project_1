@@ -10,7 +10,6 @@ if (!defined('ABSPATH')) exit;
  * - Snapshot v5 is the source of truth for UI content.
  * - No wp_footer usage; assets injected inline.
  * - Only two modals: Status update + Release order.
- * - Bottom navbar included (4 tabs; Support later).
  * ==========================================================
  */
 
@@ -48,23 +47,11 @@ add_shortcode('knx_driver_active_orders', function () {
     if (!empty($ctx->session->knx_nonce)) $knx_nonce = (string) $ctx->session->knx_nonce;
     else if (!empty($ctx->session->nonce)) $knx_nonce = (string) $ctx->session->nonce;
 
-    // Bottom nav URLs (edit here later if your slugs differ)
-    $nav_live_url    = '/driver-live-orders';
-    $nav_active_url  = '/driver-active-orders';
-    $nav_past_url    = '/driver-past-orders';
-    $nav_profile_url = '/driver-profile';
-
-    // Load bottom nav renderer (best-effort)
-    $bottom_nav_path = __DIR__ . '/../driver-bottom-nav/driver-bottom-nav.php';
-    if (file_exists($bottom_nav_path)) {
-        require_once $bottom_nav_path;
-    }
-
     ob_start();
     ?>
     <div
         id="knx-driver-active-order"
-        class="knx-dao knx-has-bottomnav"
+        class="knx-dao"
         data-order-id="<?php echo esc_attr($order_id); ?>"
         data-api-detail="<?php echo esc_attr($api_detail); ?>"
         data-api-base-v2="<?php echo esc_attr($api_base_v2); ?>"
@@ -116,6 +103,7 @@ add_shortcode('knx_driver_active_orders', function () {
             <div class="knx-dao__locs">
                 <div class="knx-dao__loc">
                     <div class="knx-dao__loc-ico knx-dao__loc-ico--pickup" aria-hidden="true">
+                        <!-- Map pin -->
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                             <path d="M12 22s7-4.5 7-12a7 7 0 1 0-14 0c0 7.5 7 12 7 12Z" stroke="currentColor" stroke-width="2"/>
                             <circle cx="12" cy="10" r="2.5" stroke="currentColor" stroke-width="2"/>
@@ -129,6 +117,7 @@ add_shortcode('knx_driver_active_orders', function () {
 
                 <div class="knx-dao__loc">
                     <div class="knx-dao__loc-ico knx-dao__loc-ico--delivery" aria-hidden="true">
+                        <!-- Location -->
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                             <path d="M12 22s7-4.5 7-12a7 7 0 1 0-14 0c0 7.5 7 12 7 12Z" stroke="currentColor" stroke-width="2"/>
                             <circle cx="12" cy="10" r="2.5" stroke="currentColor" stroke-width="2"/>
@@ -152,6 +141,7 @@ add_shortcode('knx_driver_active_orders', function () {
             <div class="knx-dao__actions">
                 <a class="knx-dao__btn knx-dao__btn--green" id="knxDaoNavigate" href="#" target="_blank" rel="noopener">
                     <span class="knx-dao__btn-ico" aria-hidden="true">
+                        <!-- Paper plane -->
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                             <path d="M22 2 11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                             <path d="M22 2 15 22l-4-9-9-4 20-7Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
@@ -162,6 +152,7 @@ add_shortcode('knx_driver_active_orders', function () {
 
                 <a class="knx-dao__btn knx-dao__btn--green" id="knxDaoCustomer" href="#">
                     <span class="knx-dao__btn-ico" aria-hidden="true">
+                        <!-- Phone -->
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                             <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.86.3 1.7.54 2.5a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.58-1.11a2 2 0 0 1 2.11-.45c.8.24 1.64.42 2.5.54A2 2 0 0 1 22 16.92Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
                         </svg>
@@ -196,7 +187,9 @@ add_shortcode('knx_driver_active_orders', function () {
 
                 <div class="knx-dao__modal-divider"></div>
 
-                <div class="knx-dao__status-list" id="knxDaoStatusList"></div>
+                <div class="knx-dao__status-list" id="knxDaoStatusList">
+                    <!-- Filled by JS (1:1 cards) -->
+                </div>
 
                 <div class="knx-dao__status-warn" id="knxDaoCancelWarn" hidden>
                     This action requires confirmation.
@@ -233,19 +226,7 @@ add_shortcode('knx_driver_active_orders', function () {
             </div>
         </div>
     </div>
-
     <?php
-    // Render bottom navbar (4 tabs)
-    if (function_exists('knx_driver_bottom_nav_render')) {
-        knx_driver_bottom_nav_render([
-            'current' => 'active',
-            'live_url' => $nav_live_url,
-            'active_url' => $nav_active_url,
-            'past_url' => $nav_past_url,
-            'profile_url' => $nav_profile_url,
-            'active_order_id' => $order_id,
-        ]);
-    }
 
     // Inject CSS
     $css_path = __DIR__ . '/driver-active-orders-style.css';

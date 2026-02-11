@@ -86,17 +86,17 @@
         if (!cart || typeof cart !== 'object') return { items: [] };
         
         // Support both formats: { items: [...] } or direct array
-        const items = Array.isArray(cart) ? cart : (cart.items || []);
-        
-        return {
-            items: items.filter(item => 
-                item && 
-                typeof item === 'object' && 
-                item.id && 
-                typeof item.quantity === 'number' && 
-                item.quantity > 0
-            )
-        };
+                const items = Array.isArray(cart) ? cart : (cart.items || []);
+
+                // Be permissive with quantity type (string or number)
+                const normalized = items.filter(item => item && typeof item === 'object')
+                    .map(item => {
+                        const qty = item.quantity != null ? parseInt(item.quantity, 10) : 0;
+                        return Object.assign({}, item, { quantity: Number.isFinite(qty) && qty > 0 ? qty : 0 });
+                    })
+                    .filter(item => item.quantity > 0);
+
+                return { items: normalized };
     }
 
     function calculateItemCount(cart) {
@@ -135,9 +135,10 @@
     });
 
     // Custom event from cart-drawer.js
-    document.addEventListener('knx-cart-updated', function() {
-        updateCartBadge();
-    });
+    // Some modules dispatch the event on `window`, others on `document`.
+    // Listen on both to be robust across modules (menu-script uses window.dispatchEvent).
+    document.addEventListener('knx-cart-updated', function() { updateCartBadge(); });
+    window.addEventListener('knx-cart-updated', function() { updateCartBadge(); });
 
     // ========================================
     // INIT ON DOM READY
@@ -145,6 +146,9 @@
     function init() {
         updateLocationChipText();
         updateCartBadge();
+        // Retry passes to mitigate races where cart is written before init
+        setTimeout(updateCartBadge, 300);
+        setTimeout(updateCartBadge, 1200);
     }
 
     if (document.readyState === 'loading') {

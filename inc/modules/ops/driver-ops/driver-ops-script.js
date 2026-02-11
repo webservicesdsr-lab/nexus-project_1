@@ -23,6 +23,9 @@ document.addEventListener('DOMContentLoaded', function () {
   var wpRestNonce = root.dataset.wpRestNonce || cfg.wpRestNonce || '';
   var pollMs = parseInt(cfg.pollMs, 10) || 15000;
 
+  // Page URLs (not REST) — configurable; fallback is safe.
+  var activeOrderUrl = root.dataset.activeOrderUrl || cfg.activeOrderUrl || '/driver-active-orders';
+
   var listEl = document.getElementById('knxDriverOpsList');
   var metaEl = document.getElementById('knxDriverOpsMetaText');
 
@@ -120,8 +123,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-
-
   function modalOpen(modal) {
     if (!modal) return;
     lastFocusEl = document.activeElement;
@@ -177,11 +178,47 @@ document.addEventListener('DOMContentLoaded', function () {
     if (modalOrder && modalOrder.classList.contains('active')) return modalClose(modalOrder);
   });
 
+  function normalizeUrlBase(u) {
+    var s = (u || '').toString().trim();
+    if (!s) return '';
+    // Ensure trailing slash
+    if (s.charAt(s.length - 1) !== '/') s += '/';
+    return s;
+  }
+
+  function isBadAssignBase(u) {
+    var s = (u || '').toString().toLowerCase();
+    // Driver UI must never call ops/manager assign endpoints
+    if (s.indexOf('/ops/') !== -1) return true;
+    if (s.indexOf('assign-driver') !== -1) return true;
+    if (s.indexOf('/manager/') !== -1) return true;
+    return false;
+  }
+
   function buildAssignUrl(orderId) {
     var id = parseInt(orderId, 10) || 0;
-    if (!id || !apiBase) return '';
-    // apiBase ends with "/driver/orders/"
-    return apiBase + id + '/assign';
+    if (!id) return '';
+
+    var base = normalizeUrlBase(apiBase);
+    if (!base) return '';
+
+    // Fail-closed if apiBase looks like an OPS/manager endpoint base
+    if (isBadAssignBase(base)) return '';
+
+    // apiBase is expected to end with "/.../driver/orders/"
+    return base + id + '/assign';
+  }
+
+  function buildActiveOrderRedirectUrl(orderId) {
+    var id = parseInt(orderId, 10) || 0;
+    if (!id) return '';
+
+    var base = (activeOrderUrl || '/driver-active-orders').toString().trim();
+    if (!base) base = '/driver-active-orders';
+
+    // Preserve existing query if any
+    var sep = base.indexOf('?') === -1 ? '?' : '&';
+    return base + sep + 'order_id=' + encodeURIComponent(String(id)) + '&from=ops';
   }
 
   async function fetchJson(url, opts) {
@@ -364,7 +401,7 @@ document.addEventListener('DOMContentLoaded', function () {
     body +=   '<div class="knx-modal-row"><div class="knx-k">Status</div><div class="knx-v">' + statusPill(o.status) + '</div></div>';
     body +=   '<div class="knx-modal-row"><div class="knx-k">Payment</div><div class="knx-v">' + payPill(o.payment_status, o.payment_method) + '</div></div>';
     body +=   '<div class="knx-modal-row"><div class="knx-k">Total</div><div class="knx-v"><strong>' + escHtml(money(o.total)) + '</strong></div></div>';
-    body +=   '<div class="knx-modal-row"><div class="knx-k">Address</div><div class="knx-v">' + escHtml(o.delivery_address || '—') + '</div></div>';
+    body +=   '<div class="knx-modal-row"><div class="knx-k">Address</div><div class="knx-v">' + escHtml(o.delivery_address_text || o.delivery_address || '—') + '</div></div>';
     body += '</div>';
 
     body += '<div class="knx-breakdown">';
@@ -391,37 +428,13 @@ document.addEventListener('DOMContentLoaded', function () {
     modalOpen(modalOrder);
   }
 
-  function openConfirm(orderId) {
-    if (!orderId) return;
-
-    state.pendingAcceptId = orderId;
-
-    // Update confirm text
-    var t = modalConfirm.querySelector('.knx-confirm-text');
-    var o = state.orders.find(function (x) { return parseInt(x.id, 10) === parseInt(orderId, 10); });
-    var label = o && o.order_number ? o.order_number : ('#' + orderId);
-    if (t) t.textContent = 'You’ll be assigned to order ' + label + '. Continue?';
-
-    // Wire confirm ok
-    var okBtn = $('.knx-confirm-ok', modalConfirm);
-    if (okBtn) {
-      okBtn.disabled = false;
-      okBtn.textContent = 'Accept';
-      okBtn.onclick = function () {
-        doAssign(orderId);
-      };
-    }
-
-    modalOpen(modalConfirm);
-  }
-
   async function doAssign(orderId) {
     var id = parseInt(orderId, 10) || 0;
     if (!id) return;
 
     var url = buildAssignUrl(id);
     if (!url) {
-      toast('Assign endpoint missing.', 'error');
+      toast('Assign endpoint misconfigured for driver.', 'error');
       return;
     }
 
@@ -466,14 +479,22 @@ document.addEventListener('DOMContentLoaded', function () {
     // Close modal if open
     if (modalOrder && modalOrder.classList.contains('active')) modalClose(modalOrder);
 
-    // KNX-TASK 06: Redirect after accept to active orders page
-    // Driver OPS is discovery-only, accepted orders are managed elsewhere
-    // TODO: Future enhancement - bottom navbar for app-like navigation
-    // For now, redirect to placeholder active orders page
-    setTimeout(function() {
-      var redirectUrl = '/driver-active-orders/'; // TODO: Replace with actual route
+    // Redirect after successful accept to active order detail.
+    // Prefer API returned id, but fall back to the local id (known accepted order).
+    var returnedOrderId = 0;
+    if (json && json.data) {
+      if (typeof json.data.order_id !== 'undefined') returnedOrderId = parseInt(json.data.order_id, 10) || 0;
+      else if (typeof json.data.orderId !== 'undefined') returnedOrderId = parseInt(json.data.orderId, 10) || 0;
+      else if (typeof json.data.id !== 'undefined') returnedOrderId = parseInt(json.data.id, 10) || 0;
+      else if (json.data.order && typeof json.data.order.id !== 'undefined') returnedOrderId = parseInt(json.data.order.id, 10) || 0;
+    }
+    if (returnedOrderId <= 0) returnedOrderId = id;
+
+    var redirectUrl = buildActiveOrderRedirectUrl(returnedOrderId);
+    if (redirectUrl) {
       window.location.href = redirectUrl;
-    }, 800);
+      return;
+    }
   }
 
   async function loadOrders(opts) {

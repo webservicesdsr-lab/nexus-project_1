@@ -81,6 +81,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var message = (msg || '').toString().trim() || 'Something went wrong.';
     var t = (type || 'info').toString();
 
+    // If you have a global toast helper, use it.
     if (typeof window.knxToast === 'function') {
       window.knxToast(message, t);
       return;
@@ -108,10 +109,18 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
+  function toFixedMoneyNumber(val) {
+    var n = parseFloat(val);
+    if (!isFinite(n)) return '—';
+    return n.toFixed(2);
+  }
+
   function normalizeStatusKey(s) {
     return String(s || '').trim().toLowerCase();
   }
 
+  // This is the canonical ops-status list for the UI (labels match your screenshots 1:1)
+  // Values are the ops_status we will POST (compatible with your existing active pipeline values)
   var OPS_STATUS_CHOICES = [
     { value: 'assigned',         label: 'Accepted by Driver',      tone: 'green' },
     { value: 'accepted',         label: 'Accepted by Restaurant',  tone: 'muted' },
@@ -124,13 +133,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function labelForOpsStatus(value) {
     var v = normalizeStatusKey(value);
+
+    // Back-compat mapping: your API list mode includes out_for_delivery too
     if (v === 'out_for_delivery') v = 'picked_up';
     if (v === 'canceled') v = 'cancelled';
-    if (v === 'completed') v = 'delivered';
 
     for (var i = 0; i < OPS_STATUS_CHOICES.length; i++) {
       if (OPS_STATUS_CHOICES[i].value === v) return OPS_STATUS_CHOICES[i].label;
     }
+
+    // Default humanize
     if (!v) return '—';
     return v.replace(/_/g, ' ').replace(/\b\w/g, function (m) { return m.toUpperCase(); });
   }
@@ -139,7 +151,6 @@ document.addEventListener('DOMContentLoaded', function () {
     var v = normalizeStatusKey(value);
     if (v === 'out_for_delivery') v = 'picked_up';
     if (v === 'canceled') v = 'cancelled';
-    if (v === 'completed') v = 'delivered';
 
     for (var i = 0; i < OPS_STATUS_CHOICES.length; i++) {
       if (OPS_STATUS_CHOICES[i].value === v) return OPS_STATUS_CHOICES[i].tone;
@@ -201,11 +212,13 @@ document.addEventListener('DOMContentLoaded', function () {
   function wireModal(modal) {
     if (!modal) return;
 
+    // Close buttons
     var closers = modal.querySelectorAll('[data-close]');
     Array.prototype.forEach.call(closers, function (btn) {
       btn.addEventListener('click', function () { modalClose(modal); });
     });
 
+    // Overlay click
     modal.addEventListener('click', function (e) {
       if (e.target === modal) modalClose(modal);
     });
@@ -248,8 +261,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
     emptyEl.hidden = false;
 
-    if (card) card.style.display = 'none';
-    if (statusCard) statusCard.style.display = 'none';
+    if (card) {
+      card.style.display = 'none';
+    }
+    if (statusCard) {
+      statusCard.style.display = 'none';
+    }
   }
 
   function setBusy(isBusy) {
@@ -263,7 +280,6 @@ document.addEventListener('DOMContentLoaded', function () {
     var sel = normalizeStatusKey(selectedValue);
     if (sel === 'out_for_delivery') sel = 'picked_up';
     if (sel === 'canceled') sel = 'cancelled';
-    if (sel === 'completed') sel = 'delivered';
 
     var html = OPS_STATUS_CHOICES.map(function (c) {
       var isSel = (c.value === sel);
@@ -282,6 +298,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     statusList.innerHTML = html;
 
+    // Wire select
     var btns = statusList.querySelectorAll('[data-ops]');
     Array.prototype.forEach.call(btns, function (btn) {
       btn.addEventListener('click', function () {
@@ -289,14 +306,17 @@ document.addEventListener('DOMContentLoaded', function () {
         state.selectedOpsStatus = v;
         state.cancelArmed = false;
 
+        // UI selection update
         Array.prototype.forEach.call(btns, function (b) { b.classList.remove('is-selected'); });
         btn.classList.add('is-selected');
 
+        // Warning state for cancel
         var needs = (v === 'cancelled');
         if (cancelWarn) cancelWarn.hidden = !needs;
 
+        // Reset update button text
         if (updateStatusBtn) {
-          updateStatusBtn.textContent = 'Update';
+          updateStatusBtn.textContent = needs ? 'Update' : 'Update';
           updateStatusBtn.disabled = false;
         }
       });
@@ -334,10 +354,10 @@ document.addEventListener('DOMContentLoaded', function () {
   function renderOrder(o) {
     state.order = o;
 
+    // Status
     var ops = normalizeStatusKey(o.ops_status);
     if (ops === 'out_for_delivery') ops = 'picked_up';
     if (ops === 'canceled') ops = 'cancelled';
-    if (ops === 'completed') ops = 'delivered';
 
     state.selectedOpsStatus = ops;
 
@@ -349,14 +369,18 @@ document.addEventListener('DOMContentLoaded', function () {
       statusValueEl.className = 'knx-dao__status-value is-' + tone;
     }
 
+    // Totals
     if (totalEl) totalEl.textContent = money(o.total);
     if (tipsEl) tipsEl.textContent = money(o.tip_amount);
 
+    // Restaurant + order number
     if (restaurantEl) restaurantEl.textContent = o.hub_name || '—';
     if (orderNumberEl) orderNumberEl.textContent = o.order_number || (o.id ? String(o.id) : '—');
 
+    // Items
     if (itemsEl) {
       var items = Array.isArray(o.items) ? o.items : [];
+
       if (!items.length) {
         itemsEl.innerHTML = '<div class="knx-dao__item-empty">No items found.</div>';
       } else {
@@ -365,6 +389,7 @@ document.addEventListener('DOMContentLoaded', function () {
           if (!isFinite(qty) || qty <= 0) qty = 1;
 
           var name = (it.name_snapshot || it.name || it.title || '').toString().trim() || '—';
+
           var mods = extractModifierNames(it.modifiers);
           var note = extractItemNote(it);
 
@@ -388,6 +413,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     }
 
+    // Locations
     var pickupText = (o.pickup_address_text || '').toString().trim() || '—';
     var deliveryText = (o.delivery_address_text || '').toString().trim() || '—';
     if (pickupEl) pickupEl.textContent = pickupText;
@@ -396,6 +422,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var custName = (o.customer_name || '').toString().trim() || '—';
     if (customerLineEl) customerLineEl.textContent = 'Customer: ' + custName;
 
+    // Distance (use DB distance if provided, else compute from coords)
     var dist = null;
     if (typeof o.delivery_distance === 'number' && isFinite(o.delivery_distance)) dist = o.delivery_distance;
     else if (typeof o.delivery_distance === 'string' && isFinite(parseFloat(o.delivery_distance))) dist = parseFloat(o.delivery_distance);
@@ -412,9 +439,11 @@ document.addEventListener('DOMContentLoaded', function () {
       distanceValEl.textContent = (dist != null && isFinite(dist)) ? (formatMiles(dist) + ' mi') : '—';
     }
 
+    // Navigate link (Google maps directions)
     if (navBtn) {
       var destLat = parseFloat(o.delivery_lat);
       var destLng = parseFloat(o.delivery_lng);
+
       var orgLat = parseFloat(o.pickup_lat);
       var orgLng = parseFloat(o.pickup_lng);
 
@@ -436,6 +465,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     }
 
+    // Customer call
     if (customerBtn) {
       var phone = (o.customer_phone || '').toString().trim();
       if (phone) {
@@ -449,16 +479,19 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     }
 
+    // Modal choices reflect current ops_status
     renderStatusChoices(ops);
   }
 
   function buildStatusUrl() {
     if (!apiBaseV2 || !orderId) return '';
+    // Canon guess: "/driver/orders/{id}/ops-status"
     return apiBaseV2 + orderId + '/ops-status';
   }
 
   function buildReleaseUrl() {
     if (!apiBaseV2 || !orderId) return '';
+    // Canon guess: "/driver/orders/{id}/release"
     return apiBaseV2 + orderId + '/release';
   }
 
@@ -485,25 +518,28 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
 
-    renderOrder(json.data.orders[0]);
+    var o = json.data.orders[0];
 
-    if (card) card.style.display = '';
-    if (emptyEl) emptyEl.hidden = true;
+    // Fail-closed expectation: snapshot v5 already enforced server-side
+    renderOrder(o);
+
+    if (card) {
+      card.style.display = '';
+    }
+    if (emptyEl) {
+      emptyEl.hidden = true;
+    }
   }
 
   async function updateOpsStatus(newStatus) {
     var v = normalizeStatusKey(newStatus);
     if (!v) return;
 
-    // Cancel: requires double-confirm from the UI
-    var confirmCancel = 0;
-    if (v === 'cancelled') {
-      if (!state.cancelArmed) {
-        state.cancelArmed = true;
-        toast('Tap Update again to confirm Cancelled.', 'warning');
-        return;
-      }
-      confirmCancel = 1;
+    // Cancel requires confirmation (within same modal; no third modal)
+    if (v === 'cancelled' && !state.cancelArmed) {
+      state.cancelArmed = true;
+      toast('Tap Update again to confirm Cancelled.', 'warning');
+      return;
     }
 
     var url = buildStatusUrl();
@@ -521,7 +557,7 @@ document.addEventListener('DOMContentLoaded', function () {
       knx_nonce: knxNonce || '',
       order_id: orderId,
       ops_status: v,
-      confirm_cancel: confirmCancel
+      status: v
     };
 
     var out = await fetchJson(url, {
@@ -540,13 +576,13 @@ document.addEventListener('DOMContentLoaded', function () {
         updateStatusBtn.disabled = false;
         updateStatusBtn.textContent = 'Update';
       }
-
       state.cancelArmed = false;
       return;
     }
 
     toast('Status updated.', 'success');
 
+    // Update local state + UI
     if (state.order) {
       state.order.ops_status = v;
       renderOrder(state.order);
@@ -558,10 +594,9 @@ document.addEventListener('DOMContentLoaded', function () {
       updateStatusBtn.disabled = false;
       updateStatusBtn.textContent = 'Update';
     }
-
     state.cancelArmed = false;
 
-    // Terminal-ish bounce back
+    // If terminal-ish, bounce back to Available
     if (v === 'delivered' || v === 'cancelled') {
       window.location.href = backUrl;
     }
@@ -605,12 +640,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     toast('Order released.', 'success');
     modalClose(releaseModal);
+
     window.location.href = backUrl;
   }
 
   // Wire interactions
   if (statusCard) {
     statusCard.addEventListener('click', function () {
+      // Build modal from current state
       var current = state.order ? state.order.ops_status : null;
       state.selectedOpsStatus = normalizeStatusKey(current);
       state.cancelArmed = false;
@@ -640,6 +677,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  // Disable actions when missing info
   if (customerBtn) {
     customerBtn.addEventListener('click', function (e) {
       if (customerBtn.classList.contains('is-disabled')) {

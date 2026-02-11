@@ -149,7 +149,8 @@ if (!function_exists('knx_api_payment_status')) {
 
         if ($order_status === 'confirmed' || $payment_status === 'paid' || $payment_status === 'succeeded') {
             $normalized_status = 'confirmed';
-            $redirect_url = home_url('/');
+            // Redirect customers to the canonical order status page with order id
+            $redirect_url = home_url('/order-status?order_id=' . (int)$order_id);
         } elseif ($payment_status === 'failed' || $payment_status === 'canceled' || $payment_status === 'cancelled') {
             $normalized_status = 'failed';
         } else {

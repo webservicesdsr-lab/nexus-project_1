@@ -61,6 +61,7 @@ if (!function_exists('knx_install_pages')) {
             ['title' => 'Menu', 'slug' => 'menu', 'content' => '[knx_menu]'],
             ['title' => 'Cart', 'slug' => 'cart', 'content' => '[knx_cart_page]'],
             ['title' => 'Checkout', 'slug' => 'checkout', 'content' => '[knx_checkout]'],
+            ['title' => 'Order Status', 'slug' => 'order-status', 'content' => '[knx_order_status]'],
             ['title' => 'Profile', 'slug' => 'profile', 'content' => '[knx_profile]'],
             ['title' => 'Login', 'slug' => 'login', 'content' => '[knx_auth]'],
             ['title' => 'Reset Password', 'slug' => 'reset-password', 'content' => '[knx_reset_password]'],
@@ -80,7 +81,11 @@ if (!function_exists('knx_install_pages')) {
             ['title' => 'Edit Item Categories', 'slug' => 'edit-item-categories', 'content' => '[knx_edit_item_categories]'],
             // Additional operational/admin pages
             ['title' => 'Driver Ops', 'slug' => 'driver-ops', 'content' => '[knx_driver_ops_dashboard]'],
+            ['title' => 'Driver Live Orders', 'slug' => 'driver-live-orders', 'content' => '[knx_driver_live_orders]'],
             ['title' => 'Active Orders', 'slug' => 'driver-active-orders', 'content' => '[knx_driver_active_orders]'],
+            // Driver quick & profile pages (shortcodes created by modules)
+            ['title' => 'Driver Quick Menu', 'slug' => 'driver-quick-menu', 'content' => '[knx_driver_quick_menu]'],
+            ['title' => 'Driver Profile', 'slug' => 'driver-profile', 'content' => '[knx_driver_profile]'],
             ['title' => 'Drivers Admin', 'slug' => 'drivers-admin', 'content' => '[knx_drivers_admin]'],
             // Canonical drivers admin page (matches navigation-engine admin nav)
             ['title' => 'Drivers', 'slug' => 'drivers', 'content' => '[knx_drivers_admin]'],

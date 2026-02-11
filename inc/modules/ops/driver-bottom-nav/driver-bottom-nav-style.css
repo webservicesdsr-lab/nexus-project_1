@@ -1,0 +1,91 @@
+/**
+ * ==========================================================
+ * KNX — Driver Bottom Navbar Styles (v1.0)
+ * ----------------------------------------------------------
+ * - Mobile-first
+ * - Safe-area aware
+ * - 1:1 clean app feel
+ * ==========================================================
+ */
+
+:root {
+  --knx-green: #0b6b3a;
+  --knx-green-2: #0f7a43;
+  --knx-ink: #0b1220;
+  --knx-muted: #6b7280;
+  --knx-surface: #ffffff;
+  --knx-border: rgba(15, 23, 42, 0.10);
+  --knx-shadow: 0 10px 30px rgba(15, 23, 42, 0.10);
+}
+
+.knx-has-bottomnav {
+  padding-bottom: calc(86px + env(safe-area-inset-bottom));
+}
+
+.knx-driver-bottomnav {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  height: 68px;
+  background: var(--knx-surface);
+  border: 1px solid var(--knx-border);
+  border-radius: 18px;
+  box-shadow: var(--knx-shadow);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  z-index: 9999;
+  overflow: hidden;
+}
+
+.knx-driver-bottomnav__item {
+  text-decoration: none;
+  color: var(--knx-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.2px;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.knx-driver-bottomnav__icon {
+  width: 38px;
+  height: 30px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: var(--knx-muted);
+}
+
+.knx-driver-bottomnav__item.is-active {
+  color: var(--knx-green);
+}
+
+.knx-driver-bottomnav__item.is-active .knx-driver-bottomnav__icon {
+  background: rgba(11, 107, 58, 0.10);
+  color: var(--knx-green);
+}
+
+.knx-driver-bottomnav__item:active .knx-driver-bottomnav__icon {
+  transform: scale(0.98);
+}
+
+.knx-driver-bottomnav__label {
+  line-height: 1;
+}
+
+/* Desktop: keep it, but don’t overtake UX */
+@media (min-width: 980px) {
+  .knx-driver-bottomnav {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: 420px;
+  }
+}

@@ -105,6 +105,15 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initial render
   updateCartBadge();
 
+  // Retry passes to handle race conditions where other scripts
+  // write `knx_cart` before this script's initial render.
+  // These retries are inexpensive and harmless.
+  setTimeout(updateCartBadge, 300);
+  setTimeout(updateCartBadge, 1200);
+
+  // Also ensure we update once on full window load.
+  window.addEventListener('load', function () { setTimeout(updateCartBadge, 100); });
+
   // Cross-tab updates
   window.addEventListener("storage", (e) => {
     if (e.key === "knx_cart") {

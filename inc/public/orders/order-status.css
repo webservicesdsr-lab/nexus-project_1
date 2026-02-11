@@ -1,0 +1,128 @@
+/* Order Status page styles — KNX shell inspired
+   Uses project UX tokens (local subset) to style order-status page.
+*/
+:root{
+  --nxs-primary: #0b793a;
+  --nxs-card: #ffffff;
+  --nxs-bg: #f6f7f9;
+  --nxs-text: #0b1220;
+  --nxs-muted: #6b7280;
+  --nxs-error: #b30000;
+  --nxs-radius: 12px;
+}
+
+.knx-order-status{
+  background: var(--nxs-bg);
+  padding: 28px 16px;
+  display: flex;
+  justify-content: center;
+}
+
+#knxOrderStatusContent{
+  width: 100%;
+  max-width: 880px;
+  background: var(--nxs-card);
+  border-radius: var(--nxs-radius);
+  box-shadow: 0 12px 30px rgba(11,18,32,0.06);
+  padding: 22px;
+  color: var(--nxs-text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+
+#knxOrderStatusContent h2{
+  margin: 0 0 12px 0;
+  font-size: 1.25rem;
+}
+
+#knxOrderStatusBox{
+  margin-top: 8px;
+}
+
+.knx-order-status-error{
+  color: var(--nxs-error);
+  background: rgba(179,0,0,0.06);
+  border: 1px solid rgba(179,0,0,0.12);
+  padding: 12px;
+  border-radius: 10px;
+}
+
+.knx-order-meta{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px 16px;
+  align-items: start;
+  margin-bottom: 14px;
+}
+
+.knx-order-meta p{
+  margin: 0;
+  color: var(--nxs-text);
+  font-size: 14px;
+}
+
+.knx-order-meta p strong{ font-weight: 700; margin-right: 6px; }
+
+.knx-order-items{
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 16px 0;
+  display: grid;
+  gap: 8px;
+}
+
+.knx-order-items li{
+  background: rgba(11,121,58,0.03);
+  border: 1px solid rgba(11,18,32,0.04);
+  padding: 10px 12px;
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.knx-order-items li::after{ content: ''; }
+
+.knx-order-history{
+  padding-left: 16px;
+  margin: 4px 0 0 0;
+}
+
+.knx-order-history li{
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid rgba(11,18,32,0.04);
+  font-size: 13px;
+}
+
+.knx-order-history li strong{ display:inline-block; min-width:110px; }
+
+/* Status pill */
+.knx-status-pill{
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 13px;
+  color: #fff;
+}
+
+.knx-status--placed{ background: var(--nxs-muted); color: #fff; }
+.knx-status--confirmed{ background: var(--nxs-primary); }
+.knx-status--preparing{ background: #ff9800; }
+.knx-status--dispatched{ background: #0b5bd8; }
+.knx-status--delivered{ background: #2aa04a; }
+.knx-status--cancelled{ background: var(--nxs-error); }
+
+/* Responsive tweaks */
+@media (max-width: 600px){
+  #knxOrderStatusContent{ padding: 16px; border-radius: 10px; }
+  .knx-order-meta{ grid-template-columns: 1fr; }
+  .knx-order-history li{ font-size: 13px; }
+}
+
+/* Small helpers for better readability */
+.knx-muted{ color: var(--nxs-muted); }
+.knx-quiet{ color: rgba(11,18,32,0.5); }

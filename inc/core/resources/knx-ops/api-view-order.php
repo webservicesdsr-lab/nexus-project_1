@@ -8,6 +8,7 @@ if (!defined('ABSPATH')) exit;
  *
  * Notes:
  * - Fail-closed: requires session + role + scoped cities for managers.
+ * - Manager scope is resolved via {prefix}knx_manager_cities (NOT hubs.manager_user_id).
  * - Hubs are the "restaurants" (no restaurants table).
  * - Payload may include order_id for internal navigation, but UI must not display IDs.
  * ==========================================================
@@ -24,8 +25,9 @@ add_action('rest_api_init', function () {
 });
 
 /**
- * Resolve manager allowed city IDs based on hubs.manager_user_id.
- * Fail-closed returns [] if not configured.
+ * Resolve manager allowed city IDs based on {prefix}knx_manager_cities.
+ *
+ * Fail-closed returns [] if table missing or no rows found.
  *
  * @param int $manager_user_id
  * @return array<int>
@@ -33,22 +35,22 @@ add_action('rest_api_init', function () {
 function knx_ops_view_order_manager_city_ids($manager_user_id) {
     global $wpdb;
 
-    $hubs_table = $wpdb->prefix . 'knx_hubs';
+    $table = $wpdb->prefix . 'knx_manager_cities';
 
-    // Fail-closed if assignment column doesn't exist
-    $col = $wpdb->get_var($wpdb->prepare("SHOW COLUMNS FROM {$hubs_table} LIKE %s", 'manager_user_id'));
-    if (empty($col)) return [];
+    // Fail-closed if table does not exist
+    $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
+    if (empty($exists)) return [];
 
     $ids = $wpdb->get_col($wpdb->prepare(
         "SELECT DISTINCT city_id
-         FROM {$hubs_table}
+         FROM {$table}
          WHERE manager_user_id = %d
            AND city_id IS NOT NULL",
         (int)$manager_user_id
     ));
 
     $ids = array_map('intval', (array)$ids);
-    $ids = array_values(array_filter($ids, function ($v) { return $v > 0; }));
+    $ids = array_values(array_filter($ids, static function ($v) { return $v > 0; }));
 
     return $ids;
 }
@@ -236,7 +238,6 @@ function knx_ops_view_order(WP_REST_Request $request) {
     $select_driver_name = '';
     $join_driver = '';
     if ($driver_src) {
-        // orders must have driver_id for join; if missing, query will fail, but in this codebase it exists.
         $drivers_table = $driver_src['table'];
         $driver_name_col = $driver_src['name_col'];
         $select_driver_name = ", d.`{$driver_name_col}` AS driver_name";
@@ -287,7 +288,7 @@ function knx_ops_view_order(WP_REST_Request $request) {
         }
     }
 
-    $now_ts = current_time('timestamp');
+    $now_ts = (int)current_time('timestamp');
     $created_ts = strtotime((string)$row->created_at);
     $age = ($created_ts > 0) ? max(0, $now_ts - $created_ts) : 0;
 
@@ -299,7 +300,6 @@ function knx_ops_view_order(WP_REST_Request $request) {
     if (isset($row->lat) && isset($row->lng)) {
         $lat_f = (float)$row->lat;
         $lng_f = (float)$row->lng;
-        // allow either to be non-zero
         if ($lat_f !== 0.0 || $lng_f !== 0.0) {
             $lat = $lat_f;
             $lng = $lng_f;

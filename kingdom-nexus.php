@@ -210,6 +210,7 @@ add_action('plugins_loaded', function() {
     knx_require('inc/core/resources/knx-items/api-delete-item-category.php');
     knx_require('inc/core/resources/knx-items/api-reorder-item-category.php');
     knx_require('inc/core/resources/knx-items/api-hub-items.php');
+    knx_require('inc/core/resources/knx-items/api-upload-hub-items-csv.php');
     knx_require('inc/core/resources/knx-items/api-update-item.php');
     knx_require('inc/core/resources/knx-items/api-reorder-item.php');
     knx_require('inc/core/resources/knx-items/api-item-addons.php');
@@ -239,6 +240,7 @@ add_action('plugins_loaded', function() {
     knx_require('inc/core/resources/knx-ops/api-unassign-driver.php');
     // Driver-facing OPS endpoints
     knx_require('inc/core/resources/knx-ops/api-driver-available-orders.php');
+    knx_require('inc/core/resources/knx-ops/api-driver-active-orders.php');
     knx_require('inc/core/resources/knx-ops/api-driver-self-assign.php');
     // Canonical availability engine for OPS/DRIVER
     knx_require('inc/core/resources/knx-ops/knx-ops-availability.php');
@@ -281,8 +283,15 @@ add_action('plugins_loaded', function() {
     // Driver Ops UI
     knx_require('inc/modules/ops/driver-ops/driver-ops-shortcode.php');
     knx_require('inc/modules/ops/driver-ops/driver-notifier-shortcode.php');
+    knx_require('inc/modules/ops/driver-live-orders/driver-live-orders-shortcode.php');
     // Driver Active Orders (execution-focused)
     knx_require('inc/modules/ops/driver-active-orders/driver-active-orders-shortcode.php');
+
+    /* Driver quick menu + profile (mobile driver UX) */
+    knx_require('inc/modules/ops/driver-quick-menu/driver-quick-menu-shortcode.php');
+    knx_require('inc/modules/ops/driver-profile/driver-profile-shortcode.php');
+    // Driver bottom navbar (global driver UI)
+    knx_require('inc/modules/ops/driver-bottom-nav/driver-bottom-nav.php');
 
     /* ======================================================
      * MODULES — ORDERS (Live admin dashboard)
@@ -362,6 +371,7 @@ add_action('plugins_loaded', function() {
     knx_require('inc/public/addresses/my-addresses-shortcode.php');
     knx_require('inc/public/profile/profile-shortcode.php');
     knx_require('inc/public/checkout/checkout-shortcode.php');
+    knx_require('inc/public/orders/order-status-shortcode.php');
 });
 
 /**

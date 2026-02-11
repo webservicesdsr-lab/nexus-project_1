@@ -9,11 +9,13 @@ if (!defined('ABSPATH')) exit;
  * Notes:
  * - Assets are injected via echo/link/script (no wp_footer dependency).
  * - Reads order_id from query string (?order_id=123).
+ * - Managers are fail-closed if {prefix}knx_manager_cities is missing/empty.
  * - Does NOT expose order_id/city_id in DOM datasets.
  * ==========================================================
  */
 
 function knx_ops_view_order_shortcode() {
+    global $wpdb;
 
     if (!function_exists('knx_get_session')) {
         return '<div class="knx-ops-err">Session unavailable.</div>';
@@ -25,6 +27,36 @@ function knx_ops_view_order_shortcode() {
     if (!$session || !in_array($role, ['super_admin', 'manager'], true)) {
         wp_safe_redirect(site_url('/login'));
         exit;
+    }
+
+    // Manager scope preflight (fail-closed)
+    if ($role === 'manager') {
+        $user_id = isset($session->user_id) ? (int)$session->user_id : 0;
+        if (!$user_id) {
+            return '<div class="knx-ops-err">Unauthorized.</div>';
+        }
+
+        $mc_table = $wpdb->prefix . 'knx_manager_cities';
+
+        $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $mc_table));
+        if (empty($exists)) {
+            return '<div class="knx-ops-err">Manager city assignment not configured.</div>';
+        }
+
+        $ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT DISTINCT city_id
+             FROM {$mc_table}
+             WHERE manager_user_id = %d
+               AND city_id IS NOT NULL",
+            $user_id
+        ));
+
+        $ids = array_map('intval', (array)$ids);
+        $ids = array_values(array_filter($ids, static function ($v) { return $v > 0; }));
+
+        if (empty($ids)) {
+            return '<div class="knx-ops-err">No cities assigned to this manager.</div>';
+        }
     }
 
     $order_id = isset($_GET['order_id']) ? (int)$_GET['order_id'] : 0;

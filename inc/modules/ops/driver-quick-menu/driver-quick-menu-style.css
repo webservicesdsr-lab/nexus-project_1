@@ -1,0 +1,312 @@
+/* ==========================================================
+   KNX — Driver Quick Menu Styles (v1.0)
+   - Mobile-first
+   - 1:1 layout feel (header + toggle, banner, stat cards, cards)
+   ========================================================== */
+
+.knx-qm {
+  --qm-bg: #f6f7f9;
+  --qm-card: #ffffff;
+  --qm-text: #0b1220;
+  --qm-muted: #7a8496;
+  --qm-border: rgba(15, 23, 42, 0.10);
+  --qm-shadow: 0 10px 30px rgba(11, 18, 32, 0.06);
+  --qm-green: #0b793a;
+
+  min-height: 100vh;
+  background: var(--qm-bg);
+  color: var(--qm-text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 18px 16px 96px; /* space for bottom nav */
+}
+
+.knx-qm__empty {
+  max-width: 760px;
+  margin: 20px auto;
+  padding: 16px;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: var(--qm-shadow);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+/* Header */
+.knx-qm__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.knx-qm__title {
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+
+.knx-qm__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.knx-qm__toggle-label {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--qm-muted);
+}
+
+/* Switch */
+.knx-qm__switch {
+  position: relative;
+  width: 52px;
+  height: 30px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.knx-qm__switch-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: #e6e8ee;
+  border: 1px solid var(--qm-border);
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.knx-qm__switch-knob {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.10);
+  transition: transform 160ms ease;
+}
+
+.knx-qm__switch.is-on .knx-qm__switch-track {
+  background: rgba(11, 121, 58, 0.18);
+  border-color: rgba(11, 121, 58, 0.25);
+}
+
+.knx-qm__switch.is-on .knx-qm__switch-knob {
+  transform: translateX(22px);
+}
+
+.knx-qm__divider {
+  height: 1px;
+  width: 100%;
+  background: rgba(15, 23, 42, 0.10);
+  margin: 14px 0 16px;
+}
+
+/* Banner */
+.knx-qm__banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 14px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  color: var(--qm-muted);
+  font-weight: 800;
+  margin-bottom: 16px;
+}
+
+.knx-qm__banner.is-online {
+  background: rgba(11, 121, 58, 0.10);
+  border-color: rgba(11, 121, 58, 0.18);
+  color: #0b5f2f;
+}
+
+.knx-qm__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #9aa3b2;
+}
+
+.knx-qm__banner.is-online .knx-qm__dot {
+  background: var(--qm-green);
+}
+
+/* Stats */
+.knx-qm__stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.knx-qm__stat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--qm-card);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 10px 24px rgba(11, 18, 32, 0.04);
+  text-decoration: none;
+  color: inherit;
+}
+
+.knx-qm__stat-ico {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 121, 58, 0.14);
+  color: var(--qm-green);
+  flex: 0 0 auto;
+}
+
+.knx-qm__stat-ico--blue {
+  background: rgba(37, 99, 235, 0.12);
+  color: #2563eb;
+}
+
+.knx-qm__stat-body {
+  min-width: 0;
+}
+
+.knx-qm__stat-label {
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--qm-muted);
+}
+
+.knx-qm__stat-value {
+  margin-top: 4px;
+  font-size: 22px;
+  font-weight: 1000;
+  letter-spacing: -0.01em;
+  color: var(--qm-text);
+}
+
+/* Cards */
+.knx-qm__card {
+  width: 100%;
+  background: var(--qm-card);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: var(--qm-shadow);
+  border-radius: 18px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.knx-qm__card-title {
+  font-size: 18px;
+  font-weight: 1000;
+  letter-spacing: -0.01em;
+  margin-bottom: 10px;
+}
+
+/* Actions list */
+.knx-qm__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.knx-qm__action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #ffffff;
+  text-decoration: none;
+  color: inherit;
+  font-weight: 900;
+}
+
+.knx-qm__action-ico {
+  width: 36px;
+  height: 36px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.04);
+  color: rgba(15, 23, 42, 0.70);
+  flex: 0 0 auto;
+}
+
+.knx-qm__action-text {
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+
+/* Location */
+.knx-qm__loccard {
+  text-align: left;
+  cursor: pointer;
+}
+
+.knx-qm__loccard:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.knx-qm__location {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.knx-qm__loc-ico {
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.04);
+  color: rgba(15, 23, 42, 0.70);
+}
+
+.knx-qm__loc-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.knx-qm__loc-label {
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--qm-muted);
+}
+
+.knx-qm__loc-text {
+  font-size: 16px;
+  font-weight: 1000;
+  letter-spacing: -0.01em;
+  color: var(--qm-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Responsive */
+@media (max-width: 420px) {
+  .knx-qm__title { font-size: 22px; }
+  .knx-qm__stat-value { font-size: 20px; }
+}
+
+@media (min-width: 860px) {
+  .knx-qm { padding: 22px 18px 110px; }
+  .knx-qm__title { font-size: 26px; }
+}

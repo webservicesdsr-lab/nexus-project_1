@@ -9,7 +9,7 @@
  *
  * Expand actions:
  * - Map (red)
- * - Assign driver dropdown (placeholder for future integration)
+ * - Assign driver dropdown (enabled only if drivers endpoint is configured)
  * - View order (blue)
  *
  * City selection behaviors:
@@ -19,8 +19,16 @@
  *
  * Notes:
  * - No API call when no cities selected (fail-closed UX).
- * - Expects KNX REST response shape:
- *   { success, message, data: { orders: [...] } }
+ * - Expects REST response shape tolerant:
+ *   { success, message, data: { orders: [...] } } OR { data:{orders} } OR { orders } OR { results } OR []
+ *
+ * IMPORTANT (Assignment UX):
+ * - Live Orders GET might not always include assigned_driver_name.
+ * - We derive the assigned label from:
+ *   1) order payload (preferred)
+ *   2) drivers list (map id -> name)
+ *   3) optimistic assignment map stored in localStorage (short TTL) after POST assign
+ * - This keeps dropdown label in sync even when backend returns only an ID.
  */
 
 (function () {
@@ -32,9 +40,16 @@
 
     const apiUrl = app.dataset.apiUrl || '';
     const citiesUrl = app.dataset.citiesUrl || '';
+    const driversUrl = app.dataset.driversUrl || '';
+    const assignDriverUrl = app.dataset.assignDriverUrl || '';
+    const restNonce = app.dataset.restNonce || '';
+
     const role = app.dataset.role || '';
     const viewOrderUrl = app.dataset.viewOrderUrl || '/view-order';
+
     const pollMs = Math.max(6000, Math.min(60000, parseInt(app.dataset.pollMs, 10) || 12000));
+    const includeResolved = String(app.dataset.includeResolved || '1') === '1' ? 1 : 0;
+    const resolvedHours = Math.max(1, Math.min(168, parseInt(app.dataset.resolvedHours, 10) || 24));
 
     const managedCities = (() => {
       try { return JSON.parse(app.dataset.managedCities || '[]'); } catch (e) { return []; }
@@ -82,6 +97,75 @@
     const LS_KEY_CITY = 'knx_ops_live_orders_city';
     const LS_KEY_EXPANDED = 'knx_ops_live_orders_expanded';
 
+    // Short-lived (UI-only) optimistic assignment map.
+    // This is a fallback when Live Orders GET doesn't include driver name.
+    const LS_KEY_ASSIGNED = 'knx_ops_live_orders_assigned_map';
+    const ASSIGNED_TTL_MS = 15 * 60 * 1000; // 15 minutes
+    let assignedMapVersion = 0;
+
+    function loadAssignedMap() {
+      try {
+        const raw = localStorage.getItem(LS_KEY_ASSIGNED);
+        if (!raw) return {};
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return {};
+        const now = Date.now();
+        // purge expired
+        Object.keys(parsed).forEach((k) => {
+          const v = parsed[k];
+          const at = v && typeof v.at === 'number' ? v.at : 0;
+          if (!at || (now - at) > ASSIGNED_TTL_MS) delete parsed[k];
+        });
+        return parsed;
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function saveAssignedMap(map) {
+      try {
+        localStorage.setItem(LS_KEY_ASSIGNED, JSON.stringify(map || {}));
+        assignedMapVersion++;
+      } catch (e) {}
+    }
+
+    function setOptimisticAssigned(orderId, driverId, driverName) {
+      const oid = Number(orderId || 0);
+      const did = Number(driverId || 0);
+      const name = String(driverName || '').trim();
+      if (!oid || !did || !name) return;
+
+      const m = loadAssignedMap();
+      m[String(oid)] = { id: did, name, at: Date.now() };
+      saveAssignedMap(m);
+    }
+
+    function clearOptimisticAssigned(orderId) {
+      const oid = Number(orderId || 0);
+      if (!oid) return;
+      const m = loadAssignedMap();
+      if (m[String(oid)]) {
+        delete m[String(oid)];
+        saveAssignedMap(m);
+      }
+    }
+
+    function getOptimisticAssigned(orderId) {
+      const oid = Number(orderId || 0);
+      if (!oid) return null;
+      const m = loadAssignedMap();
+      const v = m[String(oid)];
+      if (!v) return null;
+      const now = Date.now();
+      const at = typeof v.at === 'number' ? v.at : 0;
+      if (!at || (now - at) > ASSIGNED_TTL_MS) {
+        delete m[String(oid)];
+        saveAssignedMap(m);
+        return null;
+      }
+      return v;
+    }
+
     // State
     let selectedCities = [];     // numeric ids OR ['all'] for super_admin
     let activeTab = 'new';       // default new
@@ -90,6 +174,10 @@
     let pollTimer = null;
     let abortController = null;
     let lastOrdersHash = '';
+
+    // Drivers cache by city
+    const driversCache = {}; // { [cityId]: { at:number, ok:boolean, drivers:[], message:string } }
+    const DRIVERS_TTL_MS = 120000;
 
     function toast(msg, type = 'info') {
       if (typeof window.knxToast === 'function') return window.knxToast(msg, type);
@@ -184,6 +272,20 @@
       selectedCitiesPill.textContent = `${n} city${n > 1 ? 'ies' : ''} selected`;
     }
 
+    async function fetchJson(url, opts) {
+      const options = opts || {};
+      const headers = Object.assign({}, options.headers || {});
+      if (restNonce) headers['X-WP-Nonce'] = restNonce;
+
+      const res = await fetch(url, Object.assign({}, options, {
+        credentials: 'same-origin',
+        headers
+      }));
+
+      const json = await res.json().catch(() => ({}));
+      return { res, json };
+    }
+
     // ---------- Modal behaviors ----------
     function openModal() {
       if (!modal) return;
@@ -218,8 +320,7 @@
       cityListNode.innerHTML = '<div class="knx-lo-skel">Loading cities…</div>';
 
       try {
-        const res = await fetch(citiesUrl, { credentials: 'same-origin' });
-        const json = await res.json().catch(() => ({}));
+        const { res, json } = await fetchJson(citiesUrl, { method: 'GET' });
         if (!res.ok) throw new Error((json && json.message) ? json.message : 'Failed to fetch cities');
 
         let cities = [];
@@ -301,16 +402,13 @@
       updatePill();
       closeModal();
 
-      // Always start on New when applying city changes
       setActiveTab('new');
-
       restartPolling();
     }
 
     function selectAllCities() {
       if (!cityListNode) return;
       cityListNode.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; });
-
       const allCb = cityListNode.querySelector('input[data-city-id="all"]');
       if (allCb) allCb.checked = true;
     }
@@ -333,16 +431,16 @@
     function buildQueryParams() {
       const p = new URLSearchParams();
 
+      p.set('include_resolved', String(includeResolved));
+      p.set('resolved_hours', String(resolvedHours));
+
       if (Array.isArray(selectedCities) && selectedCities.length > 0) {
         if (selectedCities.length === 1 && selectedCities[0] === 'all') {
           p.set('city_id', 'all');
           return p.toString();
         }
 
-        p.set('cities', selectedCities.join(','));
-        selectedCities.forEach((id) => {
-          p.append('city_ids[]', String(id));
-        });
+        selectedCities.forEach((id) => p.append('city_ids[]', String(id)));
       }
 
       return p.toString();
@@ -423,7 +521,6 @@
 
     function closeExpandedInDom() {
       if (!expandedOrderId) return;
-
       const item = app.querySelector(`.knx-lo-item[data-order-id="${expandedOrderId}"]`);
       if (!item) return;
 
@@ -440,14 +537,11 @@
       item.classList.add('is-expanded');
 
       if (!panel) return;
-
       panel.style.display = 'block';
       panel.style.overflow = 'hidden';
 
       if (animate) animateOpen(panel);
-      else {
-        panel.style.height = 'auto';
-      }
+      else panel.style.height = 'auto';
     }
 
     function toggleExpand(orderId) {
@@ -466,6 +560,265 @@
       expandedOrderId = oid;
       persistExpanded();
       openExpandedInDom(oid, true);
+    }
+
+    // ---------- Driver dropdown helpers ----------
+    function setDriverSelectDisabled(select, label) {
+      try {
+        select.innerHTML = `<option value="">${escapeHtml(label || 'Drivers not configured')}</option>`;
+        select.disabled = true;
+        select.value = '';
+        const wrap = select.closest('.knx-lo-driver');
+        if (wrap) wrap.classList.add('is-disabled');
+      } catch (e) {}
+    }
+
+    function setDriverSelectLoading(select) {
+      try {
+        select.innerHTML = '<option value="">Loading drivers…</option>';
+        select.disabled = true;
+        select.value = '';
+        const wrap = select.closest('.knx-lo-driver');
+        if (wrap) wrap.classList.add('is-disabled');
+      } catch (e) {}
+    }
+
+    function setDriverSelectEnabled(select, drivers, assignedDriverId, assignedDriverName) {
+      const wrap = select.closest('.knx-lo-driver');
+      if (wrap) wrap.classList.remove('is-disabled');
+
+      const opts = [];
+
+      // If we know the assigned name, show it (name is enough; id may be legacy/user_id).
+      const assignedName = String(assignedDriverName || '').trim();
+      if (assignedName) {
+        opts.push(`<option value="">Assigned: ${escapeHtml(assignedName)}</option>`);
+      } else {
+        opts.push('<option value="">Assign driver</option>');
+      }
+
+      (drivers || []).forEach(d => {
+        const id = Number(d.id || d.driver_id || d.user_id || d.driver_user_id || d.ID || 0);
+        const name = String(d.name || d.display_name || d.full_name || d.label || 'Driver').trim();
+        if (!id) return;
+        opts.push(`<option value="${escapeHtml(String(id))}">${escapeHtml(name)}</option>`);
+      });
+
+      select.innerHTML = opts.join('');
+      select.disabled = false;
+      select.value = '';
+    }
+
+    async function getDriversForCity(cityId) {
+      const cid = Number(cityId || 0);
+      if (!cid || !driversUrl) return { ok: false, drivers: [], message: 'Drivers not configured' };
+
+      const now = Date.now();
+      const cached = driversCache[cid];
+      if (cached && (now - cached.at) < DRIVERS_TTL_MS) return cached;
+
+      driversCache[cid] = { at: now, ok: false, drivers: [], message: 'Loading' };
+
+      const url = driversUrl + (driversUrl.includes('?') ? '&' : '?') + 'city_id=' + encodeURIComponent(String(cid));
+
+      try {
+        const { res, json } = await fetchJson(url, { method: 'GET' });
+
+        if (!res.ok) {
+          const msg = (json && json.message) ? json.message : (res.status === 404 ? 'Drivers not configured' : 'Drivers unavailable');
+          driversCache[cid] = { at: now, ok: false, drivers: [], message: msg };
+          return driversCache[cid];
+        }
+
+        // Normalize drivers array
+        let drivers = [];
+        if (Array.isArray(json)) drivers = json;
+        else if (json && json.data && Array.isArray(json.data.drivers)) drivers = json.data.drivers;
+        else if (json && Array.isArray(json.data)) drivers = json.data;
+        else if (Array.isArray(json.results)) drivers = json.results;
+
+        driversCache[cid] = { at: now, ok: true, drivers: drivers || [], message: '' };
+        return driversCache[cid];
+      } catch (e) {
+        driversCache[cid] = { at: now, ok: false, drivers: [], message: 'Drivers unavailable' };
+        return driversCache[cid];
+      }
+    }
+
+    function pickAssignedFromOrder(order) {
+      const o = order || {};
+      const driverObj = (o.assigned_driver && typeof o.assigned_driver === 'object') ? o.assigned_driver : null;
+      const drv = (o.driver && typeof o.driver === 'object') ? o.driver : null;
+
+      // Try many possible keys without assuming backend schema.
+      const id =
+        Number(
+          o.assigned_driver_id ||
+          o.driver_id ||
+          o.assigned_driver_user_id ||
+          o.driver_user_id ||
+          (driverObj && (driverObj.id || driverObj.driver_id || driverObj.user_id || driverObj.driver_user_id)) ||
+          (drv && (drv.id || drv.driver_id || drv.user_id || drv.driver_user_id)) ||
+          0
+        ) || 0;
+
+      const name =
+        String(
+          o.assigned_driver_name ||
+          o.driver_name ||
+          (driverObj && (driverObj.name || driverObj.full_name || driverObj.display_name)) ||
+          (drv && (drv.name || drv.full_name || drv.display_name)) ||
+          ''
+        ).trim();
+
+      return { id, name };
+    }
+
+    function findDriverNameInList(drivers, assignedId) {
+      const id = Number(assignedId || 0);
+      if (!id || !Array.isArray(drivers) || drivers.length === 0) return '';
+      const hit = drivers.find((d) => {
+        const did = Number(d.id || d.driver_id || d.user_id || d.driver_user_id || d.ID || 0);
+        return did === id;
+      });
+      if (!hit) return '';
+      return String(hit.name || hit.full_name || hit.display_name || hit.label || '').trim();
+    }
+
+    async function hydrateDriverDropdowns(orders) {
+      const selects = app.querySelectorAll('select[data-action="assign-driver"]');
+      if (!selects || selects.length === 0) return;
+
+      // Map orders by id for assignment labels
+      const byId = new Map();
+      (orders || []).forEach(o => {
+        const oid = Number(o.order_id || 0);
+        if (oid) byId.set(oid, o);
+      });
+
+      // Collect unique cities from DOM
+      const cityIds = new Set();
+      selects.forEach(s => {
+        const cid = Number(s.getAttribute('data-city-id') || 0);
+        if (cid > 0) cityIds.add(cid);
+      });
+
+      // If no drivers endpoint, keep everything disabled but visible as dropdown
+      if (!driversUrl) {
+        selects.forEach(s => setDriverSelectDisabled(s, 'Drivers not configured'));
+        return;
+      }
+
+      // Set all to loading first (keeps UI consistent)
+      selects.forEach(s => setDriverSelectLoading(s));
+
+      // Fetch drivers for each city (in parallel)
+      const cities = Array.from(cityIds);
+      await Promise.all(cities.map(async (cid) => getDriversForCity(cid)));
+
+      // Apply per select
+      selects.forEach(s => {
+        const cid = Number(s.getAttribute('data-city-id') || 0);
+        const oid = Number(s.getAttribute('data-order-id') || 0);
+        const order = oid ? byId.get(oid) : null;
+
+        if (!cid || cid <= 0) {
+          setDriverSelectDisabled(s, 'City missing');
+          return;
+        }
+
+        const cached = driversCache[cid];
+        if (!cached || !cached.ok) {
+          setDriverSelectDisabled(s, (cached && cached.message) ? cached.message : 'Drivers not configured');
+          return;
+        }
+
+        if (!cached.drivers || cached.drivers.length === 0) {
+          setDriverSelectDisabled(s, 'No drivers for this city');
+          return;
+        }
+
+        // Assigned from payload
+        let assigned = pickAssignedFromOrder(order);
+
+        // If payload doesn't include assignment, try optimistic (recent) UI-only assignment.
+        if ((!assigned.id || !assigned.name) && oid) {
+          const opt = getOptimisticAssigned(oid);
+          if (opt && opt.id && opt.name) {
+            // Only use optimistic if server didn't provide better data.
+            if (!assigned.id) assigned.id = Number(opt.id || 0);
+            if (!assigned.name) assigned.name = String(opt.name || '').trim();
+          }
+        }
+
+        // If we have an ID but no name, map from drivers list.
+        if (assigned.id && !assigned.name) {
+          assigned.name = findDriverNameInList(cached.drivers, assigned.id) || '';
+        }
+
+        setDriverSelectEnabled(s, cached.drivers, assigned.id, assigned.name);
+      });
+
+      // Bind change handler once per select instance (DOM is re-rendered, so bind is safe)
+      selects.forEach(s => {
+        if (s.dataset.bound === '1') return;
+        s.dataset.bound = '1';
+
+        s.addEventListener('change', async () => {
+          const driverId = Number(s.value || 0);
+          if (!driverId) return;
+
+          const orderId = Number(s.getAttribute('data-order-id') || 0);
+          if (!orderId) {
+            toast('Invalid order', 'error');
+            s.value = '';
+            return;
+          }
+
+          if (!assignDriverUrl) {
+            toast('Assign endpoint not configured', 'error');
+            s.value = '';
+            return;
+          }
+
+          // Capture label for optimistic UI
+          const selectedOption = s.options && s.selectedIndex >= 0 ? s.options[s.selectedIndex] : null;
+          const selectedName = selectedOption ? String(selectedOption.textContent || '').trim() : '';
+
+          s.disabled = true;
+
+          try {
+            const { res, json } = await fetchJson(assignDriverUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ order_id: orderId, driver_id: driverId })
+            });
+
+            if (!res.ok) {
+              const msg = (json && json.message) ? json.message : 'Unable to assign driver';
+              throw new Error(msg);
+            }
+
+            // Optimistic label (short TTL) so the dropdown reflects immediately
+            // even if Live Orders GET doesn't include name.
+            if (selectedName) {
+              setOptimisticAssigned(orderId, driverId, selectedName);
+            }
+
+            toast((json && json.message) ? json.message : 'Driver assigned', 'success');
+
+            // Force next render/hydration even if orders hash doesn't change much.
+            lastOrdersHash = '';
+            restartPolling();
+          } catch (err) {
+            console.warn('Assign driver failed', err);
+            toast((err && err.message) ? err.message : 'Unable to assign driver', 'error');
+          } finally {
+            s.disabled = false;
+            s.value = '';
+          }
+        });
+      });
     }
 
     // ---------- Rendering ----------
@@ -490,25 +843,32 @@
         const customer = escapeHtml(it.customer_name || 'Customer');
         const total = money(it.total_amount);
         const tip = money(it.tip_amount);
-        const hasDriver = !!it.assigned_driver;
+
+        // Determine if assigned (payload OR optimistic map)
+        const assignedFromPayload = pickAssignedFromOrder(it);
+        const optimistic = oid ? getOptimisticAssigned(oid) : null;
+
+        const hasDriver =
+          !!(assignedFromPayload && (assignedFromPayload.id || assignedFromPayload.name)) ||
+          !!(optimistic && optimistic.id && optimistic.name);
+
         const mapUrl = it.view_location_url ? String(it.view_location_url) : '';
 
         const itemEl = document.createElement('div');
         itemEl.className = 'knx-lo-item';
         itemEl.setAttribute('data-order-id', String(oid));
 
-        // Thumbnail (keeps existing DOM structure/UX)
         const thumbUrl = String(it.hub_thumbnail || it.logo_url || '');
         const thumbHtml = thumbUrl
           ? `<div class="knx-lo-thumb"><img src="${escapeHtml(thumbUrl)}" alt="" loading="lazy" /></div>`
           : '<div class="knx-lo-thumb" aria-hidden="true"></div>';
 
         const viewUrl = buildViewUrl(oid);
+        const cityId = Number(it.city_id || it.city || it.hub_city_id || (it.hub && it.hub.city_id) || 0);
 
         itemEl.innerHTML = `
           <div class="knx-lo-row" role="button" tabindex="0">
             <a class="knx-lo-idview" data-action="open-order" href="${escapeHtml(viewUrl)}">#${escapeHtml(oid)}</a>
-
             ${thumbHtml}
 
             <div class="knx-lo-main">
@@ -545,10 +905,15 @@
                   : `<span class="knx-lo-action knx-lo-action--muted">No map</span>`
                 }
 
-                <div class="knx-lo-driver">
+                <div class="knx-lo-driver is-disabled">
                   <label class="knx-visually-hidden" for="knxDriver_${escapeHtml(oid)}">Assign driver</label>
-                  <select id="knxDriver_${escapeHtml(oid)}" class="knx-lo-driver-select" data-action="assign-driver" disabled>
-                    <option value="">Assign driver (soon)</option>
+                  <select id="knxDriver_${escapeHtml(oid)}"
+                          class="knx-lo-driver-select"
+                          data-action="assign-driver"
+                          data-order-id="${escapeHtml(String(oid))}"
+                          data-city-id="${escapeHtml(String(cityId))}"
+                          disabled>
+                    <option value="">Loading drivers…</option>
                   </select>
                 </div>
 
@@ -561,7 +926,6 @@
         const row = itemEl.querySelector('.knx-lo-row');
         const panel = itemEl.querySelector('.knx-lo-expand');
 
-        // Toggle expand by row click (ignore clicks on the order links)
         if (row) {
           row.addEventListener('click', (ev) => {
             const t = ev.target;
@@ -577,15 +941,6 @@
           });
         }
 
-        // placeholder future behavior: assign driver
-        const driverSel = itemEl.querySelector('[data-action="assign-driver"]');
-        if (driverSel) {
-          driverSel.addEventListener('change', () => {
-            toast('Driver assignment is coming soon.', 'info');
-            driverSel.value = '';
-          });
-        }
-
         if (panel) panel.style.height = '0px';
 
         container.appendChild(itemEl);
@@ -593,32 +948,36 @@
     }
 
     function syncActiveTabToExpanded(orders) {
-      // If there is a persisted expanded order, tab MUST switch to its bucket so it stays visible.
       if (!expandedOrderId) return;
-
       const found = (Array.isArray(orders) ? orders : []).find(o => Number(o.order_id || 0) === expandedOrderId);
       if (!found) return;
-
       setActiveTab(statusBucket(found.status));
     }
 
-    function renderOrders(orders, opts) {
+    async function renderOrders(orders, opts) {
       const options = opts || {};
       const data = Array.isArray(orders) ? orders : [];
 
-      // Hash to avoid rerender if nothing changed
+      // Include assignmentMapVersion so a recent POST assign can force UI refresh.
       const hash = (() => {
         try {
           return data
-            .map(o => `${o.order_id}:${o.status}:${o.created_at || ''}:${o.total_amount || ''}:${o.assigned_driver ? 1 : 0}`)
-            .join('|');
+            .map(o => {
+              const oid = Number(o.order_id || 0);
+              const ass = pickAssignedFromOrder(o);
+              const assKey = `${ass.id || 0}:${ass.name || ''}`;
+              return `${oid}:${o.status}:${o.created_at || ''}:${o.total_amount || ''}:${assKey}`;
+            })
+            .join('|') + `|v=${assignedMapVersion}`;
         } catch (e) {
           return String(Date.now());
         }
       })();
 
       if (hash && hash === lastOrdersHash && !options.force) {
+        // Still hydrate dropdowns: driver list/status can change even if list hash didn't.
         syncActiveTabToExpanded(data);
+        await hydrateDriverDropdowns(data);
         return;
       }
       lastOrdersHash = hash;
@@ -671,7 +1030,6 @@
         }
       }
 
-      // If expanded order no longer exists, clear it.
       if (expandedOrderId > 0) {
         const exists = data.some(o => Number(o.order_id || 0) === expandedOrderId);
         if (!exists) {
@@ -680,13 +1038,14 @@
         }
       }
 
-      // If expanded exists, force the tab to match it.
       syncActiveTabToExpanded(data);
 
-      // Restore expanded panel without animation after rerender
       if (expandedOrderId > 0) {
         openExpandedInDom(expandedOrderId, false);
       }
+
+      // IMPORTANT: hydrate driver dropdowns AFTER DOM render
+      await hydrateDriverDropdowns(data);
     }
 
     // ---------- Fetch / Poll ----------
@@ -711,7 +1070,8 @@
 
         const res = await fetch(url, {
           credentials: 'same-origin',
-          signal: abortController.signal
+          signal: abortController.signal,
+          headers: restNonce ? { 'X-WP-Nonce': restNonce } : {}
         });
 
         const json = await res.json().catch(() => ({}));
@@ -738,7 +1098,7 @@
 
       try {
         const orders = await fetchOrdersOnce();
-        renderOrders(orders || [], { force: false });
+        await renderOrders(orders || [], { force: false });
       } finally {
         polling = false;
         if (pollTimer) clearTimeout(pollTimer);
@@ -769,7 +1129,6 @@
     // ---------- Tabs wiring ----------
     function wireTabs() {
       const buttons = [tabNew, tabProgress, tabDone].filter(Boolean);
-
       buttons.forEach(btn => {
         btn.addEventListener('click', () => {
           const key = btn.getAttribute('data-tab') || 'new';
@@ -804,13 +1163,10 @@
       }
     }
 
-    // Default: always New first (unless expanded forces the bucket after data loads)
     setActiveTab('new');
-
     updatePill();
     persistSelection();
 
-    // Restore expanded order id (tab sync will happen after first fetch)
     expandedOrderId = loadPersistedExpanded();
 
     // Initial empty render

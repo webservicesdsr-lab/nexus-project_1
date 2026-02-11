@@ -3,7 +3,9 @@
 ├── .gitignore
 ├── .vscode
 │   └── settings.json
+├── AUDIT-PICKUP-ADDRESS-SOURCE.md
 ├── NEXUS.md
+├── READ-THIS-BEFORE-MAKING-ANY-CHANGE.md
 ├── README.md
 ├── ROADMAP.md
 ├── documentation
@@ -19,7 +21,6 @@
 │   │   └── manager-capability.md
 │   ├── NEXUS-SHELL-UX-GUIDELINES.md
 │   ├── Super Admin Capability & Navigation
-│   │   ├── super-admin-capability-es.md
 │   │   └── super-admin-capability.md
 │   ├── User Capability & Territory Model
 │   │   ├── user-capability-model-es.md
@@ -45,6 +46,7 @@
 │       └── users-roles
 │           └── users-roles-identity-territory.md
 ├── driver-ops-dashboard_foundations.md
+├── driver-user-flow-implementation.md
 ├── inc
 │   ├── .DS_Store
 │   ├── core
@@ -122,6 +124,7 @@
 │   │   │   │   └── api-location-search.php
 │   │   │   ├── knx-ops
 │   │   │   │   ├── api-assign-driver.php
+│   │   │   │   ├── api-driver-active-orders.php
 │   │   │   │   ├── api-driver-available-orders.php
 │   │   │   │   ├── api-driver-orders.php
 │   │   │   │   ├── api-driver-self-assign.php
@@ -256,18 +259,37 @@
 │   │   │   ├── knx-edit-city-script.js
 │   │   │   ├── knx-edit-city-style.css
 │   │   │   └── knx-edit-city.php
-│   │   ├── live-orders
 │   │   ├── navbar
 │   │   │   ├── navbar-render.php
 │   │   │   ├── navbar-script.js
 │   │   │   └── navbar-style.css
 │   │   ├── ops
 │   │   │   ├── .DS_Store
+│   │   │   ├── driver-active-orders
+│   │   │   │   ├── driver-active-orders-script.js
+│   │   │   │   ├── driver-active-orders-shortcode.php
+│   │   │   │   └── driver-active-orders-style.css
+│   │   │   ├── driver-bottom-nav
+│   │   │   │   ├── driver-bottom-nav-style.css
+│   │   │   │   ├── driver-bottom-nav.php
+│   │   │   │   └── driver-bottom-navbar.js
+│   │   │   ├── driver-live-orders
+│   │   │   │   ├── driver-live-orders-script.js
+│   │   │   │   ├── driver-live-orders-shortcode.php
+│   │   │   │   └── driver-live-orders-style.css
 │   │   │   ├── driver-ops
 │   │   │   │   ├── driver-notifier-shortcode.php
 │   │   │   │   ├── driver-ops-script.js
 │   │   │   │   ├── driver-ops-shortcode.php
 │   │   │   │   └── driver-ops-style.css
+│   │   │   ├── driver-profile
+│   │   │   │   ├── driver-profile-script.js
+│   │   │   │   ├── driver-profile-shortcode.php
+│   │   │   │   └── driver-profile-style.css
+│   │   │   ├── driver-quick-menu
+│   │   │   │   ├── driver-quick-menu-script.js
+│   │   │   │   ├── driver-quick-menu-shortcode.php
+│   │   │   │   └── driver-quick-menu-style.css
 │   │   │   ├── live-orders
 │   │   │   │   ├── live-orders-script.js
 │   │   │   │   ├── live-orders-shortcode.php
@@ -284,6 +306,7 @@
 │   │   │   └── payments-service.php
 │   │   └── profile
 │   ├── public
+│   │   ├── .DS_Store
 │   │   ├── addresses
 │   │   │   ├── my-addresses-script.js
 │   │   │   ├── my-addresses-shortcode.php
@@ -318,17 +341,21 @@
 │   │   │   ├── navbar.php
 │   │   │   ├── navigation-script.js
 │   │   │   └── navigation-style.css
+│   │   ├── orders
+│   │   │   ├── .DS_Store
+│   │   │   ├── order-status-shortcode.php
+│   │   │   ├── order-status.css
+│   │   │   └── order-status.js
 │   │   └── profile
 │   │       ├── profile-script.js
 │   │       ├── profile-shortcode.php
 │   │       └── profile-style.css
 │   └── shortcodes
 │       └── cities-grid-shortcode.php
-├── inc.zip
 ├── kingdom-nexus.php
+├── localbites-colors.md
 ├── nexus-guidelines.md
 ├── nexus-schema-y05.sql
-├── project-tree.txt
-└── z_important.md
+└── project-tree.txt
 
-77 directories, 255 files
+82 directories, 277 files

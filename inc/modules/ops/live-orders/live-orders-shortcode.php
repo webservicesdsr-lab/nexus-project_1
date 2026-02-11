@@ -6,6 +6,10 @@ if (!defined('ABSPATH')) exit;
  * KNX OPS — Live Orders Board (Shortcode)
  * Shortcode: [knx_ops_live_orders]
  *
+ * Canon manager scope:
+ * - Managers are scoped via {prefix}knx_manager_cities (pivot).
+ * - Fail-closed if the pivot table is missing OR no rows exist.
+ *
  * Notes:
  * - Assets injected inline via echo/file_get_contents (no wp_footer dependency).
  * - Managers and super_admins share the same UI, scoped by role.
@@ -44,38 +48,45 @@ add_shortcode('knx_ops_live_orders', function ($atts = []) {
     if ($resolved_hours <= 0) $resolved_hours = 24;
     if ($resolved_hours > 168) $resolved_hours = 168;
 
-    // Manager cities (fail-closed if assignment isn't configured)
+    // Manager cities (CANON: {prefix}knx_manager_cities)
     $managed_cities = [];
     if ($role === 'manager') {
-        $hubs_table = $wpdb->prefix . 'knx_hubs';
-        $col = $wpdb->get_var($wpdb->prepare("SHOW COLUMNS FROM {$hubs_table} LIKE %s", 'manager_user_id'));
-        if (empty($col)) {
-            return '<div class="knx-live-orders-error">Manager city assignment not configured.</div>';
-        }
 
         $user_id = isset($session->user_id) ? (int)$session->user_id : 0;
         if (!$user_id) {
             return '<div class="knx-live-orders-error">Unauthorized.</div>';
         }
 
+        $mc_table = $wpdb->prefix . 'knx_manager_cities';
+
+        // Fail-closed if pivot table is missing.
+        $table_exists = $wpdb->get_var($wpdb->prepare(
+            "SHOW TABLES LIKE %s",
+            $mc_table
+        ));
+        if (empty($table_exists)) {
+            return '<div class="knx-live-orders-error">Manager city assignment not configured.</div>';
+        }
+
         $managed_cities = $wpdb->get_col($wpdb->prepare(
             "SELECT DISTINCT city_id
-             FROM {$hubs_table}
-             WHERE manager_user_id = %d
-               AND city_id IS NOT NULL",
+             FROM {$mc_table}
+             WHERE manager_user_id = %d",
             $user_id
         ));
 
         $managed_cities = array_map('intval', (array)$managed_cities);
-        $managed_cities = array_values(array_filter($managed_cities, function($v){ return $v > 0; }));
+        $managed_cities = array_values(array_filter($managed_cities, static function ($v) { return $v > 0; }));
 
         if (empty($managed_cities)) {
             return '<div class="knx-live-orders-error">No cities assigned to this manager.</div>';
         }
     }
 
-    $api_url    = esc_url(rest_url('knx/v1/ops/live-orders'));
-    $cities_url = esc_url(rest_url('knx/v2/cities/get'));
+    $api_url           = esc_url(rest_url('knx/v1/ops/live-orders'));
+    $cities_url        = esc_url(rest_url('knx/v2/cities/get'));
+    $drivers_url       = esc_url(rest_url('knx/v1/ops/drivers'));
+    $assign_driver_url = esc_url(rest_url('knx/v1/ops/assign-driver'));
 
     $view_order_url = esc_url($atts['view_order_url']);
 
@@ -83,15 +94,18 @@ add_shortcode('knx_ops_live_orders', function ($atts = []) {
     $css = '';
     $js  = '';
 
-    $css_path = defined('KNX_PATH') ? (KNX_PATH . 'inc/modules/ops/live-orders/live-orders-style.css') : '';
-    if ($css_path && file_exists($css_path)) {
+    $css_path = __DIR__ . '/live-orders-style.css';
+    if (file_exists($css_path)) {
         $css = (string)file_get_contents($css_path);
     }
 
-    $js_path = defined('KNX_PATH') ? (KNX_PATH . 'inc/modules/ops/live-orders/live-orders-script.js') : '';
-    if ($js_path && file_exists($js_path)) {
+    $js_path = __DIR__ . '/live-orders-script.js';
+    if (file_exists($js_path)) {
         $js = (string)file_get_contents($js_path);
     }
+
+    // Optional REST nonce (some setups require it even with same-origin cookies)
+    $rest_nonce = function_exists('wp_create_nonce') ? wp_create_nonce('wp_rest') : '';
 
     ob_start();
     ?>
@@ -103,6 +117,9 @@ add_shortcode('knx_ops_live_orders', function ($atts = []) {
          class="knx-live-orders"
          data-api-url="<?php echo $api_url; ?>"
          data-cities-url="<?php echo $cities_url; ?>"
+         data-drivers-url="<?php echo $drivers_url; ?>"
+         data-assign-driver-url="<?php echo $assign_driver_url; ?>"
+         data-rest-nonce="<?php echo esc_attr($rest_nonce); ?>"
          data-role="<?php echo esc_attr($role); ?>"
          data-managed-cities='<?php echo wp_json_encode($managed_cities); ?>'
          data-view-order-url="<?php echo $view_order_url; ?>"
@@ -123,7 +140,6 @@ add_shortcode('knx_ops_live_orders', function ($atts = []) {
                 <div class="knx-live-orders__pulse" id="knxLOPulse" aria-hidden="true"></div>
             </div>
 
-            <!-- Tabs (now used on desktop too) -->
             <div class="knx-lo-tabs" role="tablist" aria-label="Order tabs">
                 <button type="button" class="knx-lo-tab is-active" data-tab="new" role="tab" aria-selected="true" id="knxLOTabNew">
                     <span class="knx-lo-tab__label">New</span>

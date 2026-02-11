@@ -208,6 +208,25 @@ CREATE TABLE `y05_knx_delivery_zones` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci COMMENT='Polygon-based delivery zones for hubs';
 
 -- --------------------------------------------------------
+-- y05_knx_manager_cities
+-- --------------------------------------------------------
+CREATE TABLE `y05_knx_manager_cities` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `manager_user_id` BIGINT UNSIGNED NOT NULL,
+  `city_id` BIGINT UNSIGNED NOT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_manager_city` (`manager_user_id`, `city_id`),
+  KEY `idx_manager_user_id` (`manager_user_id`),
+  KEY `idx_city_id` (`city_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+  FOREIGN KEY (`manager_user_id`) REFERENCES `y05_knx_users`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`city_id`) REFERENCES `y05_knx_cities`(`id`) ON DELETE CASCADE
+
+
+-- --------------------------------------------------------
 -- y05_knx_drivers
 -- --------------------------------------------------------
 CREATE TABLE `y05_knx_drivers` (

@@ -11,6 +11,10 @@ if (!defined('ABSPATH')) exit;
  * - Block 1: Accept city_ids[] (array) AND legacy cities=1,2 (CSV).
  * - Block 2: HARD filter only canonical live statuses (no historical statuses).
  * - Always use $wpdb->prefix (no hardcoded table prefixes).
+ *
+ * Manager scope (CANON):
+ * - Uses pivot table: {$wpdb->prefix}knx_manager_cities (manager_user_id, city_id)
+ * - Fail-closed if pivot table missing OR manager has no assigned rows.
  * ==========================================================
  */
 
@@ -25,9 +29,9 @@ add_action('rest_api_init', function () {
 });
 
 /**
- * Resolve manager allowed city IDs based on hubs.manager_user_id.
+ * Resolve manager allowed city IDs based on knx_manager_cities pivot.
  *
- * Fail-closed if assignment column does not exist or no rows found.
+ * Fail-closed if pivot table does not exist or no rows found.
  *
  * @param int $manager_user_id
  * @return array<int>
@@ -35,20 +39,20 @@ add_action('rest_api_init', function () {
 function knx_ops_live_orders_manager_city_ids($manager_user_id) {
     global $wpdb;
 
-    $hubs_table = $wpdb->prefix . 'knx_hubs';
+    $manager_user_id = (int)$manager_user_id;
+    if ($manager_user_id <= 0) return [];
 
-    $col = $wpdb->get_var($wpdb->prepare(
-        "SHOW COLUMNS FROM {$hubs_table} LIKE %s",
-        'manager_user_id'
-    ));
-    if (empty($col)) return [];
+    $pivot = $wpdb->prefix . 'knx_manager_cities';
+
+    // Fail-closed if table missing
+    $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $pivot));
+    if (empty($exists)) return [];
 
     $ids = $wpdb->get_col($wpdb->prepare(
         "SELECT DISTINCT city_id
-         FROM {$hubs_table}
-         WHERE manager_user_id = %d
-           AND city_id IS NOT NULL",
-        (int)$manager_user_id
+         FROM {$pivot}
+         WHERE manager_user_id = %d",
+        $manager_user_id
     ));
 
     $ids = array_map('intval', (array)$ids);
@@ -207,7 +211,7 @@ function knx_ops_live_orders(WP_REST_Request $request) {
 
         // Fail-closed if any requested city is outside scope
         foreach ($city_ids as $c) {
-            if (!in_array($c, $allowed, true)) {
+            if (!in_array((int)$c, $allowed, true)) {
                 return knx_rest_error('Forbidden: city outside manager scope', 403);
             }
         }
@@ -217,15 +221,6 @@ function knx_ops_live_orders(WP_REST_Request $request) {
     $hubs_table   = $wpdb->prefix . 'knx_hubs';
 
     // BLOCK 2 — OPERATIVE LIVE STATES (HARD FILTER)
-    // Decision: Live Orders (OPS v1) returns ONLY operationally active orders.
-    // Allowed live statuses for this endpoint:
-    //   - placed
-    //   - confirmed
-    //   - preparing
-    //   - assigned
-    //   - in_progress
-    // Any other status (e.g. ready, completed, cancelled, etc.) is excluded.
-    // Historical data will be handled by a separate archive endpoint in a later phase.
     $live_statuses = ['placed', 'confirmed', 'preparing', 'assigned', 'in_progress'];
 
     // Optional lat/lng columns
@@ -242,7 +237,6 @@ function knx_ops_live_orders(WP_REST_Request $request) {
     $status_ph = implode(',', array_fill(0, count($live_statuses), '%s'));
 
     if ($all_cities) {
-        // No city filter; only filter by status
         $query = "
         SELECT
             o.id AS order_id,
@@ -262,12 +256,12 @@ function knx_ops_live_orders(WP_REST_Request $request) {
         WHERE o.status IN ({$status_ph})
         ORDER BY o.created_at DESC
         LIMIT 250
-    ";
+        ";
 
         $params = $live_statuses;
         $prepared = $wpdb->prepare($query, $params);
     } else {
-        $city_ph   = implode(',', array_fill(0, count($city_ids), '%d'));
+        $city_ph = implode(',', array_fill(0, count($city_ids), '%d'));
 
         $query = "
         SELECT
@@ -289,11 +283,12 @@ function knx_ops_live_orders(WP_REST_Request $request) {
           AND o.status IN ({$status_ph})
         ORDER BY o.created_at DESC
         LIMIT 250
-    ";
+        ";
 
-        $params = array_merge($city_ids, $live_statuses);
+        $params = array_merge(array_map('intval', $city_ids), $live_statuses);
         $prepared = $wpdb->prepare($query, $params);
     }
+
     $rows = $wpdb->get_results($prepared);
 
     $now_ts = (int)current_time('timestamp');

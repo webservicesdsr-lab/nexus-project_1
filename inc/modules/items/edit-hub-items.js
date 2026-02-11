@@ -311,4 +311,84 @@ document.addEventListener("DOMContentLoaded", () => {
      Initialize
   ========================================================== */
   loadItems();
+  
+  /* ==========================================================
+     7. CSV Upload flow
+  ========================================================== */
+  const uploadCsvBtn = document.getElementById("knxUploadCsvBtn");
+  const uploadCsvModal = document.getElementById("knxUploadCsvModal");
+  const uploadCsvForm = document.getElementById("knxUploadCsvForm");
+  const uploadCsvFile = document.getElementById("knxCsvFile");
+  const closeCsvBtn = document.getElementById("knxCloseCsvModal");
+
+  if (uploadCsvBtn && uploadCsvModal) {
+    uploadCsvBtn.addEventListener("click", () => {
+      uploadCsvModal.classList.add("active");
+    });
+  }
+
+  if (closeCsvBtn) {
+    closeCsvBtn.addEventListener("click", () => {
+      uploadCsvModal.classList.remove("active");
+      if (uploadCsvForm) uploadCsvForm.reset();
+    });
+  }
+
+  if (uploadCsvForm) {
+    uploadCsvForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      if (!uploadCsvFile || !uploadCsvFile.files || uploadCsvFile.files.length === 0) {
+        knxToast("Please select a CSV file", "error");
+        return;
+      }
+
+      const file = uploadCsvFile.files[0];
+      // Basic client-side checks
+      if (!file.name.match(/\.csv$/i)) {
+        knxToast("Please upload a .csv file", "error");
+        return;
+      }
+
+      const fd = new FormData();
+      fd.append("items_csv", file);
+      fd.append("hub_id", hubId);
+      fd.append("knx_nonce", nonce);
+
+      try {
+        const submitBtn = uploadCsvForm.querySelector('button[type="submit"]');
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = "Uploading...";
+        }
+
+        const res = await fetch(wrap.dataset.apiUploadCsv || apiUploadCsv || (wrap.dataset.apiUploadCsv), {
+          method: "POST",
+          body: fd,
+        });
+
+        const data = await res.json();
+
+        if (data && data.success) {
+          knxToast(data.message || "CSV processed", "success");
+          uploadCsvModal.classList.remove("active");
+          uploadCsvForm.reset();
+          loadItems();
+        } else {
+          const errMsg = (data && data.message) ? data.message : (data && data.error) ? data.error : "CSV upload failed";
+          knxToast(errMsg, "error");
+          console.error("CSV upload result:", data);
+        }
+      } catch (err) {
+        console.error(err);
+        knxToast("Network error during CSV upload", "error");
+      } finally {
+        const submitBtn = uploadCsvForm.querySelector('button[type="submit"]');
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Upload";
+        }
+      }
+    });
+  }
 });

@@ -1,0 +1,9 @@
+/* KNX — Driver Profile styles */
+.knx-profile{max-width:720px;margin:16px auto;padding:18px;background:var(--nxs-bg,#f6f7f9);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--nxs-text,#0b1220)}
+.knx-profile__card{display:flex;align-items:center;gap:16px;background:var(--nxs-card,#ffffff);padding:14px;border-radius:12px;box-shadow:0 12px 30px rgba(11,18,32,0.06)}
+.knx-profile__avatar{width:64px;height:64px;border-radius:12px;background:var(--nxs-primary,#0b793a);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:22px}
+.knx-profile__name{font-size:18px;font-weight:900}
+.knx-profile__contact{font-size:13px;color:var(--nxs-muted,#6b7280);margin-top:4px}
+.knx-profile__actions{display:flex;gap:10px;margin-top:16px}
+.knx-profile__btn{padding:10px 12px;border-radius:10px;background:var(--nxs-primary,#0b793a);color:#fff;text-decoration:none;font-weight:800}
+.knx-profile__btn--ghost{background:transparent;border:1px solid rgba(11,18,32,0.06);color:var(--nxs-text,#0b1220)}

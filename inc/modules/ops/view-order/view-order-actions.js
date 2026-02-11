@@ -361,73 +361,10 @@
         return m;
       }
 
-      if (!assigned && ['placed', 'confirmed', 'preparing', 'assigned'].includes(status)) {
-        const assignBtn = btn('Assign Driver', 'knx-btn-secondary');
-        mainGroup.appendChild(assignBtn);
-
-        assignBtn.addEventListener('click', async () => {
-          const m = ensureAssignModal();
-          const select = m.querySelector('[data-select="1"]');
-          const err = m.querySelector('[data-err="1"]');
-          const confirm = m.querySelector('[data-assign="1"]');
-
-          if (err) { err.style.display = 'none'; err.textContent = ''; }
-          showModal(m);
-
-          try {
-            if (!driversCache) {
-              if (select) select.innerHTML = '<option value="">Loading…</option>';
-              driversCache = await fetchDriversForCity();
-            }
-
-            if (select) {
-              select.innerHTML = '';
-              if (!driversCache || driversCache.length === 0) {
-                select.innerHTML = '<option value="">No active drivers</option>';
-              } else {
-                const ph = document.createElement('option');
-                ph.value = '';
-                ph.textContent = 'Select a driver…';
-                select.appendChild(ph);
-
-                driversCache.forEach((d) => {
-                  const id = Number(d && d.id ? d.id : 0);
-                  if (!id) return;
-                  const opt = document.createElement('option');
-                  opt.value = String(id);
-                  opt.textContent = String(d.name || `Driver #${id}`) + (d.phone ? ` — ${String(d.phone)}` : '');
-                  select.appendChild(opt);
-                });
-              }
-            }
-          } catch (e) {
-            if (err) { err.style.display = 'block'; err.textContent = String(e.message || e); }
-          }
-
-          if (!confirm) return;
-
-          confirm.onclick = async () => {
-            const driverId = Number(select && select.value ? select.value : 0);
-            if (!driverId) {
-              if (err) { err.style.display = 'block'; err.textContent = 'Select a driver first.'; }
-              return;
-            }
-
-            setBusy(true);
-            try {
-              await postJSON(assignDriverUrl, { order_id: orderId, driver_id: driverId });
-              hideModal(m);
-              toast('Driver assigned', 'success');
-              window.location.reload();
-            } catch (e) {
-              if (err) { err.style.display = 'block'; err.textContent = String(e.message || e); }
-              toast('Unable to assign driver', 'error');
-            } finally {
-              setBusy(false);
-            }
-          };
-        });
-      }
+      // Assign driver action intentionally removed from View Order
+      // to comply with OPS UI rules: View Order only exposes status
+      // transitions and release (unassign) actions. Assignments are
+      // available from the Live Orders board (expand-row assign dropdown).
 
       if (assigned && ['assigned', 'in_progress'].includes(status)) {
         const unassignBtn = btn('Unassign Driver', 'knx-btn-danger');
