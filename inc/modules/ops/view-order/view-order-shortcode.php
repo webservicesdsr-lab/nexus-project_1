@@ -1,4 +1,5 @@
 <?php
+// inc/modules/ops/view-order/view-order-shortcode.php
 if (!defined('ABSPATH')) exit;
 
 /**
@@ -7,7 +8,7 @@ if (!defined('ABSPATH')) exit;
  * Shortcode: [knx_ops_view_order]
  *
  * Notes:
- * - Assets are injected via echo/link/script (no wp_footer dependency).
+ * - Assets injected via link/script + inline addon (no wp_footer).
  * - Reads order_id from query string (?order_id=123).
  * - Managers are fail-closed if {prefix}knx_manager_cities is missing/empty.
  * - Does NOT expose order_id/city_id in DOM datasets.
@@ -32,16 +33,11 @@ function knx_ops_view_order_shortcode() {
     // Manager scope preflight (fail-closed)
     if ($role === 'manager') {
         $user_id = isset($session->user_id) ? (int)$session->user_id : 0;
-        if (!$user_id) {
-            return '<div class="knx-ops-err">Unauthorized.</div>';
-        }
+        if (!$user_id) return '<div class="knx-ops-err">Unauthorized.</div>';
 
         $mc_table = $wpdb->prefix . 'knx_manager_cities';
-
         $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $mc_table));
-        if (empty($exists)) {
-            return '<div class="knx-ops-err">Manager city assignment not configured.</div>';
-        }
+        if (empty($exists)) return '<div class="knx-ops-err">Manager city assignment not configured.</div>';
 
         $ids = $wpdb->get_col($wpdb->prepare(
             "SELECT DISTINCT city_id
@@ -54,9 +50,7 @@ function knx_ops_view_order_shortcode() {
         $ids = array_map('intval', (array)$ids);
         $ids = array_values(array_filter($ids, static function ($v) { return $v > 0; }));
 
-        if (empty($ids)) {
-            return '<div class="knx-ops-err">No cities assigned to this manager.</div>';
-        }
+        if (empty($ids)) return '<div class="knx-ops-err">No cities assigned to this manager.</div>';
     }
 
     $order_id = isset($_GET['order_id']) ? (int)$_GET['order_id'] : 0;
@@ -76,35 +70,32 @@ function knx_ops_view_order_shortcode() {
          data-role="<?php echo esc_attr($role); ?>"
          data-back-url="<?php echo $back_url; ?>"
          data-update-status-url="<?php echo esc_url(rest_url('knx/v1/ops/update-status')); ?>"
-         data-assign-driver-url="<?php echo esc_url(rest_url('knx/v1/ops/assign-driver')); ?>"
          data-unassign-driver-url="<?php echo esc_url(rest_url('knx/v1/ops/unassign-driver')); ?>"
-         data-drivers-url="<?php echo esc_url(rest_url('knx/v1/ops/drivers')); ?>"
          data-nonce="<?php echo esc_attr(wp_create_nonce('wp_rest')); ?>">
 
         <div class="knx-ops-vo__shell">
-            <div class="knx-ops-vo__top">
-                <div class="knx-ops-vo__row">
-                    <a class="knx-ops-vo__back" href="<?php echo $back_url; ?>">&larr; Back to Live Orders</a>
-                    <div id="knxViewOrderActions" data-knx-view-order-actions="1"></div>
-                </div>
 
-                <div class="knx-ops-vo__title">
-                    <h2>Order Details</h2>
-                    <div id="knxOpsVOState" class="knx-ops-vo__state">
-                        <?php echo ($order_id > 0) ? 'Loading…' : 'Missing order_id'; ?>
-                    </div>
+            <div class="knx-ops-vo__topbar">
+                <a class="knx-ops-vo__back" href="<?php echo $back_url; ?>">&larr; Back</a>
+                <div id="knxViewOrderActions" class="knx-ops-vo__actions" data-knx-view-order-actions="1"></div>
+            </div>
+
+            <div class="knx-ops-vo__title">
+                <h2>Order tracking</h2>
+                <div id="knxOpsVOState" class="knx-ops-vo__state">
+                    <?php echo ($order_id > 0) ? 'Loading…' : 'Missing order_id'; ?>
                 </div>
             </div>
 
+            <!-- 1:1 layout container -->
             <div id="knxOpsVOContent" class="knx-ops-vo__content"></div>
         </div>
     </div>
 
     <script src="<?php echo esc_url(KNX_URL . 'inc/modules/ops/view-order/view-order-script.js'); ?>?v=<?php echo esc_attr($ver); ?>" defer></script>
+
     <?php
-    /**
-     * Inline the single actions add-on (no wp_enqueue / no wp_footer).
-     */
+    // Inline single actions add-on (no wp_enqueue / no wp_footer).
     $addon_path = __DIR__ . '/view-order-actions.js';
     if (is_readable($addon_path)) {
         echo "\n" . '<script>' . "\n" . file_get_contents($addon_path) . "\n" . '</script>' . "\n";

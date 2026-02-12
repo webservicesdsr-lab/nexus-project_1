@@ -1,8 +1,23 @@
+// inc/modules/ops/view-order/view-order-script.js
 /**
  * KNX OPS — View Order Script (Read-only)
  * - Fetches /knx/v1/ops/view-order?order_id=...
- * - Renders an operational snapshot without printing raw JSON.
+ * - Renders a 1:1 "Order tracking" layout (left details, right map + history).
  * - Exposes SSOT to addons via window.KNX_VIEW_ORDER = { order }.
+ *
+ * Contract (from Network):
+ * data.order = {
+ *   status, created_at, created_human, city_id,
+ *   delivery:{method,address,time_slot},
+ *   payment:{method,status},
+ *   restaurant:{id,name,phone,email,address,logo_url},
+ *   customer:{name},
+ *   totals:{total,tip,quote},
+ *   driver:{assigned,driver_id,name?},
+ *   location:{lat,lng,view_url},
+ *   raw:{items,notes},
+ *   status_history:[{status,changed_by,changed_by_label,created_at}]
+ * }
  */
 
 (function () {
@@ -13,6 +28,8 @@
     if (!app) return;
 
     const apiUrl = String(app.dataset.apiUrl || '').trim();
+    const restNonce = String(app.dataset.nonce || '').trim();
+
     const stateEl = document.getElementById('knxOpsVOState');
     const contentEl = document.getElementById('knxOpsVOContent');
     if (!contentEl) return;
@@ -39,22 +56,13 @@
       });
     }
 
-    function money(n) {
-      const v = Number(n);
-      return (Number.isFinite(v) ? v : 0).toFixed(2);
-    }
-
     function setState(msg) {
       if (stateEl) stateEl.textContent = msg || '';
     }
 
-    function renderError(title, detail) {
-      contentEl.innerHTML = `
-        <div class="knx-ops-vo__error">
-          <div class="knx-ops-vo__error-title">${esc(title || 'Error')}</div>
-          <div class="knx-ops-vo__error-detail">${esc(detail || '')}</div>
-        </div>
-      `;
+    function money(n) {
+      const v = Number(n);
+      return (Number.isFinite(v) ? v : 0).toFixed(2);
     }
 
     function safeHttpUrl(url) {
@@ -64,51 +72,33 @@
       return '';
     }
 
-    function pickFirst(obj, paths) {
-      for (let i = 0; i < paths.length; i++) {
-        const p = paths[i].split('.');
+    function pick(obj, path, fallback) {
+      try {
+        const parts = String(path || '').split('.');
         let cur = obj;
-        let ok = true;
-        for (let j = 0; j < p.length; j++) {
-          if (!cur || typeof cur !== 'object' || !(p[j] in cur)) { ok = false; break; }
-          cur = cur[p[j]];
+        for (let i = 0; i < parts.length; i++) {
+          if (!cur || typeof cur !== 'object' || !(parts[i] in cur)) return fallback;
+          cur = cur[parts[i]];
         }
-        if (ok && cur !== null && cur !== undefined && String(cur).trim() !== '') return cur;
+        return (cur === null || cur === undefined) ? fallback : cur;
+      } catch (e) {
+        return fallback;
       }
-      return '';
     }
 
-    function normalizeItems(o) {
-      // Supported shapes:
-      // - array
-      // - object with { items: [...] }
-      // - order.items
-      // - order.raw.items
-      const candidate =
-        (o && o.raw && o.raw.items !== undefined) ? o.raw.items :
-        (o && o.items !== undefined) ? o.items :
-        (o && o.raw !== undefined) ? o.raw :
-        null;
+    function normalizeItems(order) {
+      const rawItems = order && order.raw ? order.raw.items : null;
+      if (Array.isArray(rawItems)) return rawItems;
+      if (rawItems && typeof rawItems === 'object' && Array.isArray(rawItems.items)) return rawItems.items;
 
-      if (Array.isArray(candidate)) return candidate;
-
-      // If raw.items is an object that contains items:[...]
-      if (candidate && typeof candidate === 'object' && Array.isArray(candidate.items)) {
-        return candidate.items;
-      }
-
-      // Sometimes order.raw itself may include items:[...]
-      if (o && o.raw && typeof o.raw === 'object' && Array.isArray(o.raw.items)) {
-        return o.raw.items;
-      }
+      // back-compat
+      if (order && Array.isArray(order.items)) return order.items;
+      if (order && order.items && typeof order.items === 'object' && Array.isArray(order.items.items)) return order.items.items;
 
       return [];
     }
 
     function normalizeModifiers(mods) {
-      // Snapshot can look like:
-      // mods: [ { name:"Size", options:[{name:"Large", price_adjustment:4.49}] }, ... ]
-      // We render: "Size: Large (+$4.49)"
       if (!Array.isArray(mods) || !mods.length) return [];
 
       const out = [];
@@ -117,36 +107,33 @@
         const options = Array.isArray(group?.options) ? group.options : (Array.isArray(group?.selected) ? group.selected : []);
         if (!gName && !options.length) return;
 
-        const renderedOpts = [];
+        const rendered = [];
         options.forEach((opt) => {
           const oName = String(opt?.option || opt?.name || opt?.value || '').trim();
           if (!oName) return;
 
-          const deltaRaw = (opt?.price_adjustment !== undefined) ? opt.price_adjustment
-                        : (opt?.price !== undefined) ? opt.price
-                        : (opt?.delta !== undefined) ? opt.delta
-                        : undefined;
+          const deltaRaw =
+            (opt?.price_adjustment !== undefined) ? opt.price_adjustment :
+            (opt?.price !== undefined) ? opt.price :
+            (opt?.delta !== undefined) ? opt.delta :
+            undefined;
 
           const delta = Number(deltaRaw);
-          const deltaTxt = (Number.isFinite(delta) && delta !== 0)
-            ? ` (+$${money(delta)})`
-            : '';
-
-          renderedOpts.push(`${esc(oName)}${deltaTxt}`);
+          const deltaTxt = (Number.isFinite(delta) && delta !== 0) ? ` (+$${money(delta)})` : '';
+          rendered.push(`${esc(oName)}${deltaTxt}`);
         });
 
-        const line = {
+        out.push({
           group: esc(gName),
-          optionsHtml: renderedOpts.length ? renderedOpts.join(', ') : '',
-        };
-        out.push(line);
+          optionsHtml: rendered.length ? rendered.join(', ') : '',
+        });
       });
 
       return out;
     }
 
     function renderItems(items) {
-      if (!Array.isArray(items) || items.length === 0) {
+      if (!Array.isArray(items) || !items.length) {
         return '<div class="knx-ops-vo__muted">No items.</div>';
       }
 
@@ -160,120 +147,266 @@
         const unit = money(unitRaw);
         const line = money(lineRaw);
 
-        const thumb = safeHttpUrl(it?.image_snapshot || it?.image || '');
-
         const mods = normalizeModifiers(it?.modifiers);
         const modsHtml = mods.length
-          ? `<div class="knx-ops-vo__item-mods">${
+          ? `<div class="knx-ops-vo__order-mods">${
               mods.map(m => {
-                const left = m.group ? `<span class="knx-ops-vo__item-mod-group">${m.group}</span>` : '';
-                const right = m.optionsHtml ? `<span class="knx-ops-vo__item-mod-opt">${m.optionsHtml}</span>` : '';
+                const left = m.group ? `<span class="knx-ops-vo__order-mod-g">${m.group}</span>` : '';
+                const right = m.optionsHtml ? `<span class="knx-ops-vo__order-mod-o">${m.optionsHtml}</span>` : '';
                 if (!left && !right) return '';
-                return `<div class="knx-ops-vo__item-mod">${left}${left && right ? ': ' : ''}${right}</div>`;
+                return `<div class="knx-ops-vo__order-mod">${left}${left && right ? ': ' : ''}${right}</div>`;
               }).join('')
             }</div>`
           : '';
 
         return `
-          <div class="knx-ops-vo__item">
-            ${thumb ? `<img class="knx-ops-vo__item-thumb" src="${esc(thumb)}" loading="lazy" alt="${name}">` : ''}
-            <div class="knx-ops-vo__item-meta">
-              <div class="knx-ops-vo__item-name">${name}</div>
-              <div class="knx-ops-vo__item-sub">Qty: ${qty} &middot; Unit: $${unit}</div>
+          <div class="knx-ops-vo__order-row">
+            <div class="knx-ops-vo__order-left">
+              <div class="knx-ops-vo__order-title">
+                <span class="knx-ops-vo__dot">•</span>
+                <span><strong>${qty} x</strong> ${name}</span>
+              </div>
+              <div class="knx-ops-vo__order-sub">Unit: $${unit}</div>
               ${modsHtml}
             </div>
-            <div class="knx-ops-vo__item-price">$${line}</div>
+            <div class="knx-ops-vo__order-price">$${line}</div>
           </div>
         `;
       }).join('');
 
-      return `<div class="knx-ops-vo__items">${rows}</div>`;
+      return `<div class="knx-ops-vo__order-list">${rows}</div>`;
     }
 
-    function renderOrder(o) {
-      const hubName = esc(String(
-        pickFirst(o, ['hub.name', 'hub_name', 'hub']) || ''
-      ));
+    function humanStatusLabel(s) {
+      const v = String(s || '').trim().toLowerCase();
+      if (!v) return '—';
+      return v.replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
+    }
 
-      const statusRaw = String(pickFirst(o, ['status']) || '').trim();
-      const status = esc(statusRaw);
+    function renderHistory(list) {
+      const arr = Array.isArray(list) ? list : [];
+      if (!arr.length) return `<div class="knx-ops-vo__muted">No history.</div>`;
 
-      const createdHuman = esc(String(
-        pickFirst(o, ['created_human', 'created_at']) || ''
-      ));
+      const rows = arr.map((h) => {
+        const st = humanStatusLabel(h?.status);
+        const at = esc(String(h?.created_at || '').trim());
+        const by = esc(String(h?.changed_by_label || '').trim());
 
-      const customerName = esc(String(
-        pickFirst(o, ['customer.name', 'customer_name']) || ''
-      ));
+        return `
+          <div class="knx-ops-vo__hist-item">
+            <div class="knx-ops-vo__hist-icon" aria-hidden="true"></div>
+            <div class="knx-ops-vo__hist-body">
+              <div class="knx-ops-vo__hist-title">${esc(st)}</div>
+              ${by ? `<div class="knx-ops-vo__hist-sub"><strong>Status from:</strong> ${by}</div>` : ``}
+            </div>
+            <div class="knx-ops-vo__hist-time">${at || '—'}</div>
+          </div>
+        `;
+      }).join('');
 
-      const totalsTotal = money(pickFirst(o, ['totals.total', 'totals.grand_total', 'total']) || 0);
-      const totalsTip = money(pickFirst(o, ['totals.tip', 'tip']) || 0);
+      return `<div class="knx-ops-vo__hist">${rows}</div>`;
+    }
 
-      const driverAssigned = !!pickFirst(o, ['driver.assigned']) || !!pickFirst(o, ['driver_assigned']);
-      const driverName = esc(String(pickFirst(o, ['driver.name', 'driver_name']) || ''));
-      const driverLine = driverAssigned ? (driverName ? `Assigned: ${driverName}` : 'Assigned') : 'Unassigned';
+    function buildMapEmbed(lat, lng) {
+      const la = Number(lat);
+      const ln = Number(lng);
+      if (!Number.isFinite(la) || !Number.isFinite(ln)) return '';
 
-      const mapUrl = safeHttpUrl(pickFirst(o, ['location.view_url', 'location.map_url', 'location_url']) || '');
-      const notesRaw = String(pickFirst(o, ['raw.notes', 'notes']) || '').trim();
+      // No API key embed, compatible everywhere.
+      const q = encodeURIComponent(la + ',' + ln);
+      return `https://www.google.com/maps?q=${q}&z=13&output=embed`;
+    }
 
-      const items = normalizeItems(o);
+    function renderOrder(order) {
+      // Restaurant
+      const rName  = esc(String(pick(order, 'restaurant.name', '') || ''));
+      const rPhone = esc(String(pick(order, 'restaurant.phone', '') || ''));
+      const rEmail = esc(String(pick(order, 'restaurant.email', '') || ''));
+      const rAddr  = esc(String(pick(order, 'restaurant.address', '') || ''));
+      const rLogo  = safeHttpUrl(pick(order, 'restaurant.logo_url', '') || '');
+
+      // Customer
+      const cName = esc(String(pick(order, 'customer.name', '') || ''));
+      const cEmail = ''; // not in contract right now
+      const dAddr  = esc(String(pick(order, 'delivery.address', '') || ''));
+      const dSlot  = esc(String(pick(order, 'delivery.time_slot', '') || ''));
+      const dMethod = esc(String(pick(order, 'delivery.method', '') || ''));
+
+      // Order basics
+      const created = esc(String(pick(order, 'created_at', '') || ''));
+      const status = esc(String(pick(order, 'status', '') || ''));
+      const statusNice = humanStatusLabel(status);
+
+      // Totals
+      const subtotal = (function () {
+        const raw = pick(order, 'raw.items.subtotal', null);
+        if (raw === null || raw === undefined) return null;
+        const n = Number(raw);
+        return Number.isFinite(n) ? n : null;
+      })();
+
+      const total = Number(pick(order, 'totals.total', 0));
+      const tip = Number(pick(order, 'totals.tip', 0));
+
+      // Best-effort: use quote breakdown if present (taxes/fees/delivery/discount)
+      const quote = pick(order, 'totals.quote', null);
+      const taxesAndFees = (quote && typeof quote === 'object') ? Number(quote.taxes_and_fees ?? quote.taxes ?? quote.fees ?? NaN) : NaN;
+      const deliveryFee = (quote && typeof quote === 'object') ? Number(quote.delivery_fee ?? quote.delivery ?? NaN) : NaN;
+      const discount = (quote && typeof quote === 'object') ? Number(quote.discount ?? NaN) : NaN;
+
+      // Payment
+      const payMethod = esc(String(pick(order, 'payment.method', '') || ''));
+      const payStatus = esc(String(pick(order, 'payment.status', '') || ''));
+
+      // Location
+      const lat = pick(order, 'location.lat', null);
+      const lng = pick(order, 'location.lng', null);
+      const mapEmbed = buildMapEmbed(lat, lng);
+      const mapExternal = safeHttpUrl(pick(order, 'location.view_url', '') || '');
+
+      // Items + notes + history
+      const items = normalizeItems(order);
+      const notes = String(pick(order, 'raw.notes', '') || '').trim();
+      const history = Array.isArray(order?.status_history) ? order.status_history : [];
+
+      // Actions text (screenshot shows "No actions for you right now!" when none)
+      // Actual actions UI is rendered by view-order-actions.js in top bar.
 
       contentEl.innerHTML = `
-        <div class="knx-ops-vo__header">
-          <div class="knx-ops-vo__h-left">
-            <div class="knx-ops-vo__hub">${hubName || '<span class="knx-ops-vo__muted">Unknown Hub</span>'}</div>
-            <div class="knx-ops-vo__sub">${createdHuman || '<span class="knx-ops-vo__muted">—</span>'}</div>
+        <div class="knx-ops-vo__layout">
+
+          <!-- LEFT -->
+          <div class="knx-ops-vo__left">
+
+            <div class="knx-ops-vo__panel">
+              <div class="knx-ops-vo__panel-head">
+                <div class="knx-ops-vo__panel-title">Restaurant information</div>
+                <div class="knx-ops-vo__panel-pill">${esc(statusNice)}</div>
+              </div>
+
+              <div class="knx-ops-vo__info">
+                <div class="knx-ops-vo__info-row">
+                  ${rLogo ? `<img class="knx-ops-vo__logo" src="${esc(rLogo)}" alt="" loading="lazy">` : ``}
+                  <div class="knx-ops-vo__info-main">
+                    <div class="knx-ops-vo__info-name">${rName || '<span class="knx-ops-vo__muted">Unknown</span>'}</div>
+                    <div class="knx-ops-vo__info-sub">${rAddr || ''}</div>
+                    <div class="knx-ops-vo__info-links">
+                      ${rPhone ? `<div class="knx-ops-vo__link">${rPhone}</div>` : ``}
+                      ${rEmail ? `<div class="knx-ops-vo__link">${rEmail}</div>` : ``}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="knx-ops-vo__divider"></div>
+
+              <div class="knx-ops-vo__section">
+                <div class="knx-ops-vo__section-title">Client information</div>
+                <div class="knx-ops-vo__kv">
+                  <div class="knx-ops-vo__kv-row"><strong>${cName || '<span class="knx-ops-vo__muted">Unknown</span>'}</strong></div>
+                  ${cEmail ? `<div class="knx-ops-vo__kv-row">${cEmail}</div>` : ``}
+                  ${dAddr ? `<div class="knx-ops-vo__kv-row">${dAddr}</div>` : ``}
+                </div>
+              </div>
+
+              <div class="knx-ops-vo__divider"></div>
+
+              <div class="knx-ops-vo__section">
+                <div class="knx-ops-vo__section-title">Order</div>
+                ${renderItems(items)}
+              </div>
+
+              <div class="knx-ops-vo__divider"></div>
+
+              <div class="knx-ops-vo__totals">
+                ${subtotal !== null ? `<div class="knx-ops-vo__tot-row"><span>Sub Total:</span><strong>$${money(subtotal)}</strong></div>` : ``}
+                ${Number.isFinite(taxesAndFees) ? `<div class="knx-ops-vo__tot-row"><span>Taxes and Fees:</span><strong>$${money(taxesAndFees)}</strong></div>` : ``}
+                ${Number.isFinite(deliveryFee) ? `<div class="knx-ops-vo__tot-row"><span>Delivery:</span><strong>$${money(deliveryFee)}</strong></div>` : ``}
+                ${Number.isFinite(discount) ? `<div class="knx-ops-vo__tot-row"><span>Discount:</span><strong>$${money(discount)}</strong></div>` : ``}
+                <div class="knx-ops-vo__tot-row"><span>Tip:</span><strong>$${money(tip)}</strong></div>
+
+                <div class="knx-ops-vo__tot-grand">
+                  <span>TOTAL:</span>
+                  <strong>$${money(total)}</strong>
+                </div>
+              </div>
+
+              <div class="knx-ops-vo__divider"></div>
+
+              <div class="knx-ops-vo__meta">
+                <div class="knx-ops-vo__meta-row"><span>Payment method:</span><strong>${payMethod || '<span class="knx-ops-vo__muted">—</span>'}</strong></div>
+                <div class="knx-ops-vo__meta-row"><span>Payment status:</span><strong>${payStatus || '<span class="knx-ops-vo__muted">—</span>'}</strong></div>
+              </div>
+
+              <div class="knx-ops-vo__divider"></div>
+
+              <div class="knx-ops-vo__meta">
+                <div class="knx-ops-vo__meta-row"><span>Delivery method:</span><strong>${dMethod || '<span class="knx-ops-vo__muted">—</span>'}</strong></div>
+                ${dSlot ? `<div class="knx-ops-vo__meta-row"><span>Time slot:</span><strong>${dSlot}</strong></div>` : ``}
+                <div class="knx-ops-vo__meta-row"><span>Created:</span><strong>${created || '<span class="knx-ops-vo__muted">—</span>'}</strong></div>
+              </div>
+
+              ${notes ? `
+                <div class="knx-ops-vo__divider"></div>
+                <div class="knx-ops-vo__section">
+                  <div class="knx-ops-vo__section-title">Notes</div>
+                  <div class="knx-ops-vo__notes">${esc(notes)}</div>
+                </div>
+              ` : ``}
+
+              <div class="knx-ops-vo__divider"></div>
+              <div class="knx-ops-vo__actions-card">
+                <div class="knx-ops-vo__section-title">Actions</div>
+                <div class="knx-ops-vo__muted">Actions are available in the top bar.</div>
+              </div>
+            </div>
           </div>
-          <div class="knx-ops-vo__badge">${status || '—'}</div>
+
+          <!-- RIGHT -->
+          <div class="knx-ops-vo__right">
+
+            <div class="knx-ops-vo__panel">
+              <div class="knx-ops-vo__section-title">Order tracking</div>
+
+              <div class="knx-ops-vo__map">
+                ${
+                  mapEmbed
+                    ? `<iframe class="knx-ops-vo__map-iframe" src="${esc(mapEmbed)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>`
+                    : `<div class="knx-ops-vo__map-empty">No map available.</div>`
+                }
+                ${
+                  mapExternal
+                    ? `<a class="knx-ops-vo__map-link" href="${esc(mapExternal)}" target="_blank" rel="noopener">Open in Google Maps</a>`
+                    : ``
+                }
+              </div>
+
+              <div class="knx-ops-vo__divider"></div>
+
+              <div class="knx-ops-vo__section">
+                <div class="knx-ops-vo__section-title">Status History</div>
+                ${renderHistory(history)}
+              </div>
+            </div>
+
+          </div>
         </div>
+      `;
+    }
 
-        <div class="knx-ops-vo__grid">
-          <div class="knx-ops-vo__card">
-            <div class="knx-ops-vo__card-title">Customer</div>
-            <div class="knx-ops-vo__card-body">
-              ${customerName ? customerName : '<span class="knx-ops-vo__muted">Unknown</span>'}
-            </div>
-          </div>
+    function extractOrder(json) {
+      if (!json || typeof json !== 'object') return null;
+      if (json.data && json.data.order) return json.data.order;
+      if (json.order) return json.order;
+      if (json.data && json.data.data && json.data.data.order) return json.data.data.order;
+      return null;
+    }
 
-          <div class="knx-ops-vo__card">
-            <div class="knx-ops-vo__card-title">Totals</div>
-            <div class="knx-ops-vo__card-body">
-              <div class="knx-ops-vo__row2"><span>Total</span><strong>$${totalsTotal}</strong></div>
-              <div class="knx-ops-vo__row2"><span>Tip</span><strong>$${totalsTip}</strong></div>
-            </div>
-          </div>
-
-          <div class="knx-ops-vo__card">
-            <div class="knx-ops-vo__card-title">Driver</div>
-            <div class="knx-ops-vo__card-body">
-              <div class="knx-ops-vo__pill ${driverAssigned ? 'is-on' : 'is-off'}">${esc(driverLine)}</div>
-            </div>
-          </div>
-
-          <div class="knx-ops-vo__card">
-            <div class="knx-ops-vo__card-title">Location</div>
-            <div class="knx-ops-vo__card-body">
-              ${
-                mapUrl
-                  ? `<a class="knx-ops-vo__btn" href="${esc(mapUrl)}" target="_blank" rel="noopener">View Location</a>`
-                  : `<span class="knx-ops-vo__muted">No location available.</span>`
-              }
-            </div>
-          </div>
-        </div>
-
-        <div class="knx-ops-vo__card knx-ops-vo__card--full">
-          <div class="knx-ops-vo__card-title">Items</div>
-          <div class="knx-ops-vo__card-body">
-            ${renderItems(items)}
-          </div>
-        </div>
-
-        <div class="knx-ops-vo__card knx-ops-vo__card--full">
-          <div class="knx-ops-vo__card-title">Notes</div>
-          <div class="knx-ops-vo__card-body">
-            ${notesRaw ? `<div class="knx-ops-vo__notes">${esc(notesRaw)}</div>` : `<span class="knx-ops-vo__muted">No notes.</span>`}
-          </div>
+    function renderError(title, detail) {
+      contentEl.innerHTML = `
+        <div class="knx-ops-vo__error">
+          <div class="knx-ops-vo__error-title">${esc(title || 'Error')}</div>
+          <div class="knx-ops-vo__error-detail">${esc(detail || '')}</div>
         </div>
       `;
     }
@@ -289,10 +422,11 @@
 
       try {
         const url = apiUrl + '?order_id=' + encodeURIComponent(String(orderId));
-        const res = await fetch(url, { credentials: 'same-origin' });
+        const headers = {};
+        if (restNonce) headers['X-WP-Nonce'] = restNonce;
 
-        let json = null;
-        try { json = await res.json(); } catch (e) {}
+        const res = await fetch(url, { credentials: 'same-origin', headers });
+        const json = await res.json().catch(() => ({}));
 
         if (!res.ok) {
           const msg = (json && json.message) ? json.message : (res.statusText || 'Request failed');
@@ -302,7 +436,8 @@
           return;
         }
 
-        if (!json || !json.success || !json.data || !json.data.order) {
+        const order = extractOrder(json);
+        if (!order) {
           setState('');
           renderError('Bad response', 'The server returned an unexpected payload.');
           toast('Unexpected response', 'error');
@@ -311,16 +446,15 @@
 
         setState('');
 
-        // SSOT: expose current status and order to addons (non-blocking)
+        // SSOT for addons
         try {
-          const st = String((json.data.order.status || '')).toLowerCase();
+          const st = String((order.status || '')).toLowerCase();
           app.dataset.currentStatus = st;
-          window.KNX_VIEW_ORDER = { order: json.data.order };
+          window.KNX_VIEW_ORDER = { order: order };
         } catch (e) {}
 
-        renderOrder(json.data.order);
-
-      } catch (err) {
+        renderOrder(order);
+      } catch (e) {
         setState('');
         renderError('Network error', 'Check connection or session.');
         toast('Network error', 'error');
