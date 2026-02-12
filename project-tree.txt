@@ -25,26 +25,27 @@
 │   ├── User Capability & Territory Model
 │   │   ├── user-capability-model-es.md
 │   │   └── user-capability-model.md
-│   └── knx-documentation-english
-│       ├── .DS_Store
-│       ├── auth
-│       │   └── auth-canonical-english.md
-│       ├── bootstrap
-│       │   └── kingdom-nexus-bootstrap-english.md
-│       ├── cities
-│       │   └── cities-territory-authority-english.md
-│       ├── hubs
-│       │   └── hubs-operational-authority.md
-│       ├── orders
-│       │   └── orders-phase-1-foundation.md
-│       ├── orders-foundation
-│       │   └── orders-foundation-english.md
-│       ├── rest
-│       │   └── rest-infrastructure-english.md
-│       ├── theme-shell
-│       │   └── nexus-theme-shell-error-handling-english.md
-│       └── users-roles
-│           └── users-roles-identity-territory.md
+│   ├── knx-documentation-english
+│   │   ├── .DS_Store
+│   │   ├── auth
+│   │   │   └── auth-canonical-english.md
+│   │   ├── bootstrap
+│   │   │   └── kingdom-nexus-bootstrap-english.md
+│   │   ├── cities
+│   │   │   └── cities-territory-authority-english.md
+│   │   ├── hubs
+│   │   │   └── hubs-operational-authority.md
+│   │   ├── orders
+│   │   │   └── orders-phase-1-foundation.md
+│   │   ├── orders-foundation
+│   │   │   └── orders-foundation-english.md
+│   │   ├── rest
+│   │   │   └── rest-infrastructure-english.md
+│   │   ├── theme-shell
+│   │   │   └── nexus-theme-shell-error-handling-english.md
+│   │   └── users-roles
+│   │       └── users-roles-identity-territory.md
+│   └── upload-hub-items-template.README.md
 ├── driver-ops-dashboard_foundations.md
 ├── driver-user-flow-implementation.md
 ├── inc
@@ -108,6 +109,7 @@
 │   │   │   │   ├── api-update-settings.php
 │   │   │   │   └── api-upload-logo.php
 │   │   │   ├── knx-items
+│   │   │   │   ├── .DS_Store
 │   │   │   │   ├── api-delete-item-category.php
 │   │   │   │   ├── api-get-item-categories.php
 │   │   │   │   ├── api-hub-items.php
@@ -118,7 +120,8 @@
 │   │   │   │   ├── api-reorder-item.php
 │   │   │   │   ├── api-save-item-category.php
 │   │   │   │   ├── api-toggle-item-category.php
-│   │   │   │   └── api-update-item.php
+│   │   │   │   ├── api-update-item.php
+│   │   │   │   └── api-upload-hub-items-csv.php
 │   │   │   ├── knx-location
 │   │   │   │   ├── api-check-coverage.php
 │   │   │   │   └── api-location-search.php
@@ -358,4 +361,4 @@
 ├── nexus-schema-y05.sql
 └── project-tree.txt
 
-82 directories, 277 files
+82 directories, 280 files
