@@ -3,53 +3,20 @@
  * ████████████████████████████████████████████████████████████████
  * █ KNX-A1.1 — PAYMENT STATE AUTHORITY & DB
  * ████████████████████████████████████████████████████████████████
- * 
- * PURPOSE:
- * - Single Source of Truth for Payment State Machine
- * - Guards to prevent payment logic errors
- * - Database authority for knx_payments table
- * 
- * RULES:
- * - One active payment per order
- * - Payment only for orders with status = 'placed'
- * - Fail-closed on any validation error
- * - No payment modification after success
- * 
- * STATES:
- * - intent_created: Payment intent created, awaiting capture
- * - authorized: Payment authorized but not captured (future)
- * - paid: Payment successfully captured
- * - failed: Payment attempt failed
- * - cancelled: Payment cancelled by user or system
- * 
- * DEPENDENCIES:
- * - knx_orders table (from KNX-A0.9)
- * - knx_payments table (created by this module)
- * 
- * @package KingdomNexus
- * @since A1.1
+ *
+ * NOTE:
+ * - checkout_attempt_key is NOT NULL UNIQUE in DB.
+ * - This file is SSOT for payments guards + inserts.
  */
 
 if (!defined('ABSPATH')) exit;
 
-/**
- * KNX-A1.1.1 — Payments Safe Authority Logger (CANON)
- * 
- * WHY:
- * - Must NEVER fatal (used by payment intent + webhook + polling)
- * - Must be available even if Stripe / helpers are missing
- * - Must not leak secrets (client_secret, keys, full payloads)
- * 
- * USAGE:
- * knx_payments_safe_authority_log('info', 'intent_created', '...', ['order_id'=>1]);
- */
 if (!function_exists('knx_payments_safe_authority_log')) {
     function knx_payments_safe_authority_log($level, $code, $message, $context = []) {
         try {
             $lvl = strtolower(trim((string)$level));
             if ($lvl === '') $lvl = 'info';
 
-            // Only log if KNX_DEBUG is enabled OR severity is error-ish
             $should_log = (defined('KNX_DEBUG') && KNX_DEBUG);
             if (in_array($lvl, ['error', 'critical', 'fatal', 'security'], true)) {
                 $should_log = true;
@@ -58,7 +25,6 @@ if (!function_exists('knx_payments_safe_authority_log')) {
 
             $c = is_array($context) ? $context : [];
 
-            // Hard strip potential secrets / noisy fields
             $blacklist = [
                 'client_secret', 'secret', 'api_key', 'key',
                 'card', 'payment_method', 'stripe', 'raw', 'payload',
@@ -80,11 +46,9 @@ if (!function_exists('knx_payments_safe_authority_log')) {
                     continue;
                 }
 
-                // Avoid dumping arrays/objects
                 $safe[$k] = '[omitted]';
             }
 
-            // Keep log lines short
             $msg = substr((string)$message, 0, 220);
             $cod = substr((string)$code, 0, 80);
 
@@ -98,176 +62,210 @@ if (!function_exists('knx_payments_safe_authority_log')) {
 
             error_log(sprintf('[KNX-PAYMENTS][AUTH][%s][%s] %s%s', strtoupper($lvl), $cod, $msg, $suffix));
         } catch (\Throwable $e) {
-            // Absolute fail-safe: never throw from logger
-            try {
-                error_log('[KNX-PAYMENTS][AUTH][LOGGER_FAIL] ' . substr($e->getMessage(), 0, 120));
-            } catch (\Throwable $ignored) {}
+            try { error_log('[KNX-PAYMENTS][AUTH][LOGGER_FAIL] ' . substr($e->getMessage(), 0, 120)); } catch (\Throwable $ignored) {}
         }
     }
 }
 
-/**
- * Get payment record by order ID
- * 
- * Returns the FIRST non-failed, non-cancelled payment for an order.
- * If multiple exist (shouldn't happen), returns the most recent.
- * 
- * @param int $order_id Order ID
- * @return object|null Payment record or null
- */
 if (!function_exists('knx_get_payment_by_order_id')) {
     function knx_get_payment_by_order_id($order_id) {
         global $wpdb;
-        
+
         $payment = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}knx_payments 
-             WHERE order_id = %d 
-             AND status NOT IN ('failed', 'cancelled')
-             ORDER BY created_at DESC 
+            "SELECT * FROM {$wpdb->prefix}knx_payments
+             WHERE order_id = %d
+               AND status NOT IN ('failed', 'cancelled')
+             ORDER BY created_at DESC
              LIMIT 1",
-            $order_id
+            (int)$order_id
         ));
-        
+
         return $payment ?: null;
     }
 }
 
 /**
  * Check if order can have a new payment created
- * 
+ *
  * GUARDS:
  * - Order must exist
- * - Order status must be 'placed'
+ * - Order status must be eligible for payment creation:
+ *     pending_payment OR placed
+ * - Snapshot exists and is locked
  * - No existing active payment (not failed/cancelled)
- * - Order must have valid snapshot
- * - Snapshot must be locked
- * 
- * @param int $order_id Order ID
+ * - Total > 0
+ *
+ * @param int $order_id
  * @return array ['ok' => bool, 'error' => string|null]
  */
 if (!function_exists('knx_can_create_payment_for_order')) {
     function knx_can_create_payment_for_order($order_id) {
         global $wpdb;
-        
+
+        $order_id = (int)$order_id;
+        if ($order_id <= 0) {
+            return ['ok' => false, 'error' => 'Invalid order id'];
+        }
+
         // Guard A: Order exists
         $order = $wpdb->get_row($wpdb->prepare(
-            "SELECT id, status, totals_snapshot FROM {$wpdb->prefix}knx_orders WHERE id = %d",
+            "SELECT id, status, payment_status, totals_snapshot
+             FROM {$wpdb->prefix}knx_orders
+             WHERE id = %d
+             LIMIT 1",
             $order_id
         ));
-        
+
         if (!$order) {
             return ['ok' => false, 'error' => 'Order not found'];
         }
-        
-        // Guard B: Order status = placed
-        if ($order->status !== 'placed') {
-            return ['ok' => false, 'error' => 'Order status must be placed (current: ' . $order->status . ')'];
+
+        // Guard B: Order payment_status must NOT be paid (hard stop)
+        $ps = strtolower((string)($order->payment_status ?? ''));
+        if ($ps === 'paid') {
+            return ['ok' => false, 'error' => 'Order already paid'];
         }
-        
-        // Guard C: Snapshot exists and is locked
+
+        // Guard C: Order status eligible for payment creation (align with create-intent endpoint)
+        $eligible_order_states = ['pending_payment', 'placed'];
+        $os = (string)($order->status ?? '');
+
+        if (!in_array($os, $eligible_order_states, true)) {
+            return ['ok' => false, 'error' => 'Order not eligible for payment (status: ' . $os . ')'];
+        }
+
+        // Guard D: Snapshot exists and is locked
         if (empty($order->totals_snapshot)) {
             return ['ok' => false, 'error' => 'Order has no totals snapshot'];
         }
-        
-        $snapshot = json_decode($order->totals_snapshot, true);
-        if (!$snapshot || !isset($snapshot['is_snapshot_locked'])) {
+
+        $snapshot = json_decode((string)$order->totals_snapshot, true);
+        if (!is_array($snapshot) || !array_key_exists('is_snapshot_locked', $snapshot)) {
             return ['ok' => false, 'error' => 'Invalid totals snapshot'];
         }
-        
+
         if ($snapshot['is_snapshot_locked'] !== true) {
             return ['ok' => false, 'error' => 'Snapshot is not locked'];
         }
-        
-        // Guard D: No active payment exists
+
+        // Guard E: No active payment exists
         $existing_payment = knx_get_payment_by_order_id($order_id);
         if ($existing_payment) {
             return [
-                'ok' => false, 
+                'ok' => false,
                 'error' => 'Order already has active payment (id: ' . $existing_payment->id . ', status: ' . $existing_payment->status . ')'
             ];
         }
-        
-        // Guard E: Total > 0
-        $total = $snapshot['total'] ?? 0;
+
+        // Guard F: Total > 0
+        $total = isset($snapshot['total']) ? (float)$snapshot['total'] : 0.0;
         if ($total <= 0) {
             return ['ok' => false, 'error' => 'Order total must be greater than 0'];
         }
-        
+
         return ['ok' => true, 'error' => null];
     }
 }
 
-/**
- * Create payment record
- * 
- * CRITICAL: Does NOT validate - caller must use knx_can_create_payment_for_order() first
- * 
- * @param array $data Payment data
- *   - order_id (required)
- *   - provider (required) e.g. 'stripe', 'paypal'
- *   - provider_intent_id (required)
- *   - amount (required) in cents
- *   - currency (required) e.g. 'usd'
- *   - status (required) e.g. 'intent_created'
- * @return int|false Payment ID or false on failure
- */
 if (!function_exists('knx_create_payment_record')) {
     function knx_create_payment_record($data) {
         global $wpdb;
-        
-        // TASK 5.4-P0-002: Validate amount is integer (cents)
+
+        $order_id = isset($data['order_id']) ? (int)$data['order_id'] : 0;
+        $provider = isset($data['provider']) ? (string)$data['provider'] : '';
+        $intent_id = isset($data['provider_intent_id']) ? (string)$data['provider_intent_id'] : '';
+        $attempt_key = isset($data['checkout_attempt_key']) ? (string)$data['checkout_attempt_key'] : '';
+        $currency = isset($data['currency']) ? strtolower((string)$data['currency']) : 'usd';
+        $status = isset($data['status']) ? (string)$data['status'] : '';
+
+        if ($order_id <= 0) {
+            error_log('[KNX-A1.1] CRITICAL: Missing/invalid order_id for payment insert');
+            return false;
+        }
+        if ($provider === '' || $intent_id === '' || $status === '') {
+            error_log('[KNX-A1.1] CRITICAL: Missing provider/provider_intent_id/status for payment insert');
+            return false;
+        }
+        if ($attempt_key === '') {
+            error_log('[KNX-A1.1] CRITICAL: Missing checkout_attempt_key for payment insert');
+            return false;
+        }
+        if ($currency === '') $currency = 'usd';
+
         if (!isset($data['amount']) || !is_numeric($data['amount'])) {
             error_log('[KNX-A1.1] CRITICAL: Payment amount must be numeric (cents)');
             return false;
         }
-        
+
         $amount_cents = (int)$data['amount'];
         if ($amount_cents <= 0) {
             error_log('[KNX-A1.1] CRITICAL: Payment amount must be > 0 (got: ' . $amount_cents . ')');
             return false;
         }
-        
-        // RACE CONDITION GUARD: Re-check for active payment before insert
+
+        $payments_table = $wpdb->prefix . 'knx_payments';
+
         $wpdb->query('START TRANSACTION');
-        
+
         try {
             $existing = $wpdb->get_row($wpdb->prepare(
-                "SELECT id, status FROM {$wpdb->prefix}knx_payments 
-                 WHERE order_id = %d AND status NOT IN ('failed', 'cancelled') 
+                "SELECT id, status
+                 FROM {$payments_table}
+                 WHERE order_id = %d
+                   AND status NOT IN ('failed', 'cancelled')
+                 ORDER BY created_at DESC
+                 LIMIT 1
                  FOR UPDATE",
-                $data['order_id']
+                $order_id
             ));
-            
+
             if ($existing) {
                 $wpdb->query('ROLLBACK');
-                error_log('[KNX-A1.1] RACE: Active payment exists: order_id=' . $data['order_id'] . ' payment_id=' . $existing->id);
+                error_log('[KNX-A1.1] RACE: Active payment exists: order_id=' . $order_id . ' payment_id=' . $existing->id);
                 return false;
             }
-            
+
+            $attempt_exists = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*)
+                 FROM {$payments_table}
+                 WHERE checkout_attempt_key = %s
+                 LIMIT 1",
+                $attempt_key
+            ));
+
+            if ((int)$attempt_exists > 0) {
+                $wpdb->query('ROLLBACK');
+                error_log('[KNX-A1.1] CRITICAL: Duplicate checkout_attempt_key generated: ' . $attempt_key);
+                return false;
+            }
+
+            $now = current_time('mysql');
+
             $result = $wpdb->insert(
-                $wpdb->prefix . 'knx_payments',
+                $payments_table,
                 [
-                    'order_id' => $data['order_id'],
-                    'provider' => $data['provider'],
-                    'provider_intent_id' => $data['provider_intent_id'],
-                    'amount' => $amount_cents,
-                    'currency' => strtolower($data['currency']),
-                    'status' => $data['status'],
-                    'created_at' => current_time('mysql'),
-                    'updated_at' => current_time('mysql')
+                    'order_id'             => $order_id,
+                    'provider'             => $provider,
+                    'provider_intent_id'   => $intent_id,
+                    'checkout_attempt_key' => $attempt_key,
+                    'amount'               => $amount_cents,
+                    'currency'             => $currency,
+                    'status'               => $status,
+                    'created_at'           => $now,
+                    'updated_at'           => $now,
                 ],
-                ['%d', '%s', '%s', '%d', '%s', '%s', '%s', '%s']
+                ['%d','%s','%s','%s','%d','%s','%s','%s','%s']
             );
-            
-            if (!$result) {
+
+            if ($result === false) {
                 throw new Exception('Insert failed');
             }
-            
-            $payment_id = $wpdb->insert_id;
+
+            $payment_id = (int)$wpdb->insert_id;
             $wpdb->query('COMMIT');
-            
+
             return $payment_id;
-            
+
         } catch (Exception $e) {
             $wpdb->query('ROLLBACK');
             error_log('[KNX-A1.1] Payment insert failed: ' . $e->getMessage());
@@ -276,80 +274,60 @@ if (!function_exists('knx_create_payment_record')) {
     }
 }
 
-/**
- * Update payment status
- * 
- * GUARDS:
- * - Payment must exist
- * - Cannot update if already in final state (paid, cancelled)
- * 
- * @param int $payment_id Payment ID
- * @param string $new_status New status
- * @return bool Success
- */
 if (!function_exists('knx_update_payment_status')) {
     function knx_update_payment_status($payment_id, $new_status) {
         global $wpdb;
-        
-        // Get current payment
+
+        $payment_id = (int)$payment_id;
+
         $payment = $wpdb->get_row($wpdb->prepare(
             "SELECT id, status FROM {$wpdb->prefix}knx_payments WHERE id = %d",
             $payment_id
         ));
-        
+
         if (!$payment) {
             error_log("[KNX-A1.1] Payment not found: payment_id=$payment_id");
             return false;
         }
-        
-        // Guard: Cannot update final states (except failed → paid for retry scenarios)
+
         $final_states = ['paid', 'cancelled'];
         if (in_array($payment->status, $final_states, true)) {
             error_log("[KNX-A1.1] Cannot update payment in final state: payment_id=$payment_id current_status={$payment->status}");
             return false;
         }
-        
+
         $result = $wpdb->update(
             $wpdb->prefix . 'knx_payments',
             [
-                'status' => $new_status,
+                'status' => (string)$new_status,
                 'updated_at' => current_time('mysql')
             ],
             ['id' => $payment_id],
             ['%s', '%s'],
             ['%d']
         );
-        
+
         if ($result !== false) {
             error_log("[KNX-A1.1] Payment status updated: payment_id=$payment_id {$payment->status}→$new_status");
         }
-        
+
         return $result !== false;
     }
 }
 
-/**
- * Get payment by provider intent ID
- * 
- * Used for webhook validation
- * 
- * @param string $provider Provider name
- * @param string $provider_intent_id Provider's intent ID
- * @return object|null Payment record or null
- */
 if (!function_exists('knx_get_payment_by_provider_intent')) {
     function knx_get_payment_by_provider_intent($provider, $provider_intent_id) {
         global $wpdb;
-        
+
         $payment = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}knx_payments 
-             WHERE provider = %s 
-             AND provider_intent_id = %s 
+            "SELECT * FROM {$wpdb->prefix}knx_payments
+             WHERE provider = %s
+               AND provider_intent_id = %s
              LIMIT 1",
-            $provider,
-            $provider_intent_id
+            (string)$provider,
+            (string)$provider_intent_id
         ));
-        
+
         return $payment ?: null;
     }
 }

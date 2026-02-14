@@ -20,19 +20,18 @@ if (!function_exists('knx_debug_log')) {
  * ----------------------------------------------------------
  * CANON ORDER CREATION AUTHORITY
  *
- * IMPORTANT CHANGE (PAYMENTS HARDENING):
+ * Payment hardening:
  * - Orders are created as: status = 'pending_payment'
- * - payment_method is forced to 'stripe' (Nexus never accepts cash)
- * - OPS must never display unpaid orders (OPS should list 'confirmed' only)
+ * - payment_method forced to 'stripe' (Nexus does not accept cash)
  * - Webhook promotes to 'confirmed' on payment success
- * - payment_failed orders are retryable (create new intent)
+ * - On payment failure: order remains pending_payment and payment_status becomes failed
  * ==========================================================
  */
 
 add_action('rest_api_init', function () {
     register_rest_route('knx/v1', '/orders/create', [
-        'methods'             => 'POST',
-        'callback'            => function ($req) {
+        'methods'  => 'POST',
+        'callback' => function ($req) {
             if (function_exists('knx_rest_wrap')) {
                 $wrapped = knx_rest_wrap('knx_api_create_order_mvp');
                 return $wrapped($req);
@@ -85,8 +84,9 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
     $user_id = (int) $session->user_id;
 
     // Role hard-block (customer-only)
-    $blocked_roles = ['hub_owner', 'hub_staff', 'menu_uploader', 'driver', 'admin'];
-    if (!empty($session->role) && in_array($session->role, $blocked_roles, true)) {
+    // Canon roles: super_admin is the only admin role.
+    $blocked_roles = ['super_admin', 'manager', 'hub_owner', 'hub_staff', 'menu_uploader', 'driver'];
+    if (!empty($session->role) && in_array((string)$session->role, $blocked_roles, true)) {
         return new WP_REST_Response([
             'success' => false,
             'reason'  => 'ROLE_FORBIDDEN',
@@ -155,14 +155,14 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
 
         $cart_updated_at = $cart->updated_at;
 
-        // IMPORTANT: include pending_payment + payment_failed so we can retry safely
+        // IMPORTANT: DB enum does NOT include payment_failed. Do NOT reference it.
         $existing_order = $wpdb->get_row($wpdb->prepare(
             "SELECT id, order_number, status, created_at
              FROM {$table_orders}
              WHERE session_token = %s
                AND hub_id = %d
                AND customer_id = %d
-               AND status IN ('pending_payment','payment_failed','confirmed','preparing','ready','out_for_delivery')
+               AND status IN ('pending_payment','placed','confirmed','preparing','ready','out_for_delivery','completed')
                AND created_at >= DATE_SUB(%s, INTERVAL 10 MINUTE)
              ORDER BY created_at DESC
              LIMIT 1",
@@ -304,7 +304,6 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
     $body = $req->get_json_params();
     $fulfillment_type = isset($body['fulfillment_type']) ? strtolower(trim($body['fulfillment_type'])) : 'delivery';
 
-    // Nexus currently supports delivery + pickup only.
     if (!in_array($fulfillment_type, ['delivery', 'pickup'], true)) {
         return new WP_REST_Response([
             'success' => false,
@@ -313,7 +312,7 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
         ], 409);
     }
 
-    $snapshot = isset($body['snapshot']) && is_array($body['snapshot']) ? $body['snapshot'] : null;
+    $snapshot = (isset($body['snapshot']) && is_array($body['snapshot'])) ? $body['snapshot'] : null;
 
     if ($snapshot === null) {
         return new WP_REST_Response([
@@ -336,6 +335,7 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
     $delivery_lng = null;
 
     $delivery_snapshot_v46 = null;
+    $addr_snap = null;
 
     if ($fulfillment_type === 'delivery') {
 
@@ -377,7 +377,6 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
 
         $delivery_address_snapshot = (string) $addr_snap['label'];
 
-        // Delivery fee + coherence
         if (!isset($snapshot['delivery']['delivery_fee'])) {
             return new WP_REST_Response([
                 'success' => false,
@@ -413,7 +412,6 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
 
     /* ======================================================
      * B) IDEMPOTENCY — prevent duplicate orders in 10-min window
-     * IMPORTANT: include pending_payment/payment_failed so retries are safe
      * ====================================================== */
     $existing = $wpdb->get_row($wpdb->prepare(
         "SELECT id, order_number, created_at, status
@@ -421,7 +419,7 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
          WHERE session_token = %s
            AND hub_id = %d
            AND customer_id = %d
-           AND status IN ('pending_payment','payment_failed','confirmed','preparing','ready','out_for_delivery')
+           AND status IN ('pending_payment','placed','confirmed','preparing','ready','out_for_delivery','completed')
            AND created_at >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
          ORDER BY created_at DESC
          LIMIT 1",
@@ -492,7 +490,6 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
         ], 409);
     }
 
-    // Prepare totals snapshot
     $now = current_time('mysql');
 
     $breakdown_v5 = [
@@ -518,10 +515,10 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
         $breakdown_v5['delivery_snapshot_v46'] = $delivery_snapshot_v46;
     }
 
-    if ($fulfillment_type === 'delivery' && isset($addr_snap) && is_array($addr_snap)) {
+    if ($fulfillment_type === 'delivery' && is_array($addr_snap)) {
         $breakdown_v5['address'] = [
             'version'    => 'v1',
-            'address_id' => isset($addr_snap['address_id']) ? $addr_snap['address_id'] : null,
+            'address_id' => $addr_snap['address_id'] ?? null,
             'label'      => (string) ($addr_snap['label'] ?? ''),
             'lat'        => (float) ($addr_snap['lat'] ?? 0.0),
             'lng'        => (float) ($addr_snap['lng'] ?? 0.0),
@@ -529,7 +526,6 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
         ];
     }
 
-    // Build cart snapshot
     $snapshot_items = [];
     $item_count = 0;
 
@@ -581,8 +577,6 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
     $wpdb->query('START TRANSACTION');
 
     try {
-
-        // IMPORTANT: Nexus never accepts cash. Force Stripe fields explicitly.
         $wpdb->insert($table_orders, [
             'order_number'     => $order_number,
             'hub_id'           => $hub_id,
@@ -612,7 +606,6 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
             'totals_snapshot'  => wp_json_encode($breakdown_v5),
             'cart_snapshot'    => wp_json_encode($cart_snapshot),
 
-            // CRITICAL: unpaid orders must never be 'placed'
             'status'           => 'pending_payment',
 
             'created_at'       => $now,
@@ -653,7 +646,7 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
             ['%d']
         );
 
-        if ($cart_updated === false || (int)$cart_updated < 1) {
+        if ($cart_updated === false || (int) $cart_updated < 1) {
             throw new Exception('CART_DETACHMENT_FAILED');
         }
 

@@ -266,10 +266,17 @@ add_action('init', function () {
 
         knx_auto_login_user_by_id((int)$user->id, !empty($_POST['knx_remember']));
 
-        // Redirect drivers to the Driver Ops dashboard; others keep previous behavior.
+        // Redirect users to role-specific landing pages after login
         $redirect_url = site_url('/cart');
-        if (isset($user->role) && $user->role === 'driver') {
-            $redirect_url = site_url('/driver-ops');
+        if (isset($user->role)) {
+            $role = $user->role;
+            if ($role === 'customer') {
+                $redirect_url = site_url('/');
+            } elseif ($role === 'driver') {
+                $redirect_url = site_url('/driver-live-orders');
+            } elseif (in_array($role, ['manager', 'super_admin'])) {
+                $redirect_url = site_url('/live-orders');
+            }
         }
 
         wp_safe_redirect($redirect_url);
