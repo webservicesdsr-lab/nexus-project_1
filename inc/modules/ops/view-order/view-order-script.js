@@ -12,7 +12,7 @@
  *   delivery:{method,address,time_slot},
  *   payment:{method,status},
  *   restaurant:{id,name,phone,email,address,logo_url},
- *   customer:{name},
+ *   customer:{name,email?,phone?},
  *   totals:{total,tip,quote},
  *   driver:{assigned,driver_id,name?},
  *   location:{lat,lng,view_url},
@@ -57,6 +57,10 @@
       });
     }
 
+    function escAttr(s) {
+      return esc(s).replace(/\s+/g, ' ').trim();
+    }
+
     function setState(msg) {
       if (stateEl) stateEl.textContent = msg || '';
     }
@@ -87,6 +91,71 @@
       }
     }
 
+    function firstNonEmpty() {
+      for (let i = 0; i < arguments.length; i++) {
+        const v = String(arguments[i] || '').trim();
+        if (v) return v;
+      }
+      return '';
+    }
+
+    function sanitizeTelNumber(raw) {
+      const s = String(raw || '').trim();
+      if (!s) return '';
+      // Keep digits; allow leading +
+      let out = s.replace(/[^\d+]/g, '');
+      // Only allow + at the start
+      out = out.replace(/\+/g, function (m, offset) { return offset === 0 ? '+' : ''; });
+      // Must contain at least some digits
+      const digits = out.replace(/[^\d]/g, '');
+      if (digits.length < 7) return '';
+      return out;
+    }
+
+    function sanitizeEmail(raw) {
+      const s = String(raw || '').trim();
+      if (!s) return '';
+      // Basic safety (not strict validation)
+      if (!s.includes('@') || s.includes(' ')) return '';
+      return s;
+    }
+
+    function telHref(rawPhone) {
+      const n = sanitizeTelNumber(rawPhone);
+      if (!n) return '';
+      return 'tel:' + encodeURIComponent(n);
+    }
+
+    function mailtoHref(rawEmail) {
+      const e = sanitizeEmail(rawEmail);
+      if (!e) return '';
+      return 'mailto:' + encodeURIComponent(e);
+    }
+
+    function renderPaymentPill(status) {
+      const raw = String(status || '').trim();
+      if (!raw) return `<span class="knx-ops-vo__muted">—</span>`;
+
+      const st = raw.toLowerCase();
+      let cls = 'knx-ops-vo__pill';
+      let label = raw;
+
+      if (st === 'paid' || st === 'succeeded' || st === 'completed' || st === 'success') {
+        cls += ' knx-ops-vo__pill--paid';
+        label = 'PAID';
+      } else if (st === 'pending' || st === 'processing' || st === 'requires_payment_method' || st === 'requires_action') {
+        cls += ' knx-ops-vo__pill--pending';
+        label = 'PENDING';
+      } else if (st === 'failed' || st === 'declined' || st === 'canceled' || st === 'cancelled' || st === 'error') {
+        cls += ' knx-ops-vo__pill--failed';
+        label = 'FAILED';
+      } else {
+        label = raw.toUpperCase();
+      }
+
+      return `<span class="${escAttr(cls)}">${esc(label)}</span>`;
+    }
+
     // ---------- CANON helpers ----------
     function normalizeStatus(s) {
       const v = String(s || '').trim().toLowerCase();
@@ -107,18 +176,13 @@
       const v = normalizeStatus(s);
       const map = {
         order_created: 'Order Created',
-
-        pending_payment: 'Processing payment', // never shown in history
-
+        pending_payment: 'Processing payment', // never shown
         confirmed: 'Waiting for driver',
-
         accepted_by_driver: 'Accepted by Driver',
         accepted_by_hub: 'Accepted by Hub',
-
         preparing: 'Preparing',
         prepared: 'Prepared',
         picked_up: 'Picked up',
-
         completed: 'Completed',
         cancelled: 'Cancelled',
       };
@@ -128,48 +192,47 @@
     }
 
     // Timeline normalization (CANON):
-    // - Always insert virtual "Order Created"
     // - Hide pending_payment
-    // - Ensure "Waiting for driver" exists (confirmed) for operational orders
+    // - De-dupe "order_created"
+    // - Ensure "Waiting for driver" exists for operational orders (if missing)
     function normalizeHistory(order) {
       const raw = Array.isArray(order && order.status_history) ? order.status_history : [];
-      const out = [];
-
       const createdAt = String(pick(order, 'created_at', '') || '').trim();
-
-      out.push({
-        status: 'order_created',
-        created_at: createdAt,
-        changed_by_label: '',
-      });
 
       const cleaned = raw
         .filter(h => h && typeof h === 'object')
-        .map(h => {
-          const st = normalizeStatus(h.status);
-          return Object.assign({}, h, { status: st });
-        })
+        .map(h => Object.assign({}, h, { status: normalizeStatus(h.status) }))
         .filter(h => {
-          const st = String(h.status || '').trim().toLowerCase();
+          const st = normalizeStatus(h.status);
           if (!st) return false;
           if (st === 'pending_payment') return false;
           return true;
         });
 
-      const hasConfirmed = cleaned.some(h => String(h.status || '').toLowerCase().trim() === 'confirmed');
+      const out = [];
 
+      // Always keep ONE "Order Created" on top (use order.created_at)
+      if (createdAt) {
+        out.push({ status: 'order_created', created_at: createdAt, changed_by_label: '' });
+      }
+
+      // Push all history except any "order_created"/"created" rows (avoid duplicates)
+      cleaned.forEach(h => {
+        const st = normalizeStatus(h.status);
+        if (st === 'order_created' || st === 'created') return;
+        out.push(h);
+      });
+
+      // Ensure confirmed exists for operational orders (but do not duplicate)
+      const hasConfirmed = out.some(h => normalizeStatus(h.status) === 'confirmed');
       const curSt = normalizeStatus(order && order.status);
       const isOperational = !!curSt && curSt !== 'pending_payment';
 
       if (isOperational && !hasConfirmed) {
-        out.push({
-          status: 'confirmed',
-          created_at: createdAt,
-          changed_by_label: '',
-        });
+        const insertAt = (out.length && normalizeStatus(out[0].status) === 'order_created') ? 1 : 0;
+        out.splice(insertAt, 0, { status: 'confirmed', created_at: createdAt, changed_by_label: '' });
       }
 
-      cleaned.forEach(h => out.push(h));
       return out;
     }
 
@@ -212,7 +275,7 @@
         });
 
         out.push({
-          group: esc(gName),
+          group: String(gName || ''),
           optionsHtml: rendered.length ? rendered.join(', ') : '',
         });
       });
@@ -232,37 +295,34 @@
         const unitRaw = (it?.unit_price !== undefined) ? it.unit_price : (it?.price !== undefined ? it.price : 0);
         const lineRaw = (it?.line_total !== undefined) ? it.line_total : (qty * (Number(unitRaw) || 0));
 
-        const unit = money(unitRaw);
         const line = money(lineRaw);
 
         const mods = normalizeModifiers(it?.modifiers);
         const modsHtml = mods.length
-          ? `<div class="knx-ops-vo__order-mods">${
+          ? `<div class="knx-ops-vo__item-mods">${
               mods.map(m => {
-                const left = m.group ? `<span class="knx-ops-vo__order-mod-g">${m.group}</span>` : '';
-                const right = m.optionsHtml ? `<span class="knx-ops-vo__order-mod-o">${m.optionsHtml}</span>` : '';
+                const left = esc(String(m.group || '').trim());
+                const right = String(m.optionsHtml || '').trim();
                 if (!left && !right) return '';
-                return `<div class="knx-ops-vo__order-mod">${left}${left && right ? ': ' : ''}${right}</div>`;
+                return `<div class="knx-ops-vo__item-mod"><span class="knx-ops-vo__item-mod-g">${left}</span>${left && right ? ': ' : ''}<span class="knx-ops-vo__item-mod-o">${right}</span></div>`;
               }).join('')
             }</div>`
           : '';
 
+        const qtyLabel = qty > 1 ? `<span class="knx-ops-vo__item-qty">${qty}x</span>` : '';
+
         return `
-          <div class="knx-ops-vo__order-row">
-            <div class="knx-ops-vo__order-left">
-              <div class="knx-ops-vo__order-title">
-                <span class="knx-ops-vo__dot">•</span>
-                <span><strong>${qty} x</strong> ${name}</span>
-              </div>
-              <div class="knx-ops-vo__order-sub">Unit: $${unit}</div>
-              ${modsHtml}
+          <div class="knx-ops-vo__item">
+            <div class="knx-ops-vo__item-row">
+              <span class="knx-ops-vo__item-name">${qtyLabel}${name}</span>
+              <span class="knx-ops-vo__item-price">$${line}</span>
             </div>
-            <div class="knx-ops-vo__order-price">$${line}</div>
+            ${modsHtml}
           </div>
         `;
       }).join('');
 
-      return `<div class="knx-ops-vo__order-list">${rows}</div>`;
+      return `<div class="knx-ops-vo__items">${rows}</div>`;
     }
 
     // ---------- History ----------
@@ -271,9 +331,13 @@
       if (!arr.length) return `<div class="knx-ops-vo__muted">No history.</div>`;
 
       const rows = arr.map((h) => {
-        const st = statusLabelHuman(h?.status);
+        const stNorm = normalizeStatus(h?.status);
+        const st = statusLabelHuman(stNorm);
         const at = esc(String(h?.created_at || '').trim());
-        const by = esc(String(h?.changed_by_label || '').trim());
+
+        // For "order_created", never show "Status from"
+        const byRaw = String(h?.changed_by_label || '').trim();
+        const by = (stNorm === 'order_created') ? '' : esc(byRaw);
 
         return `
           <div class="knx-ops-vo__hist-item">
@@ -294,9 +358,14 @@
       const la = Number(lat);
       const ln = Number(lng);
       if (!Number.isFinite(la) || !Number.isFinite(ln)) return '';
-
       const q = encodeURIComponent(la + ',' + ln);
       return `https://www.google.com/maps?q=${q}&z=13&output=embed`;
+    }
+
+    function niceCap(s) {
+      const raw = String(s || '').trim();
+      if (!raw) return '';
+      return raw.charAt(0).toUpperCase() + raw.slice(1);
     }
 
     function renderOrder(order) {
@@ -306,11 +375,24 @@
       const rAddr  = esc(String(pick(order, 'restaurant.address', '') || ''));
       const rLogo  = safeHttpUrl(pick(order, 'restaurant.logo_url', '') || '');
 
-      const cName = esc(String(pick(order, 'customer.name', '') || ''));
-      const cEmail = '';
-      const dAddr  = esc(String(pick(order, 'delivery.address', '') || ''));
-      const dSlot  = esc(String(pick(order, 'delivery.time_slot', '') || ''));
-      const dMethod = esc(String(pick(order, 'delivery.method', '') || ''));
+      // Customer fields (API should provide; accept fallbacks)
+      const cNameRaw  = firstNonEmpty(pick(order, 'customer.name', ''), pick(order, 'customer_name', ''));
+      const cPhoneRaw = firstNonEmpty(pick(order, 'customer.phone', ''), pick(order, 'customer_phone', ''));
+      const cEmailRaw = firstNonEmpty(pick(order, 'customer.email', ''), pick(order, 'customer_email', ''));
+
+      const cName  = esc(cNameRaw);
+      const cPhoneDisplay = esc(cPhoneRaw);
+      const cEmailDisplay = esc(cEmailRaw);
+
+      const cTel = telHref(cPhoneRaw);
+      const cMailto = mailtoHref(cEmailRaw);
+
+      const dAddrRaw  = String(pick(order, 'delivery.address', '') || '').trim();
+      const dSlotRaw  = String(pick(order, 'delivery.time_slot', '') || '').trim();
+      const fulfillmentRaw = String(pick(order, 'delivery.method', '') || '').trim();
+
+      const dAddr  = esc(dAddrRaw);
+      const dSlot  = esc(dSlotRaw);
 
       const created = esc(String(pick(order, 'created_at', '') || ''));
       const statusRaw = String(pick(order, 'status', '') || '');
@@ -331,8 +413,11 @@
       const deliveryFee = (quote && typeof quote === 'object') ? Number(quote.delivery_fee ?? quote.delivery ?? NaN) : NaN;
       const discount = (quote && typeof quote === 'object') ? Number(quote.discount ?? NaN) : NaN;
 
-      const payMethod = esc(String(pick(order, 'payment.method', '') || ''));
-      const payStatus = esc(String(pick(order, 'payment.status', '') || ''));
+      const payMethodRaw = String(pick(order, 'payment.method', '') || '').trim();
+      const payStatusRaw = String(pick(order, 'payment.status', '') || '').trim();
+
+      const payMethod = esc(payMethodRaw);
+      const payStatus = esc(payStatusRaw);
 
       const lat = pick(order, 'location.lat', null);
       const lng = pick(order, 'location.lng', null);
@@ -357,7 +442,7 @@
 
               <div class="knx-ops-vo__info">
                 <div class="knx-ops-vo__info-row">
-                  ${rLogo ? `<img class="knx-ops-vo__logo" src="${esc(rLogo)}" alt="" loading="lazy">` : ``}
+                  ${rLogo ? `<img class="knx-ops-vo__logo" src="${escAttr(rLogo)}" alt="" loading="lazy">` : ``}
                   <div class="knx-ops-vo__info-main">
                     <div class="knx-ops-vo__info-name">${rName || '<span class="knx-ops-vo__muted">Unknown</span>'}</div>
                     <div class="knx-ops-vo__info-sub">${rAddr || ''}</div>
@@ -373,10 +458,20 @@
 
               <div class="knx-ops-vo__section">
                 <div class="knx-ops-vo__section-title">Client information</div>
+
                 <div class="knx-ops-vo__kv">
-                  <div class="knx-ops-vo__kv-row"><strong>${cName || '<span class="knx-ops-vo__muted">Unknown</span>'}</strong></div>
-                  ${cEmail ? `<div class="knx-ops-vo__kv-row">${cEmail}</div>` : ``}
-                  ${dAddr ? `<div class="knx-ops-vo__kv-row">${dAddr}</div>` : ``}
+                  <div class="knx-ops-vo__kv-row knx-ops-vo__kv-row--name">
+                    <strong>${cName || '<span class="knx-ops-vo__muted">Unknown</span>'}</strong>
+                  </div>
+
+                  ${(cTel || cMailto) ? `
+                    <div class="knx-ops-vo__client-actions">
+                      ${cTel ? `<a href="${escAttr(cTel)}" class="knx-ops-vo__btn knx-ops-vo__btn--call">📞 Call <span class="knx-ops-vo__btn-sub">${cPhoneDisplay}</span></a>` : ``}
+                      ${cMailto ? `<a href="${escAttr(cMailto)}" class="knx-ops-vo__btn knx-ops-vo__btn--email">✉️ Email <span class="knx-ops-vo__btn-sub">${cEmailDisplay}</span></a>` : ``}
+                    </div>
+                  ` : ``}
+
+                  ${dAddr ? `<div class="knx-ops-vo__address">${dAddr}</div>` : ``}
                 </div>
               </div>
 
@@ -405,15 +500,24 @@
               <div class="knx-ops-vo__divider"></div>
 
               <div class="knx-ops-vo__meta">
-                <div class="knx-ops-vo__meta-row"><span>Payment method:</span><strong>${payMethod || '<span class="knx-ops-vo__muted">—</span>'}</strong></div>
-                <div class="knx-ops-vo__meta-row"><span>Payment status:</span><strong>${payStatus || '<span class="knx-ops-vo__muted">—</span>'}</strong></div>
+                <div class="knx-ops-vo__meta-row">
+                  <span>Payment status:</span>
+                  ${renderPaymentPill(payStatusRaw)}
+                </div>
+                <div class="knx-ops-vo__meta-row">
+                  <span>Payment method:</span>
+                  <strong>${payMethodRaw ? esc(niceCap(payMethodRaw)) : '<span class="knx-ops-vo__muted">—</span>'}</strong>
+                </div>
               </div>
 
               <div class="knx-ops-vo__divider"></div>
 
               <div class="knx-ops-vo__meta">
-                <div class="knx-ops-vo__meta-row"><span>Delivery method:</span><strong>${dMethod || '<span class="knx-ops-vo__muted">—</span>'}</strong></div>
-                ${dSlot ? `<div class="knx-ops-vo__meta-row"><span>Time slot:</span><strong>${dSlot}</strong></div>` : ``}
+                <div class="knx-ops-vo__meta-row">
+                  <span>Fulfillment:</span>
+                  <strong>${fulfillmentRaw ? esc(niceCap(fulfillmentRaw)) : '<span class="knx-ops-vo__muted">—</span>'}</strong>
+                </div>
+                ${dSlotRaw ? `<div class="knx-ops-vo__meta-row"><span>Time slot:</span><strong>${dSlot}</strong></div>` : ``}
                 <div class="knx-ops-vo__meta-row"><span>Created:</span><strong>${created || '<span class="knx-ops-vo__muted">—</span>'}</strong></div>
               </div>
 
@@ -434,12 +538,12 @@
               <div class="knx-ops-vo__map">
                 ${
                   mapEmbed
-                    ? `<iframe class="knx-ops-vo__map-iframe" src="${esc(mapEmbed)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>`
+                    ? `<iframe class="knx-ops-vo__map-iframe" src="${escAttr(mapEmbed)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>`
                     : `<div class="knx-ops-vo__map-empty">No map available.</div>`
                 }
                 ${
                   mapExternal
-                    ? `<a class="knx-ops-vo__map-link" href="${esc(mapExternal)}" target="_blank" rel="noopener">Open in Google Maps</a>`
+                    ? `<a class="knx-ops-vo__map-link" href="${escAttr(mapExternal)}" target="_blank" rel="noopener">Open in Google Maps</a>`
                     : ``
                 }
               </div>
