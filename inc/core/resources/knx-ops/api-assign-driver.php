@@ -28,21 +28,92 @@ if (!defined('ABSPATH')) exit;
  *   - If {prefix}knx_driver_cities exists: driver must serve order city for managers
  *   - If missing: managers are blocked (403), super_admin allowed
  *
+ * Domain transition (DB enum aligned):
+ * - orders.status: confirmed -> accepted_by_driver (strict)
+ *
  * Notes:
- * - Best-effort: also updates orders.driver_id if that column exists (legacy compatibility)
+ * - Best-effort: updates orders.driver_id if that column exists (legacy compatibility)
+ * - History insert uses created_at (NOT changed_at) when available
  * - Audit is best-effort and non-blocking
  * ==========================================================
  */
 
 add_action('rest_api_init', function () {
+
+    $permission_cb = function_exists('knx_rest_permission_roles')
+        ? knx_rest_permission_roles(['super_admin', 'manager'])
+        : '__return_false';
+
     register_rest_route('knx/v1', '/ops/assign-driver', [
         'methods'  => 'POST',
         'callback' => function (WP_REST_Request $request) {
-            return knx_rest_wrap('knx_ops_assign_driver')($request);
+            if (function_exists('knx_rest_wrap')) {
+                return knx_rest_wrap('knx_ops_assign_driver')($request);
+            }
+            return knx_ops_assign_driver($request);
         },
-        'permission_callback' => knx_rest_permission_roles(['super_admin', 'manager']),
+        'permission_callback' => $permission_cb,
     ]);
 });
+
+/**
+ * Check whether a DB table exists (safe for underscores/wildcards).
+ *
+ * @param string $table
+ * @return bool
+ */
+if (!function_exists('knx_ops__table_exists')) {
+    function knx_ops__table_exists($table) {
+        global $wpdb;
+
+        $like = $wpdb->esc_like($table);
+        $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $like));
+
+        return ((string)$exists === (string)$table);
+    }
+}
+
+/**
+ * Get table columns (lowercased) with static cache.
+ *
+ * @param string $table
+ * @return array<int,string>
+ */
+if (!function_exists('knx_ops__table_columns_lc')) {
+    function knx_ops__table_columns_lc($table) {
+        global $wpdb;
+
+        static $cache = [];
+        $key = (string)$table;
+
+        if (isset($cache[$key])) return $cache[$key];
+
+        if (!knx_ops__table_exists($table)) {
+            $cache[$key] = [];
+            return [];
+        }
+
+        $cols = $wpdb->get_col("SHOW COLUMNS FROM {$table}");
+        $cols = is_array($cols) ? array_map('strtolower', $cols) : [];
+
+        $cache[$key] = $cols;
+        return $cols;
+    }
+}
+
+/**
+ * Detect if a column exists on a table.
+ *
+ * @param string $table
+ * @param string $col
+ * @return bool
+ */
+if (!function_exists('knx_ops__col_exists')) {
+    function knx_ops__col_exists($table, $col) {
+        $cols = knx_ops__table_columns_lc($table);
+        return in_array(strtolower((string)$col), $cols, true);
+    }
+}
 
 /**
  * Resolve manager allowed city IDs based on {prefix}knx_manager_cities.
@@ -57,8 +128,7 @@ if (!function_exists('knx_ops_manager_city_ids')) {
 
         $table = $wpdb->prefix . 'knx_manager_cities';
 
-        $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
-        if (empty($exists)) return [];
+        if (!knx_ops__table_exists($table)) return [];
 
         $ids = $wpdb->get_col($wpdb->prepare(
             "SELECT DISTINCT city_id
@@ -83,10 +153,34 @@ if (!function_exists('knx_ops_manager_city_ids')) {
  */
 if (!function_exists('knx_ops_assign_driver_read_json_body')) {
     function knx_ops_assign_driver_read_json_body(WP_REST_Request $request) {
+        $params = $request->get_json_params();
+        if (is_array($params)) return $params;
+
         $raw = (string)$request->get_body();
         if ($raw === '') return [];
+
         $json = json_decode($raw, true);
         return is_array($json) ? $json : [];
+    }
+}
+
+/**
+ * Resolve driver_user_id from knx_drivers row by checking common column names.
+ *
+ * @param object $driver_row
+ * @param array<int,string> $driver_cols_lc
+ * @return int
+ */
+if (!function_exists('knx_ops__resolve_driver_user_id')) {
+    function knx_ops__resolve_driver_user_id($driver_row, array $driver_cols_lc) {
+        $candidates = ['user_id', 'wp_user_id', 'driver_user_id'];
+        foreach ($candidates as $c) {
+            if (in_array($c, $driver_cols_lc, true) && isset($driver_row->{$c})) {
+                $v = (int)$driver_row->{$c};
+                if ($v > 0) return $v;
+            }
+        }
+        return 0;
     }
 }
 
@@ -118,14 +212,12 @@ if (!function_exists('knx_ops_assign_driver_audit')) {
 
         $table = null;
         foreach ($candidates as $t) {
-            $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $t));
-            if (!empty($exists)) { $table = $t; break; }
+            if (knx_ops__table_exists($t)) { $table = $t; break; }
         }
         if (!$table) return;
 
-        $cols = $wpdb->get_col("SHOW COLUMNS FROM {$table}");
-        if (!is_array($cols) || empty($cols)) return;
-        $cols = array_map('strtolower', $cols);
+        $cols = knx_ops__table_columns_lc($table);
+        if (empty($cols)) return;
 
         $now = current_time('mysql');
         $actor_role = isset($session->role) ? (string)$session->role : '';
@@ -143,13 +235,17 @@ if (!function_exists('knx_ops_assign_driver_audit')) {
         elseif (in_array('note', $cols, true)) { $data['note'] = (string)$message; $fmt[] = '%s'; }
 
         $meta_json = wp_json_encode($meta);
+
         if (in_array('meta_json', $cols, true)) { $data['meta_json'] = $meta_json; $fmt[] = '%s'; }
         elseif (in_array('payload_json', $cols, true)) { $data['payload_json'] = $meta_json; $fmt[] = '%s'; }
         elseif (in_array('payload', $cols, true)) { $data['payload'] = $meta_json; $fmt[] = '%s'; }
 
         if (in_array('actor_role', $cols, true)) { $data['actor_role'] = $actor_role; $fmt[] = '%s'; }
-        if (in_array('actor_user_id', $cols, true)) { $data['actor_user_id'] = $actor_user; $fmt[] = '%d'; }
-        elseif (in_array('user_id', $cols, true)) { $data['user_id'] = $actor_user; $fmt[] = '%d'; }
+
+        if ($actor_user > 0) {
+            if (in_array('actor_user_id', $cols, true)) { $data['actor_user_id'] = $actor_user; $fmt[] = '%d'; }
+            elseif (in_array('user_id', $cols, true)) { $data['user_id'] = $actor_user; $fmt[] = '%d'; }
+        }
 
         if (in_array('created_at', $cols, true)) { $data['created_at'] = $now; $fmt[] = '%s'; }
         elseif (in_array('created', $cols, true)) { $data['created'] = $now; $fmt[] = '%s'; }
@@ -165,44 +261,21 @@ if (!function_exists('knx_ops_assign_driver_audit')) {
 }
 
 /**
- * Detect if a column exists on a table.
+ * Handler: Assign driver (OPS).
  *
- * @param string $table
- * @param string $col
- * @return bool
+ * @param WP_REST_Request $request
+ * @return WP_REST_Response
  */
-if (!function_exists('knx_ops__col_exists')) {
-    function knx_ops__col_exists($table, $col) {
-        global $wpdb;
-        $found = $wpdb->get_var($wpdb->prepare("SHOW COLUMNS FROM {$table} LIKE %s", $col));
-        return !empty($found);
-    }
-}
-
-/**
- * Resolve driver_user_id from knx_drivers row by checking common column names.
- *
- * @param object $driver_row
- * @param array<int,string> $driver_cols_lc
- * @return int
- */
-if (!function_exists('knx_ops__resolve_driver_user_id')) {
-    function knx_ops__resolve_driver_user_id($driver_row, array $driver_cols_lc) {
-        $candidates = ['user_id', 'wp_user_id', 'driver_user_id'];
-        foreach ($candidates as $c) {
-            if (in_array($c, $driver_cols_lc, true) && isset($driver_row->{$c})) {
-                $v = (int)$driver_row->{$c};
-                if ($v > 0) return $v;
-            }
-        }
-        return 0;
-    }
-}
-
 function knx_ops_assign_driver(WP_REST_Request $request) {
     global $wpdb;
 
     // Require session + allowed roles (fail-closed)
+    if (!function_exists('knx_rest_require_session') || !function_exists('knx_rest_require_role')) {
+        return function_exists('knx_rest_error')
+            ? knx_rest_error('System unavailable', 503)
+            : new WP_REST_Response(['success' => false, 'message' => 'System unavailable'], 503);
+    }
+
     $session = knx_rest_require_session();
     if ($session instanceof WP_REST_Response) return $session;
 
@@ -230,54 +303,12 @@ function knx_ops_assign_driver(WP_REST_Request $request) {
     $drivers_table     = $wpdb->prefix . 'knx_drivers';
     $driver_ops_table  = $wpdb->prefix . 'knx_driver_ops';
     $driver_cities_tbl = $wpdb->prefix . 'knx_driver_cities';
+    $history_table     = $wpdb->prefix . 'knx_order_status_history';
 
-    // Orders table must exist (fail-closed)
-    $orders_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $orders_table));
-    if (empty($orders_exists)) return knx_rest_error('Orders not configured', 409);
-
-    // Driver ops table must exist (fail-closed)
-    $ops_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $driver_ops_table));
-    if (empty($ops_exists)) return knx_rest_error('Driver ops not configured', 409);
-
-    // Fetch order (fail-closed)
-    $order = $wpdb->get_row($wpdb->prepare(
-        "SELECT id, city_id, status, driver_id
-         FROM {$orders_table}
-         WHERE id = %d
-         LIMIT 1",
-        $order_id
-    ));
-    if (!$order) return knx_rest_error('Order not found', 404);
-
-    $order_city_id = (int)$order->city_id;
-    $order_status  = strtolower(trim((string)$order->status));
-
-    // Only operationally-active orders (no completed/cancelled)
-    if (in_array($order_status, ['completed', 'cancelled'], true)) {
-        return knx_rest_error('Order is in a terminal status', 409);
-    }
-
-    // OPS v1 assignable statuses
-    $allowed_statuses = ['placed', 'confirmed', 'preparing', 'assigned', 'in_progress'];
-    if (!in_array($order_status, $allowed_statuses, true)) {
-        return knx_rest_error('Order is not in an assignable status', 409);
-    }
-
-    // Manager scope (fail-closed)
-    if ($role === 'manager') {
-        if (!$user_id) return knx_rest_error('Unauthorized', 401);
-
-        $allowed_cities = knx_ops_manager_city_ids($user_id);
-        if (empty($allowed_cities)) return knx_rest_error('Manager city assignment not configured', 403);
-
-        if ($order_city_id <= 0 || !in_array($order_city_id, $allowed_cities, true)) {
-            return knx_rest_error('Forbidden: order city outside manager scope', 403);
-        }
-    }
-
-    // Drivers table must exist (fail-closed)
-    $drivers_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $drivers_table));
-    if (empty($drivers_exists)) return knx_rest_error('Drivers not configured', 409);
+    // Tables must exist (fail-closed)
+    if (!knx_ops__table_exists($orders_table)) return knx_rest_error('Orders not configured', 409);
+    if (!knx_ops__table_exists($driver_ops_table)) return knx_rest_error('Driver ops not configured', 409);
+    if (!knx_ops__table_exists($drivers_table)) return knx_rest_error('Drivers not configured', 409);
 
     // Load driver row
     $driver = $wpdb->get_row($wpdb->prepare(
@@ -287,8 +318,7 @@ function knx_ops_assign_driver(WP_REST_Request $request) {
     if (!$driver) return knx_rest_error('Driver not found', 404);
 
     // Detect optional "active" columns
-    $driver_cols = $wpdb->get_col("SHOW COLUMNS FROM {$drivers_table}");
-    $driver_cols = is_array($driver_cols) ? array_map('strtolower', $driver_cols) : [];
+    $driver_cols = knx_ops__table_columns_lc($drivers_table);
 
     $is_active_ok = true;
     if (in_array('is_active', $driver_cols, true) && isset($driver->is_active)) {
@@ -301,126 +331,286 @@ function knx_ops_assign_driver(WP_REST_Request $request) {
     }
     if (!$is_active_ok) return knx_rest_error('Driver is not active', 409);
 
-    // Resolve driver_user_id (required for knx_driver_ops canonical assignment)
+    // Resolve driver_user_id (required)
     $driver_user_id = knx_ops__resolve_driver_user_id($driver, $driver_cols);
     if ($driver_user_id <= 0) {
-        // Fail-closed: cannot perform canonical assignment without driver_user_id
         return knx_rest_error('Driver is missing user linkage (driver_user_id)', 409);
     }
 
-    // Optional driver-city mapping enforcement
-    $driver_cities_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $driver_cities_tbl));
-    if (!empty($driver_cities_exists)) {
-        $mapped_city_ids = $wpdb->get_col($wpdb->prepare(
-            "SELECT city_id FROM {$driver_cities_tbl} WHERE driver_id = %d",
-            $driver_id
-        ));
-        $mapped_city_ids = array_map('intval', (array)$mapped_city_ids);
-        $mapped_city_ids = array_values(array_filter($mapped_city_ids, static function ($v) { return $v > 0; }));
+    // ====================================================================
+    // ATOMIC TRANSACTION: Domain transition + driver assignment
+    // ====================================================================
+    $wpdb->query('START TRANSACTION');
 
-        if (!empty($mapped_city_ids)) {
-            if ($order_city_id <= 0 || !in_array($order_city_id, $mapped_city_ids, true)) {
-                if ($role === 'manager') return knx_rest_error('Forbidden: driver does not serve order city', 403);
+    try {
+        // Lock order row
+        $order = $wpdb->get_row($wpdb->prepare(
+            "SELECT id, city_id, status, driver_id
+             FROM {$orders_table}
+             WHERE id = %d
+             FOR UPDATE",
+            $order_id
+        ));
+        if (!$order) {
+            $wpdb->query('ROLLBACK');
+            return knx_rest_error('Order not found', 404);
+        }
+
+        $order_city_id = (int)($order->city_id ?? 0);
+        $order_status  = strtolower(trim((string)($order->status ?? '')));
+
+        // Terminal statuses cannot be assigned
+        if (in_array($order_status, ['completed', 'cancelled'], true)) {
+            $wpdb->query('ROLLBACK');
+            return knx_rest_error('Order is in a terminal status', 409);
+        }
+
+        // Manager scope (fail-closed)
+        if ($role === 'manager') {
+            if ($user_id <= 0) {
+                $wpdb->query('ROLLBACK');
+                return knx_rest_error('Unauthorized', 401);
+            }
+
+            $allowed_cities = knx_ops_manager_city_ids($user_id);
+            if (empty($allowed_cities)) {
+                $wpdb->query('ROLLBACK');
+                return knx_rest_error('Manager city assignment not configured', 403);
+            }
+
+            if ($order_city_id <= 0 || !in_array($order_city_id, $allowed_cities, true)) {
+                $wpdb->query('ROLLBACK');
+                return knx_rest_error('Forbidden: order city outside manager scope', 403);
+            }
+        }
+
+        // Optional driver-city mapping enforcement
+        if (knx_ops__table_exists($driver_cities_tbl)) {
+            $mapped_city_ids = $wpdb->get_col($wpdb->prepare(
+                "SELECT city_id FROM {$driver_cities_tbl} WHERE driver_id = %d",
+                $driver_id
+            ));
+            $mapped_city_ids = array_map('intval', (array)$mapped_city_ids);
+            $mapped_city_ids = array_values(array_filter($mapped_city_ids, static function ($v) { return $v > 0; }));
+
+            if (!empty($mapped_city_ids)) {
+                if ($order_city_id <= 0 || !in_array($order_city_id, $mapped_city_ids, true)) {
+                    if ($role === 'manager') {
+                        $wpdb->query('ROLLBACK');
+                        return knx_rest_error('Forbidden: driver does not serve order city', 403);
+                    }
+                }
+            } else {
+                if ($role === 'manager') {
+                    $wpdb->query('ROLLBACK');
+                    return knx_rest_error('Forbidden: driver not assigned to any city', 403);
+                }
             }
         } else {
-            if ($role === 'manager') return knx_rest_error('Forbidden: driver not assigned to any city', 403);
+            if ($role === 'manager') {
+                $wpdb->query('ROLLBACK');
+                return knx_rest_error('Forbidden: cannot verify driver-city relationship', 403);
+            }
         }
-    } else {
-        if ($role === 'manager') return knx_rest_error('Forbidden: cannot verify driver-city relationship', 403);
-    }
 
-    // Read current ops row (if any)
-    $ops_row = $wpdb->get_row($wpdb->prepare(
-        "SELECT id, order_id, driver_user_id, ops_status
-         FROM {$driver_ops_table}
-         WHERE order_id = %d
-         LIMIT 1",
-        $order_id
-    ));
+        // Lock ops row (if any)
+        $ops_row = $wpdb->get_row($wpdb->prepare(
+            "SELECT id, order_id, driver_user_id, ops_status
+             FROM {$driver_ops_table}
+             WHERE order_id = %d
+             FOR UPDATE",
+            $order_id
+        ));
 
-    $current_driver_user_id = $ops_row && isset($ops_row->driver_user_id) ? (int)$ops_row->driver_user_id : 0;
-    $current_ops_status = $ops_row && isset($ops_row->ops_status) ? strtolower(trim((string)$ops_row->ops_status)) : 'unassigned';
+        $current_driver_user_id = ($ops_row && isset($ops_row->driver_user_id)) ? (int)$ops_row->driver_user_id : 0;
+        $current_ops_status     = ($ops_row && isset($ops_row->ops_status)) ? strtolower(trim((string)$ops_row->ops_status)) : 'unassigned';
 
-    // Idempotent: already assigned to same driver_user_id and status assigned
-    if ($current_driver_user_id === $driver_user_id && $current_driver_user_id > 0 && $current_ops_status === 'assigned') {
-        return knx_rest_response(true, 'Driver already assigned', [
-            'updated' => false,
-            'assigned' => true,
-            'order_id' => $order_id,
-            'driver_id' => $driver_id,
-            'driver_user_id' => $driver_user_id,
-        ], 200);
-    }
+        // Idempotent: already assigned + already transitioned
+        if (
+            $current_driver_user_id === $driver_user_id &&
+            $current_driver_user_id > 0 &&
+            $current_ops_status === 'assigned' &&
+            $order_status === 'accepted_by_driver'
+        ) {
+            $wpdb->query('COMMIT');
 
-    // Write to knx_driver_ops (SSOT)
-    $now = current_time('mysql');
+            return function_exists('knx_rest_response')
+                ? knx_rest_response(true, 'Driver already assigned', [
+                    'updated'        => false,
+                    'assigned'       => true,
+                    'status_changed' => false,
+                    'order_id'       => $order_id,
+                    'driver_id'      => $driver_id,
+                    'driver_user_id' => $driver_user_id,
+                    'status'         => $order_status,
+                ], 200)
+                : new WP_REST_Response(['success' => true, 'message' => 'Driver already assigned'], 200);
+        }
 
-    if ($ops_row && isset($ops_row->id)) {
+        // STRICT: Only 'confirmed' orders can be assigned
+        if ($order_status !== 'confirmed') {
+            $wpdb->query('ROLLBACK');
+            return knx_rest_error('Order must be in confirmed status to assign driver', 409, [
+                'reason'          => 'INVALID_STATE_TRANSITION',
+                'current_status'  => $order_status,
+                'required_status' => 'confirmed',
+                'next_status'     => 'accepted_by_driver',
+            ]);
+        }
+
+        $now         = current_time('mysql');
+        $from_status = $order_status;
+        $to_status   = 'accepted_by_driver';
+
+        // 1) Update order status + driver_id (best-effort updated_at)
+        $order_cols = knx_ops__table_columns_lc($orders_table);
+
+        $update_data = [];
+        $update_fmt  = [];
+
+        if (in_array('status', $order_cols, true)) {
+            $update_data['status'] = $to_status;
+            $update_fmt[] = '%s';
+        } else {
+            $wpdb->query('ROLLBACK');
+            return knx_rest_error('Orders schema missing status column', 409);
+        }
+
+        if (in_array('driver_id', $order_cols, true)) {
+            $update_data['driver_id'] = $driver_id;
+            $update_fmt[] = '%d';
+        }
+
+        if (in_array('updated_at', $order_cols, true)) {
+            $update_data['updated_at'] = $now;
+            $update_fmt[] = '%s';
+        }
+
         $ok = $wpdb->update(
-            $driver_ops_table,
-            [
-                'driver_user_id' => $driver_user_id,
-                'assigned_by'    => $user_id ?: null,
-                'ops_status'     => 'assigned',
-                'assigned_at'    => $now,
-                // updated_at is auto-updated by schema
-            ],
-            ['order_id' => $order_id],
-            ['%d', '%d', '%s', '%s'],
+            $orders_table,
+            $update_data,
+            ['id' => $order_id],
+            $update_fmt,
             ['%d']
         );
-        if ($ok === false) return knx_rest_error('Failed to assign driver (ops)', 500);
-    } else {
-        $ok = $wpdb->insert(
-            $driver_ops_table,
-            [
+
+        if ($ok === false) {
+            $wpdb->query('ROLLBACK');
+            return knx_rest_error('Failed to update order status', 500);
+        }
+
+        // 2) Insert status history (created_at is canonical)
+        if (knx_ops__table_exists($history_table)) {
+            $hist_cols = knx_ops__table_columns_lc($history_table);
+
+            $hist_data = [];
+            $hist_fmt  = [];
+
+            if (in_array('order_id', $hist_cols, true)) { $hist_data['order_id'] = $order_id; $hist_fmt[] = '%d'; }
+            if (in_array('status', $hist_cols, true))   { $hist_data['status'] = $to_status; $hist_fmt[] = '%s'; }
+
+            if (in_array('changed_by', $hist_cols, true) && $user_id > 0) {
+                $hist_data['changed_by'] = $user_id;
+                $hist_fmt[] = '%d';
+            }
+
+            // IMPORTANT FIX: use created_at (not changed_at)
+            if (in_array('created_at', $hist_cols, true)) {
+                $hist_data['created_at'] = $now;
+                $hist_fmt[] = '%s';
+            } elseif (in_array('changed_at', $hist_cols, true)) {
+                // Compatibility fallback only if legacy table uses changed_at
+                $hist_data['changed_at'] = $now;
+                $hist_fmt[] = '%s';
+            }
+
+            if (count($hist_data) >= 2) {
+                $ok = $wpdb->insert($history_table, $hist_data, $hist_fmt);
+                if (!$ok) {
+                    $wpdb->query('ROLLBACK');
+                    return knx_rest_error('Failed to insert status history', 500);
+                }
+            }
+        }
+
+        // 3) Upsert driver ops assignment
+        $ops_cols = knx_ops__table_columns_lc($driver_ops_table);
+
+        $ops_data = [];
+        $ops_fmt  = [];
+
+        if (in_array('driver_user_id', $ops_cols, true)) { $ops_data['driver_user_id'] = $driver_user_id; $ops_fmt[] = '%d'; }
+        if (in_array('assigned_by', $ops_cols, true) && $user_id > 0) { $ops_data['assigned_by'] = $user_id; $ops_fmt[] = '%d'; }
+        if (in_array('ops_status', $ops_cols, true)) { $ops_data['ops_status'] = 'assigned'; $ops_fmt[] = '%s'; }
+        if (in_array('assigned_at', $ops_cols, true)) { $ops_data['assigned_at'] = $now; $ops_fmt[] = '%s'; }
+        if (in_array('updated_at', $ops_cols, true)) { $ops_data['updated_at'] = $now; $ops_fmt[] = '%s'; }
+
+        // Ensure order_id exists for inserts
+        if (!$ops_row || !isset($ops_row->id)) {
+            if (in_array('order_id', $ops_cols, true)) {
+                $ops_data_insert = ['order_id' => $order_id] + $ops_data;
+                $ops_fmt_insert  = ['%d'];
+                foreach ($ops_fmt as $f) $ops_fmt_insert[] = $f;
+
+                $ok = $wpdb->insert($driver_ops_table, $ops_data_insert, $ops_fmt_insert);
+                if (!$ok) {
+                    $wpdb->query('ROLLBACK');
+                    return knx_rest_error('Failed to assign driver (ops insert)', 500);
+                }
+            } else {
+                $wpdb->query('ROLLBACK');
+                return knx_rest_error('Driver ops schema missing order_id column', 409);
+            }
+        } else {
+            if (!empty($ops_data)) {
+                $ok = $wpdb->update(
+                    $driver_ops_table,
+                    $ops_data,
+                    ['order_id' => $order_id],
+                    $ops_fmt,
+                    ['%d']
+                );
+                if ($ok === false) {
+                    $wpdb->query('ROLLBACK');
+                    return knx_rest_error('Failed to assign driver (ops update)', 500);
+                }
+            }
+        }
+
+        $wpdb->query('COMMIT');
+
+        // Best-effort audit (outside transaction)
+        knx_ops_assign_driver_audit($order_id, 'assign_driver', 'Driver assigned with status transition', [
+            'order_id'             => $order_id,
+            'city_id'              => $order_city_id,
+            'from_status'          => $from_status,
+            'to_status'            => $to_status,
+            'driver_id'            => $driver_id,
+            'driver_user_id'       => $driver_user_id,
+            'from_driver_user_id'  => $current_driver_user_id,
+            'from_ops_status'      => $current_ops_status,
+            'to_ops_status'        => 'assigned',
+        ], $session);
+
+        return function_exists('knx_rest_response')
+            ? knx_rest_response(true, 'Driver assigned and status updated', [
+                'updated'        => true,
+                'assigned'       => true,
+                'status_changed' => true,
+                'from_status'    => $from_status,
+                'to_status'      => $to_status,
                 'order_id'       => $order_id,
+                'driver_id'      => $driver_id,
                 'driver_user_id' => $driver_user_id,
-                'assigned_by'    => $user_id ?: null,
-                'ops_status'     => 'assigned',
-                'assigned_at'    => $now,
-                // updated_at default/auto
-            ],
-            ['%d', '%d', '%d', '%s', '%s']
-        );
-        if (!$ok) return knx_rest_error('Failed to assign driver (ops insert)', 500);
+            ], 200)
+            : new WP_REST_Response(['success' => true, 'message' => 'Driver assigned and status updated'], 200);
+
+    } catch (\Throwable $e) {
+        $wpdb->query('ROLLBACK');
+        error_log('[knx_ops_assign_driver] Transaction failed: ' . $e->getMessage());
+
+        return function_exists('knx_rest_error')
+            ? knx_rest_error('Failed to assign driver', 500, ['error' => substr($e->getMessage(), 0, 220)])
+            : new WP_REST_Response(['success' => false, 'message' => 'Failed to assign driver'], 500);
     }
-
-    // Best-effort: keep legacy orders.driver_id in sync if column exists
-    if (knx_ops__col_exists($orders_table, 'driver_id')) {
-        $updated_at_exists = knx_ops__col_exists($orders_table, 'updated_at');
-
-        $data = ['driver_id' => $driver_id];
-        $data_fmt = ['%d'];
-        if ($updated_at_exists) {
-            $data['updated_at'] = $now;
-            $data_fmt[] = '%s';
-        }
-
-        try {
-            $wpdb->update($orders_table, $data, ['id' => $order_id], $data_fmt, ['%d']);
-        } catch (\Throwable $e) {
-            // Non-blocking legacy sync
-        }
-    }
-
-    // Best-effort audit
-    knx_ops_assign_driver_audit($order_id, 'assign_driver', 'Driver assigned', [
-        'order_id' => $order_id,
-        'city_id' => $order_city_id,
-        'order_status' => $order_status,
-        'driver_id' => $driver_id,
-        'driver_user_id' => $driver_user_id,
-        'from_driver_user_id' => $current_driver_user_id,
-        'from_ops_status' => $current_ops_status,
-        'to_ops_status' => 'assigned',
-    ], $session);
-
-    return knx_rest_response(true, 'Driver assigned', [
-        'updated' => true,
-        'assigned' => true,
-        'order_id' => $order_id,
-        'driver_id' => $driver_id,
-        'driver_user_id' => $driver_user_id,
-    ], 200);
 }

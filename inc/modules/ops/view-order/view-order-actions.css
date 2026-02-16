@@ -1,192 +1,248 @@
 /* inc/modules/ops/view-order/view-order-actions.css */
-/* ==========================================================
- * KNX OPS — View Order Actions (Scoped)
- * - Top bar actions + modals
- * ========================================================== */
+/**
+ * KNX OPS — View Order Actions UI (CANON)
+ * - Status button (Image 1)
+ * - Status update modal (Image 2)
+ */
 
-.knx-ops-vo #knxViewOrderActions .knx-actions-wrapper{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  flex-wrap:wrap;
-  min-height:40px;
-}
-
-.knx-ops-vo #knxViewOrderActions .knx-actions-main,
-.knx-ops-vo #knxViewOrderActions .knx-actions-danger{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  flex-wrap:wrap;
-}
-
-.knx-ops-vo #knxViewOrderActions .knx-actions-divider{
-  width:1px;
-  height:28px;
-  background:rgba(0,0,0,0.10);
-  margin:0 6px;
-}
-
-.knx-ops-vo #knxViewOrderActions .knx-actions--busy{opacity:0.85}
-
-.knx-ops-vo #knxViewOrderActions .knx-btn{
-  padding:10px 14px;
-  border-radius:12px;
-  border:1px solid rgba(0,0,0,0.10);
-  background:#fff;
-  color:#111;
-  font-weight:900;
-  min-height:40px;
+.knx-ops-vo-statusbtn{
+  width:100%;
+  border:0;
+  background:rgba(11,121,58,0.10);
+  border-radius:22px;
+  padding:22px 16px;
   cursor:pointer;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  text-align:center;
 }
 
-.knx-ops-vo #knxViewOrderActions .knx-btn:disabled{
-  opacity:0.6;
-  cursor:not-allowed;
+.knx-ops-vo-statusbtn:focus{
+  outline:3px solid rgba(30,111,240,0.35);
+  outline-offset:3px;
 }
 
-.knx-ops-vo #knxViewOrderActions .knx-btn-primary{
-  background:#0B793A;
-  color:#fff;
-  border-color:transparent;
-  box-shadow:0 8px 22px rgba(11,121,58,0.16);
+.knx-ops-vo-statusbtn__kicker{
+  text-transform:uppercase;
+  letter-spacing:0.12em;
+  font-weight:900;
+  font-size:14px;
+  color:#6b7280;
 }
 
-.knx-ops-vo #knxViewOrderActions .knx-btn-secondary{
-  background:#fff;
-  color:#111;
-  border:1px solid rgba(0,0,0,0.14);
+.knx-ops-vo-statusbtn__value{
+  font-weight:900;
+  font-size:34px;
+  line-height:1.15;
+  color:#0b793a;
 }
 
-.knx-ops-vo #knxViewOrderActions .knx-btn-danger{
-  background:#fff;
-  color:#b00020;
-  border:1px solid rgba(176,0,32,0.16);
-}
-
-/* Mobile: stack buttons */
-@media (max-width: 720px){
-  .knx-ops-vo #knxViewOrderActions .knx-actions-wrapper{
-    width:100%;
-    flex-direction:column;
-    align-items:stretch;
-  }
-  .knx-ops-vo #knxViewOrderActions .knx-actions-divider{display:none}
-  .knx-ops-vo #knxViewOrderActions .knx-actions-main,
-  .knx-ops-vo #knxViewOrderActions .knx-actions-danger{
-    width:100%;
-    flex-direction:column;
-    align-items:stretch;
-  }
-  .knx-ops-vo #knxViewOrderActions .knx-btn{width:100%}
-}
-
-/* ==========================================================
- * Modals (scoped by .knx-ops-vo-modal)
- * ========================================================== */
-
-body.knx-ops-vo__modal-lock{overflow:hidden}
-
-.knx-ops-vo-modal.knx-modal-shell{
+/* Modal */
+.knx-ops-vo-modal{
   position:fixed;
   inset:0;
+  z-index:99999;
   display:none;
-  z-index:999999;
 }
 
-.knx-ops-vo-modal.knx-modal-shell.knx-modal-open{display:block}
+.knx-ops-vo-modal[aria-hidden="false"]{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
 
-.knx-ops-vo-modal .knx-modal-overlay{
+.knx-ops-vo-modal__backdrop{
   position:absolute;
   inset:0;
-  background:rgba(0,0,0,0.45);
+  background:rgba(17,24,39,0.55);
 }
 
-.knx-ops-vo-modal .knx-modal-dialog{
+.knx-ops-vo-modal__panel{
   position:relative;
-  max-width:560px;
-  margin:10vh auto;
-  background:#fff;
-  border-radius:16px;
-  padding:16px;
-  box-shadow:0 18px 44px rgba(0,0,0,0.18);
+  width:min(560px, calc(100% - 28px));
+  max-height:calc(100% - 28px);
+  overflow:auto;
+  background:#ffffff;
+  border-radius:24px;
+  padding:22px 18px 18px;
+  box-shadow:0 22px 50px rgba(0,0,0,0.28);
 }
 
-@media (max-width: 560px){
-  .knx-ops-vo-modal .knx-modal-dialog{
-    width:calc(100vw - 18px);
-    margin:12vh auto;
-  }
+.knx-ops-vo-modal__head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
 }
 
-.knx-ops-vo-modal .knx-modal-header{
+.knx-ops-vo-modal__title{
+  font-size:34px;
+  font-weight:900;
+  line-height:1.12;
+  color:#0b1220;
+}
+
+.knx-ops-vo-modal__sub{
+  margin-top:10px;
+  font-size:26px;
+  font-weight:900;
+  line-height:1.2;
+  color:#6b7280;
+}
+
+.knx-ops-vo-modal__x{
+  width:44px;
+  height:44px;
+  border:0;
+  background:transparent;
+  color:#6b7280;
+  cursor:pointer;
+  border-radius:999px;
+  font-size:34px;
+  line-height:44px;
+  font-weight:900;
+}
+
+.knx-ops-vo-modal__x:focus{
+  outline:3px solid rgba(30,111,240,0.35);
+  outline-offset:2px;
+}
+
+.knx-ops-vo-modal__list{
+  margin-top:18px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+
+/* Status options */
+.knx-ops-vo-statusopt{
+  width:100%;
+  border:0;
+  border-radius:22px;
+  padding:18px 18px;
+  cursor:pointer;
   display:flex;
   align-items:center;
   justify-content:space-between;
-  gap:12px;
-}
-
-.knx-ops-vo-modal .knx-modal-title{
-  font-size:18px;
-  font-weight:950;
-}
-
-.knx-ops-vo-modal .knx-modal-body{
-  margin-top:12px;
-  color:#444;
-  font-size:14px;
-  line-height:1.35;
-}
-
-.knx-ops-vo-modal .knx-modal-message{
+  gap:14px;
   font-weight:900;
-  color:#111;
-  margin-bottom:10px;
+  font-size:32px;
+  line-height:1.15;
+  text-align:left;
+  position:relative;
 }
 
-.knx-ops-vo-modal .knx-modal-actions{
+.knx-ops-vo-statusopt__text{
+  min-width:0;
+}
+
+.knx-ops-vo-statusopt__dot{
+  width:26px;
+  height:26px;
+  border-radius:999px;
+  border:3px solid currentColor;
+  flex:0 0 auto;
   display:flex;
-  justify-content:flex-end;
-  gap:10px;
-  margin-top:14px;
-  flex-wrap:wrap;
+  align-items:center;
+  justify-content:center;
 }
 
-.knx-ops-vo-modal .knx-modal-close{
-  border:0;
-  background:transparent;
-  font-size:18px;
-  cursor:pointer;
+.knx-ops-vo-statusopt.is-selected{
+  outline:3px solid currentColor;
+  outline-offset:0;
 }
 
-/* Modal buttons (same classnames) */
-.knx-ops-vo-modal .knx-btn{
-  padding:10px 14px;
-  border-radius:12px;
-  border:1px solid rgba(0,0,0,0.10);
-  background:#fff;
-  color:#111;
+.knx-ops-vo-statusopt.is-selected .knx-ops-vo-statusopt__dot:after{
+  content:"";
+  width:12px;
+  height:12px;
+  border-radius:999px;
+  background:currentColor;
+  display:block;
+}
+
+/* Tones */
+.knx-ops-vo-statusopt--green{
+  color:#0b793a;
+  background:rgba(11,121,58,0.10);
+}
+.knx-ops-vo-statusopt--orange{
+  color:#ef7d1a;
+  background:rgba(239,125,26,0.12);
+}
+.knx-ops-vo-statusopt--blue{
+  color:#2b64ff;
+  background:rgba(43,100,255,0.10);
+}
+.knx-ops-vo-statusopt--purple{
+  color:#6b5cff;
+  background:rgba(107,92,255,0.10);
+}
+.knx-ops-vo-statusopt--red{
+  color:#c82333;
+  background:rgba(200,35,51,0.10);
+}
+
+/* Cancel warning */
+.knx-ops-vo-statusopt__warn{
+  position:absolute;
+  left:18px;
+  right:18px;
+  top:50%;
+  transform:translateY(-50%);
+  font-size:28px;
   font-weight:900;
-  min-height:40px;
+  color:#c82333;
+  pointer-events:none;
+}
+
+/* Footer buttons */
+.knx-ops-vo-modal__footer{
+  margin-top:18px;
+  display:flex;
+  gap:16px;
+}
+
+.knx-ops-vo-modal__btn{
+  flex:1 1 0;
+  border-radius:18px;
+  padding:16px 16px;
+  font-size:28px;
+  font-weight:900;
   cursor:pointer;
 }
 
-.knx-ops-vo-modal .knx-btn:disabled{opacity:0.6;cursor:not-allowed}
+.knx-ops-vo-modal__btn:focus{
+  outline:3px solid rgba(30,111,240,0.35);
+  outline-offset:3px;
+}
 
-.knx-ops-vo-modal .knx-btn-primary{
-  background:#0B793A;
+.knx-ops-vo-modal__btn--cancel{
+  border:3px solid #6b7280;
+  background:#fff;
+  color:#6b7280;
+}
+
+.knx-ops-vo-modal__btn--update{
+  border:0;
+  background:#0b793a;
   color:#fff;
-  border-color:transparent;
 }
 
-.knx-ops-vo-modal .knx-btn-secondary{
-  background:#fff;
-  color:#111;
-  border:1px solid rgba(0,0,0,0.14);
+.knx-ops-vo-modal__btn:disabled{
+  opacity:0.55;
+  cursor:not-allowed;
 }
 
-.knx-ops-vo-modal .knx-btn-danger{
-  background:#fff;
-  color:#b00020;
-  border:1px solid rgba(176,0,32,0.16);
+@media (max-width: 520px){
+  .knx-ops-vo-statusbtn__value{font-size:30px}
+  .knx-ops-vo-modal__title{font-size:30px}
+  .knx-ops-vo-modal__sub{font-size:22px}
+  .knx-ops-vo-statusopt{font-size:26px}
+  .knx-ops-vo-statusopt__warn{font-size:22px}
+  .knx-ops-vo-modal__btn{font-size:24px}
 }

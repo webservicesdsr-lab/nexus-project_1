@@ -188,6 +188,83 @@
       return String(str).replace(/[&<>"]/g, (s) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[s]));
     }
 
+    // ---------- CANON status mapping ----------
+    function normalizeStatus(status) {
+      const st = String(status || '').trim().toLowerCase();
+
+      // legacy aliases
+      if (st === 'placed') return 'confirmed';
+      if (st === 'accepted_by_restaurant') return 'accepted_by_hub';
+      if (st === 'out_for_delivery') return 'picked_up';
+      if (st === 'ready') return 'prepared';
+
+      return st;
+    }
+
+    // UI-only bucketing (CANON: Driver First)
+    // new: confirmed (Waiting for driver)
+    // progress: accepted_by_driver -> ... -> picked_up
+    // done: completed/cancelled
+    // pending_payment should never appear; we filter it out defensively.
+    function statusBucket(status) {
+      const st = normalizeStatus(status);
+
+      if (st === 'pending_payment') return 'new';
+
+      if (st === 'confirmed') return 'new';
+
+      if ([
+        'accepted_by_driver',
+        'accepted_by_hub',
+        'preparing',
+        'prepared',
+        'picked_up',
+
+        // tolerated legacy noise (if backend ever leaks it)
+        'assigned',
+        'in_progress',
+      ].includes(st)) return 'progress';
+
+      if (st === 'completed' || st === 'cancelled') return 'done';
+
+      return 'progress';
+    }
+
+    function statusChipClass(status) {
+      const b = statusBucket(status);
+      if (b === 'new') return 'is-new';
+      if (b === 'done') return 'is-done';
+      return 'is-progress';
+    }
+
+    // Human labels (CANON)
+    // - Never show "confirmed" literal (use "Waiting for driver")
+    function statusLabel(status) {
+      const st = normalizeStatus(status);
+      const map = {
+        pending_payment: 'Processing payment',
+
+        confirmed: 'Waiting for driver',
+
+        accepted_by_driver: 'Accepted by Driver',
+        accepted_by_hub: 'Accepted by Hub',
+
+        preparing: 'Preparing',
+        prepared: 'Prepared',
+        picked_up: 'Picked up',
+
+        completed: 'Completed',
+        cancelled: 'Cancelled',
+
+        // tolerated legacy noise
+        assigned: 'Accepted by Driver',
+        in_progress: 'Preparing',
+      };
+
+      if (map[st]) return map[st];
+      return st ? st.replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase()).replace(/\bBy\b/g, 'by') : 'Status';
+    }
+
     function setActiveTab(tabKey) {
       const t = (tabKey === 'progress' || tabKey === 'done') ? tabKey : 'new';
       activeTab = t;
@@ -205,6 +282,11 @@
         x.el.classList.toggle('is-active', on);
         x.el.setAttribute('aria-selected', on ? 'true' : 'false');
       });
+
+      // Only one panel visible at a time (CANON behavior)
+      if (listNew) listNew.style.display = (t === 'new') ? 'block' : 'none';
+      if (listProgress) listProgress.style.display = (t === 'progress') ? 'block' : 'none';
+      if (listDone) listDone.style.display = (t === 'done') ? 'block' : 'none';
     }
 
     function buildViewUrl(orderId) {
@@ -453,36 +535,6 @@
         if (Array.isArray(json.results)) return json.results;
       }
       return Array.isArray(json) ? json : [];
-    }
-
-    // UI-only bucketing
-    function statusBucket(status) {
-      const st = String(status || '').toLowerCase();
-      if (st === 'placed' || st === 'confirmed') return 'new';
-      if (st === 'preparing' || st === 'assigned' || st === 'in_progress') return 'progress';
-      if (st === 'completed' || st === 'cancelled') return 'done';
-      return 'progress';
-    }
-
-    function statusChipClass(status) {
-      const b = statusBucket(status);
-      if (b === 'new') return 'is-new';
-      if (b === 'done') return 'is-done';
-      return 'is-progress';
-    }
-
-    function statusLabel(status) {
-      const st = String(status || '').toLowerCase();
-      const map = {
-        placed: 'Placed',
-        confirmed: 'Confirmed',
-        preparing: 'Preparing',
-        assigned: 'Assigned',
-        in_progress: 'In progress',
-        completed: 'Completed',
-        cancelled: 'Cancelled',
-      };
-      return map[st] || (st ? st.replace(/_/g, ' ') : 'Status');
     }
 
     function money(n) {
@@ -745,7 +797,6 @@
         if ((!assigned.id || !assigned.name) && oid) {
           const opt = getOptimisticAssigned(oid);
           if (opt && opt.id && opt.name) {
-            // Only use optimistic if server didn't provide better data.
             if (!assigned.id) assigned.id = Number(opt.id || 0);
             if (!assigned.name) assigned.name = String(opt.name || '').trim();
           }
@@ -799,8 +850,6 @@
               throw new Error(msg);
             }
 
-            // Optimistic label (short TTL) so the dropdown reflects immediately
-            // even if Live Orders GET doesn't include name.
             if (selectedName) {
               setOptimisticAssigned(orderId, driverId, selectedName);
             }
@@ -836,9 +885,9 @@
         const oid = Number(it.order_id || 0);
         const restaurant = escapeHtml(it.restaurant_name || it.hub_name || 'Restaurant');
         const created = escapeHtml(it.created_human || it.created_at || '');
-        const st = String(it.status || '');
-        const stLabel = escapeHtml(statusLabel(st));
-        const stClass = statusChipClass(st);
+        const stRaw = String(it.status || '');
+        const stLabel = escapeHtml(statusLabel(stRaw));
+        const stClass = statusChipClass(stRaw);
 
         const customer = escapeHtml(it.customer_name || 'Customer');
         const total = money(it.total_amount);
@@ -956,7 +1005,10 @@
 
     async function renderOrders(orders, opts) {
       const options = opts || {};
-      const data = Array.isArray(orders) ? orders : [];
+      const raw = Array.isArray(orders) ? orders : [];
+
+      // Defensive: hide pending_payment from Live Orders board
+      const data = raw.filter(o => normalizeStatus(o && o.status) !== 'pending_payment');
 
       // Include assignmentMapVersion so a recent POST assign can force UI refresh.
       const hash = (() => {
@@ -966,7 +1018,7 @@
               const oid = Number(o.order_id || 0);
               const ass = pickAssignedFromOrder(o);
               const assKey = `${ass.id || 0}:${ass.name || ''}`;
-              return `${oid}:${o.status}:${o.created_at || ''}:${o.total_amount || ''}:${assKey}`;
+              return `${oid}:${normalizeStatus(o.status)}:${o.created_at || ''}:${o.total_amount || ''}:${assKey}`;
             })
             .join('|') + `|v=${assignedMapVersion}`;
         } catch (e) {
@@ -975,7 +1027,6 @@
       })();
 
       if (hash && hash === lastOrdersHash && !options.force) {
-        // Still hydrate dropdowns: driver list/status can change even if list hash didn't.
         syncActiveTabToExpanded(data);
         await hydrateDriverDropdowns(data);
         return;
@@ -1044,7 +1095,6 @@
         openExpandedInDom(expandedOrderId, false);
       }
 
-      // IMPORTANT: hydrate driver dropdowns AFTER DOM render
       await hydrateDriverDropdowns(data);
     }
 

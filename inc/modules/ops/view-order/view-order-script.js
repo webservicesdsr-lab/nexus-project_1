@@ -4,6 +4,7 @@
  * - Fetches /knx/v1/ops/view-order?order_id=...
  * - Renders a 1:1 "Order tracking" layout (left details, right map + history).
  * - Exposes SSOT to addons via window.KNX_VIEW_ORDER = { order }.
+ * - Dispatches event for addons: document.dispatchEvent('knx:view-order:loaded')
  *
  * Contract (from Network):
  * data.order = {
@@ -86,6 +87,93 @@
       }
     }
 
+    // ---------- CANON helpers ----------
+    function normalizeStatus(s) {
+      const v = String(s || '').trim().toLowerCase();
+
+      // legacy aliases
+      if (v === 'placed') return 'confirmed';
+      if (v === 'accepted_by_restaurant') return 'accepted_by_hub';
+      if (v === 'out_for_delivery') return 'picked_up';
+      if (v === 'ready') return 'prepared';
+
+      return v;
+    }
+
+    // Canon labels:
+    // - Never expose pending_payment
+    // - Never show "confirmed" literal (use "Waiting for driver")
+    function statusLabelHuman(s) {
+      const v = normalizeStatus(s);
+      const map = {
+        order_created: 'Order Created',
+
+        pending_payment: 'Processing payment', // never shown in history
+
+        confirmed: 'Waiting for driver',
+
+        accepted_by_driver: 'Accepted by Driver',
+        accepted_by_hub: 'Accepted by Hub',
+
+        preparing: 'Preparing',
+        prepared: 'Prepared',
+        picked_up: 'Picked up',
+
+        completed: 'Completed',
+        cancelled: 'Cancelled',
+      };
+      if (!v) return '—';
+      if (map[v]) return map[v];
+      return v.replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase()).replace(/\bBy\b/g, 'by');
+    }
+
+    // Timeline normalization (CANON):
+    // - Always insert virtual "Order Created"
+    // - Hide pending_payment
+    // - Ensure "Waiting for driver" exists (confirmed) for operational orders
+    function normalizeHistory(order) {
+      const raw = Array.isArray(order && order.status_history) ? order.status_history : [];
+      const out = [];
+
+      const createdAt = String(pick(order, 'created_at', '') || '').trim();
+
+      out.push({
+        status: 'order_created',
+        created_at: createdAt,
+        changed_by_label: '',
+      });
+
+      const cleaned = raw
+        .filter(h => h && typeof h === 'object')
+        .map(h => {
+          const st = normalizeStatus(h.status);
+          return Object.assign({}, h, { status: st });
+        })
+        .filter(h => {
+          const st = String(h.status || '').trim().toLowerCase();
+          if (!st) return false;
+          if (st === 'pending_payment') return false;
+          return true;
+        });
+
+      const hasConfirmed = cleaned.some(h => String(h.status || '').toLowerCase().trim() === 'confirmed');
+
+      const curSt = normalizeStatus(order && order.status);
+      const isOperational = !!curSt && curSt !== 'pending_payment';
+
+      if (isOperational && !hasConfirmed) {
+        out.push({
+          status: 'confirmed',
+          created_at: createdAt,
+          changed_by_label: '',
+        });
+      }
+
+      cleaned.forEach(h => out.push(h));
+      return out;
+    }
+
+    // ---------- Items ----------
     function normalizeItems(order) {
       const rawItems = order && order.raw ? order.raw.items : null;
       if (Array.isArray(rawItems)) return rawItems;
@@ -177,18 +265,13 @@
       return `<div class="knx-ops-vo__order-list">${rows}</div>`;
     }
 
-    function humanStatusLabel(s) {
-      const v = String(s || '').trim().toLowerCase();
-      if (!v) return '—';
-      return v.replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
-    }
-
+    // ---------- History ----------
     function renderHistory(list) {
       const arr = Array.isArray(list) ? list : [];
       if (!arr.length) return `<div class="knx-ops-vo__muted">No history.</div>`;
 
       const rows = arr.map((h) => {
-        const st = humanStatusLabel(h?.status);
+        const st = statusLabelHuman(h?.status);
         const at = esc(String(h?.created_at || '').trim());
         const by = esc(String(h?.changed_by_label || '').trim());
 
@@ -212,32 +295,27 @@
       const ln = Number(lng);
       if (!Number.isFinite(la) || !Number.isFinite(ln)) return '';
 
-      // No API key embed, compatible everywhere.
       const q = encodeURIComponent(la + ',' + ln);
       return `https://www.google.com/maps?q=${q}&z=13&output=embed`;
     }
 
     function renderOrder(order) {
-      // Restaurant
       const rName  = esc(String(pick(order, 'restaurant.name', '') || ''));
       const rPhone = esc(String(pick(order, 'restaurant.phone', '') || ''));
       const rEmail = esc(String(pick(order, 'restaurant.email', '') || ''));
       const rAddr  = esc(String(pick(order, 'restaurant.address', '') || ''));
       const rLogo  = safeHttpUrl(pick(order, 'restaurant.logo_url', '') || '');
 
-      // Customer
       const cName = esc(String(pick(order, 'customer.name', '') || ''));
-      const cEmail = ''; // not in contract right now
+      const cEmail = '';
       const dAddr  = esc(String(pick(order, 'delivery.address', '') || ''));
       const dSlot  = esc(String(pick(order, 'delivery.time_slot', '') || ''));
       const dMethod = esc(String(pick(order, 'delivery.method', '') || ''));
 
-      // Order basics
       const created = esc(String(pick(order, 'created_at', '') || ''));
-      const status = esc(String(pick(order, 'status', '') || ''));
-      const statusNice = humanStatusLabel(status);
+      const statusRaw = String(pick(order, 'status', '') || '');
+      const statusNice = statusLabelHuman(statusRaw);
 
-      // Totals
       const subtotal = (function () {
         const raw = pick(order, 'raw.items.subtotal', null);
         if (raw === null || raw === undefined) return null;
@@ -248,35 +326,28 @@
       const total = Number(pick(order, 'totals.total', 0));
       const tip = Number(pick(order, 'totals.tip', 0));
 
-      // Best-effort: use quote breakdown if present (taxes/fees/delivery/discount)
       const quote = pick(order, 'totals.quote', null);
       const taxesAndFees = (quote && typeof quote === 'object') ? Number(quote.taxes_and_fees ?? quote.taxes ?? quote.fees ?? NaN) : NaN;
       const deliveryFee = (quote && typeof quote === 'object') ? Number(quote.delivery_fee ?? quote.delivery ?? NaN) : NaN;
       const discount = (quote && typeof quote === 'object') ? Number(quote.discount ?? NaN) : NaN;
 
-      // Payment
       const payMethod = esc(String(pick(order, 'payment.method', '') || ''));
       const payStatus = esc(String(pick(order, 'payment.status', '') || ''));
 
-      // Location
       const lat = pick(order, 'location.lat', null);
       const lng = pick(order, 'location.lng', null);
       const mapEmbed = buildMapEmbed(lat, lng);
       const mapExternal = safeHttpUrl(pick(order, 'location.view_url', '') || '');
 
-      // Items + notes + history
       const items = normalizeItems(order);
       const notes = String(pick(order, 'raw.notes', '') || '').trim();
-      const history = Array.isArray(order?.status_history) ? order.status_history : [];
-
-      // Actions text (screenshot shows "No actions for you right now!" when none)
-      // Actual actions UI is rendered by view-order-actions.js in top bar.
+      const history = normalizeHistory(order);
 
       contentEl.innerHTML = `
         <div class="knx-ops-vo__layout">
 
-          <!-- LEFT -->
           <div class="knx-ops-vo__left">
+            <div id="knxViewOrderActions" class="knx-ops-vo__actions knx-ops-vo__actions--in-left"></div>
 
             <div class="knx-ops-vo__panel">
               <div class="knx-ops-vo__panel-head">
@@ -353,18 +424,10 @@
                   <div class="knx-ops-vo__notes">${esc(notes)}</div>
                 </div>
               ` : ``}
-
-              <div class="knx-ops-vo__divider"></div>
-              <div class="knx-ops-vo__actions-card">
-                <div class="knx-ops-vo__section-title">Actions</div>
-                <div class="knx-ops-vo__muted">Actions are available in the top bar.</div>
-              </div>
             </div>
           </div>
 
-          <!-- RIGHT -->
           <div class="knx-ops-vo__right">
-
             <div class="knx-ops-vo__panel">
               <div class="knx-ops-vo__section-title">Order tracking</div>
 
@@ -388,7 +451,6 @@
                 ${renderHistory(history)}
               </div>
             </div>
-
           </div>
         </div>
       `;
@@ -446,11 +508,13 @@
 
         setState('');
 
-        // SSOT for addons
         try {
-          const st = String((order.status || '')).toLowerCase();
+          const st = normalizeStatus(order.status);
           app.dataset.currentStatus = st;
           window.KNX_VIEW_ORDER = { order: order };
+          try {
+            document.dispatchEvent(new CustomEvent('knx:view-order:loaded', { detail: { order: order } }));
+          } catch (e) {}
         } catch (e) {}
 
         renderOrder(order);

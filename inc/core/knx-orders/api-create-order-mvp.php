@@ -156,13 +156,14 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
         $cart_updated_at = $cart->updated_at;
 
         // IMPORTANT: DB enum does NOT include payment_failed. Do NOT reference it.
+        // Canon statuses only (DRIVER-FIRST lifecycle).
         $existing_order = $wpdb->get_row($wpdb->prepare(
             "SELECT id, order_number, status, created_at
              FROM {$table_orders}
              WHERE session_token = %s
                AND hub_id = %d
                AND customer_id = %d
-               AND status IN ('pending_payment','placed','confirmed','preparing','ready','out_for_delivery','completed')
+               AND status IN ('pending_payment','confirmed','accepted_by_driver','accepted_by_hub','preparing','prepared','picked_up','completed','cancelled')
                AND created_at >= DATE_SUB(%s, INTERVAL 10 MINUTE)
              ORDER BY created_at DESC
              LIMIT 1",
@@ -419,7 +420,7 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
          WHERE session_token = %s
            AND hub_id = %d
            AND customer_id = %d
-           AND status IN ('pending_payment','placed','confirmed','preparing','ready','out_for_delivery','completed')
+           AND status IN ('pending_payment','confirmed','accepted_by_driver','accepted_by_hub','preparing','prepared','picked_up','completed','cancelled')
            AND created_at >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
          ORDER BY created_at DESC
          LIMIT 1",

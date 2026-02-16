@@ -1,6 +1,6 @@
 /* inc/modules/ops/view-order/view-order-style.css */
 /**
- * KNX OPS — View Order (1:1 Layout)
+ * KNX OPS — View Order (1:1 Layout) — CANON v1.1
  * - Desktop: left details + right map/history
  * - Mobile: stack with right panel below
  * - Nexus shell variables, breakout full width
@@ -85,6 +85,16 @@
   grid-template-columns:1fr;
   gap:14px;
   align-items:start;
+}
+
+/* CANON: actions container lives above the left panel */
+.knx-ops-vo__actions{
+  width:100%;
+}
+
+.knx-ops-vo__actions--in-left{
+  width:100%;
+  margin:0 0 14px 0;
 }
 
 .knx-ops-vo__panel{

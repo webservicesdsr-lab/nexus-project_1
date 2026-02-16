@@ -1,12 +1,13 @@
 /* =========================================================
-   KINGDOM NEXUS — y05 schema (CANÓNICO / FRESH INSTALL)
+   KINGDOM NEXUS — y05 schema (CANONICAL / FRESH INSTALL)
 
-   Reglas:
+   Rules:
    - No data dumps
-   - No AUTO_INCREMENT=seed values
-   - PK + UNIQUE + INDEX + FK preservados
-   - InnoDB + utf8mb4_unicode_ci consistente
+   - No AUTO_INCREMENT seed values
+   - PK + UNIQUE + INDEX + FK preserved
+   - InnoDB + utf8mb4_unicode_ci consistent
    - Atomic Payments Ready (orders/payments/webhook_events)
+   - Orders.status enum is CANON (updated to match current KNX)
    ========================================================= */
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
@@ -368,7 +369,7 @@ CREATE TABLE `y05_knx_cart_items` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 /* =========================================================
-   COUPONS + REDEMPTIONS
+   COUPONS (NOTE: REDEMPTIONS CREATED AFTER ORDERS)
    ========================================================= */
 DROP TABLE IF EXISTS `y05_knx_coupon_redemptions`;
 DROP TABLE IF EXISTS `y05_knx_coupons`;
@@ -390,24 +391,6 @@ CREATE TABLE `y05_knx_coupons` (
   UNIQUE KEY `uk_code` (`code`),
   KEY `idx_status` (`status`),
   KEY `idx_expires_at` (`expires_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE `y05_knx_coupon_redemptions` (
-  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `coupon_id` bigint UNSIGNED DEFAULT NULL,
-  `coupon_code` varchar(50) NOT NULL,
-  `order_id` bigint UNSIGNED DEFAULT NULL,
-  `customer_id` bigint UNSIGNED DEFAULT NULL,
-  `discount_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_coupon_id` (`coupon_id`),
-  KEY `idx_coupon_code` (`coupon_code`),
-  KEY `idx_order_id` (`order_id`),
-  KEY `idx_customer_id` (`customer_id`),
-  CONSTRAINT `fk_coupon_redemptions_coupon` FOREIGN KEY (`coupon_id`) REFERENCES `y05_knx_coupons` (`id`) ON DELETE SET NULL,
-  CONSTRAINT `fk_coupon_redemptions_order` FOREIGN KEY (`order_id`) REFERENCES `y05_knx_orders` (`id`) ON DELETE SET NULL,
-  CONSTRAINT `fk_coupon_redemptions_customer` FOREIGN KEY (`customer_id`) REFERENCES `y05_knx_users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 /* =========================================================
@@ -505,146 +488,6 @@ CREATE TABLE `y05_knx_ops_settings` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 /* =========================================================
-   ORDERS (ATOMIC READY)
-   ========================================================= */
-DROP TABLE IF EXISTS `y05_knx_order_status_history`;
-DROP TABLE IF EXISTS `y05_knx_order_items`;
-DROP TABLE IF EXISTS `y05_knx_orders`;
-
-CREATE TABLE `y05_knx_orders` (
-  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `order_number` varchar(50) NOT NULL,
-  `hub_id` bigint UNSIGNED NOT NULL,
-  `city_id` bigint UNSIGNED DEFAULT NULL,
-  `session_token` varchar(64) DEFAULT NULL,
-  `customer_id` bigint UNSIGNED DEFAULT NULL,
-  `fulfillment_type` enum('delivery','pickup') NOT NULL DEFAULT 'delivery',
-  `customer_name` varchar(255) DEFAULT NULL,
-  `customer_phone` varchar(50) DEFAULT NULL,
-  `customer_email` varchar(255) DEFAULT NULL,
-  `delivery_address` text,
-  `delivery_address_id` bigint UNSIGNED DEFAULT NULL,
-  `delivery_lat` decimal(10,7) DEFAULT NULL,
-  `delivery_lng` decimal(10,7) DEFAULT NULL,
-  `delivery_distance` decimal(10,3) DEFAULT NULL,
-  `delivery_duration_minutes` int UNSIGNED DEFAULT NULL,
-  `estimated_delivery_at` datetime DEFAULT NULL,
-  `subtotal` decimal(10,2) NOT NULL DEFAULT '0.00',
-  `tax_rate` decimal(6,2) NOT NULL DEFAULT '0.00',
-  `tax_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
-  `delivery_fee` decimal(10,2) NOT NULL DEFAULT '0.00',
-  `software_fee` decimal(10,2) NOT NULL DEFAULT '0.00',
-  `tip_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
-  `tip_percent` decimal(5,2) DEFAULT NULL,
-  `tip_source` enum('none','preset','custom') DEFAULT 'none',
-  `discount_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
-  `coupon_code` varchar(50) DEFAULT NULL,
-  `coupon_id` bigint UNSIGNED DEFAULT NULL,
-  `gift_card_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
-  `gift_card_code` varchar(64) DEFAULT NULL,
-  `gift_card_id` bigint UNSIGNED DEFAULT NULL,
-  `total` decimal(10,2) NOT NULL DEFAULT '0.00',
-  `status` enum('pending_payment','placed','confirmed','preparing','ready','out_for_delivery','completed','cancelled') NOT NULL,
-  `driver_id` bigint UNSIGNED DEFAULT NULL,
-  `payment_method` varchar(50) NOT NULL,
-  `payment_status` enum('pending','paid','failed','refunded') NOT NULL DEFAULT 'pending',
-  `payment_transaction_id` varchar(255) DEFAULT NULL,
-  `notes` text,
-  `cart_snapshot` json DEFAULT NULL,
-  `totals_snapshot` json DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_order_number` (`order_number`),
-  KEY `idx_hub_id` (`hub_id`),
-  KEY `idx_city_id` (`city_id`),
-  KEY `idx_session_token` (`session_token`),
-  KEY `idx_status` (`status`),
-  KEY `idx_created_at` (`created_at`),
-  KEY `idx_delivery_address_id` (`delivery_address_id`),
-  KEY `idx_idempotency_probe` (`session_token`,`hub_id`,`customer_id`,`status`,`created_at`),
-  KEY `idx_coupon_code` (`coupon_code`),
-  KEY `idx_gift_card_code` (`gift_card_code`),
-  CONSTRAINT `fk_orders_delivery_address` FOREIGN KEY (`delivery_address_id`) REFERENCES `y05_knx_addresses` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE `y05_knx_order_items` (
-  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `order_id` bigint UNSIGNED NOT NULL,
-  `item_id` bigint UNSIGNED DEFAULT NULL,
-  `name_snapshot` varchar(255) NOT NULL,
-  `image_snapshot` text,
-  `quantity` int UNSIGNED NOT NULL DEFAULT '1',
-  `unit_price` decimal(10,2) NOT NULL DEFAULT '0.00',
-  `line_total` decimal(10,2) NOT NULL DEFAULT '0.00',
-  `modifiers_json` json DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_order_id` (`order_id`),
-  KEY `idx_item_id` (`item_id`),
-  CONSTRAINT `fk_order_items_order` FOREIGN KEY (`order_id`) REFERENCES `y05_knx_orders` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_order_items_item` FOREIGN KEY (`item_id`) REFERENCES `y05_knx_hub_items` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE `y05_knx_order_status_history` (
-  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `order_id` bigint UNSIGNED NOT NULL,
-  `status` varchar(50) NOT NULL,
-  `changed_by` bigint UNSIGNED DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_order_id` (`order_id`),
-  KEY `idx_status` (`status`),
-  KEY `idx_created_at` (`created_at`),
-  CONSTRAINT `fk_order_status_history_order` FOREIGN KEY (`order_id`) REFERENCES `y05_knx_orders` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-/* =========================================================
-   PAYMENTS (ATOMIC READY)
-   ========================================================= */
-DROP TABLE IF EXISTS `y05_knx_payments`;
-CREATE TABLE `y05_knx_payments` (
-  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `order_id` bigint UNSIGNED NULL COMMENT 'Reference to knx_orders.id (nullable until atomic link)',
-  `provider` varchar(50) NOT NULL COMMENT 'Payment provider: stripe, paypal, etc.',
-  `provider_intent_id` varchar(255) NOT NULL COMMENT 'Provider payment intent ID',
-  `checkout_attempt_key` varchar(128) NOT NULL COMMENT 'Idempotency key for atomic checkout attempt',
-  `amount` int NOT NULL COMMENT 'Amount in cents',
-  `currency` varchar(3) NOT NULL DEFAULT 'usd' COMMENT 'ISO 4217 currency code',
-  `status` varchar(50) NOT NULL COMMENT 'intent_created, authorized, paid, failed, cancelled',
-  `created_at` datetime NOT NULL,
-  `updated_at` datetime NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_provider_intent` (`provider`,`provider_intent_id`),
-  UNIQUE KEY `uniq_attempt_key` (`checkout_attempt_key`),
-  KEY `idx_order_id` (`order_id`),
-  KEY `idx_status` (`status`),
-  KEY `idx_created_at` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  COMMENT='Payment state authority for orders';
-
-/* =========================================================
-   WEBHOOK EVENTS (DEDUP)
-   ========================================================= */
-DROP TABLE IF EXISTS `y05_knx_webhook_events`;
-CREATE TABLE `y05_knx_webhook_events` (
-  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `provider` varchar(50) NOT NULL DEFAULT 'stripe',
-  `event_id` varchar(255) NOT NULL,
-  `event_type` varchar(100) NOT NULL,
-  `intent_id` varchar(255) DEFAULT NULL,
-  `order_id` bigint UNSIGNED DEFAULT NULL,
-  `processed_at` datetime DEFAULT NULL,
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_event_id` (`event_id`),
-  KEY `idx_intent_id` (`intent_id`),
-  KEY `idx_order_id` (`order_id`),
-  KEY `idx_processed_at` (`processed_at`),
-  CONSTRAINT `fk_webhook_events_order` FOREIGN KEY (`order_id`) REFERENCES `y05_knx_orders` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-/* =========================================================
    SESSIONS
    ========================================================= */
 DROP TABLE IF EXISTS `y05_knx_sessions`;
@@ -679,20 +522,23 @@ CREATE TABLE `y05_knx_settings` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 /* =========================================================
-   TIP SETTINGS
+   TIP SETTINGS (FIXED: hub_id nullable + unique via generated key)
    ========================================================= */
 DROP TABLE IF EXISTS `y05_knx_tip_settings`;
 CREATE TABLE `y05_knx_tip_settings` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `scope` enum('city','hub') NOT NULL DEFAULT 'city',
   `city_id` bigint UNSIGNED NOT NULL,
-  `hub_id` bigint UNSIGNED NOT NULL DEFAULT '0',
+  `hub_id` bigint UNSIGNED DEFAULT NULL,
   `is_enabled` tinyint(1) NOT NULL DEFAULT '1',
   `presets_json` json DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `uniq_hub_key` bigint UNSIGNED GENERATED ALWAYS AS (
+    IF((`scope` = _utf8mb4'hub' AND `hub_id` IS NOT NULL), `hub_id`, 0)
+  ) VIRTUAL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_scope_city_hub` (`scope`,`city_id`,`hub_id`),
+  UNIQUE KEY `uk_scope_city_hub` (`scope`,`city_id`,`uniq_hub_key`),
   KEY `idx_city` (`city_id`),
   KEY `idx_hub` (`hub_id`),
   CONSTRAINT `fk_tip_settings_city` FOREIGN KEY (`city_id`) REFERENCES `y05_knx_cities` (`id`) ON DELETE CASCADE,
@@ -720,20 +566,23 @@ CREATE TABLE `y05_knx_tax_rules` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 /* =========================================================
-   SOFTWARE FEES
+   SOFTWARE FEES (FIXED: hub_id nullable + unique via generated key)
    ========================================================= */
 DROP TABLE IF EXISTS `y05_knx_software_fees`;
 CREATE TABLE `y05_knx_software_fees` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `scope` enum('city','hub') NOT NULL DEFAULT 'city',
   `city_id` bigint UNSIGNED NOT NULL,
-  `hub_id` bigint UNSIGNED NOT NULL DEFAULT '0',
+  `hub_id` bigint UNSIGNED DEFAULT NULL,
   `fee_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
   `status` enum('active','inactive') NOT NULL DEFAULT 'inactive',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `uniq_hub_key` bigint UNSIGNED GENERATED ALWAYS AS (
+    IF((`scope` = _utf8mb4'hub' AND `hub_id` IS NOT NULL), `hub_id`, 0)
+  ) VIRTUAL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_scope_city_hub` (`scope`,`city_id`,`hub_id`),
+  UNIQUE KEY `uk_scope_city_hub` (`scope`,`city_id`,`uniq_hub_key`),
   KEY `idx_city` (`city_id`),
   KEY `idx_hub` (`hub_id`),
   KEY `idx_status` (`status`),
@@ -742,7 +591,7 @@ CREATE TABLE `y05_knx_software_fees` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 /* =========================================================
-   GIFT CARDS
+   GIFT CARDS (CREATED BEFORE ORDERS FOR FK)
    ========================================================= */
 DROP TABLE IF EXISTS `y05_knx_gift_card_transactions`;
 DROP TABLE IF EXISTS `y05_knx_gift_cards`;
@@ -767,77 +616,6 @@ CREATE TABLE `y05_knx_gift_cards` (
   CONSTRAINT `fk_gift_cards_created_by` FOREIGN KEY (`created_by_user_id`) REFERENCES `y05_knx_users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `y05_knx_gift_card_transactions` (
-  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `gift_card_id` bigint UNSIGNED NOT NULL,
-  `order_id` bigint UNSIGNED DEFAULT NULL,
-  `type` enum('debit','credit') NOT NULL,
-  `amount_cents` int NOT NULL,
-  `meta_json` json DEFAULT NULL,
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_gift_card_id` (`gift_card_id`),
-  KEY `idx_order_id` (`order_id`),
-  KEY `idx_type` (`type`),
-  CONSTRAINT `fk_gift_card_tx_gift_card` FOREIGN KEY (`gift_card_id`) REFERENCES `y05_knx_gift_cards` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_gift_card_tx_order` FOREIGN KEY (`order_id`) REFERENCES `y05_knx_orders` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-/* =========================================================
-   PUSH SUBSCRIPTIONS
-   ========================================================= */
-DROP TABLE IF EXISTS `y05_knx_push_subscriptions`;
-CREATE TABLE `y05_knx_push_subscriptions` (
-  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `user_id` bigint UNSIGNED NOT NULL,
-  `role` varchar(32) NOT NULL,
-  `endpoint` text NOT NULL,
-  `p256dh` varchar(255) NOT NULL,
-  `auth` varchar(255) NOT NULL,
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `revoked_at` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_user_role` (`user_id`,`role`),
-  KEY `idx_user_id` (`user_id`),
-  KEY `idx_role` (`role`),
-  KEY `idx_revoked_at` (`revoked_at`),
-  CONSTRAINT `fk_push_subscriptions_user` FOREIGN KEY (`user_id`) REFERENCES `y05_knx_users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-/* =========================================================
-   PASSWORD RESETS + EMAIL VERIFICATIONS
-   ========================================================= */
-DROP TABLE IF EXISTS `y05_knx_password_resets`;
-CREATE TABLE `y05_knx_password_resets` (
-  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `user_id` bigint UNSIGNED NOT NULL,
-  `token_hash` varchar(255) NOT NULL,
-  `expires_at` datetime NOT NULL,
-  `used_at` datetime DEFAULT NULL,
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `ip_address` varchar(45) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_token_hash` (`token_hash`),
-  KEY `idx_user_id` (`user_id`),
-  KEY `idx_expires_at` (`expires_at`),
-  CONSTRAINT `fk_password_resets_user` FOREIGN KEY (`user_id`) REFERENCES `y05_knx_users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `y05_knx_email_verifications`;
-CREATE TABLE `y05_knx_email_verifications` (
-  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `user_id` bigint UNSIGNED NOT NULL,
-  `token_hash` varchar(128) NOT NULL,
-  `expires_at` datetime NOT NULL,
-  `used_at` datetime DEFAULT NULL,
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_user_id` (`user_id`),
-  KEY `idx_token_hash` (`token_hash`),
-  KEY `idx_expires_at` (`expires_at`),
-  CONSTRAINT `fk_email_verifications_user` FOREIGN KEY (`user_id`) REFERENCES `y05_knx_users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 /* =========================================================
    OPS / STAFF SCOPING
    ========================================================= */
@@ -856,7 +634,8 @@ CREATE TABLE `y05_knx_manager_cities` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 /* =========================================================
-   DRIVERS + MAPPINGS + AVAILABILITY + OPS
+   DRIVERS + MAPPINGS + AVAILABILITY
+   (NOTE: driver_ops created AFTER ORDERS because FK order_id)
    ========================================================= */
 DROP TABLE IF EXISTS `y05_knx_driver_ops`;
 DROP TABLE IF EXISTS `y05_knx_driver_hubs`;
@@ -919,6 +698,239 @@ CREATE TABLE `y05_knx_driver_hubs` (
   CONSTRAINT `fk_driver_hubs_hub` FOREIGN KEY (`hub_id`) REFERENCES `y05_knx_hubs` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+/* =========================================================
+   ORDERS (ATOMIC READY) — CANON STATUS ENUM UPDATED
+   ========================================================= */
+DROP TABLE IF EXISTS `y05_knx_order_status_history`;
+DROP TABLE IF EXISTS `y05_knx_order_items`;
+DROP TABLE IF EXISTS `y05_knx_orders`;
+
+CREATE TABLE `y05_knx_orders` (
+  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
+  `order_number` varchar(50) NOT NULL,
+  `hub_id` bigint UNSIGNED NOT NULL,
+  `city_id` bigint UNSIGNED DEFAULT NULL,
+  `session_token` varchar(64) DEFAULT NULL,
+  `customer_id` bigint UNSIGNED DEFAULT NULL,
+  `fulfillment_type` enum('delivery','pickup') NOT NULL DEFAULT 'delivery',
+
+  `customer_name` varchar(255) DEFAULT NULL,
+  `customer_phone` varchar(50) DEFAULT NULL,
+  `customer_email` varchar(255) DEFAULT NULL,
+
+  `delivery_address` text,
+  `delivery_address_id` bigint UNSIGNED DEFAULT NULL,
+  `delivery_lat` decimal(10,7) DEFAULT NULL,
+  `delivery_lng` decimal(10,7) DEFAULT NULL,
+  `delivery_distance` decimal(10,3) DEFAULT NULL,
+  `delivery_duration_minutes` int UNSIGNED DEFAULT NULL,
+  `estimated_delivery_at` datetime DEFAULT NULL,
+
+  `subtotal` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `tax_rate` decimal(6,2) NOT NULL DEFAULT '0.00',
+  `tax_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `delivery_fee` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `software_fee` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `tip_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `tip_percent` decimal(5,2) DEFAULT NULL,
+  `tip_source` enum('none','preset','custom') DEFAULT 'none',
+
+  `discount_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `coupon_code` varchar(50) DEFAULT NULL,
+  `coupon_id` bigint UNSIGNED DEFAULT NULL,
+
+  `gift_card_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `gift_card_code` varchar(64) DEFAULT NULL,
+  `gift_card_id` bigint UNSIGNED DEFAULT NULL,
+
+  `total` decimal(10,2) NOT NULL DEFAULT '0.00',
+
+  /* CANON enum per your current knx_orders.status */
+  `status` enum(
+    'pending_payment',
+    'confirmed',
+    'accepted_by_driver',
+    'accepted_by_hub',
+    'preparing',
+    'prepared',
+    'picked_up',
+    'completed',
+    'cancelled'
+  ) NOT NULL DEFAULT 'pending_payment',
+
+  /* Legacy compatibility only (SSOT for assignment is knx_driver_ops.driver_user_id) */
+  `driver_id` bigint UNSIGNED DEFAULT NULL,
+
+  `payment_method` varchar(50) NOT NULL,
+  `payment_status` enum('pending','paid','failed','refunded') NOT NULL DEFAULT 'pending',
+  `payment_transaction_id` varchar(255) DEFAULT NULL,
+
+  `notes` text,
+
+  /* Snapshot fields (immutable at order time) */
+  `restaurant_snapshot` json DEFAULT NULL,
+  `delivery_snapshot` json DEFAULT NULL,
+  `customer_snapshot` json DEFAULT NULL,
+
+  /* Existing snapshots */
+  `cart_snapshot` json DEFAULT NULL,
+  `totals_snapshot` json DEFAULT NULL,
+
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_order_number` (`order_number`),
+
+  KEY `idx_hub_id` (`hub_id`),
+  KEY `idx_city_id` (`city_id`),
+  KEY `idx_customer_id` (`customer_id`),
+  KEY `idx_driver_id` (`driver_id`),
+
+  KEY `idx_session_token` (`session_token`),
+  KEY `idx_status` (`status`),
+  KEY `idx_created_at` (`created_at`),
+
+  KEY `idx_delivery_address_id` (`delivery_address_id`),
+
+  /* Operational dashboard probes */
+  KEY `idx_hub_status_created` (`hub_id`,`status`,`created_at`),
+  KEY `idx_city_status_created` (`city_id`,`status`,`created_at`),
+
+  KEY `idx_idempotency_probe` (`session_token`,`hub_id`,`customer_id`,`status`,`created_at`),
+  KEY `idx_coupon_code` (`coupon_code`),
+  KEY `idx_gift_card_code` (`gift_card_code`),
+
+  CONSTRAINT `fk_orders_hub` FOREIGN KEY (`hub_id`) REFERENCES `y05_knx_hubs` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_orders_city` FOREIGN KEY (`city_id`) REFERENCES `y05_knx_cities` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_orders_customer` FOREIGN KEY (`customer_id`) REFERENCES `y05_knx_users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_orders_driver` FOREIGN KEY (`driver_id`) REFERENCES `y05_knx_drivers` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_orders_delivery_address` FOREIGN KEY (`delivery_address_id`) REFERENCES `y05_knx_addresses` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_orders_coupon` FOREIGN KEY (`coupon_id`) REFERENCES `y05_knx_coupons` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_orders_gift_card` FOREIGN KEY (`gift_card_id`) REFERENCES `y05_knx_gift_cards` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `y05_knx_order_items` (
+  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
+  `order_id` bigint UNSIGNED NOT NULL,
+  `item_id` bigint UNSIGNED DEFAULT NULL,
+  `name_snapshot` varchar(255) NOT NULL,
+  `image_snapshot` text,
+  `quantity` int UNSIGNED NOT NULL DEFAULT '1',
+  `unit_price` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `line_total` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `modifiers_json` json DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_order_id` (`order_id`),
+  KEY `idx_item_id` (`item_id`),
+  CONSTRAINT `fk_order_items_order` FOREIGN KEY (`order_id`) REFERENCES `y05_knx_orders` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_order_items_item` FOREIGN KEY (`item_id`) REFERENCES `y05_knx_hub_items` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `y05_knx_order_status_history` (
+  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
+  `order_id` bigint UNSIGNED NOT NULL,
+  `status` varchar(50) NOT NULL,
+  `changed_by` bigint UNSIGNED DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_order_id` (`order_id`),
+  KEY `idx_status` (`status`),
+  KEY `idx_created_at` (`created_at`),
+  CONSTRAINT `fk_order_status_history_order` FOREIGN KEY (`order_id`) REFERENCES `y05_knx_orders` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_order_status_history_changed_by` FOREIGN KEY (`changed_by`) REFERENCES `y05_knx_users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/* =========================================================
+   COUPON REDEMPTIONS (CREATED AFTER ORDERS FOR FK)
+   ========================================================= */
+CREATE TABLE `y05_knx_coupon_redemptions` (
+  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
+  `coupon_id` bigint UNSIGNED DEFAULT NULL,
+  `coupon_code` varchar(50) NOT NULL,
+  `order_id` bigint UNSIGNED DEFAULT NULL,
+  `customer_id` bigint UNSIGNED DEFAULT NULL,
+  `discount_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_coupon_id` (`coupon_id`),
+  KEY `idx_coupon_code` (`coupon_code`),
+  KEY `idx_order_id` (`order_id`),
+  KEY `idx_customer_id` (`customer_id`),
+  CONSTRAINT `fk_coupon_redemptions_coupon` FOREIGN KEY (`coupon_id`) REFERENCES `y05_knx_coupons` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_coupon_redemptions_order` FOREIGN KEY (`order_id`) REFERENCES `y05_knx_orders` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_coupon_redemptions_customer` FOREIGN KEY (`customer_id`) REFERENCES `y05_knx_users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/* =========================================================
+   PAYMENTS (ATOMIC READY)
+   ========================================================= */
+DROP TABLE IF EXISTS `y05_knx_payments`;
+CREATE TABLE `y05_knx_payments` (
+  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
+  `order_id` bigint UNSIGNED NULL COMMENT 'Reference to knx_orders.id (nullable until atomic link)',
+  `provider` varchar(50) NOT NULL COMMENT 'Payment provider: stripe, paypal, etc.',
+  `provider_intent_id` varchar(255) NOT NULL COMMENT 'Provider payment intent ID',
+  `checkout_attempt_key` varchar(128) NOT NULL COMMENT 'Idempotency key for atomic checkout attempt',
+  `amount` int NOT NULL COMMENT 'Amount in cents',
+  `currency` varchar(3) NOT NULL DEFAULT 'usd' COMMENT 'ISO 4217 currency code',
+  `status` varchar(50) NOT NULL COMMENT 'intent_created, authorized, paid, failed, cancelled',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_provider_intent` (`provider`,`provider_intent_id`),
+  UNIQUE KEY `uniq_attempt_key` (`checkout_attempt_key`),
+  KEY `idx_order_id` (`order_id`),
+  KEY `idx_status` (`status`),
+  KEY `idx_created_at` (`created_at`),
+  CONSTRAINT `fk_payments_order` FOREIGN KEY (`order_id`) REFERENCES `y05_knx_orders` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Payment state authority for orders';
+
+/* =========================================================
+   WEBHOOK EVENTS (DEDUP)
+   ========================================================= */
+DROP TABLE IF EXISTS `y05_knx_webhook_events`;
+CREATE TABLE `y05_knx_webhook_events` (
+  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
+  `provider` varchar(50) NOT NULL DEFAULT 'stripe',
+  `event_id` varchar(255) NOT NULL,
+  `event_type` varchar(100) NOT NULL,
+  `intent_id` varchar(255) DEFAULT NULL,
+  `order_id` bigint UNSIGNED DEFAULT NULL,
+  `processed_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_event_id` (`event_id`),
+  KEY `idx_intent_id` (`intent_id`),
+  KEY `idx_order_id` (`order_id`),
+  KEY `idx_processed_at` (`processed_at`),
+  CONSTRAINT `fk_webhook_events_order` FOREIGN KEY (`order_id`) REFERENCES `y05_knx_orders` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/* =========================================================
+   GIFT CARD TRANSACTIONS (AFTER ORDERS)
+   ========================================================= */
+CREATE TABLE `y05_knx_gift_card_transactions` (
+  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
+  `gift_card_id` bigint UNSIGNED NOT NULL,
+  `order_id` bigint UNSIGNED DEFAULT NULL,
+  `type` enum('debit','credit') NOT NULL,
+  `amount_cents` int NOT NULL,
+  `meta_json` json DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_gift_card_id` (`gift_card_id`),
+  KEY `idx_order_id` (`order_id`),
+  KEY `idx_type` (`type`),
+  CONSTRAINT `fk_gift_card_tx_gift_card` FOREIGN KEY (`gift_card_id`) REFERENCES `y05_knx_gift_cards` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_gift_card_tx_order` FOREIGN KEY (`order_id`) REFERENCES `y05_knx_orders` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/* =========================================================
+   DRIVERS OPS (SSOT assignment) — CREATED AFTER ORDERS
+   ========================================================= */
 CREATE TABLE `y05_knx_driver_ops` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `order_id` bigint UNSIGNED NOT NULL,
@@ -935,6 +947,61 @@ CREATE TABLE `y05_knx_driver_ops` (
   CONSTRAINT `fk_driver_ops_order` FOREIGN KEY (`order_id`) REFERENCES `y05_knx_orders` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_driver_ops_driver_user` FOREIGN KEY (`driver_user_id`) REFERENCES `y05_knx_users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_driver_ops_assigned_by` FOREIGN KEY (`assigned_by`) REFERENCES `y05_knx_users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/* =========================================================
+   PUSH SUBSCRIPTIONS
+   ========================================================= */
+DROP TABLE IF EXISTS `y05_knx_push_subscriptions`;
+CREATE TABLE `y05_knx_push_subscriptions` (
+  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id` bigint UNSIGNED NOT NULL,
+  `role` varchar(32) NOT NULL,
+  `endpoint` text NOT NULL,
+  `p256dh` varchar(255) NOT NULL,
+  `auth` varchar(255) NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `revoked_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_role` (`user_id`,`role`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_role` (`role`),
+  KEY `idx_revoked_at` (`revoked_at`),
+  CONSTRAINT `fk_push_subscriptions_user` FOREIGN KEY (`user_id`) REFERENCES `y05_knx_users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/* =========================================================
+   PASSWORD RESETS + EMAIL VERIFICATIONS
+   ========================================================= */
+DROP TABLE IF EXISTS `y05_knx_password_resets`;
+CREATE TABLE `y05_knx_password_resets` (
+  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id` bigint UNSIGNED NOT NULL,
+  `token_hash` varchar(255) NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `used_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `ip_address` varchar(45) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_token_hash` (`token_hash`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_expires_at` (`expires_at`),
+  CONSTRAINT `fk_password_resets_user` FOREIGN KEY (`user_id`) REFERENCES `y05_knx_users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `y05_knx_email_verifications`;
+CREATE TABLE `y05_knx_email_verifications` (
+  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id` bigint UNSIGNED NOT NULL,
+  `token_hash` varchar(128) NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `used_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_token_hash` (`token_hash`),
+  KEY `idx_expires_at` (`expires_at`),
+  CONSTRAINT `fk_email_verifications_user` FOREIGN KEY (`user_id`) REFERENCES `y05_knx_users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 /* =========================================================

@@ -12,9 +12,17 @@ if (!defined('ABSPATH')) exit;
  * - Idempotent processing (dedup by event_id).
  * - Atomic state transitions (payment + order + history) in ONE transaction.
  *
- * Canon (DB-aligned):
+ * Canon (DB-aligned, DRIVER-FIRST lifecycle):
  * - orders.status enum:
- *   pending_payment, placed, confirmed, preparing, ready, out_for_delivery, completed, cancelled
+ *   pending_payment,
+ *   confirmed,
+ *   accepted_by_driver,
+ *   accepted_by_hub,
+ *   preparing,
+ *   prepared,
+ *   picked_up,
+ *   completed,
+ *   cancelled
  * - orders.payment_status enum:
  *   pending, paid, failed, refunded
  * - knx_payments.status (varchar but canonical):
@@ -24,6 +32,9 @@ if (!defined('ABSPATH')) exit;
  * - If payment record does NOT exist yet OR order_id is missing -> return 503 and DO NOT dedup.
  *   (Stripe must retry; we must not consume the event.)
  * - Dedup insert happens AFTER locks + validation gates.
+ *
+ * IMPORTANT:
+ * - payment_intent.succeeded promotes order.status to 'confirmed' (NOT 'placed').
  * ==========================================================
  */
 
@@ -44,7 +55,6 @@ if (!function_exists('knx_payments_ensure_webhook_events_table')) {
 
         $table = $wpdb->prefix . 'knx_webhook_events';
 
-        // Use SHOW TABLES LIKE to avoid information_schema permissions issues.
         $like = $wpdb->esc_like($table);
         $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $like));
         if ($exists === $table) {
@@ -103,7 +113,6 @@ if (!function_exists('knx_api_payment_webhook')) {
                 : new WP_REST_Response(['success' => false, 'message' => 'Missing signature'], 400);
         }
 
-        // Stripe bootstrap
         $webhook_secret = function_exists('knx_get_stripe_webhook_secret') ? knx_get_stripe_webhook_secret() : null;
         if (empty($webhook_secret)) {
             if (function_exists('knx_stripe_authority_log')) {
@@ -123,7 +132,6 @@ if (!function_exists('knx_api_payment_webhook')) {
                 : new WP_REST_Response(['success' => false, 'message' => 'Payment system unavailable'], 500);
         }
 
-        // Construct Stripe event (signature verified)
         try {
             $event = \Stripe\Webhook::constructEvent($payload, $sig_header, $webhook_secret);
         } catch (\UnexpectedValueException $e) {
@@ -155,7 +163,6 @@ if (!function_exists('knx_api_payment_webhook')) {
                 : new WP_REST_Response(['success' => false, 'message' => 'Webhook error'], 500);
         }
 
-        // Allowed event types only
         $allowed = ['payment_intent.succeeded', 'payment_intent.payment_failed'];
         if (!in_array((string) $event->type, $allowed, true)) {
             if (function_exists('knx_stripe_authority_log')) {
@@ -180,13 +187,11 @@ if (!function_exists('knx_api_payment_webhook')) {
                     'event_id' => (string) $event->id,
                 ]);
             }
-            // Non-actionable; ack to stop retries.
             return function_exists('knx_rest_response')
                 ? knx_rest_response(true, 'Missing intent ID', null, 200)
                 : new WP_REST_Response(['success' => true, 'message' => 'Missing intent ID'], 200);
         }
 
-        // Payment mapping must exist BEFORE any dedup consumption.
         if (!function_exists('knx_get_payment_by_provider_intent')) {
             if (function_exists('knx_stripe_authority_log')) {
                 knx_stripe_authority_log('error', 'webhook_payment_helpers_missing', 'Payment helper missing');
@@ -198,7 +203,6 @@ if (!function_exists('knx_api_payment_webhook')) {
 
         $payment = knx_get_payment_by_provider_intent('stripe', $intent_id);
 
-        // Retryable: event arrived before create-intent persisted mapping.
         if (!$payment) {
             if (function_exists('knx_stripe_authority_log')) {
                 knx_stripe_authority_log('info', 'webhook_payment_unmapped', 'Payment not found for intent (retryable)', [
@@ -225,19 +229,17 @@ if (!function_exists('knx_api_payment_webhook')) {
                 : new WP_REST_Response(['success' => false, 'message' => 'Payment not linked to order yet'], 503);
         }
 
-        // Ensure dedup infra exists.
         if (!knx_payments_ensure_webhook_events_table()) {
             return function_exists('knx_rest_error')
                 ? knx_rest_error('DB not ready', 500)
                 : new WP_REST_Response(['success' => false, 'message' => 'DB not ready'], 500);
         }
 
-        $events_table = $wpdb->prefix . 'knx_webhook_events';
+        $events_table   = $wpdb->prefix . 'knx_webhook_events';
         $payments_table = $wpdb->prefix . 'knx_payments';
-        $orders_table = $wpdb->prefix . 'knx_orders';
-        $history_table = $wpdb->prefix . 'knx_order_status_history';
+        $orders_table   = $wpdb->prefix . 'knx_orders';
+        $history_table  = $wpdb->prefix . 'knx_order_status_history';
 
-        // Begin transaction + lock rows.
         $wpdb->query('START TRANSACTION');
 
         try {
@@ -255,7 +257,6 @@ if (!function_exists('knx_api_payment_webhook')) {
                 (int) $payment_locked->order_id
             ));
 
-            // Retryable: order row missing temporarily (should not happen, but do not consume).
             if (!$order) {
                 $wpdb->query('ROLLBACK');
                 if (function_exists('knx_stripe_authority_log')) {
@@ -270,8 +271,6 @@ if (!function_exists('knx_api_payment_webhook')) {
                     : new WP_REST_Response(['success' => false, 'message' => 'Order not found'], 503);
             }
 
-            // Non-retryable validations (once rows are locked).
-            // Currency check (if DB currency present)
             if (!empty($payment_locked->currency) && !empty($currency)) {
                 $db_currency = strtolower((string) $payment_locked->currency);
                 if ($db_currency !== (string) $currency) {
@@ -291,9 +290,6 @@ if (!function_exists('knx_api_payment_webhook')) {
                 }
             }
 
-            // Amount check:
-            // - DB knx_payments.amount is cents
-            // - Stripe amount_received is cents
             $db_amount_cents = isset($payment_locked->amount) ? (int) $payment_locked->amount : 0;
 
             if ($event->type === 'payment_intent.succeeded') {
@@ -321,11 +317,25 @@ if (!function_exists('knx_api_payment_webhook')) {
                 }
             }
 
-            // If already final, ack (idempotent). No need to dedup-insert.
-            $payment_status_now = strtolower((string) ($payment_locked->status ?? ''));
+            $payment_status_now       = strtolower((string) ($payment_locked->status ?? ''));
             $order_payment_status_now = strtolower((string) ($order->payment_status ?? ''));
 
-            $is_paid_already = ($payment_status_now === 'paid') || ($order_payment_status_now === 'paid') || ((string) $order->status === 'confirmed');
+            // Canon paid-or-beyond states (DRIVER-FIRST lifecycle)
+            $paid_or_beyond = [
+                'confirmed',
+                'accepted_by_driver',
+                'accepted_by_hub',
+                'preparing',
+                'prepared',
+                'picked_up',
+                'completed',
+            ];
+
+            $is_paid_already =
+                ($payment_status_now === 'paid') ||
+                ($order_payment_status_now === 'paid') ||
+                in_array((string) ($order->status ?? ''), $paid_or_beyond, true);
+
             if ($is_paid_already && $event->type === 'payment_intent.succeeded') {
                 $wpdb->query('ROLLBACK');
                 return function_exists('knx_rest_response')
@@ -337,19 +347,17 @@ if (!function_exists('knx_api_payment_webhook')) {
             $insert_ok = $wpdb->insert(
                 $events_table,
                 [
-                    'provider'     => 'stripe',
-                    'event_id'     => (string) $event->id,
-                    'event_type'   => (string) $event->type,
-                    'intent_id'    => (string) $intent_id,
-                    'order_id'     => null,
-                    'processed_at' => null,
-                    'created_at'   => current_time('mysql'),
+                    'provider'   => 'stripe',
+                    'event_id'   => (string) $event->id,
+                    'event_type' => (string) $event->type,
+                    'intent_id'  => (string) $intent_id,
+                    'order_id'   => (int) $order->id,
+                    'created_at' => current_time('mysql'),
                 ],
-                ['%s','%s','%s','%s','%d','%s','%s']
+                ['%s','%s','%s','%s','%d','%s']
             );
 
             if ($insert_ok === false) {
-                // Duplicate event -> ack idempotently.
                 $last_error = (string) ($wpdb->last_error ?? '');
                 if (stripos($last_error, 'Duplicate') !== false || stripos($last_error, 'duplicate') !== false) {
                     $wpdb->query('ROLLBACK');
@@ -366,12 +374,10 @@ if (!function_exists('knx_api_payment_webhook')) {
 
             $event_row_id = (int) $wpdb->insert_id;
 
-            // Enforce order is in a pre-confirm state for success promotions.
-            // NOTE: Because orders are created as pending_payment, "placed" is allowed too for future evolution.
             if ($event->type === 'payment_intent.succeeded') {
-                $allowed_pre = ['pending_payment', 'placed'];
+                // Allowed pre states for promotion -> confirmed
+                $allowed_pre = ['pending_payment', 'confirmed'];
                 if (!in_array((string) $order->status, $allowed_pre, true)) {
-                    // Non-retryable for state machine; ack but do not promote.
                     $wpdb->update(
                         $events_table,
                         ['processed_at' => current_time('mysql'), 'order_id' => (int) $order->id],
@@ -386,15 +392,20 @@ if (!function_exists('knx_api_payment_webhook')) {
                 }
             }
 
-            // Apply transitions
             if ($event->type === 'payment_intent.succeeded') {
+
                 // Payment -> paid
                 if (function_exists('knx_update_payment_status')) {
                     $ok = knx_update_payment_status((int) $payment_locked->id, 'paid');
                     if (!$ok) throw new Exception('PAYMENT_STATUS_UPDATE_FAILED');
                 } else {
-                    // Fallback: direct update
-                    $u = $wpdb->update($payments_table, ['status' => 'paid', 'updated_at' => current_time('mysql')], ['id' => (int) $payment_locked->id], ['%s','%s'], ['%d']);
+                    $u = $wpdb->update(
+                        $payments_table,
+                        ['status' => 'paid', 'updated_at' => current_time('mysql')],
+                        ['id' => (int) $payment_locked->id],
+                        ['%s','%s'],
+                        ['%d']
+                    );
                     if ($u === false) throw new Exception('PAYMENT_STATUS_UPDATE_FAILED');
                 }
 
@@ -414,7 +425,7 @@ if (!function_exists('knx_api_payment_webhook')) {
                 );
                 if ($order_updated === false) throw new Exception('ORDER_UPDATE_FAILED');
 
-                // History
+                // History (append-only)
                 $history_ok = $wpdb->insert(
                     $history_table,
                     [
@@ -427,12 +438,19 @@ if (!function_exists('knx_api_payment_webhook')) {
                 if (!$history_ok) throw new Exception('HISTORY_INSERT_FAILED');
 
             } else {
+
                 // payment_failed -> payment failed, order stays pending_payment but payment_status = failed
                 if (function_exists('knx_update_payment_status')) {
                     $ok = knx_update_payment_status((int) $payment_locked->id, 'failed');
                     if (!$ok) throw new Exception('PAYMENT_STATUS_UPDATE_FAILED');
                 } else {
-                    $u = $wpdb->update($payments_table, ['status' => 'failed', 'updated_at' => current_time('mysql')], ['id' => (int) $payment_locked->id], ['%s','%s'], ['%d']);
+                    $u = $wpdb->update(
+                        $payments_table,
+                        ['status' => 'failed', 'updated_at' => current_time('mysql')],
+                        ['id' => (int) $payment_locked->id],
+                        ['%s','%s'],
+                        ['%d']
+                    );
                     if ($u === false) throw new Exception('PAYMENT_STATUS_UPDATE_FAILED');
                 }
 
@@ -451,6 +469,7 @@ if (!function_exists('knx_api_payment_webhook')) {
                 );
                 if ($order_updated === false) throw new Exception('ORDER_UPDATE_FAILED');
 
+                // History (append-only)
                 $history_ok = $wpdb->insert(
                     $history_table,
                     [

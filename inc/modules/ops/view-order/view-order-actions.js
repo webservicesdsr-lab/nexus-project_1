@@ -1,300 +1,333 @@
 // inc/modules/ops/view-order/view-order-actions.js
 /**
- * ==========================================================
- * KNX OPS — View Order Actions (OPS v1)
- *
- * Allowed modals on Active Orders:
- * - Status change modal
- * - Release (unassign) modal
- *
- * This file:
- * - Renders status transition button(s) on top bar
- * - Renders Release Driver (unassign) when applicable
- * - NO native alert/confirm
- * - SSOT only: window.KNX_VIEW_ORDER.order
- * ==========================================================
+ * KNX OPS — View Order Actions (Manager/Super Admin)
+ * - Renders "ORDER STATUS" button (Image 1) and status update modal (Image 2)
+ * - Calls POST /knx/v1/ops/update-status with { order_id, to_status }
+ * - Enforces CANON transition rules client-side:
+ *   - Only next status allowed (index + 1)
+ *   - cancelled allowed from any non-terminal (requires confirmation)
+ * - Does NOT expose order_id in DOM datasets (reads from URL)
  */
 
 (function () {
   'use strict';
 
-  document.addEventListener('DOMContentLoaded', () => {
+  function onReady(fn) {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
+    else fn();
+  }
+
+  onReady(function () {
     const app = document.getElementById('knxOpsViewOrderApp');
-    if (!app) return;
+    const mount = document.getElementById('knxViewOrderActions');
+    if (!app || !mount) return;
 
-    if (app.dataset.knxActionsMounted === '1') return;
-    if (app.dataset.knxActionsWaiting === '1') return;
-    app.dataset.knxActionsWaiting = '1';
-
-    function waitForSSOT(msInterval = 50, timeoutMs = 7000) {
-      return new Promise((resolve) => {
-        const start = Date.now();
-        const iv = setInterval(() => {
-          const ssot = (window.KNX_VIEW_ORDER && window.KNX_VIEW_ORDER.order) ? window.KNX_VIEW_ORDER.order : null;
-          if (ssot) { clearInterval(iv); return resolve(ssot); }
-          if (Date.now() - start > timeoutMs) { clearInterval(iv); return resolve(null); }
-        }, msInterval);
-      });
-    }
+    const updateUrl = String(app.dataset.updateStatusUrl || '').trim();
+    const restNonce = String(app.dataset.nonce || '').trim();
 
     function toast(msg, type) {
       if (typeof window.knxToast === 'function') return window.knxToast(msg, type || 'info');
       console.log('[knx-toast]', type || 'info', msg);
     }
 
-    function ensureEscCloseOnce() {
-      if (document.body.dataset.knxVoEscBound === '1') return;
-      document.body.dataset.knxVoEscBound = '1';
-      document.addEventListener('keydown', (ev) => {
-        if (ev.key !== 'Escape') return;
-        const m = document.querySelector('.knx-ops-vo-modal.knx-modal-open');
-        if (m) hideModal(m);
+    function esc(s) {
+      if (s === null || s === undefined) return '';
+      return String(s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
       });
     }
 
-    function ensureModalShell(id) {
-      let m = document.getElementById(id);
-      if (m) return m;
-      ensureEscCloseOnce();
-
-      m = document.createElement('div');
-      m.id = id;
-      m.className = 'knx-ops-vo-modal knx-modal-shell';
-      m.setAttribute('aria-hidden', 'true');
-      document.body.appendChild(m);
-      return m;
-    }
-
-    function showModal(m) {
-      m.classList.add('knx-modal-open');
-      m.setAttribute('aria-hidden', 'false');
-      document.body.classList.add('knx-ops-vo__modal-lock');
-    }
-
-    function hideModal(m) {
-      m.classList.remove('knx-modal-open');
-      m.setAttribute('aria-hidden', 'true');
-      document.body.classList.remove('knx-ops-vo__modal-lock');
-    }
-
-    function setBusy(root, v) {
-      root.classList.toggle('knx-actions--busy', !!v);
-      Array.from(root.querySelectorAll('button')).forEach((b) => { b.disabled = !!v; });
-    }
-
-    async function postJSON(url, payload, nonce) {
-      const headers = { 'Content-Type': 'application/json' };
-      if (nonce) {
-        headers['X-WP-Nonce'] = nonce;
-        headers['X-KNX-Nonce'] = nonce;
+    function getOrderIdFromUrl() {
+      try {
+        const u = new URL(window.location.href);
+        const p = parseInt(u.searchParams.get('order_id') || '0', 10);
+        return (p && Number.isFinite(p) && p > 0) ? p : 0;
+      } catch (e) {
+        return 0;
       }
+    }
 
-      const res = await fetch(url, {
+    const orderId = getOrderIdFromUrl();
+
+    // SSOT operational flow (driver-first)
+    const FLOW = ['confirmed', 'accepted_by_driver', 'accepted_by_hub', 'preparing', 'prepared', 'picked_up', 'completed'];
+
+    function normalizeStatus(s) {
+      const st = String(s || '').trim().toLowerCase();
+      if (st === 'placed') return 'confirmed';
+      if (st === 'accepted_by_restaurant') return 'accepted_by_hub';
+      if (st === 'out_for_delivery') return 'picked_up';
+      if (st === 'ready') return 'prepared';
+      return st;
+    }
+
+    function isTerminal(st) {
+      return st === 'completed' || st === 'cancelled';
+    }
+
+    function idx(st) {
+      const i = FLOW.indexOf(st);
+      return i >= 0 ? i : -1;
+    }
+
+    function nextAllowed(cur) {
+      const i = idx(cur);
+      if (i < 0) return '';
+      return FLOW[i + 1] || '';
+    }
+
+    // Human label mapping (OPS UI)
+    function label(st) {
+      const v = normalizeStatus(st);
+      const map = {
+        pending_payment: 'Processing payment',
+        confirmed: 'Waiting for driver',
+        accepted_by_driver: 'Accepted by Driver',
+        accepted_by_hub: 'Accepted by Hub',
+        preparing: 'Preparing',
+        prepared: 'Prepared',
+        picked_up: 'Picked up',
+        completed: 'Completed',
+        cancelled: 'Cancelled',
+      };
+      return map[v] || (v ? v.replace(/_/g, ' ').replace(/\b\w/g, m => m.toUpperCase()) : '—');
+    }
+
+    let currentOrder = null;
+    let currentStatus = '';
+    let selectedStatus = '';
+    let cancelArmed = false;
+
+    // Status button (Image 1)
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'knx-ops-vo-statusbtn';
+    btn.innerHTML = `
+      <div class="knx-ops-vo-statusbtn__kicker">ORDER STATUS</div>
+      <div class="knx-ops-vo-statusbtn__value">—</div>
+    `;
+    const valueEl = btn.querySelector('.knx-ops-vo-statusbtn__value');
+
+    // Modal (Image 2)
+    const modal = document.createElement('div');
+    modal.className = 'knx-ops-vo-modal';
+    modal.setAttribute('aria-hidden', 'true');
+    modal.innerHTML = `
+      <div class="knx-ops-vo-modal__backdrop" data-close="1"></div>
+      <div class="knx-ops-vo-modal__panel" role="dialog" aria-modal="true" aria-labelledby="knxOpsVOStatusModalTitle">
+        <div class="knx-ops-vo-modal__head">
+          <div>
+            <div class="knx-ops-vo-modal__title" id="knxOpsVOStatusModalTitle">Update Order Status</div>
+            <div class="knx-ops-vo-modal__sub">Choose the current status of this<br>order</div>
+          </div>
+          <button type="button" class="knx-ops-vo-modal__x" data-close="1" aria-label="Close">&times;</button>
+        </div>
+
+        <div class="knx-ops-vo-modal__list" role="listbox" aria-label="Order status options"></div>
+
+        <div class="knx-ops-vo-modal__footer">
+          <button type="button" class="knx-ops-vo-modal__btn knx-ops-vo-modal__btn--cancel" data-close="1">Cancel</button>
+          <button type="button" class="knx-ops-vo-modal__btn knx-ops-vo-modal__btn--update" id="knxOpsVOStatusUpdateBtn">Update</button>
+        </div>
+      </div>
+    `;
+
+    const listEl = modal.querySelector('.knx-ops-vo-modal__list');
+    const updateBtn = modal.querySelector('#knxOpsVOStatusUpdateBtn');
+
+    mount.innerHTML = '';
+    mount.appendChild(btn);
+    document.body.appendChild(modal);
+
+    function openModal() {
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      cancelArmed = false;
+      syncUpdateBtn();
+    }
+
+    function closeModal() {
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      cancelArmed = false;
+      syncUpdateBtn();
+    }
+
+    modal.addEventListener('click', (ev) => {
+      const t = ev.target;
+      if (t && t.getAttribute && t.getAttribute('data-close') === '1') closeModal();
+      if (t === modal) closeModal();
+    });
+
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape' && modal.getAttribute('aria-hidden') === 'false') closeModal();
+    });
+
+    btn.addEventListener('click', () => {
+      if (!currentOrder) {
+        toast('Order not loaded yet', 'info');
+        return;
+      }
+      openModal();
+    });
+
+    function buildOption(status, tone) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = `knx-ops-vo-statusopt knx-ops-vo-statusopt--${tone}`;
+      b.setAttribute('role', 'option');
+      b.setAttribute('data-status', status);
+
+      const isCancel = status === 'cancelled';
+
+      b.innerHTML = `
+        <span class="knx-ops-vo-statusopt__text">${esc(label(status))}</span>
+        <span class="knx-ops-vo-statusopt__dot" aria-hidden="true"></span>
+        ${isCancel ? `<span class="knx-ops-vo-statusopt__warn">This action requires confirmation</span>` : ``}
+      `;
+
+      b.addEventListener('click', () => {
+        if (isTerminal(currentStatus)) return;
+
+        const wanted = normalizeStatus(status);
+        cancelArmed = false;
+
+        const next = nextAllowed(currentStatus);
+
+        const valid =
+          (wanted === normalizeStatus(currentStatus)) ||
+          (wanted === next) ||
+          (wanted === 'cancelled');
+
+        selectedStatus = wanted;
+        renderSelection();
+
+        if (!valid) {
+          toast('Invalid transition. Only the next status is allowed.', 'error');
+        }
+      });
+
+      return b;
+    }
+
+    function renderOptions() {
+      if (!listEl) return;
+      listEl.innerHTML = '';
+
+      // Modal order 1:1 (Image 2) — only change: Restaurant -> Hub
+      const opts = [
+        { status: 'accepted_by_driver', tone: 'green' },
+        { status: 'accepted_by_hub', tone: 'green' },
+        { status: 'preparing', tone: 'orange' },
+        { status: 'prepared', tone: 'blue' },
+        { status: 'picked_up', tone: 'purple' },
+        { status: 'completed', tone: 'green' },
+        { status: 'cancelled', tone: 'red' },
+      ];
+
+      opts.forEach(o => listEl.appendChild(buildOption(o.status, o.tone)));
+      renderSelection();
+    }
+
+    function renderSelection() {
+      const buttons = listEl ? listEl.querySelectorAll('.knx-ops-vo-statusopt') : [];
+      buttons.forEach((b) => {
+        const st = normalizeStatus(b.getAttribute('data-status') || '');
+        const selected = (st === normalizeStatus(selectedStatus || ''));
+        b.classList.toggle('is-selected', selected);
+        b.setAttribute('aria-selected', selected ? 'true' : 'false');
+      });
+
+      syncUpdateBtn();
+    }
+
+    function selectionIsValid() {
+      const cur = normalizeStatus(currentStatus);
+      const sel = normalizeStatus(selectedStatus);
+
+      if (!cur || !sel) return false;
+      if (isTerminal(cur)) return false;
+      if (sel === cur) return false;
+
+      if (sel === 'cancelled') return true;
+
+      const next = nextAllowed(cur);
+      return !!next && sel === next;
+    }
+
+    function syncUpdateBtn() {
+      if (!updateBtn) return;
+      const enabled = selectionIsValid() && !!updateUrl && !!orderId;
+      updateBtn.disabled = !enabled;
+    }
+
+    async function postUpdate(toStatus) {
+      const headers = { 'Content-Type': 'application/json' };
+      if (restNonce) headers['X-WP-Nonce'] = restNonce;
+
+      const res = await fetch(updateUrl, {
         method: 'POST',
         credentials: 'same-origin',
         headers,
-        body: JSON.stringify(payload || {}),
+        body: JSON.stringify({ order_id: orderId, to_status: toStatus }),
       });
 
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const msg = (json && json.message) ? json.message : (res.statusText || 'Request failed');
-        throw new Error(msg);
+        const msg = (json && (json.message || json.error)) ? (json.message || json.error) : (res.statusText || 'Request failed');
+        throw new Error(msg + ' (HTTP ' + res.status + ')');
       }
       return json;
     }
 
-    function statusLabel(s) {
-      const v = String(s || '').trim().toLowerCase();
-      if (!v) return '—';
-      return v.replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
+    updateBtn.addEventListener('click', async () => {
+      if (!selectionIsValid()) return;
+
+      const to = normalizeStatus(selectedStatus);
+
+      if (to === 'cancelled') {
+        if (!cancelArmed) {
+          cancelArmed = true;
+          toast('Press Update again to confirm cancellation.', 'error');
+          return;
+        }
+      }
+
+      cancelArmed = false;
+      updateBtn.disabled = true;
+
+      try {
+        await postUpdate(to);
+        toast('Status updated', 'success');
+        window.location.reload(); // SSOT refresh
+      } catch (e) {
+        console.warn('Update status failed', e);
+        toast((e && e.message) ? e.message : 'Unable to update status', 'error');
+        updateBtn.disabled = false;
+      }
+    });
+
+    function setFromOrder(order) {
+      currentOrder = order || null;
+      currentStatus = normalizeStatus(order && order.status ? order.status : '');
+      selectedStatus = '';
+      cancelArmed = false;
+
+      if (valueEl) valueEl.textContent = label(currentStatus);
+
+      renderOptions();
+      syncUpdateBtn();
     }
 
-    function showStatusModal(currentStatus, nextStatus) {
-      return new Promise((resolve) => {
-        const m = ensureModalShell('knxVoStatusModal');
+    // Event fired by view-order-script.js when SSOT order loads
+    document.addEventListener('knx:view-order:loaded', (ev) => {
+      if (!ev || !ev.detail || !ev.detail.order) return;
+      setFromOrder(ev.detail.order);
+    });
 
-        m.innerHTML = `
-          <div data-close="1" class="knx-modal-overlay"></div>
-          <div role="dialog" aria-modal="true" class="knx-modal-dialog">
-            <div class="knx-modal-header">
-              <div class="knx-modal-title">Change status</div>
-              <button type="button" data-close="1" class="knx-modal-close">✕</button>
-            </div>
-            <div class="knx-modal-body">
-              <div class="knx-modal-message">
-                <strong>${statusLabel(currentStatus)}</strong> → <strong>${statusLabel(nextStatus)}</strong>
-              </div>
-              Confirm this status change?
-            </div>
-            <div class="knx-modal-actions">
-              <button type="button" data-close="1" class="knx-btn knx-btn-secondary">Cancel</button>
-              <button type="button" data-ok="1" class="knx-btn knx-btn-primary">Confirm</button>
-            </div>
-          </div>
-        `;
-
-        const onClick = (ev) => {
-          const t = ev.target;
-          if (!t) return;
-          if (t.matches('[data-close="1"]')) {
-            m.removeEventListener('click', onClick);
-            hideModal(m);
-            return resolve(false);
-          }
-          if (t.matches('[data-ok="1"]')) {
-            m.removeEventListener('click', onClick);
-            hideModal(m);
-            return resolve(true);
-          }
-        };
-
-        m.addEventListener('click', onClick);
-        showModal(m);
-      });
+    // If already loaded
+    if (window.KNX_VIEW_ORDER && window.KNX_VIEW_ORDER.order) {
+      setFromOrder(window.KNX_VIEW_ORDER.order);
     }
-
-    function showReleaseModal() {
-      return new Promise((resolve) => {
-        const m = ensureModalShell('knxVoReleaseModal');
-
-        m.innerHTML = `
-          <div data-close="1" class="knx-modal-overlay"></div>
-          <div role="dialog" aria-modal="true" class="knx-modal-dialog">
-            <div class="knx-modal-header">
-              <div class="knx-modal-title">Release order</div>
-              <button type="button" data-close="1" class="knx-modal-close">✕</button>
-            </div>
-            <div class="knx-modal-body">
-              This will unassign the driver from this order.
-            </div>
-            <div class="knx-modal-actions">
-              <button type="button" data-close="1" class="knx-btn knx-btn-secondary">Cancel</button>
-              <button type="button" data-ok="1" class="knx-btn knx-btn-danger">Release</button>
-            </div>
-          </div>
-        `;
-
-        const onClick = (ev) => {
-          const t = ev.target;
-          if (!t) return;
-          if (t.matches('[data-close="1"]')) {
-            m.removeEventListener('click', onClick);
-            hideModal(m);
-            return resolve(false);
-          }
-          if (t.matches('[data-ok="1"]')) {
-            m.removeEventListener('click', onClick);
-            hideModal(m);
-            return resolve(true);
-          }
-        };
-
-        m.addEventListener('click', onClick);
-        showModal(m);
-      });
-    }
-
-    (async () => {
-      const order = await waitForSSOT(50, 7000);
-      try { delete app.dataset.knxActionsWaiting; } catch (e) { app.dataset.knxActionsWaiting = undefined; }
-
-      if (!order) return; // fail-closed
-      if (app.dataset.knxActionsMounted === '1') return;
-      app.dataset.knxActionsMounted = '1';
-
-      const orderId = Number(order.order_id || 0);
-      const status = String(order.status || '').toLowerCase().trim();
-      const assigned = Boolean(order.driver && order.driver.assigned);
-
-      if (!orderId || !status) return;
-
-      const actionsRoot =
-        document.getElementById('knxViewOrderActions') ||
-        document.querySelector('[data-knx-view-order-actions="1"]');
-
-      if (!actionsRoot) return;
-
-      actionsRoot.innerHTML = `
-        <div class="knx-actions-wrapper">
-          <div class="knx-actions-main"></div>
-          <div class="knx-actions-divider"></div>
-          <div class="knx-actions-danger"></div>
-        </div>
-      `;
-
-      const wrapper = actionsRoot.querySelector('.knx-actions-wrapper');
-      const mainGroup = actionsRoot.querySelector('.knx-actions-main');
-      const dangerGroup = actionsRoot.querySelector('.knx-actions-danger');
-
-      const updateStatusUrl = String(app.dataset.updateStatusUrl || '/wp-json/knx/v1/ops/update-status');
-      const unassignDriverUrl = String(app.dataset.unassignDriverUrl || '/wp-json/knx/v1/ops/unassign-driver');
-      const nonce = String(app.dataset.nonce || '');
-
-      // Canon status flow (simple forward)
-      const FLOW = {
-        placed:      { label: 'Confirm',     to: 'confirmed' },
-        confirmed:   { label: 'Preparing',   to: 'preparing' },
-        preparing:   { label: 'Assigned',    to: 'assigned' },
-        assigned:    { label: 'In progress', to: 'in_progress' },
-        in_progress: { label: 'Delivered',   to: 'delivered' },
-      };
-
-      function mkBtn(label, className) {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'knx-btn ' + (className || '');
-        b.textContent = label;
-        return b;
-      }
-
-      // Status change (modal)
-      if (FLOW[status]) {
-        const next = FLOW[status];
-        const b = mkBtn(next.label, 'knx-btn-primary');
-        b.addEventListener('click', async () => {
-          const ok = await showStatusModal(status, next.to);
-          if (!ok) return;
-
-          setBusy(wrapper, true);
-          try {
-            await postJSON(updateStatusUrl, { order_id: orderId, to_status: next.to }, nonce);
-            toast('Status updated', 'success');
-            window.location.reload();
-          } catch (e) {
-            toast(String(e.message || e), 'error');
-          } finally {
-            setBusy(wrapper, false);
-          }
-        });
-        mainGroup.appendChild(b);
-      }
-
-      // Release (unassign) (modal)
-      if (assigned && ['assigned', 'in_progress'].includes(status)) {
-        const b = mkBtn('Release', 'knx-btn-danger');
-        b.addEventListener('click', async () => {
-          const ok = await showReleaseModal();
-          if (!ok) return;
-
-          setBusy(wrapper, true);
-          try {
-            await postJSON(unassignDriverUrl, { order_id: orderId }, nonce);
-            toast('Order released', 'success');
-            window.location.reload();
-          } catch (e) {
-            toast(String(e.message || e), 'error');
-          } finally {
-            setBusy(wrapper, false);
-          }
-        });
-        dangerGroup.appendChild(b);
-      }
-
-      // If no actions exist, keep spacing clean (like screenshot)
-      if (!mainGroup.children.length && !dangerGroup.children.length) {
-        actionsRoot.innerHTML = `<div class="knx-ops-vo__muted">No actions for you right now!</div>`;
-      }
-    })();
   });
 })();

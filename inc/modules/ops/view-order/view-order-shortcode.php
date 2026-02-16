@@ -1,10 +1,9 @@
 <?php
-// inc/modules/ops/view-order/view-order-shortcode.php
 if (!defined('ABSPATH')) exit;
 
 /**
  * ==========================================================
- * KNX OPS — View Order Shortcode
+ * KNX OPS — View Order Shortcode — CANON v1.2
  * Shortcode: [knx_ops_view_order]
  *
  * Notes:
@@ -77,7 +76,6 @@ function knx_ops_view_order_shortcode() {
 
             <div class="knx-ops-vo__topbar">
                 <a class="knx-ops-vo__back" href="<?php echo $back_url; ?>">&larr; Back</a>
-                <div id="knxViewOrderActions" class="knx-ops-vo__actions" data-knx-view-order-actions="1"></div>
             </div>
 
             <div class="knx-ops-vo__title">
@@ -87,7 +85,7 @@ function knx_ops_view_order_shortcode() {
                 </div>
             </div>
 
-            <!-- 1:1 layout container -->
+            <!-- Layout container -->
             <div id="knxOpsVOContent" class="knx-ops-vo__content"></div>
         </div>
     </div>
@@ -95,7 +93,7 @@ function knx_ops_view_order_shortcode() {
     <script src="<?php echo esc_url(KNX_URL . 'inc/modules/ops/view-order/view-order-script.js'); ?>?v=<?php echo esc_attr($ver); ?>" defer></script>
 
     <?php
-    // Inline single actions add-on (no wp_enqueue / no wp_footer).
+    // Inline actions add-on (no wp_enqueue / no wp_footer).
     $addon_path = __DIR__ . '/view-order-actions.js';
     if (is_readable($addon_path)) {
         echo "\n" . '<script>' . "\n" . file_get_contents($addon_path) . "\n" . '</script>' . "\n";

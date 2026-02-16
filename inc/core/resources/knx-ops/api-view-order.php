@@ -11,6 +11,10 @@ if (!defined('ABSPATH')) exit;
  * - Manager scope is resolved via {prefix}knx_manager_cities (NOT hubs.manager_user_id).
  * - Hubs are the "restaurants" (no restaurants table).
  * - Payload may include order_id for internal navigation, but UI must not display IDs.
+ *
+ * Timeline:
+ * - Adds a VIRTUAL first event: "order_created" using orders.created_at (NOT stored in DB).
+ * - Hides pending_payment completely from OPS timeline.
  * ==========================================================
  */
 
@@ -192,6 +196,88 @@ function knx_ops_view_order_detect_driver_name_source() {
     return null;
 }
 
+/**
+ * Detect status history table.
+ *
+ * @return string|null
+ */
+function knx_ops_view_order_detect_status_history_table() {
+    global $wpdb;
+    static $cache = null;
+    if ($cache !== null) return $cache;
+
+    $candidates = [
+        $wpdb->prefix . 'knx_order_status_history',
+        $wpdb->prefix . 'knx_orders_status_history',
+        $wpdb->prefix . 'knx_status_history',
+    ];
+
+    foreach ($candidates as $t) {
+        $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $t));
+        if (!empty($exists)) {
+            $cache = $t;
+            return $cache;
+        }
+    }
+
+    $cache = null;
+    return null;
+}
+
+/**
+ * Fetch status history rows (ASC) and hide pending_payment completely.
+ *
+ * @param int $order_id
+ * @return array<int, array<string,mixed>>
+ */
+function knx_ops_view_order_fetch_status_history($order_id) {
+    global $wpdb;
+
+    $order_id = (int)$order_id;
+    if ($order_id <= 0) return [];
+
+    $table = knx_ops_view_order_detect_status_history_table();
+    if (!$table) return [];
+
+    // Best-effort: detect columns (fail-soft)
+    $cols = $wpdb->get_col("SHOW COLUMNS FROM {$table}");
+    $cols = is_array($cols) ? array_map('strtolower', $cols) : [];
+
+    $has_changed_by = in_array('changed_by', $cols, true);
+    $has_created_at = in_array('created_at', $cols, true);
+    $has_status     = in_array('status', $cols, true);
+
+    if (!$has_status || !$has_created_at) return [];
+
+    $select = "status, created_at";
+    if ($has_changed_by) $select .= ", changed_by";
+
+    $rows = $wpdb->get_results($wpdb->prepare(
+        "SELECT {$select}
+         FROM {$table}
+         WHERE order_id = %d
+         ORDER BY created_at ASC",
+        $order_id
+    ));
+
+    $out = [];
+    foreach ((array)$rows as $r) {
+        $st = strtolower(trim((string)$r->status));
+        if ($st === '' || $st === 'pending_payment') {
+            // Hide completely in OPS timeline
+            continue;
+        }
+
+        $out[] = [
+            'status' => $st,
+            'changed_by' => $has_changed_by ? (isset($r->changed_by) ? (int)$r->changed_by : null) : null,
+            'created_at' => (string)$r->created_at,
+        ];
+    }
+
+    return $out;
+}
+
 function knx_ops_view_order(WP_REST_Request $request) {
     global $wpdb;
 
@@ -328,6 +414,21 @@ function knx_ops_view_order(WP_REST_Request $request) {
     $driver_name = isset($row->driver_name) ? trim((string)$row->driver_name) : null;
     if ($driver_name === '') $driver_name = null;
 
+    // Status history (DB) + Virtual "Order Created" first row.
+    $history = knx_ops_view_order_fetch_status_history($order_id);
+
+    // Virtual first event (NOT in DB): make it always first, and ensure it doesn't duplicate.
+    $created_event = [
+        'status' => 'order_created',
+        'label' => 'Order Created',
+        'changed_by' => null,
+        'created_at' => (string)$row->created_at,
+        'system' => true,
+    ];
+
+    // If first history event has same timestamp and is some "created-ish" status, we still keep Order Created first.
+    array_unshift($history, $created_event);
+
     $payload = [
         'order_id' => (int)$row->order_id, // internal navigation only
         'status' => (string)$row->status,
@@ -361,6 +462,7 @@ function knx_ops_view_order(WP_REST_Request $request) {
             'items' => $items,
             'notes' => $notes,
         ],
+        'status_history' => $history,
     ];
 
     return knx_rest_response(true, 'View order', [
