@@ -23,7 +23,7 @@ if (!function_exists('knx_debug_log')) {
  * Payment hardening:
  * - Orders are created as: status = 'pending_payment'
  * - payment_method forced to 'stripe' (Nexus does not accept cash)
- * - Webhook promotes to 'confirmed' on payment success
+ * - Webhook promotes to 'placed' on payment success
  * - On payment failure: order remains pending_payment and payment_status becomes failed
  * ==========================================================
  */
@@ -56,7 +56,6 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
     $table_orders        = $wpdb->prefix . 'knx_orders';
     $table_order_items   = $wpdb->prefix . 'knx_order_items';
     $table_order_history = $wpdb->prefix . 'knx_order_status_history';
-    $table_users         = $wpdb->prefix . 'knx_users';
 
     if (!defined('KNX_CREATE_ORDER_CONTEXT')) {
         define('KNX_CREATE_ORDER_CONTEXT', true);
@@ -157,14 +156,14 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
         $cart_updated_at = $cart->updated_at;
 
         // IMPORTANT: DB enum does NOT include payment_failed. Do NOT reference it.
-        // Canon statuses only (DRIVER-FIRST lifecycle).
+        // NOTE: Include Option A mid-states so idempotency does not break after status changes.
         $existing_order = $wpdb->get_row($wpdb->prepare(
             "SELECT id, order_number, status, created_at
              FROM {$table_orders}
              WHERE session_token = %s
                AND hub_id = %d
                AND customer_id = %d
-               AND status IN ('pending_payment','confirmed','accepted_by_driver','accepted_by_hub','preparing','prepared','picked_up','completed','cancelled')
+               AND status IN ('pending_payment','placed','accepted_by_driver','accepted_by_restaurant','confirmed','preparing','prepared','out_for_delivery','completed')
                AND created_at >= DATE_SUB(%s, INTERVAL 10 MINUTE)
              ORDER BY created_at DESC
              LIMIT 1",
@@ -278,37 +277,6 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
     }
 
     /* ======================================================
-     * A7.5) CUSTOMER SNAPSHOT (Best-effort; SSOT is orders row)
-     * ====================================================== */
-    $customer_name  = null;
-    $customer_phone = null;
-    $customer_email = null;
-
-    try {
-        $users_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_users));
-        if (!empty($users_exists)) {
-            $u = $wpdb->get_row($wpdb->prepare(
-                "SELECT name, phone, email
-                 FROM {$table_users}
-                 WHERE id = %d
-                 LIMIT 1",
-                $user_id
-            ));
-            if ($u) {
-                $nm = trim((string)($u->name ?? ''));
-                $ph = trim((string)($u->phone ?? ''));
-                $em = trim((string)($u->email ?? ''));
-
-                $customer_name  = ($nm !== '') ? $nm : null;
-                $customer_phone = ($ph !== '') ? $ph : null;
-                $customer_email = ($em !== '') ? $em : null;
-            }
-        }
-    } catch (Throwable $e) {
-        // fail-soft
-    }
-
-    /* ======================================================
      * A8) AVAILABILITY — HARD FINAL
      * ====================================================== */
     if (!function_exists('knx_availability_decision')) {
@@ -366,7 +334,6 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
     $delivery_address_snapshot = null;
     $delivery_lat = null;
     $delivery_lng = null;
-    $delivery_address_id = null;
 
     $delivery_snapshot_v46 = null;
     $addr_snap = null;
@@ -407,11 +374,6 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
                 'reason'  => 'ADDRESS_SNAPSHOT_INVALID',
                 'message' => 'Address coordinates are invalid in snapshot.',
             ], 409);
-        }
-
-        if (isset($addr_snap['address_id'])) {
-            $aid = (int)$addr_snap['address_id'];
-            $delivery_address_id = ($aid > 0) ? $aid : null;
         }
 
         $delivery_address_snapshot = (string) $addr_snap['label'];
@@ -458,7 +420,7 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
          WHERE session_token = %s
            AND hub_id = %d
            AND customer_id = %d
-           AND status IN ('pending_payment','confirmed','accepted_by_driver','accepted_by_hub','preparing','prepared','picked_up','completed','cancelled')
+           AND status IN ('pending_payment','placed','accepted_by_driver','accepted_by_restaurant','confirmed','preparing','prepared','out_for_delivery','completed')
            AND created_at >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
          ORDER BY created_at DESC
          LIMIT 1",
@@ -602,13 +564,6 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
             'lng'     => isset($hub->longitude) ? (float) $hub->longitude : null,
         ],
         'session_token' => (string) $session_token,
-        // Optional: customer snapshot (extra keys are non-breaking for consumers)
-        'customer' => [
-            'id'    => $user_id,
-            'name'  => $customer_name,
-            'phone' => $customer_phone,
-            'email' => $customer_email,
-        ],
         'items'         => $snapshot_items,
         'subtotal'      => $subtotal,
         'item_count'    => $item_count,
@@ -632,15 +587,9 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
 
             'fulfillment_type' => $fulfillment_type,
 
-            // Customer snapshot locked into orders row (SSOT)
-            'customer_name'    => $customer_name,
-            'customer_phone'   => $customer_phone,
-            'customer_email'   => $customer_email,
-
-            'delivery_address'    => $delivery_address_snapshot,
-            'delivery_address_id' => $delivery_address_id,
-            'delivery_lat'        => $delivery_lat,
-            'delivery_lng'        => $delivery_lng,
+            'delivery_address' => $delivery_address_snapshot,
+            'delivery_lat'     => $delivery_lat,
+            'delivery_lng'     => $delivery_lng,
 
             'subtotal'         => $subtotal,
             'tax_rate'         => $tax_rate,

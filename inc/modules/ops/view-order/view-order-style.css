@@ -1,9 +1,9 @@
 /* inc/modules/ops/view-order/view-order-style.css */
 /**
- * KNX OPS — View Order (1:1 Layout) — CANON v1.2
+ * KNX OPS — View Order (1:1 Layout) — CANON v1.1
  * - Desktop: left details + right map/history
  * - Mobile: stack with right panel below
- * - Driver-friendly client actions (call/email) + payment pill + cleaner spacing
+ * - Nexus shell variables, breakout full width
  */
 
 .knx-ops-vo{
@@ -88,8 +88,14 @@
 }
 
 /* CANON: actions container lives above the left panel */
-.knx-ops-vo__actions{width:100%}
-.knx-ops-vo__actions--in-left{width:100%;margin:0 0 14px 0}
+.knx-ops-vo__actions{
+  width:100%;
+}
+
+.knx-ops-vo__actions--in-left{
+  width:100%;
+  margin:0 0 14px 0;
+}
 
 .knx-ops-vo__panel{
   background:var(--nxs-card);
@@ -107,8 +113,7 @@
   margin-bottom:12px;
 }
 
-.knx-ops-vo__panel-title,
-.knx-ops-vo__section-title{
+.knx-ops-vo__panel-title{
   font-size:12px;
   font-weight:900;
   color:var(--nxs-muted);
@@ -133,7 +138,14 @@
   margin:14px 0;
 }
 
-.knx-ops-vo__section-title{margin-bottom:10px}
+.knx-ops-vo__section-title{
+  font-size:12px;
+  font-weight:900;
+  color:var(--nxs-muted);
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+  margin-bottom:10px;
+}
 
 .knx-ops-vo__info-row{
   display:flex;
@@ -156,125 +168,27 @@
 .knx-ops-vo__info-links{margin-top:8px;display:flex;flex-direction:column;gap:6px}
 .knx-ops-vo__link{color:#1f2937;font-weight:700;font-size:13px;word-break:break-word}
 
-.knx-ops-vo__kv{display:flex;flex-direction:column;gap:10px}
 .knx-ops-vo__kv-row{font-size:13px;color:#111;line-height:1.35;word-break:break-word}
-.knx-ops-vo__kv-row--name{font-size:14px}
 .knx-ops-vo__muted{color:var(--nxs-muted)}
 
-/* Client actions (driver-friendly) */
-.knx-ops-vo__client-actions{
-  display:flex;
-  flex-wrap:wrap;
-  gap:10px;
-}
-
-.knx-ops-vo__btn{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  gap:8px;
-  text-decoration:none;
-  font-weight:900;
-  font-size:13px;
-  padding:10px 12px;
-  border-radius:12px;
-  border:1px solid rgba(11,18,32,0.10);
-  background:rgba(11,18,32,0.03);
-  color:#0b1220;
-  min-height:44px; /* mobile tap target */
-}
-
-.knx-ops-vo__btn-sub{
-  font-weight:800;
-  color:rgba(11,18,32,0.75);
-}
-
-.knx-ops-vo__btn--call{
-  background:rgba(11,121,58,0.10);
-  border-color:rgba(11,121,58,0.18);
-  color:var(--nxs-primary);
-}
-
-.knx-ops-vo__btn--email{
-  background:rgba(30,111,240,0.10);
-  border-color:rgba(30,111,240,0.18);
-  color:var(--nxs-accent);
-}
-
-.knx-ops-vo__address{
-  padding:10px 12px;
-  border-radius:12px;
-  background:rgba(11,18,32,0.03);
-  border:1px solid rgba(11,18,32,0.08);
-  line-height:1.35;
-}
-
-/* Items (new structure) */
-.knx-ops-vo__items{
-  display:flex;
-  flex-direction:column;
-  gap:18px;
-}
-
-.knx-ops-vo__item{
-  padding:10px 10px;
-  border-radius:12px;
-  background:rgba(11,18,32,0.02);
-  border:1px solid rgba(11,18,32,0.06);
-}
-
-.knx-ops-vo__item-row{
+.knx-ops-vo__order-list{display:flex;flex-direction:column;gap:10px}
+.knx-ops-vo__order-row{
   display:flex;
   align-items:flex-start;
   justify-content:space-between;
   gap:12px;
 }
+.knx-ops-vo__order-left{min-width:0}
+.knx-ops-vo__order-title{font-size:13px;line-height:1.3;display:flex;gap:8px;word-break:break-word}
+.knx-ops-vo__dot{color:#111;opacity:0.7}
+.knx-ops-vo__order-sub{color:var(--nxs-muted);font-size:12px;margin-top:4px}
+.knx-ops-vo__order-price{font-weight:900;font-size:13px;white-space:nowrap}
 
-.knx-ops-vo__item-name{
-  font-size:14px;
-  font-weight:900;
-  line-height:1.35;
-  word-break:break-word;
-}
+.knx-ops-vo__order-mods{margin-top:6px}
+.knx-ops-vo__order-mod{font-size:12px;color:var(--nxs-muted);margin-top:6px;line-height:1.25}
+.knx-ops-vo__order-mod-g{font-weight:900;color:var(--nxs-text)}
+.knx-ops-vo__order-mod-o{word-break:break-word}
 
-.knx-ops-vo__item-qty{
-  display:inline-block;
-  margin-right:8px;
-  padding:2px 8px;
-  border-radius:999px;
-  background:rgba(11,121,58,0.10);
-  border:1px solid rgba(11,121,58,0.16);
-  color:var(--nxs-primary);
-  font-size:12px;
-  font-weight:900;
-}
-
-.knx-ops-vo__item-price{
-  font-weight:900;
-  font-size:13px;
-  white-space:nowrap;
-  color:#111;
-}
-
-.knx-ops-vo__item-mods{margin-top:8px;display:flex;flex-direction:column;gap:6px}
-.knx-ops-vo__item-mod{
-  font-size:12px;
-  color:var(--nxs-muted);
-  line-height:1.35;
-  padding-left:10px;
-  position:relative;
-}
-.knx-ops-vo__item-mod:before{
-  content:"→";
-  position:absolute;
-  left:0;
-  top:0;
-  opacity:0.65;
-}
-.knx-ops-vo__item-mod-g{font-weight:900;color:var(--nxs-text)}
-.knx-ops-vo__item-mod-o{word-break:break-word}
-
-/* Totals */
 .knx-ops-vo__totals{display:flex;flex-direction:column;gap:8px}
 .knx-ops-vo__tot-row{
   display:flex;
@@ -295,7 +209,6 @@
 }
 .knx-ops-vo__tot-grand strong{font-size:16px}
 
-/* Meta rows */
 .knx-ops-vo__meta{display:flex;flex-direction:column;gap:10px}
 .knx-ops-vo__meta-row{
   display:flex;
@@ -307,38 +220,8 @@
 .knx-ops-vo__meta-row span{color:var(--nxs-muted)}
 .knx-ops-vo__meta-row strong{color:#111}
 
-/* Payment pill */
-.knx-ops-vo__pill{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  padding:6px 10px;
-  border-radius:999px;
-  border:1px solid rgba(11,18,32,0.10);
-  background:rgba(11,18,32,0.04);
-  font-weight:900;
-  font-size:12px;
-  letter-spacing:0.02em;
-}
-.knx-ops-vo__pill--paid{
-  background:rgba(11,121,58,0.12);
-  border-color:rgba(11,121,58,0.22);
-  color:var(--nxs-primary);
-}
-.knx-ops-vo__pill--pending{
-  background:rgba(245,158,11,0.14);
-  border-color:rgba(245,158,11,0.25);
-  color:#92400e;
-}
-.knx-ops-vo__pill--failed{
-  background:rgba(220,38,38,0.12);
-  border-color:rgba(220,38,38,0.22);
-  color:#7f1d1d;
-}
-
 .knx-ops-vo__notes{white-space:pre-wrap;word-break:break-word;font-size:13px;color:#111}
 
-/* Map */
 .knx-ops-vo__map{
   border-radius:12px;
   overflow:hidden;
@@ -346,7 +229,12 @@
   background:#f3f4f6;
   position:relative;
 }
-.knx-ops-vo__map-iframe{width:100%;height:260px;border:0;display:block}
+.knx-ops-vo__map-iframe{
+  width:100%;
+  height:260px;
+  border:0;
+  display:block;
+}
 .knx-ops-vo__map-empty{
   height:260px;
   display:flex;
@@ -366,9 +254,17 @@
   border-top:1px solid rgba(11,18,32,0.08);
 }
 
-/* History */
-.knx-ops-vo__hist{display:flex;flex-direction:column;gap:14px}
-.knx-ops-vo__hist-item{display:grid;grid-template-columns:18px 1fr auto;gap:10px;align-items:flex-start}
+.knx-ops-vo__hist{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+.knx-ops-vo__hist-item{
+  display:grid;
+  grid-template-columns:18px 1fr auto;
+  gap:10px;
+  align-items:flex-start;
+}
 .knx-ops-vo__hist-icon{
   width:16px;height:16px;border-radius:999px;
   background:rgba(11,121,58,0.14);
@@ -387,11 +283,11 @@
   background:rgba(11,18,32,0.10);
 }
 .knx-ops-vo__hist-item:last-child .knx-ops-vo__hist-icon:after{display:none}
+
 .knx-ops-vo__hist-title{font-weight:900;font-size:13px}
 .knx-ops-vo__hist-sub{color:var(--nxs-muted);font-size:12px;margin-top:4px}
 .knx-ops-vo__hist-time{color:var(--nxs-muted);font-size:12px;white-space:nowrap;padding-top:2px}
 
-/* Error */
 .knx-ops-vo__error{
   background:rgba(179,0,0,0.06);
   border:1px solid rgba(179,0,0,0.16);
@@ -404,8 +300,12 @@
 /* Desktop 1:1: left wider, right fixed-ish */
 @media (min-width: 980px){
   .knx-ops-vo{padding:18px 18px}
-  .knx-ops-vo__layout{grid-template-columns: 1.35fr 0.85fr;gap:18px}
-  .knx-ops-vo__map-iframe,.knx-ops-vo__map-empty{height:300px}
+  .knx-ops-vo__layout{
+    grid-template-columns: 1.35fr 0.85fr;
+    gap:18px;
+  }
+  .knx-ops-vo__map-iframe,
+  .knx-ops-vo__map-empty{height:300px}
 }
 
 /* Small phones */
@@ -414,7 +314,4 @@
   .knx-ops-vo__meta-row{flex-direction:column;gap:6px}
   .knx-ops-vo__hist-item{grid-template-columns:18px 1fr}
   .knx-ops-vo__hist-time{grid-column:2 / -1}
-
-  .knx-ops-vo__client-actions{flex-direction:column}
-  .knx-ops-vo__btn{width:100%}
 }

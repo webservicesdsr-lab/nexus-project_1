@@ -200,8 +200,8 @@ function knx_ops_live_orders(WP_REST_Request $request) {
     $orders_table = $wpdb->prefix . 'knx_orders';
     $hubs_table   = $wpdb->prefix . 'knx_hubs';
 
-    // Live board statuses (NO pending_payment, NO ready)
-    $live_statuses = ['placed','accepted_by_driver','confirmed','preparing','prepared','out_for_delivery'];
+    // Live board statuses aligned to DB enum (NO pending_payment)
+    $live_statuses = ['confirmed','accepted_by_driver','accepted_by_hub','preparing','prepared','picked_up'];
 
     $latlng = knx_ops_live_orders_detect_latlng_columns();
     $select_latlng = '';

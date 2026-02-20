@@ -1,33 +1,29 @@
 <?php
 /**
- * KNX ORDERS — UPDATE ORDER STATUS (CANON: Financial + Ops lifecycle)
+ * KNX ORDERS — UPDATE ORDER STATUS (OPTION A LIFECYCLE)
  *
  * Canon endpoint:
  * POST /wp-json/knx/v1/orders/{order_id}/status
  * Body: { status: "..." }
  *
- * Backward-compat alias (OPS):
+ * Backward-compat alias (OPS legacy):
  * POST /wp-json/knx/v1/ops/update-status
  * Body: { order_id: 123, to_status: "..." }
  *
- * Sealed Contract:
- * Financial (invisible):
- *   pending_payment -> confirmed  (webhook/system)
+ * The ONLY allowed post-creation write operation for Orders.
+ * Updates order status and appends to status history (append-only).
  *
- * Ops (Driver First):
- *   confirmed -> accepted_by_driver -> accepted_by_hub -> preparing -> prepared -> picked_up -> completed
+ * PHILOSOPHY:
+ * - Orders are immutable snapshots (except status)
+ * - Status transitions are append-only (history preserved)
+ * - Transition matrix enforced (no invalid progressions)
+ * - Two-write transaction (orders + history)
  *
- * Cancel:
- *   cancelled allowed from any non-terminal
- *
- * Hard rules:
- * - No backwards
- * - No skipping
- * - completed/cancelled are terminal
- * - pending_payment is not part of ops timeline (blocked for ops moves)
- *
- * Transition guard:
- *   next_index = current_index + 1
+ * ACCESS CONTROL:
+ * - super_admin: Unrestricted
+ * - manager: City-scoped via hub validation (future enhancement)
+ * - customer/guest: 404 (no existence leak)
+ * - driver: 404 (no existence leak) (drivers will have their own guarded endpoints later)
  */
 
 if (!defined('ABSPATH')) exit;
@@ -49,14 +45,14 @@ add_action('rest_api_init', function () {
             'status' => [
                 'required'          => true,
                 'validate_callback' => function($param) {
-                    $allowed = knx_orders_allowed_status_inputs();
+                    $allowed = knx_orders_allowed_statuses_option_a();
                     return in_array((string)$param, $allowed, true);
                 }
             ]
         ]
     ]);
 
-    // OPS alias
+    // Backward-compat OPS alias
     register_rest_route('knx/v1', '/ops/update-status', [
         'methods'             => 'POST',
         'callback'            => knx_rest_wrap('knx_ops_update_order_status_alias'),
@@ -71,7 +67,7 @@ add_action('rest_api_init', function () {
             'to_status' => [
                 'required'          => true,
                 'validate_callback' => function($param) {
-                    $allowed = knx_orders_allowed_status_inputs();
+                    $allowed = knx_orders_allowed_statuses_option_a();
                     return in_array((string)$param, $allowed, true);
                 }
             ]
@@ -80,76 +76,21 @@ add_action('rest_api_init', function () {
 });
 
 /**
- * Allowed input statuses (defensive).
- * Includes legacy synonyms so old clients don't break during migration.
+ * Allowed statuses for OPTION A lifecycle (excluding pending_payment as a target).
  *
- * @return array<int,string>
+ * @return array
  */
-function knx_orders_allowed_status_inputs() {
+function knx_orders_allowed_statuses_option_a() {
     return [
-        // Canon targets
-        'confirmed',
+        'placed',
         'accepted_by_driver',
-        'accepted_by_hub',
+        'accepted_by_restaurant',
         'preparing',
         'prepared',
-        'picked_up',
+        'out_for_delivery',
         'completed',
         'cancelled',
-
-        // Legacy inputs (normalized server-side)
-        'placed',
-        'accepted_by_restaurant',
-        'out_for_delivery',
-        'ready',
     ];
-}
-
-/**
- * Canon operational flow (SSOT order).
- *
- * @return array<int,string>
- */
-function knx_orders_flow_driver_first() {
-    return [
-        'confirmed',
-        'accepted_by_driver',
-        'accepted_by_hub',
-        'preparing',
-        'prepared',
-        'picked_up',
-        'completed',
-    ];
-}
-
-/**
- * Normalize legacy statuses to canon.
- *
- * @param string $status
- * @return string
- */
-function knx_orders_normalize_status($status) {
-    $s = strtolower(trim((string)$status));
-
-    // legacy aliases
-    if ($s === 'placed') return 'confirmed';
-    if ($s === 'accepted_by_restaurant') return 'accepted_by_hub';
-    if ($s === 'out_for_delivery') return 'picked_up';
-    if ($s === 'ready') return 'prepared';
-
-    return $s;
-}
-
-/**
- * Get index in canon flow.
- *
- * @param string $status
- * @return int|null
- */
-function knx_orders_flow_index($status) {
-    $flow = knx_orders_flow_driver_first();
-    $i = array_search((string)$status, $flow, true);
-    return ($i === false) ? null : (int)$i;
 }
 
 /**
@@ -165,7 +106,7 @@ function knx_ops_update_order_status_alias($request) {
 }
 
 /**
- * Update order status with strict transition validation (index-based).
+ * Update order status with transition validation.
  *
  * @param WP_REST_Request $request
  * @return WP_REST_Response
@@ -180,35 +121,18 @@ function knx_update_order_status_handler($request) {
 
     $order_id = (int) $request->get_param('order_id');
 
-    $new_status_raw = (string) $request->get_param('status');
-    if ($new_status_raw === '') {
-        $new_status_raw = (string) $request->get_param('to_status');
+    // Accept both keys defensively (canon is 'status')
+    $new_status = (string) $request->get_param('status');
+    if ($new_status === '') {
+        $new_status = (string) $request->get_param('to_status');
     }
-    $new_status_raw = sanitize_text_field($new_status_raw);
+    $new_status = sanitize_text_field($new_status);
 
-    if ($new_status_raw === '') {
-        return new WP_REST_Response([
-            'error' => 'invalid-status',
-            'message' => 'status is required'
-        ], 400);
-    }
-
-    $new_status = knx_orders_normalize_status($new_status_raw);
-
-    $allowed_targets = [
-        'confirmed',
-        'accepted_by_driver',
-        'accepted_by_hub',
-        'preparing',
-        'prepared',
-        'picked_up',
-        'completed',
-        'cancelled',
-    ];
+    $allowed_targets = knx_orders_allowed_statuses_option_a();
     if (!in_array($new_status, $allowed_targets, true)) {
         return new WP_REST_Response([
             'error'   => 'invalid-status',
-            'message' => 'Invalid status: ' . $new_status_raw
+            'message' => 'Invalid status: ' . $new_status
         ], 400);
     }
 
@@ -247,32 +171,14 @@ function knx_update_order_status_handler($request) {
         return new WP_REST_Response(['error' => 'order-not-found'], 404);
     }
 
-    $current_status_raw = (string) ($order->status ?? '');
-    $current_status = knx_orders_normalize_status($current_status_raw);
+    $current_status = (string) ($order->status ?? '');
 
-    $skip_index_guard = false;
-
-    // Financial boundary: pending_payment is invisible.
+    // Hard block: pending payment must be promoted by webhook only
     if ($current_status === 'pending_payment') {
-
-        // allowed from pending_payment: confirmed (payment success) OR cancelled (fail-safe)
-        if (!in_array($new_status, ['confirmed', 'cancelled'], true)) {
-            return new WP_REST_Response([
-                'error'   => 'invalid-transition',
-                'message' => 'Order is pending payment. Status changes are blocked until payment is confirmed.'
-            ], 409);
-        }
-
-        if ($new_status === 'confirmed') {
-            // Optional: prevent managers from doing financial promotion
-            if ($role === 'manager') {
-                return new WP_REST_Response([
-                    'error'   => 'forbidden',
-                    'message' => 'Only the payment system can promote pending_payment → confirmed.'
-                ], 403);
-            }
-            $skip_index_guard = true; // pending_payment is outside the ops index flow
-        }
+        return new WP_REST_Response([
+            'error'   => 'invalid-transition',
+            'message' => 'Order is pending payment. Status changes are blocked until payment is confirmed.'
+        ], 409);
     }
 
     if ($current_status === $new_status) {
@@ -282,61 +188,39 @@ function knx_update_order_status_handler($request) {
         ], 400);
     }
 
-    // Terminal states are immutable
-    if (in_array($current_status, ['completed', 'cancelled'], true)) {
+    // OPTION A transition matrix
+    $allowed_transitions = [
+        'placed'                => ['accepted_by_driver', 'cancelled'],
+        'accepted_by_driver'    => ['accepted_by_restaurant', 'cancelled'],
+        'accepted_by_restaurant'=> ['preparing', 'cancelled'],
+        'preparing'             => ['prepared', 'cancelled'],
+        'prepared'              => ['out_for_delivery', 'cancelled'],
+        'out_for_delivery'      => ['completed'],
+        'completed'             => [],
+        'cancelled'             => [],
+        // Legacy states (if any exist in DB) are terminal-blocked here:
+        'confirmed'             => [],
+        'ready'                 => [],
+    ];
+
+    if (!isset($allowed_transitions[$current_status])) {
+        return new WP_REST_Response([
+            'error'   => 'invalid-current-status',
+            'message' => 'Unknown current status: ' . $current_status
+        ], 400);
+    }
+
+    $allowed = $allowed_transitions[$current_status];
+    if (!in_array($new_status, $allowed, true)) {
         return new WP_REST_Response([
             'error'   => 'invalid-transition',
-            'message' => 'Order is in a terminal status: ' . $current_status
-        ], 409);
-    }
-
-    // Cancellation allowed from any non-terminal state
-    if ($new_status !== 'cancelled' && !$skip_index_guard) {
-
-        // Financial-only confirmed: humans cannot set confirmed from ops flow
-        if ($new_status === 'confirmed' && $current_status !== 'pending_payment') {
-            return new WP_REST_Response([
-                'error'   => 'forbidden',
-                'message' => 'confirmed is controlled by the payment system.'
-            ], 403);
-        }
-
-        // Canon guard: next_index = current_index + 1
-        $cur_i = knx_orders_flow_index($current_status);
-        $to_i  = knx_orders_flow_index($new_status);
-
-        if ($cur_i === null) {
-            return new WP_REST_Response([
-                'error'   => 'invalid-current-status',
-                'message' => 'Unknown current status: ' . $current_status_raw
-            ], 400);
-        }
-        if ($to_i === null) {
-            return new WP_REST_Response([
-                'error'   => 'invalid-status',
-                'message' => 'Unknown target status: ' . $new_status_raw
-            ], 400);
-        }
-
-        if ($to_i !== ($cur_i + 1)) {
-            return new WP_REST_Response([
-                'error'   => 'invalid-transition',
-                'message' => sprintf(
-                    'Cannot transition from %s to %s. Only the next status is allowed.',
-                    $current_status,
-                    $new_status
-                )
-            ], 409);
-        }
-    }
-
-    // Status history table must exist (fail-closed)
-    $hist_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_status_history));
-    if (empty($hist_exists)) {
-        return new WP_REST_Response([
-            'error'   => 'history-not-configured',
-            'message' => 'Status history table is missing.'
-        ], 500);
+            'message' => sprintf(
+                'Cannot transition from %s to %s. Allowed: %s',
+                $current_status,
+                $new_status,
+                empty($allowed) ? 'none (terminal state)' : implode(', ', $allowed)
+            )
+        ], 400);
     }
 
     $wpdb->query('START TRANSACTION');
@@ -344,7 +228,6 @@ function knx_update_order_status_handler($request) {
     try {
         $now = current_time('mysql');
 
-        // WRITE #1: Update order status
         $update_result = $wpdb->update(
             $table_orders,
             [
@@ -360,7 +243,6 @@ function knx_update_order_status_handler($request) {
             throw new Exception('Failed to update order status');
         }
 
-        // WRITE #2: Append to status history
         $insert_result = $wpdb->insert(
             $table_status_history,
             [
@@ -388,9 +270,9 @@ function knx_update_order_status_handler($request) {
     }
 
     return new WP_REST_Response([
-        'success'     => true,
-        'order_id'    => $order_id,
-        'from_status' => $current_status,
-        'status'      => $new_status
+        'success'       => true,
+        'order_id'      => $order_id,
+        'from_status'   => $current_status,
+        'status'        => $new_status
     ], 200);
 }

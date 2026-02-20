@@ -12,15 +12,15 @@ if (!defined('ABSPATH')) exit;
  * - Idempotent processing (dedup by event_id).
  * - Atomic state transitions (payment + order + history) in ONE transaction.
  *
- * Canon (DB-aligned, DRIVER-FIRST lifecycle):
+ * Canon (DB-aligned, OPTION A lifecycle):
  * - orders.status enum:
  *   pending_payment,
- *   confirmed,
+ *   placed,
  *   accepted_by_driver,
- *   accepted_by_hub,
+ *   accepted_by_restaurant,
  *   preparing,
  *   prepared,
- *   picked_up,
+ *   out_for_delivery,
  *   completed,
  *   cancelled
  * - orders.payment_status enum:
@@ -34,7 +34,7 @@ if (!defined('ABSPATH')) exit;
  * - Dedup insert happens AFTER locks + validation gates.
  *
  * IMPORTANT:
- * - payment_intent.succeeded promotes order.status to 'confirmed' (NOT 'placed').
+ * - payment_intent.succeeded promotes order.status to 'placed' (NOT 'confirmed').
  * ==========================================================
  */
 
@@ -320,14 +320,13 @@ if (!function_exists('knx_api_payment_webhook')) {
             $payment_status_now       = strtolower((string) ($payment_locked->status ?? ''));
             $order_payment_status_now = strtolower((string) ($order->payment_status ?? ''));
 
-            // Canon paid-or-beyond states (DRIVER-FIRST lifecycle)
             $paid_or_beyond = [
-                'confirmed',
+                'placed',
                 'accepted_by_driver',
-                'accepted_by_hub',
+                'accepted_by_restaurant',
                 'preparing',
                 'prepared',
-                'picked_up',
+                'out_for_delivery',
                 'completed',
             ];
 
@@ -375,8 +374,7 @@ if (!function_exists('knx_api_payment_webhook')) {
             $event_row_id = (int) $wpdb->insert_id;
 
             if ($event->type === 'payment_intent.succeeded') {
-                // Allowed pre states for promotion -> confirmed
-                $allowed_pre = ['pending_payment', 'confirmed'];
+                $allowed_pre = ['pending_payment', 'placed'];
                 if (!in_array((string) $order->status, $allowed_pre, true)) {
                     $wpdb->update(
                         $events_table,
@@ -409,11 +407,11 @@ if (!function_exists('knx_api_payment_webhook')) {
                     if ($u === false) throw new Exception('PAYMENT_STATUS_UPDATE_FAILED');
                 }
 
-                // Order -> confirmed + payment_status paid
+                // Order -> placed + payment_status paid
                 $order_updated = $wpdb->update(
                     $orders_table,
                     [
-                        'status'                 => 'confirmed',
+                        'status'                 => 'placed',
                         'payment_status'         => 'paid',
                         'payment_method'         => 'stripe',
                         'payment_transaction_id' => $intent_id,
@@ -430,7 +428,7 @@ if (!function_exists('knx_api_payment_webhook')) {
                     $history_table,
                     [
                         'order_id'   => (int) $order->id,
-                        'status'     => 'confirmed',
+                        'status'     => 'placed',
                         'created_at' => current_time('mysql'),
                     ],
                     ['%d','%s','%s']
