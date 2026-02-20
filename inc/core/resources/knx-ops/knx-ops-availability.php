@@ -4,6 +4,7 @@
  * Provides knx_ops_get_available_orders(array $args)
  *
  * This enforces a single source of truth for available orders.
+ * Statuses are aligned to the DB enum (no legacy values).
  */
 if (!defined('ABSPATH')) exit;
 
@@ -15,17 +16,23 @@ if (!function_exists('knx_ops_get_available_orders')) {
             'limit' => 50,
             'offset' => 0,
             'days' => 7,
-            'statuses' => array('placed','confirmed','preparing','ready','out_for_delivery'),
+
+            // Canon statuses (DB enum, live pipeline)
+            'statuses' => array('confirmed','accepted_by_driver','accepted_by_hub','preparing','prepared','picked_up'),
+
             'no_after_filter' => false,
             'after_mysql' => '',
             'allowed_city_ids' => array(),
             'allowed_hub_ids' => array(),
-            // canonical base rules (can be relaxed by callers)
+
+            // Canon base rules (can be relaxed by callers)
             'require_payment_valid' => true,
             'require_fulfillment_delivery' => true,
+
             // driver-specific
             'require_driver_null' => false,
             'require_ops_unassigned' => false,
+
             // relaxed mode for OPS
             'relaxed' => false,
         );
@@ -63,12 +70,10 @@ if (!function_exists('knx_ops_get_available_orders')) {
         $where[] = "o.status IN ($status_place)";
         foreach ($statuses as $s) $params[] = (string)$s;
 
-        // Payment validity (canonical) unless relaxed
+        // Payment validity unless relaxed
         if (!empty($opts['require_payment_valid']) && !$opts['relaxed']) {
-            // payment_status = paid OR payment_method = cash
-            $where[] = "(o.payment_status = %s OR LOWER(o.payment_method) = %s)";
+            $where[] = "(o.payment_status = %s)";
             $params[] = 'paid';
-            $params[] = 'cash';
         }
 
         // Date filter
@@ -77,7 +82,7 @@ if (!function_exists('knx_ops_get_available_orders')) {
             $params[] = $after_mysql;
         }
 
-        // Driver / ops filters (applied for driver endpoint)
+        // Driver / ops filters
         if (!empty($opts['require_driver_null'])) {
             $where[] = "(o.driver_id IS NULL OR o.driver_id = 0)";
         }
@@ -110,7 +115,6 @@ if (!function_exists('knx_ops_get_available_orders')) {
             $where[] = '(' . implode(' OR ', $scope_parts) . ')';
         }
 
-        // Base where SQL
         $where_sql = implode(' AND ', $where);
 
         $sql = "SELECT

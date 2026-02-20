@@ -10,13 +10,17 @@ if (!defined('ABSPATH')) exit;
  * Scope:
  * - Roles: super_admin, manager
  * - Manager scope: {prefix}knx_manager_cities (manager_user_id, city_id)
- * - Statuses are DB-truth (ENUM):
- *   placed, accepted_by_driver, confirmed, preparing, prepared, out_for_delivery
- * - We DO NOT expose pending_payment in this board.
  *
- * Notes:
- * - Fail-closed for managers with no city scope rows.
+ * Canon statuses (DB-truth):
+ * - confirmed, accepted_by_driver, accepted_by_hub, preparing, prepared, picked_up
+ * - Optional "resolved" when include_resolved=1:
+ *   completed, cancelled (limited by resolved_hours window)
+ *
+ * Rules:
+ * - Fail-closed scope
+ * - Requires payment_status='paid' (board should not show unpaid orders)
  * - Accepts city_ids[] (array) and legacy cities=1,2 (csv).
+ * - super_admin can use city_id=all
  * ==========================================================
  */
 
@@ -170,6 +174,14 @@ function knx_ops_live_orders(WP_REST_Request $request) {
     $role = isset($session->role) ? (string)$session->role : '';
     $user_id = isset($session->user_id) ? (int)$session->user_id : 0;
 
+    // UI params
+    $include_resolved = (int)($request->get_param('include_resolved') ?? 1);
+    $include_resolved = ($include_resolved === 0) ? 0 : 1;
+
+    $resolved_hours = (int)($request->get_param('resolved_hours') ?? 24);
+    if ($resolved_hours <= 0) $resolved_hours = 24;
+    if ($resolved_hours > 168) $resolved_hours = 168;
+
     // City scope / request
     $all_cities = false;
     $city_id_param = $request->get_param('city_id');
@@ -200,8 +212,11 @@ function knx_ops_live_orders(WP_REST_Request $request) {
     $orders_table = $wpdb->prefix . 'knx_orders';
     $hubs_table   = $wpdb->prefix . 'knx_hubs';
 
-    // Live board statuses aligned to DB enum (NO pending_payment)
+    // Live statuses aligned to DB enum (NO pending_payment)
     $live_statuses = ['confirmed','accepted_by_driver','accepted_by_hub','preparing','prepared','picked_up'];
+
+    // Optional resolved statuses shown in "Done"
+    $resolved_statuses = ['completed','cancelled'];
 
     $latlng = knx_ops_live_orders_detect_latlng_columns();
     $select_latlng = '';
@@ -209,7 +224,25 @@ function knx_ops_live_orders(WP_REST_Request $request) {
         $select_latlng = ", o.`{$latlng['lat']}` AS lat, o.`{$latlng['lng']}` AS lng";
     }
 
-    $status_ph = implode(',', array_fill(0, count($live_statuses), '%s'));
+    // Build status filter
+    $statuses = $live_statuses;
+    if ($include_resolved) {
+        $statuses = array_merge($statuses, $resolved_statuses);
+    }
+    $statuses = array_values(array_unique($statuses));
+
+    $status_ph = implode(',', array_fill(0, count($statuses), '%s'));
+
+    $resolved_after_sql = '';
+    $resolved_after_val = '';
+    if ($include_resolved) {
+        $resolved_after_val = gmdate('Y-m-d H:i:s', time() - ($resolved_hours * 3600));
+        // Limit resolved statuses window, keep live statuses unbounded by this rule.
+        $resolved_after_sql = " AND (
+            o.status NOT IN ('completed','cancelled')
+            OR o.created_at >= %s
+        )";
+    }
 
     if ($all_cities) {
         $query = "
@@ -228,12 +261,20 @@ function knx_ops_live_orders(WP_REST_Request $request) {
                 {$select_latlng}
             FROM {$orders_table} o
             INNER JOIN {$hubs_table} h ON o.hub_id = h.id
-            WHERE o.status IN ({$status_ph})
+            WHERE o.payment_status = 'paid'
+              AND o.status IN ({$status_ph})
+              {$resolved_after_sql}
             ORDER BY o.created_at DESC
             LIMIT 250
         ";
-        $prepared = $wpdb->prepare($query, $live_statuses);
+
+        $params = $statuses;
+        if ($include_resolved) $params[] = $resolved_after_val;
+
+        $prepared = $wpdb->prepare($query, $params);
+
     } else {
+
         $city_ph = implode(',', array_fill(0, count($city_ids), '%d'));
         $query = "
             SELECT
@@ -251,12 +292,17 @@ function knx_ops_live_orders(WP_REST_Request $request) {
                 {$select_latlng}
             FROM {$orders_table} o
             INNER JOIN {$hubs_table} h ON o.hub_id = h.id
-            WHERE o.city_id IN ({$city_ph})
+            WHERE o.payment_status = 'paid'
+              AND o.city_id IN ({$city_ph})
               AND o.status IN ({$status_ph})
+              {$resolved_after_sql}
             ORDER BY o.created_at DESC
             LIMIT 250
         ";
-        $params = array_merge(array_map('intval', $city_ids), $live_statuses);
+
+        $params = array_merge(array_map('intval', $city_ids), $statuses);
+        if ($include_resolved) $params[] = $resolved_after_val;
+
         $prepared = $wpdb->prepare($query, $params);
     }
 
@@ -292,8 +338,9 @@ function knx_ops_live_orders(WP_REST_Request $request) {
             'created_human' => knx_ops_live_orders_human_age((int)$age),
             'total_amount' => (float)$r->total_amount,
             'tip_amount' => (float)$r->tip_amount,
-            'status' => (string)$r->status, // DB-truth
+            'status' => (string)$r->status,
             'assigned_driver' => (!empty($r->driver_id) && (int)$r->driver_id > 0),
+            'driver_id' => (!empty($r->driver_id) ? (int)$r->driver_id : null),
             'view_location_url' => $view_location_url,
         ];
     }
@@ -304,6 +351,8 @@ function knx_ops_live_orders(WP_REST_Request $request) {
             'role' => $role,
             'generated_at' => current_time('mysql'),
             'count' => count($orders),
+            'include_resolved' => (int)$include_resolved,
+            'resolved_hours' => (int)$resolved_hours,
         ],
     ], 200);
 }

@@ -12,20 +12,20 @@ if (!defined('ABSPATH')) exit;
  * - Idempotent processing (dedup by event_id).
  * - Atomic state transitions (payment + order + history) in ONE transaction.
  *
- * Canon (DB-aligned, OPTION A lifecycle):
+ * Canon (DB-aligned lifecycle):
  * - orders.status enum:
  *   pending_payment,
- *   placed,
+ *   confirmed,
  *   accepted_by_driver,
- *   accepted_by_restaurant,
+ *   accepted_by_hub,
  *   preparing,
  *   prepared,
- *   out_for_delivery,
+ *   picked_up,
  *   completed,
  *   cancelled
  * - orders.payment_status enum:
  *   pending, paid, failed, refunded
- * - knx_payments.status (varchar but canonical):
+ * - knx_payments.status (varchar canonical):
  *   intent_created, authorized, paid, failed, cancelled
  *
  * Critical behavior:
@@ -34,7 +34,7 @@ if (!defined('ABSPATH')) exit;
  * - Dedup insert happens AFTER locks + validation gates.
  *
  * IMPORTANT:
- * - payment_intent.succeeded promotes order.status to 'placed' (NOT 'confirmed').
+ * - payment_intent.succeeded promotes order.status to 'confirmed' (NOT 'placed').
  * ==========================================================
  */
 
@@ -271,6 +271,7 @@ if (!function_exists('knx_api_payment_webhook')) {
                     : new WP_REST_Response(['success' => false, 'message' => 'Order not found'], 503);
             }
 
+            // Currency mismatch guard (fail-closed)
             if (!empty($payment_locked->currency) && !empty($currency)) {
                 $db_currency = strtolower((string) $payment_locked->currency);
                 if ($db_currency !== (string) $currency) {
@@ -321,13 +322,14 @@ if (!function_exists('knx_api_payment_webhook')) {
             $order_payment_status_now = strtolower((string) ($order->payment_status ?? ''));
 
             $paid_or_beyond = [
-                'placed',
+                'confirmed',
                 'accepted_by_driver',
-                'accepted_by_restaurant',
+                'accepted_by_hub',
                 'preparing',
                 'prepared',
-                'out_for_delivery',
+                'picked_up',
                 'completed',
+                'cancelled',
             ];
 
             $is_paid_already =
@@ -374,8 +376,9 @@ if (!function_exists('knx_api_payment_webhook')) {
             $event_row_id = (int) $wpdb->insert_id;
 
             if ($event->type === 'payment_intent.succeeded') {
-                $allowed_pre = ['pending_payment', 'placed'];
-                if (!in_array((string) $order->status, $allowed_pre, true)) {
+                // Only pending_payment is eligible for promotion by webhook.
+                $allowed_pre = ['pending_payment', ''];
+                if (!in_array((string) ($order->status ?? ''), $allowed_pre, true)) {
                     $wpdb->update(
                         $events_table,
                         ['processed_at' => current_time('mysql'), 'order_id' => (int) $order->id],
@@ -407,11 +410,11 @@ if (!function_exists('knx_api_payment_webhook')) {
                     if ($u === false) throw new Exception('PAYMENT_STATUS_UPDATE_FAILED');
                 }
 
-                // Order -> placed + payment_status paid
+                // Order -> confirmed + payment_status paid
                 $order_updated = $wpdb->update(
                     $orders_table,
                     [
-                        'status'                 => 'placed',
+                        'status'                 => 'confirmed',
                         'payment_status'         => 'paid',
                         'payment_method'         => 'stripe',
                         'payment_transaction_id' => $intent_id,
@@ -428,7 +431,7 @@ if (!function_exists('knx_api_payment_webhook')) {
                     $history_table,
                     [
                         'order_id'   => (int) $order->id,
-                        'status'     => 'placed',
+                        'status'     => 'confirmed',
                         'created_at' => current_time('mysql'),
                     ],
                     ['%d','%s','%s']

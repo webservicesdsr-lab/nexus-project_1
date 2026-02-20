@@ -1,6 +1,6 @@
 <?php
 /**
- * KNX ORDERS — UPDATE ORDER STATUS (OPTION A LIFECYCLE)
+ * KNX ORDERS — UPDATE ORDER STATUS (DB-CANON LIFECYCLE)
  *
  * Canon endpoint:
  * POST /wp-json/knx/v1/orders/{order_id}/status
@@ -10,27 +10,27 @@
  * POST /wp-json/knx/v1/ops/update-status
  * Body: { order_id: 123, to_status: "..." }
  *
- * The ONLY allowed post-creation write operation for Orders.
- * Updates order status and appends to status history (append-only).
+ * DB-canon statuses:
+ * pending_payment,
+ * confirmed,
+ * accepted_by_driver,
+ * accepted_by_hub,
+ * preparing,
+ * prepared,
+ * picked_up,
+ * completed,
+ * cancelled
  *
- * PHILOSOPHY:
- * - Orders are immutable snapshots (except status)
- * - Status transitions are append-only (history preserved)
- * - Transition matrix enforced (no invalid progressions)
- * - Two-write transaction (orders + history)
- *
- * ACCESS CONTROL:
- * - super_admin: Unrestricted
- * - manager: City-scoped via hub validation (future enhancement)
- * - customer/guest: 404 (no existence leak)
- * - driver: 404 (no existence leak) (drivers will have their own guarded endpoints later)
+ * Access:
+ * - super_admin: allowed
+ * - manager: city-scoped via {prefix}knx_manager_cities (fail-closed)
+ * - others: 404 (no existence leak)
  */
 
 if (!defined('ABSPATH')) exit;
 
 add_action('rest_api_init', function () {
 
-    // Canon route
     register_rest_route('knx/v1', '/orders/(?P<order_id>\d+)/status', [
         'methods'             => 'POST',
         'callback'            => knx_rest_wrap('knx_update_order_status_handler'),
@@ -45,14 +45,13 @@ add_action('rest_api_init', function () {
             'status' => [
                 'required'          => true,
                 'validate_callback' => function($param) {
-                    $allowed = knx_orders_allowed_statuses_option_a();
+                    $allowed = knx_orders_allowed_statuses_db_canon();
                     return in_array((string)$param, $allowed, true);
                 }
             ]
         ]
     ]);
 
-    // Backward-compat OPS alias
     register_rest_route('knx/v1', '/ops/update-status', [
         'methods'             => 'POST',
         'callback'            => knx_rest_wrap('knx_ops_update_order_status_alias'),
@@ -67,7 +66,7 @@ add_action('rest_api_init', function () {
             'to_status' => [
                 'required'          => true,
                 'validate_callback' => function($param) {
-                    $allowed = knx_orders_allowed_statuses_option_a();
+                    $allowed = knx_orders_allowed_statuses_db_canon();
                     return in_array((string)$param, $allowed, true);
                 }
             ]
@@ -76,28 +75,56 @@ add_action('rest_api_init', function () {
 });
 
 /**
- * Allowed statuses for OPTION A lifecycle (excluding pending_payment as a target).
+ * Allowed statuses (targets) for DB-canon lifecycle.
+ * pending_payment is not a target (webhook-only).
  *
  * @return array
  */
-function knx_orders_allowed_statuses_option_a() {
+function knx_orders_allowed_statuses_db_canon() {
     return [
-        'placed',
+        'confirmed',
         'accepted_by_driver',
-        'accepted_by_restaurant',
+        'accepted_by_hub',
         'preparing',
         'prepared',
-        'out_for_delivery',
+        'picked_up',
         'completed',
         'cancelled',
     ];
 }
 
 /**
- * OPS alias handler: maps {to_status} -> {status} and reuses canonical handler.
+ * Resolve manager allowed city IDs via knx_manager_cities.
+ * Fail-closed if missing or empty.
  *
- * @param WP_REST_Request $request
- * @return WP_REST_Response
+ * @param int $manager_user_id
+ * @return array<int>
+ */
+function knx_orders_manager_city_ids($manager_user_id) {
+    global $wpdb;
+
+    $manager_user_id = (int)$manager_user_id;
+    if ($manager_user_id <= 0) return [];
+
+    $pivot = $wpdb->prefix . 'knx_manager_cities';
+    $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $pivot));
+    if (empty($exists)) return [];
+
+    $ids = $wpdb->get_col($wpdb->prepare(
+        "SELECT DISTINCT city_id
+         FROM {$pivot}
+         WHERE manager_user_id = %d
+           AND city_id IS NOT NULL",
+        $manager_user_id
+    ));
+
+    $ids = array_map('intval', (array)$ids);
+    $ids = array_values(array_filter($ids, static function ($v) { return $v > 0; }));
+    return $ids;
+}
+
+/**
+ * OPS alias handler: maps {to_status} -> {status} and reuses canonical handler.
  */
 function knx_ops_update_order_status_alias($request) {
     $to = (string) $request->get_param('to_status');
@@ -105,12 +132,6 @@ function knx_ops_update_order_status_alias($request) {
     return knx_update_order_status_handler($request);
 }
 
-/**
- * Update order status with transition validation.
- *
- * @param WP_REST_Request $request
- * @return WP_REST_Response
- */
 function knx_update_order_status_handler($request) {
     global $wpdb;
 
@@ -121,14 +142,13 @@ function knx_update_order_status_handler($request) {
 
     $order_id = (int) $request->get_param('order_id');
 
-    // Accept both keys defensively (canon is 'status')
     $new_status = (string) $request->get_param('status');
     if ($new_status === '') {
         $new_status = (string) $request->get_param('to_status');
     }
     $new_status = sanitize_text_field($new_status);
 
-    $allowed_targets = knx_orders_allowed_statuses_option_a();
+    $allowed_targets = knx_orders_allowed_statuses_db_canon();
     if (!in_array($new_status, $allowed_targets, true)) {
         return new WP_REST_Response([
             'error'   => 'invalid-status',
@@ -139,10 +159,9 @@ function knx_update_order_status_handler($request) {
     $prefix               = $wpdb->prefix;
     $table_orders         = $prefix . 'knx_orders';
     $table_status_history = $prefix . 'knx_order_status_history';
-    $table_hubs           = $prefix . 'knx_hubs';
 
     $order = $wpdb->get_row($wpdb->prepare(
-        "SELECT id, hub_id, status, customer_id, payment_status
+        "SELECT id, city_id, status, payment_status
          FROM {$table_orders}
          WHERE id = %d
          LIMIT 1",
@@ -153,18 +172,17 @@ function knx_update_order_status_handler($request) {
         return new WP_REST_Response(['error' => 'order-not-found'], 404);
     }
 
-    // Access Control (fail-closed, no existence leak)
     $role = strtolower((string)$session->role);
 
     if ($role === 'super_admin') {
         // unrestricted
     } elseif ($role === 'manager') {
-        // TODO: strict city-scoping once manager->allowed cities exist
-        $hub = $wpdb->get_row($wpdb->prepare(
-            "SELECT city_id FROM {$table_hubs} WHERE id = %d",
-            (int) $order->hub_id
-        ));
-        if (!$hub) {
+        $allowed = knx_orders_manager_city_ids((int)$session->user_id);
+        if (empty($allowed)) {
+            return new WP_REST_Response(['error' => 'order-not-found'], 404);
+        }
+        $city_id = (int)($order->city_id ?? 0);
+        if ($city_id <= 0 || !in_array($city_id, $allowed, true)) {
             return new WP_REST_Response(['error' => 'order-not-found'], 404);
         }
     } else {
@@ -173,11 +191,20 @@ function knx_update_order_status_handler($request) {
 
     $current_status = (string) ($order->status ?? '');
 
-    // Hard block: pending payment must be promoted by webhook only
+    // Hard block: payment gating
     if ($current_status === 'pending_payment') {
         return new WP_REST_Response([
             'error'   => 'invalid-transition',
             'message' => 'Order is pending payment. Status changes are blocked until payment is confirmed.'
+        ], 409);
+    }
+
+    // Fail-closed: do not operate on unpaid orders
+    $ps = strtolower((string)($order->payment_status ?? ''));
+    if ($ps !== 'paid') {
+        return new WP_REST_Response([
+            'error'   => 'payment-not-paid',
+            'message' => 'Order is not paid. Status changes are blocked.'
         ], 409);
     }
 
@@ -188,19 +215,16 @@ function knx_update_order_status_handler($request) {
         ], 400);
     }
 
-    // OPTION A transition matrix
+    // DB-canon transition matrix
     $allowed_transitions = [
-        'placed'                => ['accepted_by_driver', 'cancelled'],
-        'accepted_by_driver'    => ['accepted_by_restaurant', 'cancelled'],
-        'accepted_by_restaurant'=> ['preparing', 'cancelled'],
-        'preparing'             => ['prepared', 'cancelled'],
-        'prepared'              => ['out_for_delivery', 'cancelled'],
-        'out_for_delivery'      => ['completed'],
-        'completed'             => [],
-        'cancelled'             => [],
-        // Legacy states (if any exist in DB) are terminal-blocked here:
-        'confirmed'             => [],
-        'ready'                 => [],
+        'confirmed'           => ['accepted_by_driver', 'cancelled'],
+        'accepted_by_driver'  => ['accepted_by_hub', 'cancelled'],
+        'accepted_by_hub'     => ['preparing', 'cancelled'],
+        'preparing'           => ['prepared', 'cancelled'],
+        'prepared'            => ['picked_up', 'cancelled'],
+        'picked_up'           => ['completed'],
+        'completed'           => [],
+        'cancelled'           => [],
     ];
 
     if (!isset($allowed_transitions[$current_status])) {

@@ -10,19 +10,11 @@ if (!defined('ABSPATH')) exit;
  * Canon rules:
  * - Amount/currency come ONLY from orders.totals_snapshot (SSOT).
  * - Order MUST belong to the session user.
- * - Order status must be eligible for payment:
- *     pending_payment OR placed
+ * - Order status eligible for payment:
+ *     pending_payment ONLY
  * - orders.payment_status must NOT be paid.
  * - knx_payments.status canonical:
  *     intent_created, authorized, paid, failed, cancelled
- *
- * Retry behavior:
- * - If there is an existing knx_payments row for this order with status intent_created,
- *   we retrieve the existing Stripe PaymentIntent and return its client_secret.
- * - If there are only failed/cancelled rows, we create a new intent and new payment row.
- *
- * DB requirements:
- * - knx_payments.checkout_attempt_key is NOT NULL UNIQUE -> we generate a new one per creation.
  * ==========================================================
  */
 
@@ -108,13 +100,18 @@ if (!function_exists('knx_api_create_payment_intent')) {
                 ? knx_rest_response(true, 'Order already paid', [
                     'already_paid' => true,
                     'order_id'     => $order_id,
+                    'redirect_url' => home_url('/order-status?order_id=' . (int)$order_id),
                 ], 200)
-                : new WP_REST_Response(['success' => true, 'already_paid' => true, 'order_id' => $order_id], 200);
+                : new WP_REST_Response([
+                    'success' => true,
+                    'already_paid' => true,
+                    'order_id' => $order_id,
+                    'redirect_url' => home_url('/order-status?order_id=' . (int)$order_id),
+                ], 200);
         }
 
-        // Eligible order states for creating/retrying payments
-        $eligible_order_states = ['pending_payment', 'placed'];
-        if (!in_array($order_status, $eligible_order_states, true)) {
+        // Eligible order state for creating/retrying payments
+        if ($order_status !== 'pending_payment') {
             return function_exists('knx_rest_error')
                 ? knx_rest_error('Order not eligible for payment', 409)
                 : new WP_REST_Response(['success' => false, 'message' => 'Order not eligible for payment'], 409);
@@ -167,7 +164,6 @@ if (!function_exists('knx_api_create_payment_intent')) {
             try {
                 $pi = \Stripe\PaymentIntent::retrieve((string) $existing->provider_intent_id);
 
-                // Defensive: ensure amount/currency still match
                 $pi_amount = isset($pi->amount) ? (int) $pi->amount : null;
                 $pi_currency = isset($pi->currency) ? strtolower((string) $pi->currency) : null;
 
@@ -185,15 +181,11 @@ if (!function_exists('knx_api_create_payment_intent')) {
                             'intent_reused' => true,
                         ], 200);
                 }
-
-                // If mismatch, fall through to create a new intent (do not overwrite old record).
-
             } catch (\Throwable $e) {
                 // Fall through to create new intent
             }
         }
 
-        // Create NEW Stripe PaymentIntent + persist knx_payments row.
         $checkout_attempt_key = 'atk_' . bin2hex(random_bytes(16));
 
         try {
@@ -204,14 +196,13 @@ if (!function_exists('knx_api_create_payment_intent')) {
                 'currency'             => $currency,
                 'payment_method_types' => ['card'],
                 'metadata'             => [
-                    'order_id'            => (string) $order_id,
-                    'order_number'        => (string) ($order->order_number ?? ''),
-                    'checkout_attempt_key'=> (string) $checkout_attempt_key,
-                    'mode'                => (string) $stripe_mode,
-                    'integration'         => 'knx',
+                    'order_id'             => (string) $order_id,
+                    'order_number'         => (string) ($order->order_number ?? ''),
+                    'checkout_attempt_key' => (string) $checkout_attempt_key,
+                    'mode'                 => (string) $stripe_mode,
+                    'integration'          => 'knx',
                 ],
             ], [
-                // Idempotency should be per-attempt (so retries of same request don't create multiple intents).
                 'idempotency_key' => 'knx_pi_' . $checkout_attempt_key,
             ]);
 
@@ -230,21 +221,19 @@ if (!function_exists('knx_api_create_payment_intent')) {
                 : new WP_REST_Response(['success' => false, 'message' => 'Unable to initialize payment. Please try again.'], 500);
         }
 
-        // Persist payment record (amount in cents).
         $now = current_time('mysql');
 
-        // Prefer helper if present (keeps race guards centralized).
         if (function_exists('knx_create_payment_record')) {
             $payment_id = knx_create_payment_record([
-                'order_id'            => $order_id,
-                'provider'            => 'stripe',
-                'provider_intent_id'  => $provider_intent_id,
-                'checkout_attempt_key'=> $checkout_attempt_key,
-                'amount'              => $amount_cents,
-                'currency'            => $currency,
-                'status'              => 'intent_created',
-                'created_at'          => $now,
-                'updated_at'          => $now,
+                'order_id'             => $order_id,
+                'provider'             => 'stripe',
+                'provider_intent_id'   => $provider_intent_id,
+                'checkout_attempt_key' => $checkout_attempt_key,
+                'amount'               => $amount_cents,
+                'currency'             => $currency,
+                'status'               => 'intent_created',
+                'created_at'           => $now,
+                'updated_at'           => $now,
             ]);
 
             if (!$payment_id) {
@@ -254,15 +243,15 @@ if (!function_exists('knx_api_create_payment_intent')) {
             }
         } else {
             $ok = $wpdb->insert($payments_table, [
-                'order_id'            => $order_id,
-                'provider'            => 'stripe',
-                'provider_intent_id'  => $provider_intent_id,
-                'checkout_attempt_key'=> $checkout_attempt_key,
-                'amount'              => $amount_cents,
-                'currency'            => $currency,
-                'status'              => 'intent_created',
-                'created_at'          => $now,
-                'updated_at'          => $now,
+                'order_id'             => $order_id,
+                'provider'             => 'stripe',
+                'provider_intent_id'   => $provider_intent_id,
+                'checkout_attempt_key' => $checkout_attempt_key,
+                'amount'               => $amount_cents,
+                'currency'             => $currency,
+                'status'               => 'intent_created',
+                'created_at'           => $now,
+                'updated_at'           => $now,
             ], ['%d','%s','%s','%s','%d','%s','%s','%s','%s']);
 
             if ($ok === false) {
@@ -274,9 +263,9 @@ if (!function_exists('knx_api_create_payment_intent')) {
 
         return function_exists('knx_rest_response')
             ? knx_rest_response(true, 'Payment intent created', [
-                'payment_intent_id' => $provider_intent_id,
-                'client_secret'     => $client_secret,
-                'checkout_attempt_key' => $checkout_attempt_key,
+                'payment_intent_id'     => $provider_intent_id,
+                'client_secret'         => $client_secret,
+                'checkout_attempt_key'  => $checkout_attempt_key,
             ], 200)
             : new WP_REST_Response([
                 'success' => true,
