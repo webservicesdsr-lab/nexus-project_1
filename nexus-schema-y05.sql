@@ -1,160 +1,233 @@
-/* =========================================================
-   KINGDOM NEXUS — y05 schema (CANONICAL / FRESH INSTALL)
+Explanation: Replace local canonical schema with the provided SQL dump (align file 1:1 with attached canonical dump).
 
-   Rules:
-   - No data dumps
-   - No AUTO_INCREMENT seed values
-   - PK + UNIQUE + INDEX + FK preserved
-   - InnoDB + utf8mb4_unicode_ci consistent
-   - Atomic Payments Ready (orders/payments/webhook_events)
-   - Orders.status enum is CANON (updated to match current KNX)
-   ========================================================= */
+-- phpMyAdmin SQL Dump
+-- version 5.2.2
+-- https://www.phpmyadmin.net/
+--
+-- Servidor: localhost:3306
+-- Tiempo de generación: 20-02-2026 a las 14:21:19
+-- Versión del servidor: 8.0.45-36
+-- Versión de PHP: 8.3.26
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+START TRANSACTION;
 SET time_zone = "+00:00";
-SET FOREIGN_KEY_CHECKS = 0;
 
-/* =========================================================
-   CORE: USERS
-   ========================================================= */
-DROP TABLE IF EXISTS `y05_knx_users`;
-CREATE TABLE `y05_knx_users` (
-  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `username` varchar(100) NOT NULL,
-  `email` varchar(255) NOT NULL,
-  `name` varchar(255) DEFAULT NULL,
-  `phone` varchar(50) DEFAULT NULL,
-  `password` varchar(255) NOT NULL,
-  `role` enum('super_admin','manager','menu_uploader','hub_management','driver','customer','user') DEFAULT 'user',
-  `status` enum('active','inactive') DEFAULT 'active',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_username` (`username`),
-  UNIQUE KEY `uk_email` (`email`),
-  KEY `idx_role` (`role`),
-  KEY `idx_status` (`status`),
-  KEY `idx_name` (`name`),
-  KEY `idx_phone` (`phone`)
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
+
+--
+-- Base de datos: `oywwofte_WPJEE`
+--
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `y05_knx_driver_ops`
+--
+
+CREATE TABLE `y05_knx_driver_ops` (
+  `id` bigint UNSIGNED NOT NULL,
+  `order_id` bigint UNSIGNED NOT NULL,
+  `driver_user_id` bigint UNSIGNED DEFAULT NULL,
+  `assigned_by` bigint UNSIGNED DEFAULT NULL,
+  `ops_status` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'unassigned',
+  `assigned_at` datetime DEFAULT NULL,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-/* =========================================================
-   GEO: CITIES
-   ========================================================= */
-DROP TABLE IF EXISTS `y05_knx_cities`;
-CREATE TABLE `y05_knx_cities` (
-  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` varchar(100) NOT NULL,
-  `state` varchar(100) DEFAULT NULL,
-  `country` varchar(100) DEFAULT 'USA',
-  `status` enum('active','inactive') DEFAULT 'active',
-  `is_operational` tinyint(1) NOT NULL DEFAULT '1',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
-  `deleted_at` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `idx_status` (`status`),
-  KEY `idx_name` (`name`),
-  KEY `idx_is_operational` (`is_operational`),
-  KEY `idx_deleted_at` (`deleted_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- --------------------------------------------------------
 
-/* =========================================================
-   HUBS: CATEGORIES
-   ========================================================= */
-DROP TABLE IF EXISTS `y05_knx_hub_categories`;
-CREATE TABLE `y05_knx_hub_categories` (
-  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` varchar(191) NOT NULL,
-  `status` enum('active','inactive') DEFAULT 'active',
-  `sort_order` int UNSIGNED DEFAULT '0',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_status` (`status`),
-  KEY `idx_sort_order` (`sort_order`),
-  KEY `idx_name` (`name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+--
+-- Estructura de tabla para la tabla `y05_knx_orders`
+--
 
-/* =========================================================
-   HUBS
-   ========================================================= */
-DROP TABLE IF EXISTS `y05_knx_hubs`;
-CREATE TABLE `y05_knx_hubs` (
-  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` varchar(191) NOT NULL,
-  `slug` varchar(191) DEFAULT NULL COMMENT 'SEO-friendly URL slug',
-  `tagline` varchar(255) DEFAULT NULL,
-  `city_id` bigint UNSIGNED DEFAULT NULL,
-  `category_id` bigint UNSIGNED DEFAULT NULL,
-  `address` text,
-  `latitude` decimal(10,7) DEFAULT NULL,
-  `longitude` decimal(10,7) DEFAULT NULL,
-  `delivery_radius` decimal(5,2) DEFAULT '5.00',
-  `delivery_zone_type` enum('radius','polygon') DEFAULT 'radius',
-  `delivery_available` tinyint(1) DEFAULT '1',
-  `pickup_available` tinyint(1) DEFAULT '1',
-  `phone` varchar(20) DEFAULT NULL,
-  `email` varchar(191) DEFAULT NULL,
-  `logo_url` varchar(500) DEFAULT NULL,
-  `hero_img` varchar(500) DEFAULT NULL,
-  `type` enum('Restaurant','Food Truck','Cottage Food') DEFAULT 'Restaurant',
-  `rating` decimal(2,1) DEFAULT '4.5',
-  `cuisines` text,
-  `status` enum('active','inactive') DEFAULT 'active',
-  `hours_monday` varchar(50) DEFAULT NULL,
-  `hours_tuesday` varchar(50) DEFAULT NULL,
-  `hours_wednesday` varchar(50) DEFAULT NULL,
-  `hours_thursday` varchar(50) DEFAULT NULL,
-  `hours_friday` varchar(50) DEFAULT NULL,
-  `hours_saturday` varchar(50) DEFAULT NULL,
-  `hours_sunday` varchar(50) DEFAULT NULL,
-  `closure_start` date DEFAULT NULL,
-  `closure_until` datetime DEFAULT NULL,
-  `closure_reason` text,
-  `timezone` varchar(50) DEFAULT 'America/Chicago',
-  `currency` varchar(3) DEFAULT 'USD',
-  `tax_rate` decimal(5,2) DEFAULT '0.00',
-  `min_order` decimal(10,2) DEFAULT '0.00',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
-  `is_featured` tinyint(1) DEFAULT '0',
-  `closure_end` date DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `idx_city_id` (`city_id`),
-  KEY `idx_category_id` (`category_id`),
-  KEY `idx_status` (`status`),
-  KEY `idx_name` (`name`),
-  KEY `idx_rating` (`rating`),
-  KEY `idx_delivery_zone_type` (`delivery_zone_type`),
-  KEY `idx_hub_slug` (`slug`),
-  KEY `idx_is_featured` (`is_featured`),
-  CONSTRAINT `fk_hubs_city` FOREIGN KEY (`city_id`) REFERENCES `y05_knx_cities` (`id`) ON DELETE SET NULL,
-  CONSTRAINT `fk_hubs_category` FOREIGN KEY (`category_id`) REFERENCES `y05_knx_hub_categories` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-/* =========================================================
-   ADDONS: GROUPS + ADDONS
-   ========================================================= */
-DROP TABLE IF EXISTS `y05_knx_addons`;
-DROP TABLE IF EXISTS `y05_knx_addon_groups`;
-
-CREATE TABLE `y05_knx_addon_groups` (
-  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` varchar(191) NOT NULL,
+CREATE TABLE `y05_knx_orders` (
+  `id` bigint UNSIGNED NOT NULL,
+  `order_number` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `hub_id` bigint UNSIGNED NOT NULL,
-  `description` text,
-  `sort_order` int UNSIGNED DEFAULT '0',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_hub_id` (`hub_id`),
-  KEY `idx_hub_sort` (`hub_id`,`sort_order`),
-  KEY `idx_name` (`name`),
-  CONSTRAINT `fk_addon_groups_hub` FOREIGN KEY (`hub_id`) REFERENCES `y05_knx_hubs` (`id`) ON DELETE CASCADE
+  `city_id` bigint UNSIGNED DEFAULT NULL,
+  `session_token` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `customer_id` bigint UNSIGNED DEFAULT NULL,
+  `fulfillment_type` enum('delivery','pickup') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'delivery',
+  `customer_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `customer_phone` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `customer_email` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `delivery_address` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `delivery_address_id` bigint UNSIGNED DEFAULT NULL,
+  `delivery_lat` decimal(10,7) DEFAULT NULL,
+  `delivery_lng` decimal(10,7) DEFAULT NULL,
+  `delivery_distance` decimal(10,3) DEFAULT NULL,
+  `delivery_duration_minutes` int UNSIGNED DEFAULT NULL,
+  `estimated_delivery_at` datetime DEFAULT NULL,
+  `subtotal` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `tax_rate` decimal(6,2) NOT NULL DEFAULT '0.00',
+  `tax_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `delivery_fee` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `software_fee` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `tip_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `tip_percent` decimal(5,2) DEFAULT NULL,
+  `tip_source` enum('none','preset','custom') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'none',
+  `discount_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `coupon_code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `coupon_id` bigint UNSIGNED DEFAULT NULL,
+  `gift_card_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `gift_card_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `gift_card_id` bigint UNSIGNED DEFAULT NULL,
+  `total` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `status` enum('pending_payment','confirmed','accepted_by_driver','accepted_by_hub','preparing','prepared','picked_up','completed','cancelled') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending_payment',
+  `driver_id` bigint UNSIGNED DEFAULT NULL,
+  `payment_method` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `payment_status` enum('pending','paid','failed','refunded') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `payment_transaction_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `cancel_reason` varchar(80) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `cancel_source` enum('restaurant','driver','ops','system','customer') COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `cancelled_at` datetime DEFAULT NULL,
+  `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `cart_snapshot` json DEFAULT NULL,
+  `totals_snapshot` json DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `y05_knx_addons` (
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `y05_knx_order_items`
+--
+
+CREATE TABLE `y05_knx_order_items` (
+  `id` bigint UNSIGNED NOT NULL,
+  `order_id` bigint UNSIGNED NOT NULL,
+  `item_id` bigint UNSIGNED DEFAULT NULL,
+  `name_snapshot` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `image_snapshot` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `quantity` int UNSIGNED NOT NULL DEFAULT '1',
+  `unit_price` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `line_total` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `modifiers_json` json DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `y05_knx_order_status_history`
+--
+
+CREATE TABLE `y05_knx_order_status_history` (
+  `id` bigint UNSIGNED NOT NULL,
+  `order_id` bigint UNSIGNED NOT NULL,
+  `status` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `changed_by` bigint UNSIGNED DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Índices para tablas volcadas
+--
+
+--
+-- Indices de la tabla `y05_knx_driver_ops`
+--
+ALTER TABLE `y05_knx_driver_ops`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uniq_order` (`order_id`),
+  ADD KEY `idx_driver` (`driver_user_id`),
+  ADD KEY `idx_ops_status` (`ops_status`),
+  ADD KEY `idx_updated` (`updated_at`);
+
+--
+-- Indices de la tabla `y05_knx_orders`
+--
+ALTER TABLE `y05_knx_orders`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uk_order_number` (`order_number`),
+  ADD KEY `idx_hub_id` (`hub_id`),
+  ADD KEY `idx_city_id` (`city_id`),
+  ADD KEY `idx_session_token` (`session_token`),
+  ADD KEY `idx_status` (`status`),
+  ADD KEY `idx_created_at` (`created_at`),
+  ADD KEY `idx_delivery_address_id` (`delivery_address_id`),
+  ADD KEY `idx_idempotency_probe` (`session_token`,`hub_id`,`customer_id`,`status`,`created_at`),
+  ADD KEY `idx_coupon_code` (`coupon_code`),
+  ADD KEY `idx_gift_card_code` (`gift_card_code`),
+  ADD KEY `idx_knx_orders_cancel_source` (`cancel_source`);
+
+--
+-- Indices de la tabla `y05_knx_order_items`
+--
+ALTER TABLE `y05_knx_order_items`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_order_id` (`order_id`),
+  ADD KEY `idx_item_id` (`item_id`);
+
+--
+-- Indices de la tabla `y05_knx_order_status_history`
+--
+ALTER TABLE `y05_knx_order_status_history`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_order_id` (`order_id`),
+  ADD KEY `idx_status` (`status`),
+  ADD KEY `idx_created_at` (`created_at`);
+
+--
+-- AUTO_INCREMENT de las tablas volcadas
+--
+
+--
+-- AUTO_INCREMENT de la tabla `y05_knx_driver_ops`
+--
+ALTER TABLE `y05_knx_driver_ops`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `y05_knx_orders`
+--
+ALTER TABLE `y05_knx_orders`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `y05_knx_order_items`
+--
+ALTER TABLE `y05_knx_order_items`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `y05_knx_order_status_history`
+--
+ALTER TABLE `y05_knx_order_status_history`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- Restricciones para tablas volcadas
+--
+
+--
+-- Filtros para la tabla `y05_knx_orders`
+--
+ALTER TABLE `y05_knx_orders`
+  ADD CONSTRAINT `fk_orders_delivery_address` FOREIGN KEY (`delivery_address_id`) REFERENCES `y05_knx_addresses` (`id`) ON DELETE SET NULL;
+
+--
+-- Filtros para la tabla `y05_knx_order_items`
+--
+ALTER TABLE `y05_knx_order_items`
+  ADD CONSTRAINT `fk_order_items_order` FOREIGN KEY (`order_id`) REFERENCES `y05_knx_orders` (`id`) ON DELETE CASCADE;
+
+--
+-- Filtros para la tabla `y05_knx_order_status_history`
+--
+ALTER TABLE `y05_knx_order_status_history`
+  ADD CONSTRAINT `fk_order_status_history_order` FOREIGN KEY (`order_id`) REFERENCES `y05_knx_orders` (`id`) ON DELETE CASCADE;
+COMMIT;
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `group_id` bigint UNSIGNED NOT NULL,
   `name` varchar(191) NOT NULL,

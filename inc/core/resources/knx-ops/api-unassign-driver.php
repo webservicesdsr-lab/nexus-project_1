@@ -4,27 +4,29 @@ if (!defined('ABSPATH')) exit;
 
 /**
  * ==========================================================
- * KNX OPS — Unassign Driver (OPS v1) [CANON]
+ * KNX OPS — Unassign Driver (OPS v1) — DB-CANON v1.2
  * Endpoint: POST /wp-json/knx/v1/ops/unassign-driver
  *
- * Contract (JSON body or params):
+ * Input JSON:
  * - order_id (int, required)
  *
  * Canon:
- * - Writes unassignment to {prefix}knx_driver_ops (SSOT operational assignment)
+ * - SSOT for operational assignment is {prefix}knx_driver_ops
  *   - driver_user_id = NULL
  *   - ops_status = 'unassigned'
- *   - assigned_at = NULL (best-effort)
+ *   - assigned_at = NULL
  *
  * Rules:
  * - Fail-closed: requires session + role (super_admin|manager)
  * - Manager is city-scoped via {prefix}knx_manager_cities (fail-closed)
- * - Allowed only when order.status is: assigned, in_progress
- * - Idempotent: if already unassigned -> 200 updated:false
- * - Best-effort audit (non-blocking)
+ * - Requires payment_status='paid'
+ * - Allowed for non-terminal orders (excluding pending_payment).
  *
- * Notes:
- * - Best-effort: also NULLs orders.driver_id if column exists (legacy compatibility)
+ * CANON STATUS RULE:
+ * - If current status is 'accepted_by_driver', releasing driver returns the order to 'confirmed'
+ *   (Waiting for driver) and inserts a real status_history row for 'confirmed'.
+ * - If status is later (accepted_by_hub/preparing/prepared/picked_up), we do NOT downgrade status
+ *   (driver can be swapped without destroying pipeline).
  * ==========================================================
  */
 
@@ -38,13 +40,6 @@ add_action('rest_api_init', function () {
     ]);
 });
 
-/**
- * Resolve manager allowed city IDs based on {prefix}knx_manager_cities.
- * Defined defensively (only if not already defined elsewhere).
- *
- * @param int $manager_user_id
- * @return array<int>
- */
 if (!function_exists('knx_ops_manager_city_ids')) {
     function knx_ops_manager_city_ids($manager_user_id) {
         global $wpdb;
@@ -64,69 +59,18 @@ if (!function_exists('knx_ops_manager_city_ids')) {
 
         $ids = array_map('intval', (array)$ids);
         $ids = array_values(array_filter($ids, static function ($v) { return $v > 0; }));
-
         return $ids;
     }
 }
 
-/**
- * Parse JSON body defensively.
- *
- * @param WP_REST_Request $request
- * @return array
- */
-if (!function_exists('knx_ops_unassign_driver_read_json_body')) {
-    function knx_ops_unassign_driver_read_json_body(WP_REST_Request $request) {
-        $raw = (string)$request->get_body();
-        if ($raw === '') return [];
-        $json = json_decode($raw, true);
-        return is_array($json) ? $json : [];
-    }
-}
-
-/**
- * Column exists helper (shared with assign if loaded elsewhere).
- *
- * @param string $table
- * @param string $col
- * @return bool
- */
-if (!function_exists('knx_ops__col_exists')) {
-    function knx_ops__col_exists($table, $col) {
-        global $wpdb;
-        $found = $wpdb->get_var($wpdb->prepare("SHOW COLUMNS FROM {$table} LIKE %s", $col));
-        return !empty($found);
-    }
-}
-
-/**
- * Best-effort audit helper:
- * - Prefer knx_ops_assign_driver_audit if available to keep logs consistent.
- * - Otherwise do nothing (non-blocking).
- *
- * @param int    $order_id
- * @param string $event_type
- * @param string $message
- * @param array  $meta
- * @param object $session
- * @return void
- */
-if (!function_exists('knx_ops_unassign_driver_audit')) {
-    function knx_ops_unassign_driver_audit($order_id, $event_type, $message, array $meta, $session) {
-        if (function_exists('knx_ops_assign_driver_audit')) {
-            try {
-                knx_ops_assign_driver_audit((int)$order_id, (string)$event_type, (string)$message, $meta, $session);
-            } catch (\Throwable $e) {
-                // Non-blocking
-            }
-        }
-    }
+function knx_ops_unassign_driver_json_body(WP_REST_Request $request) {
+    $body = $request->get_json_params();
+    return (is_array($body) ? $body : []);
 }
 
 function knx_ops_unassign_driver(WP_REST_Request $request) {
     global $wpdb;
 
-    // Require session + role (fail-closed)
     $session = knx_rest_require_session();
     if ($session instanceof WP_REST_Response) return $session;
 
@@ -135,30 +79,30 @@ function knx_ops_unassign_driver(WP_REST_Request $request) {
 
     $role    = isset($session->role) ? (string)$session->role : '';
     $user_id = isset($session->user_id) ? (int)$session->user_id : 0;
+    if ($user_id <= 0) return knx_rest_error('Unauthorized', 401);
 
-    // Optional nonce enforcement (centralized)
     if (function_exists('knx_rest_require_nonce')) {
         $nonceRes = knx_rest_require_nonce($request);
         if ($nonceRes instanceof WP_REST_Response) return $nonceRes;
     }
 
-    $body = knx_ops_unassign_driver_read_json_body($request);
-    $order_id = (int)($request->get_param('order_id') ?? ($body['order_id'] ?? 0));
+    $body = knx_ops_unassign_driver_json_body($request);
+    $order_id = isset($body['order_id']) ? (int)$body['order_id'] : (int)$request->get_param('order_id');
     if ($order_id <= 0) return knx_rest_error('order_id is required', 400);
 
     $orders_table     = $wpdb->prefix . 'knx_orders';
-    $driver_ops_table = $wpdb->prefix . 'knx_driver_ops';
+    $ops_table        = $wpdb->prefix . 'knx_driver_ops';
+    $history_table    = $wpdb->prefix . 'knx_order_status_history';
 
-    // Tables must exist (fail-closed)
-    $orders_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $orders_table));
-    if (empty($orders_exists)) return knx_rest_error('Orders not configured', 409);
+    // Fail-closed: tables must exist
+    foreach ([$orders_table, $ops_table, $history_table] as $t) {
+        $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $t));
+        if (empty($exists)) return knx_rest_error('System not configured', 409);
+    }
 
-    $ops_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $driver_ops_table));
-    if (empty($ops_exists)) return knx_rest_error('Driver ops not configured', 409);
-
-    // Fetch order (fail-closed)
+    // Fetch order preflight
     $order = $wpdb->get_row($wpdb->prepare(
-        "SELECT id, city_id, status, driver_id
+        "SELECT id, city_id, status, payment_status, driver_id
          FROM {$orders_table}
          WHERE id = %d
          LIMIT 1",
@@ -166,112 +110,151 @@ function knx_ops_unassign_driver(WP_REST_Request $request) {
     ));
     if (!$order) return knx_rest_error('Order not found', 404);
 
-    $order_city_id = (int)$order->city_id;
-    $order_status  = strtolower(trim((string)$order->status));
-
-    // Only allow unassign from allowed statuses (OPS v1)
-    if (!in_array($order_status, ['assigned', 'in_progress'], true)) {
-        return knx_rest_error('Order status does not allow unassign', 409);
-    }
-
-    // Manager scope (fail-closed)
+    // Manager scope
     if ($role === 'manager') {
-        if (!$user_id) return knx_rest_error('Unauthorized', 401);
+        $allowed = knx_ops_manager_city_ids($user_id);
+        if (empty($allowed)) return knx_rest_error('Manager city assignment not configured', 403);
 
-        $allowed_cities = knx_ops_manager_city_ids($user_id);
-        if (empty($allowed_cities)) return knx_rest_error('Manager city assignment not configured', 403);
-
-        if ($order_city_id <= 0 || !in_array($order_city_id, $allowed_cities, true)) {
+        $city_id = (int)($order->city_id ?? 0);
+        if ($city_id <= 0 || !in_array($city_id, $allowed, true)) {
             return knx_rest_error('Forbidden: order city outside manager scope', 403);
         }
     }
 
-    // Read ops row (if none, treat as already unassigned)
-    $ops_row = $wpdb->get_row($wpdb->prepare(
-        "SELECT id, order_id, driver_user_id, ops_status
-         FROM {$driver_ops_table}
-         WHERE order_id = %d
-         LIMIT 1",
-        $order_id
-    ));
-
-    $current_driver_user_id = $ops_row && isset($ops_row->driver_user_id) ? (int)$ops_row->driver_user_id : 0;
-    $current_ops_status = $ops_row && isset($ops_row->ops_status) ? strtolower(trim((string)$ops_row->ops_status)) : 'unassigned';
-
-    // Idempotent: already unassigned (either no row or null driver_user_id or ops_status unassigned)
-    $already_unassigned = (!$ops_row) || ($current_driver_user_id <= 0) || ($current_ops_status === 'unassigned');
-    if ($already_unassigned) {
-        knx_ops_unassign_driver_audit($order_id, 'unassign_driver_noop', 'No driver to unassign', [
-            'order_id' => $order_id,
-            'city_id'  => $order_city_id,
-            'order_status' => $order_status,
-            'ops_status' => $current_ops_status,
-        ], $session);
-
-        return knx_rest_response(true, 'No change', [
-            'updated' => false,
-            'unassigned' => true,
-            'order_id' => $order_id,
-        ], 200);
+    // Payment must be paid
+    $ps = strtolower((string)($order->payment_status ?? ''));
+    if ($ps !== 'paid') {
+        return knx_rest_error('Order is not paid', 409);
     }
 
-    // Update ops row to unassigned (SSOT)
-    $ok = $wpdb->update(
-        $driver_ops_table,
-        [
-            'driver_user_id' => null,
-            'ops_status'     => 'unassigned',
-            'assigned_at'    => null,
-            // updated_at auto-updated by schema
-        ],
-        ['order_id' => $order_id],
-        ['%s', '%s', '%s'], // wpdb accepts nulls; format strings are ignored for NULL
-        ['%d']
-    );
+    $status = strtolower((string)($order->status ?? ''));
 
-    if ($ok === false) return knx_rest_error('Failed to unassign driver (ops)', 500);
+    // Block pending_payment + terminal
+    if ($status === 'pending_payment') {
+        return knx_rest_error('Order is pending payment', 409);
+    }
+    if (in_array($status, ['completed','cancelled'], true)) {
+        return knx_rest_error('Order is terminal', 409);
+    }
 
-    // Best-effort: keep legacy orders.driver_id in sync if column exists
-    if (knx_ops__col_exists($orders_table, 'driver_id')) {
-        $now = current_time('mysql');
-        $updated_at_exists = knx_ops__col_exists($orders_table, 'updated_at');
+    $now = current_time('mysql');
 
-        try {
-            if ($updated_at_exists) {
-                $wpdb->query($wpdb->prepare(
-                    "UPDATE {$orders_table}
-                     SET driver_id = NULL, updated_at = %s
-                     WHERE id = %d",
-                    $now,
-                    $order_id
-                ));
-            } else {
-                $wpdb->query($wpdb->prepare(
-                    "UPDATE {$orders_table}
-                     SET driver_id = NULL
-                     WHERE id = %d",
-                    $order_id
-                ));
-            }
-        } catch (\Throwable $e) {
-            // Non-blocking legacy sync
+    $wpdb->query('START TRANSACTION');
+
+    try {
+        // Lock order
+        $locked = $wpdb->get_row($wpdb->prepare(
+            "SELECT id, status, payment_status, driver_id
+             FROM {$orders_table}
+             WHERE id = %d
+             FOR UPDATE",
+            $order_id
+        ));
+        if (!$locked) throw new Exception('ORDER_LOCK_FAILED');
+
+        $ps_locked = strtolower((string)($locked->payment_status ?? ''));
+        if ($ps_locked !== 'paid') throw new Exception('ORDER_NOT_PAID');
+
+        $st_locked = strtolower((string)($locked->status ?? ''));
+        if ($st_locked === 'pending_payment') throw new Exception('ORDER_PENDING_PAYMENT');
+        if (in_array($st_locked, ['completed','cancelled'], true)) throw new Exception('ORDER_TERMINAL');
+
+        // Upsert ops row to "unassigned"
+        $existing_ops_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$ops_table} WHERE order_id = %d LIMIT 1",
+            $order_id
+        ));
+
+        if (!empty($existing_ops_id)) {
+            $ok_ops = $wpdb->update(
+                $ops_table,
+                [
+                    'driver_user_id' => null,
+                    'ops_status'     => 'unassigned',
+                    'assigned_at'    => null,
+                    'updated_at'     => $now,
+                ],
+                ['order_id' => $order_id],
+                ['%s','%s','%s','%s'],
+                ['%d']
+            );
+            if ($ok_ops === false) throw new Exception('OPS_UPDATE_FAILED');
+        } else {
+            $ok_ops = $wpdb->insert(
+                $ops_table,
+                [
+                    'order_id'       => $order_id,
+                    'driver_user_id' => null,
+                    'assigned_by'    => $user_id,
+                    'ops_status'     => 'unassigned',
+                    'assigned_at'    => null,
+                    'updated_at'     => $now,
+                ],
+                ['%d','%s','%d','%s','%s','%s']
+            );
+            if ($ok_ops === false) throw new Exception('OPS_INSERT_FAILED');
         }
+
+        // Determine if we reset status back to confirmed
+        $status_before = $st_locked;
+        $status_after = $st_locked;
+        $did_status_change = false;
+
+        if ($st_locked === 'accepted_by_driver') {
+            $status_after = 'confirmed';
+            $did_status_change = true;
+        }
+
+        // Always clear orders.driver_id
+        $update_data = [
+            'driver_id'  => null,
+            'updated_at' => $now,
+        ];
+        $update_fmt = ['%s','%s'];
+
+        if ($did_status_change) {
+            $update_data['status'] = $status_after;
+            $update_fmt[] = '%s';
+        }
+
+        $ok_order = $wpdb->update(
+            $orders_table,
+            $update_data,
+            ['id' => $order_id],
+            $update_fmt,
+            ['%d']
+        );
+        if ($ok_order === false) throw new Exception('ORDER_UPDATE_FAILED');
+
+        // Insert history only when we actually changed status
+        if ($did_status_change && $status_before !== $status_after) {
+            $ok_hist = $wpdb->insert(
+                $history_table,
+                [
+                    'order_id'   => $order_id,
+                    'status'     => $status_after,
+                    'changed_by' => $user_id,
+                    'created_at' => $now,
+                ],
+                ['%d','%s','%d','%s']
+            );
+            if ($ok_hist === false) throw new Exception('HISTORY_INSERT_FAILED');
+        }
+
+        $wpdb->query('COMMIT');
+
+        return knx_rest_response(true, 'Driver unassigned', [
+            'order_id'          => $order_id,
+            'unassigned'        => true,
+            'ops_status'        => 'unassigned',
+            'status_before'     => $status_before,
+            'status_after'      => $status_after,
+            'status_changed'    => (bool)$did_status_change,
+            'updated_at'        => $now,
+        ], 200);
+
+    } catch (\Throwable $e) {
+        $wpdb->query('ROLLBACK');
+        return knx_rest_error('Unassign failed', 500);
     }
-
-    // Best-effort audit
-    knx_ops_unassign_driver_audit($order_id, 'unassign_driver', 'Driver unassigned', [
-        'order_id' => $order_id,
-        'city_id'  => $order_city_id,
-        'order_status' => $order_status,
-        'from_driver_user_id' => $current_driver_user_id,
-        'from_ops_status' => $current_ops_status,
-        'to_driver_user_id' => null,
-        'to_ops_status' => 'unassigned',
-    ], $session);
-
-    return knx_rest_response(true, 'Driver unassigned', [
-        'updated' => true,
-        'unassigned' => true,
-        'order_id' => $order_id,
-    ], 200);
 }

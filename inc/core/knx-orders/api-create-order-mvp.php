@@ -23,7 +23,7 @@ if (!function_exists('knx_debug_log')) {
  * Payment hardening:
  * - Orders are created as: status = 'pending_payment'
  * - payment_method forced to 'stripe' (Nexus does not accept cash)
- * - Webhook promotes to 'placed' on payment success
+ * - Webhook promotes to 'confirmed' on payment success (system event)
  * - On payment failure: order remains pending_payment and payment_status becomes failed
  * ==========================================================
  */
@@ -56,6 +56,7 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
     $table_orders        = $wpdb->prefix . 'knx_orders';
     $table_order_items   = $wpdb->prefix . 'knx_order_items';
     $table_order_history = $wpdb->prefix . 'knx_order_status_history';
+    $table_users         = $wpdb->prefix . 'knx_users';
 
     if (!defined('KNX_CREATE_ORDER_CONTEXT')) {
         define('KNX_CREATE_ORDER_CONTEXT', true);
@@ -230,8 +231,9 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
         ], 409);
     }
 
+    // Include phone/email/logo_url so snapshot can carry full hub context.
     $hub = $wpdb->get_row($wpdb->prepare(
-        "SELECT id, name, city_id, status, address, latitude, longitude
+        "SELECT id, name, city_id, status, address, latitude, longitude, phone, email, logo_url
          FROM {$table_hubs}
          WHERE id = %d
          LIMIT 1",
@@ -332,6 +334,7 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
     }
 
     $delivery_address_snapshot = null;
+    $delivery_address_id = null;
     $delivery_lat = null;
     $delivery_lng = null;
 
@@ -377,6 +380,12 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
         }
 
         $delivery_address_snapshot = (string) $addr_snap['label'];
+
+        // NEW: address_id into orders.delivery_address_id when available
+        if (isset($addr_snap['address_id']) && is_numeric($addr_snap['address_id'])) {
+            $delivery_address_id = (int)$addr_snap['address_id'];
+            if ($delivery_address_id <= 0) $delivery_address_id = null;
+        }
 
         if (!isset($snapshot['delivery']['delivery_fee'])) {
             return new WP_REST_Response([
@@ -553,15 +562,53 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
         ];
     }
 
+    // NEW: Resolve customer fields from knx_users (DB truth), so orders always store it.
+    $user_row = $wpdb->get_row($wpdb->prepare(
+        "SELECT id, username, email, name, phone
+         FROM {$table_users}
+         WHERE id = %d
+         LIMIT 1",
+        $user_id
+    ));
+
+    $customer_name_db  = '';
+    $customer_phone_db = '';
+    $customer_email_db = '';
+
+    if ($user_row) {
+        $customer_name_db  = (string)($user_row->name ?? '');
+        if ($customer_name_db === '') $customer_name_db = (string)($user_row->username ?? '');
+        $customer_phone_db = (string)($user_row->phone ?? '');
+        $customer_email_db = (string)($user_row->email ?? '');
+    } else {
+        // Extremely defensive fallback: do not fail the order if the user row is missing.
+        $customer_email_db = (string)($session->email ?? '');
+        $customer_name_db  = (string)($session->username ?? '');
+    }
+
+    // NEW: Freeze hub coords/contact/logo in snapshot (from knx_hubs table)
+    $hub_lat = isset($hub->latitude) ? (float)$hub->latitude : null;
+    $hub_lng = isset($hub->longitude) ? (float)$hub->longitude : null;
+
     $cart_snapshot = [
         'version'       => 'v5',
         'hub' => [
-            'id'      => $hub_id,
-            'city_id' => (int) ($hub->city_id ?? 0),
-            'name'    => (string) ($hub->name ?? ''),
-            'address' => isset($hub->address) ? (string) $hub->address : null,
-            'lat'     => isset($hub->latitude) ? (float) $hub->latitude : null,
-            'lng'     => isset($hub->longitude) ? (float) $hub->longitude : null,
+            'id'       => $hub_id,
+            'city_id'  => (int) ($hub->city_id ?? 0),
+            'name'     => (string) ($hub->name ?? ''),
+            'address'  => isset($hub->address) ? (string) $hub->address : null,
+
+            'lat'      => is_numeric($hub_lat) ? (float)$hub_lat : null,
+            'lng'      => is_numeric($hub_lng) ? (float)$hub_lng : null,
+
+            'phone'    => isset($hub->phone) ? (string)$hub->phone : null,
+            'email'    => isset($hub->email) ? (string)$hub->email : null,
+            'logo_url' => isset($hub->logo_url) ? (string)$hub->logo_url : null,
+
+            'snapshot' => [
+                'schema' => 'hub_v1',
+                'frozen_at' => $now,
+            ],
         ],
         'session_token' => (string) $session_token,
         'items'         => $snapshot_items,
@@ -587,9 +634,15 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
 
             'fulfillment_type' => $fulfillment_type,
 
-            'delivery_address' => $delivery_address_snapshot,
-            'delivery_lat'     => $delivery_lat,
-            'delivery_lng'     => $delivery_lng,
+            // NEW: persist customer fields on orders row (driver/ops UX)
+            'customer_name'    => ($customer_name_db !== '' ? $customer_name_db : null),
+            'customer_phone'   => ($customer_phone_db !== '' ? $customer_phone_db : null),
+            'customer_email'   => ($customer_email_db !== '' ? $customer_email_db : null),
+
+            'delivery_address'    => $delivery_address_snapshot,
+            'delivery_address_id' => $delivery_address_id,
+            'delivery_lat'        => $delivery_lat,
+            'delivery_lng'        => $delivery_lng,
 
             'subtotal'         => $subtotal,
             'tax_rate'         => $tax_rate,

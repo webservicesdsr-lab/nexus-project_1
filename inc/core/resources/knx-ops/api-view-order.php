@@ -1,21 +1,41 @@
 <?php
-// inc/core/resources/knx-ops/api-view-order.php
+// File: inc/core/resources/knx-ops/api-view-order.php
 if (!defined('ABSPATH')) exit;
 
 /**
  * ==========================================================
- * KNX OPS — View Order (Operational Read)
- * Endpoint: GET /wp-json/knx/v1/ops/view-order
+ * KNX OPS — View Order (CANON)
+ * Endpoint: GET /wp-json/knx/v1/ops/view-order?order_id=123
+ *
+ * Access:
+ * - super_admin, manager
+ * - manager is city-scoped via {prefix}knx_manager_cities (fail-closed)
+ *
+ * Contract:
+ * {
+ *   success, message,
+ *   data: {
+ *     order: {
+ *       order_id, status, created_at, created_at_iso, created_age_seconds, created_human,
+ *       city_id,
+ *       restaurant:{name,phone,email,address,logo_url,location:{lat,lng,view_url}},
+ *       customer:{name,phone,email},
+ *       delivery:{method,address,time_slot},
+ *       payment:{method,status},
+ *       totals:{total,tip,quote},
+ *       driver:{assigned,driver_id,name},
+ *       location:{lat,lng,view_url},
+ *       raw:{items:{items:[],source},notes},
+ *       status_history:[{status,label,is_done,is_current,created_at,created_at_iso,changed_by,changed_by_label}]
+ *     },
+ *     meta:{role,generated_at,generated_at_iso}
+ *   }
+ * }
  *
  * Notes:
- * - Fail-closed: requires session + role + scoped cities for managers.
- * - Manager scope is resolved via {prefix}knx_manager_cities (NOT hubs.manager_user_id).
- * - Hubs are the "restaurants" (no restaurants table).
- * - Payload may include order_id for internal navigation, but UI must not display IDs.
- *
- * Timeline:
- * - Adds a VIRTUAL first event: "order_created" using orders.created_at (NOT stored in DB).
- * - Hides pending_payment completely from OPS timeline.
+ * - pending_payment is NOT shown in status_history timeline.
+ * - Timeline always starts with virtual "order_created" from orders.created_at.
+ * - Status history placeholders include null timestamps for future steps (UI may filter).
  * ==========================================================
  */
 
@@ -26,13 +46,20 @@ add_action('rest_api_init', function () {
             return knx_rest_wrap('knx_ops_view_order')($request);
         },
         'permission_callback' => knx_rest_permission_roles(['super_admin', 'manager']),
+        'args' => [
+            'order_id' => [
+                'required' => true,
+                'validate_callback' => function ($param) {
+                    return is_numeric($param) && (int)$param > 0;
+                }
+            ],
+        ],
     ]);
 });
 
 /**
- * Resolve manager allowed city IDs based on {prefix}knx_manager_cities.
- *
- * Fail-closed returns [] if table missing or no rows found.
+ * Resolve manager allowed city IDs via {prefix}knx_manager_cities.
+ * Fail-closed if missing or empty.
  *
  * @param int $manager_user_id
  * @return array<int>
@@ -40,34 +67,33 @@ add_action('rest_api_init', function () {
 function knx_ops_view_order_manager_city_ids($manager_user_id) {
     global $wpdb;
 
-    $table = $wpdb->prefix . 'knx_manager_cities';
+    $manager_user_id = (int)$manager_user_id;
+    if ($manager_user_id <= 0) return [];
 
-    // Fail-closed if table does not exist
-    $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
+    $pivot = $wpdb->prefix . 'knx_manager_cities';
+    $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $pivot));
     if (empty($exists)) return [];
 
     $ids = $wpdb->get_col($wpdb->prepare(
         "SELECT DISTINCT city_id
-         FROM {$table}
+         FROM {$pivot}
          WHERE manager_user_id = %d
            AND city_id IS NOT NULL",
-        (int)$manager_user_id
+        $manager_user_id
     ));
 
     $ids = array_map('intval', (array)$ids);
     $ids = array_values(array_filter($ids, static function ($v) { return $v > 0; }));
-
     return $ids;
 }
 
 /**
- * Best-effort: detect a lat/lng pair on orders table for "View Location".
- * Cached per request.
- *
+ * Best-effort: detect orders lat/lng columns.
  * @return array{lat:string,lng:string}|null
  */
 function knx_ops_view_order_detect_latlng_columns() {
     global $wpdb;
+
     static $cache = null;
     if ($cache !== null) return $cache;
 
@@ -93,231 +119,32 @@ function knx_ops_view_order_detect_latlng_columns() {
 }
 
 /**
- * Best-effort: detect a notes column on orders table.
+ * Best-effort: detect hubs lat/lng columns.
+ * Supports your current dump (latitude/longitude) and older variants.
  *
- * @return string|null
+ * @return array{lat:string,lng:string}|null
  */
-function knx_ops_view_order_detect_notes_column() {
+function knx_ops_view_order_detect_hub_latlng_columns() {
     global $wpdb;
-    static $cache = null;
-    if ($cache !== null) return $cache;
 
-    $orders_table = $wpdb->prefix . 'knx_orders';
-
-    $candidates = ['notes', 'order_notes', 'customer_notes', 'delivery_notes', 'instructions'];
-
-    foreach ($candidates as $col) {
-        $exists = $wpdb->get_var($wpdb->prepare("SHOW COLUMNS FROM {$orders_table} LIKE %s", $col));
-        if (!empty($exists)) {
-            $cache = $col;
-            return $cache;
-        }
-    }
-
-    $cache = null;
-    return null;
-}
-
-/**
- * Best-effort: detect an items/snapshot JSON column on orders table.
- *
- * @return string|null
- */
-function knx_ops_view_order_detect_items_column() {
-    global $wpdb;
-    static $cache = null;
-    if ($cache !== null) return $cache;
-
-    $orders_table = $wpdb->prefix . 'knx_orders';
-
-    $candidates = ['items_json', 'cart_json', 'snapshot_json', 'order_snapshot', 'cart_snapshot', 'items'];
-
-    foreach ($candidates as $col) {
-        $exists = $wpdb->get_var($wpdb->prepare("SHOW COLUMNS FROM {$orders_table} LIKE %s", $col));
-        if (!empty($exists)) {
-            $cache = $col;
-            return $cache;
-        }
-    }
-
-    $cache = null;
-    return null;
-}
-
-/**
- * Best-effort: detect customer fields on orders table.
- *
- * @return array{customer_id:?string,name:?string,phone:?string,email:?string}
- */
-function knx_ops_view_order_detect_orders_customer_columns() {
-    global $wpdb;
-    static $cache = null;
-    if ($cache !== null) return $cache;
-
-    $orders_table = $wpdb->prefix . 'knx_orders';
-
-    $cols = $wpdb->get_col("SHOW COLUMNS FROM {$orders_table}");
-    $cols = is_array($cols) ? array_map('strtolower', $cols) : [];
-
-    $pickFirst = static function(array $candidates) use ($cols) {
-        foreach ($candidates as $c) {
-            if (in_array(strtolower($c), $cols, true)) return $c;
-        }
-        return null;
-    };
-
-    $cache = [
-        'customer_id' => $pickFirst(['customer_id', 'user_id', 'client_id']),
-        'name'        => $pickFirst(['customer_name', 'client_name', 'name', 'customer_full_name']),
-        'phone'       => $pickFirst(['customer_phone', 'phone', 'phone_number', 'customer_phone_number']),
-        'email'       => $pickFirst(['customer_email', 'email', 'customer_email_address']),
-    ];
-
-    return $cache;
-}
-
-/**
- * Best-effort: detect useful restaurant (hub) columns.
- *
- * @return array{phone:?string,email:?string,address:?string,logo:?string}
- */
-function knx_ops_view_order_detect_hub_columns() {
-    global $wpdb;
     static $cache = null;
     if ($cache !== null) return $cache;
 
     $hubs_table = $wpdb->prefix . 'knx_hubs';
-
-    $cols = $wpdb->get_col("SHOW COLUMNS FROM {$hubs_table}");
-    $cols = is_array($cols) ? array_map('strtolower', $cols) : [];
-
-    $pickFirst = static function(array $candidates) use ($cols) {
-        foreach ($candidates as $c) {
-            if (in_array(strtolower($c), $cols, true)) return $c;
-        }
-        return null;
-    };
-
-    $cache = [
-        'phone'   => $pickFirst(['phone', 'phone_number', 'contact_phone', 'business_phone']),
-        'email'   => $pickFirst(['email', 'contact_email', 'business_email']),
-        'address' => $pickFirst(['address', 'full_address', 'street_address', 'location_address']),
-        'logo'    => $pickFirst(['logo_url', 'image_url', 'photo_url', 'logo', 'image']),
-    ];
-
-    return $cache;
-}
-
-/**
- * Best-effort: detect delivery/payment columns on orders table.
- *
- * @return array{
- *   delivery_method:?string,delivery_address:?string,delivery_time_slot:?string,
- *   payment_method:?string,payment_status:?string,fulfillment_type:?string
- * }
- */
-function knx_ops_view_order_detect_orders_delivery_payment_columns() {
-    global $wpdb;
-    static $cache = null;
-    if ($cache !== null) return $cache;
-
-    $orders_table = $wpdb->prefix . 'knx_orders';
-
-    $cols = $wpdb->get_col("SHOW COLUMNS FROM {$orders_table}");
-    $cols = is_array($cols) ? array_map('strtolower', $cols) : [];
-
-    $pickFirst = static function(array $candidates) use ($cols) {
-        foreach ($candidates as $c) {
-            if (in_array(strtolower($c), $cols, true)) return $c;
-        }
-        return null;
-    };
-
-    $cache = [
-        'delivery_method'    => $pickFirst(['delivery_method', 'fulfillment_method', 'method']),
-        'delivery_address'   => $pickFirst(['delivery_address', 'delivery_address_text', 'address', 'customer_address']),
-        'delivery_time_slot' => $pickFirst(['delivery_time_slot', 'time_slot', 'slot_label', 'delivery_slot']),
-        'payment_method'     => $pickFirst(['payment_method', 'pay_method', 'stripe_method', 'method_payment']),
-        'payment_status'     => $pickFirst(['payment_status', 'pay_status', 'stripe_status', 'paid_status']),
-        'fulfillment_type'   => $pickFirst(['fulfillment_type', 'delivery_type', 'order_type']),
-    ];
-
-    return $cache;
-}
-
-/**
- * Format "created_human" with a friendly "Just now" for sub-60s.
- *
- * @param int $age_seconds
- * @return string
- */
-function knx_ops_view_order_human_age($age_seconds) {
-    $age_seconds = (int)$age_seconds;
-    if ($age_seconds <= 60) return 'Just now';
-
-    if (function_exists('human_time_diff')) {
-        $created_ts = time() - $age_seconds;
-        return human_time_diff($created_ts, time()) . ' ago';
-    }
-
-    $mins = max(1, (int)floor($age_seconds / 60));
-    return $mins . ' min ago';
-}
-
-/**
- * Optional: best-effort detect driver table and name column.
- * If not found, we keep driver name null.
- *
- * @return array{table:string,name_col:string}|null
- */
-function knx_ops_view_order_detect_driver_name_source() {
-    global $wpdb;
-    static $cache = null;
-    if ($cache !== null) return $cache;
-
-    $table = $wpdb->prefix . 'knx_drivers';
-
-    // Check table exists
-    $table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
-    if (empty($table_exists)) {
-        $cache = null;
-        return null;
-    }
-
-    $candidates = ['full_name', 'name', 'driver_name', 'display_name'];
-
-    foreach ($candidates as $col) {
-        $exists = $wpdb->get_var($wpdb->prepare("SHOW COLUMNS FROM {$table} LIKE %s", $col));
-        if (!empty($exists)) {
-            $cache = ['table' => $table, 'name_col' => $col];
-            return $cache;
-        }
-    }
-
-    $cache = null;
-    return null;
-}
-
-/**
- * Detect status history table.
- *
- * @return string|null
- */
-function knx_ops_view_order_detect_status_history_table() {
-    global $wpdb;
-    static $cache = null;
-    if ($cache !== null) return $cache;
+    $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $hubs_table));
+    if (empty($exists)) { $cache = null; return null; }
 
     $candidates = [
-        $wpdb->prefix . 'knx_order_status_history',
-        $wpdb->prefix . 'knx_orders_status_history',
-        $wpdb->prefix . 'knx_status_history',
+        ['lat' => 'latitude',  'lng' => 'longitude'], // CANON in your dump
+        ['lat' => 'lat',       'lng' => 'lng'],
+        ['lat' => 'hub_lat',   'lng' => 'hub_lng'],
     ];
 
-    foreach ($candidates as $t) {
-        $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $t));
-        if (!empty($exists)) {
-            $cache = $t;
+    foreach ($candidates as $pair) {
+        $lat_exists = $wpdb->get_var($wpdb->prepare("SHOW COLUMNS FROM {$hubs_table} LIKE %s", $pair['lat']));
+        $lng_exists = $wpdb->get_var($wpdb->prepare("SHOW COLUMNS FROM {$hubs_table} LIKE %s", $pair['lng']));
+        if (!empty($lat_exists) && !empty($lng_exists)) {
+            $cache = $pair;
             return $cache;
         }
     }
@@ -327,218 +154,196 @@ function knx_ops_view_order_detect_status_history_table() {
 }
 
 /**
- * Normalize a mysql datetime to an ISO8601 string in WP timezone.
- *
- * @param string $mysql
- * @return string|null
+ * Age helper.
+ * @param int $created_ts
+ * @return array{age_seconds:int, human:string}
  */
-function knx_ops_view_order_iso_from_mysql($mysql) {
-    $mysql = trim((string)$mysql);
-    if ($mysql === '') return null;
+function knx_ops_view_order_age($created_ts) {
+    $now = (int)current_time('timestamp');
+    $age = ($created_ts > 0) ? max(0, $now - $created_ts) : 0;
 
-    $ts = strtotime($mysql);
-    if (!$ts) return null;
-
-    if (function_exists('wp_date')) {
-        return wp_date('c', $ts);
+    if ($age <= 60) {
+        return ['age_seconds' => (int)$age, 'human' => 'Just now'];
     }
 
-    // Fallback: server timezone ISO8601
-    return date('c', $ts);
+    if (function_exists('human_time_diff')) {
+        return ['age_seconds' => (int)$age, 'human' => human_time_diff($created_ts, $now) . ' ago'];
+    }
+
+    $mins = max(1, (int)floor($age / 60));
+    return ['age_seconds' => (int)$age, 'human' => $mins . ' min ago'];
 }
 
 /**
- * Resolve a "changed_by_label" best-effort.
- * - null/0 => "System"
- * - numeric => WP user display_name when possible, else "User #ID"
- *
- * @param int|null $user_id
- * @return string
+ * Safe JSON decode.
+ * @param mixed $json
+ * @return mixed
  */
-function knx_ops_view_order_changed_by_label($user_id) {
-    global $wpdb;
-
-    $uid = (int)($user_id ?? 0);
-    if ($uid <= 0) return 'System';
-
-    // Best-effort WP users table
-    try {
-        $users_table = $wpdb->users; // wp_users with correct prefix
-        if (!empty($users_table)) {
-            $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $users_table));
-            if (!empty($exists)) {
-                $name = $wpdb->get_var($wpdb->prepare("SELECT display_name FROM {$users_table} WHERE ID = %d LIMIT 1", $uid));
-                $name = trim((string)$name);
-                if ($name !== '') return $name;
-            }
-        }
-    } catch (Throwable $e) {
-        // fail-soft
-    }
-
-    return 'User #' . $uid;
-}
-
-/**
- * Best-effort: detect columns on {prefix}knx_users table.
- *
- * @return array{table:?string,name:?string,phone:?string,email:?string}
- */
-function knx_ops_view_order_detect_knx_users_columns() {
-    global $wpdb;
-    static $cache = null;
-    if ($cache !== null) return $cache;
-
-    $users_table = $wpdb->prefix . 'knx_users';
-    $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $users_table));
-    if (empty($exists)) {
-        $cache = ['table' => null, 'name' => null, 'phone' => null, 'email' => null];
-        return $cache;
-    }
-
-    $cols = $wpdb->get_col("SHOW COLUMNS FROM {$users_table}");
-    $cols = is_array($cols) ? array_map('strtolower', $cols) : [];
-
-    $pickFirst = static function(array $candidates) use ($cols) {
-        foreach ($candidates as $c) {
-            if (in_array(strtolower($c), $cols, true)) return $c;
-        }
-        return null;
-    };
-
-    $cache = [
-        'table' => $users_table,
-        'name'  => $pickFirst(['name', 'full_name', 'display_name', 'customer_name']),
-        'phone' => $pickFirst(['phone', 'phone_number', 'mobile', 'cell']),
-        'email' => $pickFirst(['email', 'user_email']),
-    ];
-
-    return $cache;
-}
-
-/**
- * Best-effort: fetch customer fields from Nexus users table.
- *
- * @param int $customer_id
- * @return array{name:?string,phone:?string,email:?string}
- */
-function knx_ops_view_order_fetch_customer_from_users($customer_id) {
-    global $wpdb;
-
-    $out = ['name' => null, 'phone' => null, 'email' => null];
-
-    $customer_id = (int)$customer_id;
-    if ($customer_id <= 0) return $out;
-
-    $map = knx_ops_view_order_detect_knx_users_columns();
-    if (empty($map['table'])) return $out;
-
-    $table = (string)$map['table'];
-
-    $name_col  = !empty($map['name']) ? ('`' . esc_sql($map['name']) . '`') : "''";
-    $phone_col = !empty($map['phone']) ? ('`' . esc_sql($map['phone']) . '`') : "''";
-    $email_col = !empty($map['email']) ? ('`' . esc_sql($map['email']) . '`') : "''";
-
-    $u = $wpdb->get_row($wpdb->prepare(
-        "SELECT {$name_col} AS name, {$phone_col} AS phone, {$email_col} AS email
-         FROM {$table}
-         WHERE id = %d
-         LIMIT 1",
-        $customer_id
-    ));
-    if (!$u) return $out;
-
-    $nm = trim((string)($u->name ?? ''));
-    $ph = trim((string)($u->phone ?? ''));
-    $em = trim((string)($u->email ?? ''));
-
-    $out['name']  = ($nm !== '') ? $nm : null;
-    $out['phone'] = ($ph !== '') ? $ph : null;
-    $out['email'] = ($em !== '') ? $em : null;
-
+function knx_ops_view_order_json_decode($json) {
+    if (!is_string($json) || trim($json) === '') return null;
+    $out = json_decode($json, true);
+    if (json_last_error() !== JSON_ERROR_NONE) return null;
     return $out;
 }
 
 /**
- * Fetch status history rows (ASC) and hide pending_payment completely.
- *
- * Output shape:
- * - status
- * - created_at (mysql)
- * - created_at_iso
- * - changed_by
- * - changed_by_label
- *
- * @param int $order_id
- * @return array<int, array<string,mixed>>
+ * Canon label mapping for the timeline.
+ * @param string $status
+ * @return string
  */
-function knx_ops_view_order_fetch_status_history($order_id) {
+function knx_ops_view_order_status_label($status) {
+    $s = strtolower(trim((string)$status));
+
+    $map = [
+        'order_created'       => 'Order Created',
+        'confirmed'           => 'Waiting for driver',
+        'accepted_by_driver'  => 'Driver Accepted',
+        'accepted_by_hub'     => 'Restaurant Accepted',
+        'preparing'           => 'Preparing',
+        'prepared'            => 'Prepared',
+        'picked_up'           => 'Picked Up',
+        'completed'           => 'Completed',
+        'cancelled'           => 'Cancelled',
+    ];
+
+    return $map[$s] ?? (ucwords(str_replace('_', ' ', $s)));
+}
+
+/**
+ * Build canonical timeline.
+ *
+ * @param string $current_status
+ * @param string $order_created_at
+ * @param array<int,array{status:string,changed_by:int|null,created_at:string}> $raw_rows
+ * @return array<int,array<string,mixed>>
+ */
+function knx_ops_view_order_build_timeline($current_status, $order_created_at, array $raw_rows) {
     global $wpdb;
 
-    $order_id = (int)$order_id;
-    if ($order_id <= 0) return [];
+    $current_status = strtolower(trim((string)$current_status));
 
-    $table = knx_ops_view_order_detect_status_history_table();
-    if (!$table) return [];
+    // Canon steps (no pending_payment)
+    $steps = [
+        'order_created',
+        'confirmed',
+        'accepted_by_driver',
+        'accepted_by_hub',
+        'preparing',
+        'prepared',
+        'picked_up',
+        'completed',
+    ];
 
-    // Best-effort: detect columns (fail-soft)
-    $cols = $wpdb->get_col("SHOW COLUMNS FROM {$table}");
-    $cols = is_array($cols) ? array_map('strtolower', $cols) : [];
-
-    $has_changed_by = in_array('changed_by', $cols, true);
-    $has_created_at = in_array('created_at', $cols, true);
-    $has_status     = in_array('status', $cols, true);
-
-    if (!$has_status || !$has_created_at) return [];
-
-    $select = "status, created_at";
-    if ($has_changed_by) $select .= ", changed_by";
-
-    $rows = $wpdb->get_results($wpdb->prepare(
-        "SELECT {$select}
-         FROM {$table}
-         WHERE order_id = %d
-         ORDER BY created_at ASC",
-        $order_id
-    ));
-
-    $out = [];
-    foreach ((array)$rows as $r) {
-        $st = strtolower(trim((string)$r->status));
-        if ($st === '' || $st === 'pending_payment') {
-            // Hide completely in OPS timeline
-            continue;
-        }
-
-        // Also ignore any accidental "order_created" rows if someone ever inserted them
-        if ($st === 'order_created' || $st === 'created') {
-            continue;
-        }
-
-        $changed_by = null;
-        if ($has_changed_by && isset($r->changed_by)) {
-            $cb = (int)$r->changed_by;
-            $changed_by = ($cb > 0) ? $cb : null;
-        }
-
-        $created_mysql = (string)$r->created_at;
-
-        $out[] = [
-            'status' => $st,
-            'changed_by' => $changed_by,
-            'changed_by_label' => knx_ops_view_order_changed_by_label($changed_by),
-            'created_at' => $created_mysql,
-            'created_at_iso' => knx_ops_view_order_iso_from_mysql($created_mysql),
+    // Terminal
+    if ($current_status === 'cancelled') {
+        $steps = [
+            'order_created',
+            'confirmed',
+            'accepted_by_driver',
+            'accepted_by_hub',
+            'preparing',
+            'prepared',
+            'picked_up',
+            'completed',
+            'cancelled',
         ];
     }
 
-    return $out;
+    // Pick earliest timestamp per status (stable) + changed_by
+    $by_status = [];
+    foreach ($raw_rows as $r) {
+        $st = strtolower(trim((string)($r['status'] ?? '')));
+        if ($st === '' || $st === 'pending_payment') continue;
+
+        $at = isset($r['created_at']) ? (string)$r['created_at'] : '';
+        if ($at === '') continue;
+
+        if (!isset($by_status[$st])) {
+            $by_status[$st] = [
+                'created_at' => $at,
+                'changed_by' => isset($r['changed_by']) ? (int)$r['changed_by'] : null,
+            ];
+        }
+    }
+
+    // Always seed order_created from orders.created_at (virtual)
+    $by_status['order_created'] = [
+        'created_at' => (string)$order_created_at,
+        'changed_by' => null,
+    ];
+
+    // Resolve changed_by labels in one query
+    $ids = [];
+    foreach ($by_status as $st => $info) {
+        $cb = $info['changed_by'];
+        if ($cb !== null && (int)$cb > 0) $ids[] = (int)$cb;
+    }
+    $ids = array_values(array_unique($ids));
+
+    $labels = []; // user_id => username
+    if (!empty($ids)) {
+        $users_table = $wpdb->prefix . 'knx_users';
+        $ph = implode(',', array_fill(0, count($ids), '%d'));
+        $sql = $wpdb->prepare("SELECT id, username FROM {$users_table} WHERE id IN ({$ph})", $ids);
+        $rows = $wpdb->get_results($sql);
+        foreach ((array)$rows as $u) {
+            $labels[(int)$u->id] = (string)$u->username;
+        }
+    }
+
+    $sys_label = 'System';
+
+    // Compute indices
+    $idx = array_flip($steps);
+    $cur_i = isset($idx[$current_status]) ? (int)$idx[$current_status] : -1;
+
+    $timeline = [];
+    foreach ($steps as $i => $st) {
+        $has = isset($by_status[$st]);
+
+        $created_at = $has ? (string)$by_status[$st]['created_at'] : null;
+        $created_iso = $created_at ? date('c', strtotime($created_at)) : null;
+
+        $changed_by = $has ? ($by_status[$st]['changed_by'] !== null ? (int)$by_status[$st]['changed_by'] : null) : null;
+        $changed_by_label = $sys_label;
+        if ($changed_by !== null && $changed_by > 0) {
+            $changed_by_label = $labels[$changed_by] ?? ('User #' . $changed_by);
+        }
+
+        // is_done and is_current based on current status position
+        $is_current = ($st === $current_status);
+        $is_done = false;
+
+        if ($cur_i >= 0) {
+            $is_done = ($i <= $cur_i);
+        } else {
+            // Fallback: if we have a timestamp, treat as done
+            $is_done = ($created_at !== null);
+        }
+
+        if ($current_status === 'cancelled') {
+            $is_current = ($st === 'cancelled');
+            $is_done = ($created_at !== null) || ($st === 'order_created');
+        }
+
+        $timeline[] = [
+            'status'           => $st,
+            'label'            => knx_ops_view_order_status_label($st),
+            'is_done'          => (bool)$is_done,
+            'is_current'       => (bool)$is_current,
+            'created_at'       => $created_at,
+            'created_at_iso'   => $created_iso,
+            'changed_by'       => $changed_by,
+            'changed_by_label' => $has ? $changed_by_label : null,
+        ];
+    }
+
+    return $timeline;
 }
 
 function knx_ops_view_order(WP_REST_Request $request) {
     global $wpdb;
 
-    // Require session + allowed roles (fail-closed)
     $session = knx_rest_require_session();
     if ($session instanceof WP_REST_Response) return $session;
 
@@ -549,360 +354,398 @@ function knx_ops_view_order(WP_REST_Request $request) {
     $user_id = isset($session->user_id) ? (int)$session->user_id : 0;
 
     $order_id = (int)$request->get_param('order_id');
-    if ($order_id <= 0) {
-        return knx_rest_error('order_id is required and must be a positive integer', 400);
+    if ($order_id <= 0) return knx_rest_error('order_id is required', 400);
+
+    // Enforce manager scope (fail-closed preflight)
+    if ($role === 'manager') {
+        if ($user_id <= 0) return knx_rest_error('Unauthorized', 401);
+        $allowed = knx_ops_view_order_manager_city_ids($user_id);
+        if (empty($allowed)) return knx_rest_error('Manager city assignment not configured', 403);
     }
 
-    $orders_table = $wpdb->prefix . 'knx_orders';
-    $hubs_table   = $wpdb->prefix . 'knx_hubs';
+    $orders_table   = $wpdb->prefix . 'knx_orders';
+    $hubs_table     = $wpdb->prefix . 'knx_hubs';
+    $drivers_table  = $wpdb->prefix . 'knx_drivers';
+    $items_table    = $wpdb->prefix . 'knx_order_items';
+    $hist_table     = $wpdb->prefix . 'knx_order_status_history';
+    $users_table    = $wpdb->prefix . 'knx_users';
 
-    // Optional columns
-    $latlng       = knx_ops_view_order_detect_latlng_columns();
-    $notes_col    = knx_ops_view_order_detect_notes_column();
-    $items_col    = knx_ops_view_order_detect_items_column();
-    $hub_cols     = knx_ops_view_order_detect_hub_columns();
-    $dp_cols      = knx_ops_view_order_detect_orders_delivery_payment_columns();
-    $cust_cols    = knx_ops_view_order_detect_orders_customer_columns();
+    // Defensive: ensure orders exists
+    $orders_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $orders_table));
+    if (empty($orders_exists)) return knx_rest_error('Orders not configured', 409);
 
+    $latlng = knx_ops_view_order_detect_latlng_columns();
     $select_latlng = '';
     if ($latlng) {
-        $select_latlng = ", o.`{$latlng['lat']}` AS lat, o.`{$latlng['lng']}` AS lng";
+        $select_latlng = ", o.`{$latlng['lat']}` AS delivery_lat, o.`{$latlng['lng']}` AS delivery_lng";
     }
 
-    $select_notes = '';
-    if ($notes_col) {
-        $select_notes = ", o.`{$notes_col}` AS notes";
+    // NEW: Hub coords (restaurant precise navigation)
+    $hub_latlng = knx_ops_view_order_detect_hub_latlng_columns();
+    $select_hub_latlng = '';
+    if ($hub_latlng) {
+        $select_hub_latlng = ", h.`{$hub_latlng['lat']}` AS hub_lat, h.`{$hub_latlng['lng']}` AS hub_lng";
+    } else {
+        // Keep select stable
+        $select_hub_latlng = ", NULL AS hub_lat, NULL AS hub_lng";
     }
 
-    $select_items = '';
-    if ($items_col) {
-        $select_items = ", o.`{$items_col}` AS items_json";
-    }
-
-    // Delivery/payment best-effort from orders table
-    $select_delivery_payment = '';
-    $dp_alias = [
-        'delivery_method'    => 'delivery_method',
-        'delivery_address'   => 'delivery_address',
-        'delivery_time_slot' => 'delivery_time_slot',
-        'payment_method'     => 'payment_method',
-        'payment_status'     => 'payment_status',
-        'fulfillment_type'   => 'fulfillment_type', // for inference
-    ];
-    foreach ($dp_alias as $k => $alias) {
-        if (!empty($dp_cols[$k])) {
-            $col = $dp_cols[$k];
-            $select_delivery_payment .= ", o.`{$col}` AS {$alias}";
-        }
-    }
-
-    // Customer best-effort from orders table (avoid SQL errors if missing)
-    $select_customer = '';
-    $select_customer .= !empty($cust_cols['customer_id'])
-        ? ", o.`{$cust_cols['customer_id']}` AS customer_id"
-        : ", 0 AS customer_id";
-
-    $select_customer .= !empty($cust_cols['name'])
-        ? ", o.`{$cust_cols['name']}` AS customer_name"
-        : ", '' AS customer_name";
-
-    $select_customer .= !empty($cust_cols['phone'])
-        ? ", o.`{$cust_cols['phone']}` AS customer_phone"
-        : ", '' AS customer_phone";
-
-    $select_customer .= !empty($cust_cols['email'])
-        ? ", o.`{$cust_cols['email']}` AS customer_email"
-        : ", '' AS customer_email";
-
-    // Hub columns best-effort
-    $select_hub_extras = '';
-    if (!empty($hub_cols['phone']))   $select_hub_extras .= ", h.`{$hub_cols['phone']}` AS hub_phone";
-    if (!empty($hub_cols['email']))   $select_hub_extras .= ", h.`{$hub_cols['email']}` AS hub_email";
-    if (!empty($hub_cols['address'])) $select_hub_extras .= ", h.`{$hub_cols['address']}` AS hub_address";
-    if (!empty($hub_cols['logo']))    $select_hub_extras .= ", h.`{$hub_cols['logo']}` AS hub_logo";
-
-    // Optional driver name join
-    $driver_src = knx_ops_view_order_detect_driver_name_source();
-    $select_driver_name = '';
-    $join_driver = '';
-    if ($driver_src) {
-        $drivers_table = $driver_src['table'];
-        $driver_name_col = $driver_src['name_col'];
-        $select_driver_name = ", d.`{$driver_name_col}` AS driver_name";
-        $join_driver = " LEFT JOIN {$drivers_table} d ON o.driver_id = d.id ";
-    }
-
-    $query = "
+    // Load order + hub (restaurant identity)
+    $sql = "
         SELECT
-            o.id AS order_id,
-            o.city_id AS city_id,
-            o.hub_id AS hub_id,
-            o.created_at AS created_at,
-            o.total AS total_amount,
-            o.tip_amount AS tip_amount,
-            o.status AS status,
-            o.driver_id AS driver_id,
-            h.name AS hub_name,
-            h.city_id AS hub_city_id
-            {$select_latlng}
-            {$select_notes}
-            {$select_items}
-            {$select_delivery_payment}
-            {$select_customer}
-            {$select_driver_name}
-            {$select_hub_extras}
+            o.id,
+            o.city_id,
+            o.hub_id,
+            o.customer_id,
+            o.customer_name,
+            o.customer_phone,
+            o.customer_email,
+            o.fulfillment_type,
+            o.delivery_address,
+            o.delivery_address_id,
+            o.payment_method,
+            o.payment_status,
+            o.subtotal,
+            o.tax_amount,
+            o.delivery_fee,
+            o.software_fee,
+            o.tip_amount,
+            o.discount_amount,
+            o.total,
+            o.status,
+            o.driver_id,
+            o.notes,
+            o.totals_snapshot,
+            o.cart_snapshot,
+            o.created_at
+            {$select_latlng},
+            h.name      AS hub_name,
+            h.phone     AS hub_phone,
+            h.email     AS hub_email,
+            h.address   AS hub_address,
+            h.logo_url  AS hub_logo_url
+            {$select_hub_latlng}
         FROM {$orders_table} o
         INNER JOIN {$hubs_table} h ON o.hub_id = h.id
-        {$join_driver}
         WHERE o.id = %d
         LIMIT 1
     ";
+    $row = $wpdb->get_row($wpdb->prepare($sql, $order_id));
 
-    $row = $wpdb->get_row($wpdb->prepare($query, $order_id));
-    if (!$row) {
-        return knx_rest_error('Order not found', 404);
-    }
+    // No existence leak posture: 404
+    if (!$row) return knx_rest_error('Order not found', 404);
 
-    // Manager scope enforcement (fail-closed)
+    // Manager scope enforcement against the loaded order
     if ($role === 'manager') {
-        if (!$user_id) return knx_rest_error('Unauthorized', 401);
-
         $allowed = knx_ops_view_order_manager_city_ids($user_id);
-        if (empty($allowed)) {
-            return knx_rest_error('Manager city assignment not configured', 403);
-        }
+        if (empty($allowed)) return knx_rest_error('Order not found', 404);
 
-        $order_city = (int)$row->city_id;
-        if (!in_array($order_city, $allowed, true)) {
-            return knx_rest_error('Forbidden: order outside manager scope', 403);
+        $city_id = (int)($row->city_id ?? 0);
+        if ($city_id <= 0 || !in_array($city_id, $allowed, true)) {
+            return knx_rest_error('Order not found', 404);
         }
     }
 
-    $now_ts = (int)current_time('timestamp');
-    $created_ts = strtotime((string)$row->created_at);
-    $age = ($created_ts > 0) ? max(0, $now_ts - $created_ts) : 0;
+    // Restaurant location (precise coords from hubs table if available)
+    $hub_lat = null;
+    $hub_lng = null;
+    if (isset($row->hub_lat) && $row->hub_lat !== null) $hub_lat = (float)$row->hub_lat;
+    if (isset($row->hub_lng) && $row->hub_lng !== null) $hub_lng = (float)$row->hub_lng;
 
-    // Location URL
-    $lat = null;
-    $lng = null;
-    $view_location_url = null;
-
-    if (isset($row->lat) && isset($row->lng)) {
-        $lat_f = (float)$row->lat;
-        $lng_f = (float)$row->lng;
-        if ($lat_f !== 0.0 || $lng_f !== 0.0) {
-            $lat = $lat_f;
-            $lng = $lng_f;
-            $view_location_url = 'https://www.google.com/maps?q=' . rawurlencode($lat_f . ',' . $lng_f);
-        }
+    if (($hub_lat === 0.0 && $hub_lng === 0.0)) {
+        $hub_lat = null;
+        $hub_lng = null;
     }
 
-    // Items best-effort decode
-    $items = null;
-    $decoded_snapshot = null;
-    if (isset($row->items_json)) {
-        $raw_items = $row->items_json;
-        if (is_string($raw_items) && $raw_items !== '') {
-            $decoded = json_decode($raw_items, true);
-            if (json_last_error() === JSON_ERROR_NONE) {
-                $items = $decoded;
-                $decoded_snapshot = is_array($decoded) ? $decoded : null;
-            } else {
-                $items = $raw_items;
-            }
-        } else {
-            $items = $raw_items;
-        }
+    $hub_view_url = null;
+    if ($hub_lat !== null && $hub_lng !== null) {
+        $hub_view_url = 'https://www.google.com/maps?q=' . rawurlencode($hub_lat . ',' . $hub_lng);
     }
 
-    $notes = isset($row->notes) ? trim((string)$row->notes) : null;
+    $restaurant = [
+        'name'     => (string)($row->hub_name ?? ''),
+        'phone'    => isset($row->hub_phone) ? (string)$row->hub_phone : null,
+        'email'    => isset($row->hub_email) ? (string)$row->hub_email : null,
+        'address'  => isset($row->hub_address) ? (string)$row->hub_address : null,
+        'logo_url' => isset($row->hub_logo_url) ? (string)$row->hub_logo_url : null,
+        'location' => [
+            'lat'      => $hub_lat,
+            'lng'      => $hub_lng,
+            'view_url' => $hub_view_url,
+        ],
+    ];
 
-    // Restaurant (hub) mapping
-    $hub_name = trim((string)$row->hub_name);
-    $hub_phone = isset($row->hub_phone) ? trim((string)$row->hub_phone) : '';
-    $hub_email = isset($row->hub_email) ? trim((string)$row->hub_email) : '';
-    $hub_addr  = isset($row->hub_address) ? trim((string)$row->hub_address) : '';
-    $hub_logo  = isset($row->hub_logo) ? trim((string)$row->hub_logo) : '';
-
-    if ($hub_phone === '') $hub_phone = null;
-    if ($hub_email === '') $hub_email = null;
-    if ($hub_addr  === '') $hub_addr  = null;
-    if ($hub_logo  === '') $hub_logo  = null;
-
-    // Driver
-    $driver_id = isset($row->driver_id) ? (int)$row->driver_id : 0;
-    $driver_assigned = ($driver_id > 0);
-    $driver_name = isset($row->driver_name) ? trim((string)$row->driver_name) : null;
-    if ($driver_name === '') $driver_name = null;
-
-    // Delivery best-effort: columns first, then snapshot fallback
-    $delivery_method  = isset($row->delivery_method) ? trim((string)$row->delivery_method) : '';
-    $delivery_address = isset($row->delivery_address) ? trim((string)$row->delivery_address) : '';
-    $delivery_slot    = isset($row->delivery_time_slot) ? trim((string)$row->delivery_time_slot) : '';
-
-    if ($delivery_method === '' && is_array($decoded_snapshot)) {
-        $m = $decoded_snapshot['delivery']['method'] ?? $decoded_snapshot['fulfillment']['method'] ?? null;
-        if (is_string($m)) $delivery_method = trim($m);
-    }
-    if ($delivery_address === '' && is_array($decoded_snapshot)) {
-        $a = $decoded_snapshot['delivery']['address'] ?? $decoded_snapshot['delivery_address'] ?? null;
-        if (is_string($a)) $delivery_address = trim($a);
-    }
-    if ($delivery_slot === '' && is_array($decoded_snapshot)) {
-        $s = $decoded_snapshot['delivery']['time_slot'] ?? $decoded_snapshot['time_slot'] ?? null;
-        if (is_string($s)) $delivery_slot = trim($s);
-    }
-
-    // Fulfillment inference: if delivery_method still empty, derive from orders.fulfillment_type or delivery_address
-    if ($delivery_method === '') {
-        if (isset($row->fulfillment_type)) {
-            $ft = strtolower(trim((string)$row->fulfillment_type));
-            if ($ft === 'delivery' || $ft === 'pickup') $delivery_method = $ft;
-        }
-        if ($delivery_method === '' && $delivery_address !== '') {
-            $delivery_method = 'delivery';
-        }
-        if ($delivery_method === '' && $delivery_address === '') {
-            $delivery_method = 'pickup';
-        }
-    }
-
-    if ($delivery_method === '')  $delivery_method = null;
-    if ($delivery_address === '') $delivery_address = null;
-    if ($delivery_slot === '')    $delivery_slot = null;
-
-    // Payment best-effort: columns first, then snapshot fallback
-    $payment_method = isset($row->payment_method) ? trim((string)$row->payment_method) : '';
-    $payment_status = isset($row->payment_status) ? trim((string)$row->payment_status) : '';
-
-    if ($payment_method === '' && is_array($decoded_snapshot)) {
-        $pm = $decoded_snapshot['payment']['method'] ?? null;
-        if (is_string($pm)) $payment_method = trim($pm);
-    }
-    if ($payment_status === '' && is_array($decoded_snapshot)) {
-        $ps = $decoded_snapshot['payment']['status'] ?? null;
-        if (is_string($ps)) $payment_status = trim($ps);
-    }
-
-    if ($payment_method === '') $payment_method = null;
-    if ($payment_status === '') $payment_status = null;
-
-    // Totals + best-effort quote breakdown from snapshot
-    $quote = null;
-    if (is_array($decoded_snapshot)) {
-        $q = $decoded_snapshot['quote'] ?? $decoded_snapshot['totals']['quote'] ?? null;
-        if (is_array($q)) $quote = $q;
-    }
-
-    // Customer: SSOT = orders columns; fallback = knx_users for legacy rows
+    // Customer: SSOT = orders columns; fallback = knx_users if missing
     $customer_id = isset($row->customer_id) ? (int)$row->customer_id : 0;
 
     $customer_name  = isset($row->customer_name) ? trim((string)$row->customer_name) : '';
     $customer_phone = isset($row->customer_phone) ? trim((string)$row->customer_phone) : '';
     $customer_email = isset($row->customer_email) ? trim((string)$row->customer_email) : '';
 
-    if ($customer_name === '' || $customer_phone === '' || $customer_email === '') {
-        $u = knx_ops_view_order_fetch_customer_from_users($customer_id);
-        if ($customer_name === ''  && !empty($u['name']))  $customer_name  = (string)$u['name'];
-        if ($customer_phone === '' && !empty($u['phone'])) $customer_phone = (string)$u['phone'];
-        if ($customer_email === '' && !empty($u['email'])) $customer_email = (string)$u['email'];
+    if ($customer_id > 0 && ($customer_name === '' || $customer_phone === '' || $customer_email === '')) {
+        $u_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $users_table));
+        if (!empty($u_exists)) {
+            $u = $wpdb->get_row($wpdb->prepare(
+                "SELECT name, phone, email, username
+                 FROM {$users_table}
+                 WHERE id = %d
+                 LIMIT 1",
+                $customer_id
+            ));
+            if ($u) {
+                if ($customer_name === '') {
+                    $nm = trim((string)($u->name ?? ''));
+                    if ($nm === '') $nm = trim((string)($u->username ?? ''));
+                    if ($nm !== '') $customer_name = $nm;
+                }
+                if ($customer_phone === '') {
+                    $ph = trim((string)($u->phone ?? ''));
+                    if ($ph !== '') $customer_phone = $ph;
+                }
+                if ($customer_email === '') {
+                    $em = trim((string)($u->email ?? ''));
+                    if ($em !== '') $customer_email = $em;
+                }
+            }
+        }
     }
 
-    if ($customer_name === '')  $customer_name = null;
-    if ($customer_phone === '') $customer_phone = null;
-    if ($customer_email === '') $customer_email = null;
-
-    // Status history (DB) + Virtual "Order Created" first row.
-    $history = knx_ops_view_order_fetch_status_history($order_id);
-
-    $created_mysql = (string)$row->created_at;
-    $created_event = [
-        'status' => 'order_created',
-        'changed_by' => null,
-        'changed_by_label' => 'System',
-        'created_at' => $created_mysql,
-        'created_at_iso' => knx_ops_view_order_iso_from_mysql($created_mysql),
+    $customer = [
+        'name'  => ($customer_name !== '' ? $customer_name : null),
+        'phone' => ($customer_phone !== '' ? $customer_phone : null),
+        'email' => ($customer_email !== '' ? $customer_email : null),
     ];
 
-    array_unshift($history, $created_event);
+    // Delivery
+    $delivery_method = isset($row->fulfillment_type) ? (string)$row->fulfillment_type : 'delivery';
+    if ($delivery_method !== 'delivery' && $delivery_method !== 'pickup') $delivery_method = 'delivery';
 
-    // Canon payload (matches view-order-script.js contract)
-    $payload = [
-        'order_id' => (int)$row->order_id, // internal navigation only (UI must not display)
-        'status' => (string)$row->status,
-
-        // Created fields
-        'created_at' => $created_mysql,
-        'created_at_iso' => knx_ops_view_order_iso_from_mysql($created_mysql),
-        'created_age_seconds' => (int)$age,
-        'created_human' => knx_ops_view_order_human_age((int)$age),
-
-        // Scope / routing
-        'city_id' => (int)$row->city_id,
-
-        // Contract: delivery + payment + restaurant
-        'delivery' => [
-            'method' => $delivery_method,
-            'address' => $delivery_address,
-            'time_slot' => $delivery_slot,
-        ],
-        'payment' => [
-            'method' => $payment_method,
-            'status' => $payment_status,
-        ],
-        'restaurant' => [
-            'id' => (int)$row->hub_id,
-            'name' => $hub_name,
-            'phone' => $hub_phone,
-            'email' => $hub_email,
-            'address' => $hub_addr,
-            'logo_url' => $hub_logo,
-        ],
-
-        // Customer (now includes phone + email)
-        'customer' => [
-            'name'  => $customer_name,
-            'phone' => $customer_phone,
-            'email' => $customer_email,
-        ],
-
-        // Totals
-        'totals' => [
-            'total' => (float)$row->total_amount,
-            'tip' => (float)$row->tip_amount,
-            'quote' => $quote,
-        ],
-
-        // Driver
-        'driver' => [
-            'assigned' => $driver_assigned,
-            'driver_id' => $driver_id > 0 ? $driver_id : null,
-            'name' => $driver_name,
-        ],
-
-        // Location
-        'location' => [
-            'lat' => $lat,
-            'lng' => $lng,
-            'view_url' => $view_location_url,
-        ],
-
-        // Raw snapshot data
-        'raw' => [
-            'items' => $items,
-            'notes' => $notes,
-        ],
-
-        // Timeline
-        'status_history' => $history,
+    $delivery = [
+        'method'    => $delivery_method,
+        'address'   => isset($row->delivery_address) ? (string)$row->delivery_address : null,
+        'time_slot' => null,
     ];
+
+    // Payment
+    $payment = [
+        'method' => isset($row->payment_method) ? (string)$row->payment_method : null,
+        'status' => isset($row->payment_status) ? (string)$row->payment_status : null,
+    ];
+
+    // Totals (quote optional from totals_snapshot)
+    $quote = null;
+    $totals_snapshot = knx_ops_view_order_json_decode($row->totals_snapshot ?? null);
+    if (is_array($totals_snapshot)) {
+        $quote = null;
+    }
+
+    $totals = [
+        'total' => (float)($row->total ?? 0),
+        'tip'   => (float)($row->tip_amount ?? 0),
+        'quote' => $quote,
+    ];
+
+    // Driver
+    $driver_id = isset($row->driver_id) ? (int)$row->driver_id : 0;
+    $driver_name = null;
+
+    // Prefer knx_drivers.full_name (when table exists & populated)
+    $drivers_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $drivers_table));
+    if ($driver_id > 0 && !empty($drivers_exists)) {
+        $d = $wpdb->get_row($wpdb->prepare(
+            "SELECT full_name, user_id
+             FROM {$drivers_table}
+             WHERE id = %d
+             LIMIT 1",
+            $driver_id
+        ));
+        if ($d && isset($d->full_name) && trim((string)$d->full_name) !== '') {
+            $driver_name = trim((string)$d->full_name);
+        } else {
+            // If drivers row exists but name missing, try to resolve via users.user_id (if present)
+            $maybe_uid = ($d && isset($d->user_id)) ? (int)$d->user_id : 0;
+            if ($maybe_uid > 0) {
+                $u = $wpdb->get_row($wpdb->prepare(
+                    "SELECT name, username FROM {$users_table} WHERE id = %d LIMIT 1",
+                    $maybe_uid
+                ));
+                if ($u) {
+                    $nm = trim((string)($u->name ?? ''));
+                    if ($nm === '') $nm = trim((string)($u->username ?? ''));
+                    if ($nm !== '') $driver_name = $nm;
+                }
+            }
+        }
+    }
+
+    // Fallback: when orders.driver_id is actually a knx_users.id in some environments
+    if ($driver_id > 0 && ($driver_name === null || $driver_name === '')) {
+        $u_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $users_table));
+        if (!empty($u_exists)) {
+            $u = $wpdb->get_row($wpdb->prepare(
+                "SELECT name, username
+                 FROM {$users_table}
+                 WHERE id = %d
+                 LIMIT 1",
+                $driver_id
+            ));
+            if ($u) {
+                $nm = trim((string)($u->name ?? ''));
+                if ($nm === '') $nm = trim((string)($u->username ?? ''));
+                if ($nm !== '') $driver_name = $nm;
+            }
+        }
+    }
+
+    $driver = [
+        'assigned'  => ($driver_id > 0),
+        'driver_id' => ($driver_id > 0 ? $driver_id : null),
+        'name'      => ($driver_name !== '' ? $driver_name : null),
+    ];
+
+    // Location (delivery coords)
+    $lat = null;
+    $lng = null;
+    if ($latlng) {
+        $lat = isset($row->delivery_lat) ? (float)$row->delivery_lat : null;
+        $lng = isset($row->delivery_lng) ? (float)$row->delivery_lng : null;
+    }
+
+    $view_url = null;
+    if ($lat !== null && $lng !== null && ($lat != 0.0 || $lng != 0.0)) {
+        $view_url = 'https://www.google.com/maps?q=' . rawurlencode($lat . ',' . $lng);
+    }
+
+    $location = [
+        'lat'      => $lat,
+        'lng'      => $lng,
+        'view_url' => $view_url,
+    ];
+
+    // Raw items (prefer order_items table)
+    $raw_items = [];
+    $items_source = 'none';
+
+    $items_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $items_table));
+    if (!empty($items_exists)) {
+        $items_rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT name_snapshot, image_snapshot, quantity, unit_price, line_total, modifiers_json
+             FROM {$items_table}
+             WHERE order_id = %d
+             ORDER BY id ASC",
+            $order_id
+        ));
+
+        foreach ((array)$items_rows as $it) {
+            $mods = null;
+            if (isset($it->modifiers_json) && is_string($it->modifiers_json) && trim($it->modifiers_json) !== '') {
+                $decoded = json_decode((string)$it->modifiers_json, true);
+                if (json_last_error() === JSON_ERROR_NONE) $mods = $decoded;
+            }
+
+            $raw_items[] = [
+                'name_snapshot'  => (string)($it->name_snapshot ?? ''),
+                'image_snapshot' => isset($it->image_snapshot) ? (string)$it->image_snapshot : null,
+                'quantity'       => (int)($it->quantity ?? 1),
+                'unit_price'     => (float)($it->unit_price ?? 0),
+                'line_total'     => (float)($it->line_total ?? 0),
+                'modifiers'      => $mods,
+            ];
+        }
+
+        $items_source = 'order_items';
+    }
+
+    if (empty($raw_items)) {
+        // Fallback: cart_snapshot.items
+        $cart_snapshot = knx_ops_view_order_json_decode($row->cart_snapshot ?? null);
+        if (is_array($cart_snapshot) && isset($cart_snapshot['items']) && is_array($cart_snapshot['items'])) {
+            foreach ($cart_snapshot['items'] as $it) {
+                if (!is_array($it)) continue;
+                $raw_items[] = [
+                    'name_snapshot'  => (string)($it['name_snapshot'] ?? ''),
+                    'image_snapshot' => isset($it['image_snapshot']) ? (string)$it['image_snapshot'] : null,
+                    'quantity'       => (int)($it['quantity'] ?? 1),
+                    'unit_price'     => (float)($it['unit_price'] ?? 0),
+                    'line_total'     => (float)($it['line_total'] ?? 0),
+                    'modifiers'      => isset($it['modifiers']) ? $it['modifiers'] : null,
+                ];
+            }
+            $items_source = 'cart_snapshot';
+        }
+    }
+
+    $raw = [
+        'items' => [
+            'items'  => $raw_items,
+            'source' => $items_source,
+        ],
+        'notes' => isset($row->notes) ? $row->notes : null,
+    ];
+
+    // Status history (raw DB)
+    $hist_rows = [];
+    $hist_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $hist_table));
+    if (!empty($hist_exists)) {
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT status, changed_by, created_at
+             FROM {$hist_table}
+             WHERE order_id = %d
+             ORDER BY created_at ASC, id ASC",
+            $order_id
+        ));
+
+        foreach ((array)$rows as $h) {
+            $hist_rows[] = [
+                'status'     => (string)($h->status ?? ''),
+                'changed_by' => isset($h->changed_by) ? (int)$h->changed_by : null,
+                'created_at' => (string)($h->created_at ?? ''),
+            ];
+        }
+    }
+
+    // Canon timeline (includes placeholders; UI can filter null created_at)
+    $timeline = knx_ops_view_order_build_timeline(
+        (string)($row->status ?? ''),
+        (string)($row->created_at ?? current_time('mysql')),
+        $hist_rows
+    );
+
+    // Created fields
+    $created_at = (string)($row->created_at ?? current_time('mysql'));
+    $created_ts = strtotime($created_at);
+    $age = knx_ops_view_order_age($created_ts);
+
+    $order = [
+        'order_id'            => (int)$row->id,
+        'status'              => (string)($row->status ?? ''),
+        'created_at'          => $created_at,
+        'created_at_iso'      => date('c', strtotime($created_at)),
+        'created_age_seconds' => (int)$age['age_seconds'],
+        'created_human'       => (string)$age['human'],
+
+        'city_id'             => isset($row->city_id) ? (int)$row->city_id : null,
+
+        'restaurant'          => $restaurant,
+        'customer'            => $customer,
+        'delivery'            => $delivery,
+        'payment'             => $payment,
+        'totals'              => $totals,
+        'driver'              => $driver,
+        'location'            => $location,
+        'raw'                 => $raw,
+
+        'status_history'      => $timeline,
+    ];
+
+    $now = current_time('mysql');
 
     return knx_rest_response(true, 'View order', [
-        'order' => $payload,
-        'meta' => [
-            'role' => $role,
-            'generated_at' => current_time('mysql'),
-            'generated_at_iso' => knx_ops_view_order_iso_from_mysql(current_time('mysql')),
+        'order' => $order,
+        'meta'  => [
+            'role'             => $role,
+            'generated_at'     => $now,
+            'generated_at_iso' => date('c', strtotime($now)),
         ],
     ], 200);
 }

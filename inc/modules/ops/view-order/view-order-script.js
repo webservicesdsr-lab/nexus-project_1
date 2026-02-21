@@ -2,22 +2,8 @@
 /**
  * KNX OPS — View Order Script (Read-only)
  * - Fetches /knx/v1/ops/view-order?order_id=...
- * - Renders a 1:1 "Order tracking" layout (left details, right map + history).
+ * - Renders 1:1 layout (left details, right map + history).
  * - Exposes SSOT to addons via window.KNX_VIEW_ORDER = { order }.
- *
- * Contract (from Network):
- * data.order = {
- *   status, created_at, created_human, city_id,
- *   delivery:{method,address,time_slot},
- *   payment:{method,status},
- *   restaurant:{id,name,phone,email,address,logo_url},
- *   customer:{name},
- *   totals:{total,tip,quote},
- *   driver:{assigned,driver_id,name?},
- *   location:{lat,lng,view_url},
- *   raw:{items,notes},
- *   status_history:[{status,changed_by,changed_by_label,created_at}]
- * }
  */
 
 (function () {
@@ -90,11 +76,8 @@
       const rawItems = order && order.raw ? order.raw.items : null;
       if (Array.isArray(rawItems)) return rawItems;
       if (rawItems && typeof rawItems === 'object' && Array.isArray(rawItems.items)) return rawItems.items;
-
-      // back-compat
       if (order && Array.isArray(order.items)) return order.items;
       if (order && order.items && typeof order.items === 'object' && Array.isArray(order.items.items)) return order.items.items;
-
       return [];
     }
 
@@ -187,24 +170,28 @@
       const arr = Array.isArray(list) ? list : [];
       if (!arr.length) return `<div class="knx-ops-vo__muted">No history.</div>`;
 
-      const rows = arr.map((h) => {
-        const st = humanStatusLabel(h?.status);
-        const at = esc(String(h?.created_at || '').trim());
-        const by = esc(String(h?.changed_by_label || '').trim());
+      const rows = arr
+        // IMPORTANT: do not render “future” steps that have no timestamp.
+        // Also hide 'confirmed' status from the visual history (filter only client-side view).
+        .filter(h => String(h?.created_at || '').trim() !== '' && String(h?.status || '').trim().toLowerCase() !== 'confirmed')
+        .map((h) => {
+          const st = humanStatusLabel(h?.status);
+          const at = esc(String(h?.created_at || '').trim());
+          const by = esc(String(h?.changed_by_label || '').trim());
 
-        return `
-          <div class="knx-ops-vo__hist-item">
-            <div class="knx-ops-vo__hist-icon" aria-hidden="true"></div>
-            <div class="knx-ops-vo__hist-body">
-              <div class="knx-ops-vo__hist-title">${esc(st)}</div>
-              ${by ? `<div class="knx-ops-vo__hist-sub"><strong>Status from:</strong> ${by}</div>` : ``}
+          return `
+            <div class="knx-ops-vo__hist-item">
+              <div class="knx-ops-vo__hist-icon" aria-hidden="true"></div>
+              <div class="knx-ops-vo__hist-body">
+                <div class="knx-ops-vo__hist-title">${esc(st)}</div>
+                ${by ? `<div class="knx-ops-vo__hist-sub"><strong>Status from:</strong> ${by}</div>` : ``}
+              </div>
+              <div class="knx-ops-vo__hist-time">${at || '—'}</div>
             </div>
-            <div class="knx-ops-vo__hist-time">${at || '—'}</div>
-          </div>
-        `;
-      }).join('');
+          `;
+        }).join('');
 
-      return `<div class="knx-ops-vo__hist">${rows}</div>`;
+      return rows ? `<div class="knx-ops-vo__hist">${rows}</div>` : `<div class="knx-ops-vo__muted">No history.</div>`;
     }
 
     function buildMapEmbed(lat, lng) {
@@ -216,16 +203,88 @@
       return `https://www.google.com/maps?q=${q}&z=13&output=embed`;
     }
 
+    function platformIsIOS() {
+      try {
+        return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function platformIsAndroid() {
+      try {
+        return /Android/.test(navigator.userAgent);
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function buildWebNav(lat, lng, address) {
+      const a = String(address || '').trim();
+      if (lat !== null && lng !== null) {
+        return 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(String(lat) + ',' + String(lng));
+      }
+      if (a) return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(a);
+      return 'https://www.google.com/maps';
+    }
+
+    function openNavigation(lat, lng, address, ev) {
+      try {
+        if (ev && ev.preventDefault) ev.preventDefault();
+      } catch (e) {}
+
+      const web = buildWebNav(lat, lng, address);
+
+      if (platformIsIOS()) {
+        // Try Apple Maps native scheme first, then fallback to web
+        const native = (lat !== null && lng !== null)
+          ? 'maps://?daddr=' + encodeURIComponent(String(lat) + ',' + String(lng)) + (address ? '&q=' + encodeURIComponent(String(address)) : '')
+          : 'maps://?q=' + encodeURIComponent(String(address || ''));
+        window.location.href = native;
+        setTimeout(function () { window.location.href = web; }, 700);
+        return;
+      }
+
+      if (platformIsAndroid()) {
+        // Android: geo: scheme opens native map apps
+        const native = (lat !== null && lng !== null)
+          ? 'geo:' + encodeURIComponent(String(lat) + ',' + String(lng)) + '?q=' + encodeURIComponent(String(address || ''))
+          : 'geo:0,0?q=' + encodeURIComponent(String(address || ''));
+        window.location.href = native;
+        setTimeout(function () { window.location.href = web; }, 700);
+        return;
+      }
+
+      // Desktop or unknown: open web maps directly
+      window.location.href = web;
+    }
+
+    function normalizePhoneForTel(phone) {
+      const p = String(phone || '').trim();
+      if (!p) return '';
+      // keep + and digits
+      const cleaned = p.replace(/[^\d+]/g, '');
+      return cleaned;
+    }
+
     function renderOrder(order) {
       const rName  = esc(String(pick(order, 'restaurant.name', '') || ''));
-      const rPhone = esc(String(pick(order, 'restaurant.phone', '') || ''));
+      const rPhoneRaw = String(pick(order, 'restaurant.phone', '') || '').trim();
+      const rPhone = esc(rPhoneRaw);
+      const rTel = normalizePhoneForTel(rPhoneRaw);
       const rEmail = esc(String(pick(order, 'restaurant.email', '') || ''));
-      const rAddr  = esc(String(pick(order, 'restaurant.address', '') || ''));
+      const rAddrRaw = String(pick(order, 'restaurant.address', '') || '').trim();
+      const rAddr  = esc(rAddrRaw);
+      const rLat = pick(order, 'restaurant.location.lat', null);
+      const rLng = pick(order, 'restaurant.location.lng', null);
       const rLogo  = safeHttpUrl(pick(order, 'restaurant.logo_url', '') || '');
 
-      const cName = esc(String(pick(order, 'customer.name', '') || ''));
-      const cEmail = '';
-      const dAddr  = esc(String(pick(order, 'delivery.address', '') || ''));
+      const cName  = String(pick(order, 'customer.name', '') || '').trim();
+      const cPhone = String(pick(order, 'customer.phone', '') || '').trim();
+      const cEmail = String(pick(order, 'customer.email', '') || '').trim();
+
+      const dAddrRaw = String(pick(order, 'delivery.address', '') || '').trim();
+      const dAddr  = esc(dAddrRaw);
       const dSlot  = esc(String(pick(order, 'delivery.time_slot', '') || ''));
       const dMethod = esc(String(pick(order, 'delivery.method', '') || ''));
 
@@ -260,6 +319,14 @@
       const notes = String(pick(order, 'raw.notes', '') || '').trim();
       const history = Array.isArray(order?.status_history) ? order.status_history : [];
 
+      const tel = normalizePhoneForTel(cPhone);
+      const hasCustomer = (cName !== '' || cPhone !== '' || cEmail !== '' || dAddr !== '');
+
+      const rHasCoords = (rLat !== null && rLng !== null);
+      const rNavWeb = rHasCoords ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(String(rLat) + ',' + String(rLng))}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rAddrRaw)}`;
+      const dHasCoords = (lat !== null && lng !== null);
+      const dNavWeb = dHasCoords ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(String(lat) + ',' + String(lng))}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(dAddrRaw)}`;
+
       contentEl.innerHTML = `
         <div class="knx-ops-vo__layout">
 
@@ -277,10 +344,10 @@
                   ${rLogo ? `<img class="knx-ops-vo__logo" src="${esc(rLogo)}" alt="" loading="lazy">` : ``}
                   <div class="knx-ops-vo__info-main">
                     <div class="knx-ops-vo__info-name">${rName || '<span class="knx-ops-vo__muted">Unknown</span>'}</div>
-                    <div class="knx-ops-vo__info-sub">${rAddr || ''}</div>
+                    <div class="knx-ops-vo__info-sub">${rAddr ? `${(rLat !== null && rLng !== null) ? `<a class="knx-ops-vo__link" href="${rNavWeb}" onclick="openNavigation(${JSON.stringify(rLat)}, ${JSON.stringify(rLng)}, ${JSON.stringify(rAddrRaw)}, event)" target="_blank" rel="noopener">${rAddr}</a>` : `<a class="knx-ops-vo__link" href="${rNavWeb}" onclick="openNavigation(null, null, ${JSON.stringify(rAddrRaw)}, event)" target="_blank" rel="noopener">${rAddr}</a>`}` : ''}</div>
                     <div class="knx-ops-vo__info-links">
-                      ${rPhone ? `<div class="knx-ops-vo__link">${rPhone}</div>` : ``}
-                      ${rEmail ? `<div class="knx-ops-vo__link">${rEmail}</div>` : ``}
+                      ${rPhone ? `<a class="knx-ops-vo__link" href="tel:${esc(rTel || rPhone)}" aria-label="Call restaurant">${rPhone}</a>` : ``}
+                      ${rEmail ? `<a class="knx-ops-vo__link" href="mailto:${esc(rEmail)}" aria-label="Email restaurant">${rEmail}</a>` : ``}
                     </div>
                   </div>
                 </div>
@@ -290,11 +357,25 @@
 
               <div class="knx-ops-vo__section">
                 <div class="knx-ops-vo__section-title">Client information</div>
-                <div class="knx-ops-vo__kv">
-                  <div class="knx-ops-vo__kv-row"><strong>${cName || '<span class="knx-ops-vo__muted">Unknown</span>'}</strong></div>
-                  ${cEmail ? `<div class="knx-ops-vo__kv-row">${cEmail}</div>` : ``}
-                  ${dAddr ? `<div class="knx-ops-vo__kv-row">${dAddr}</div>` : ``}
-                </div>
+
+                ${hasCustomer ? `
+                  <div class="knx-ops-vo__client" style="display:flex;flex-direction:column;gap:0.4rem;font-size:1.05rem;">
+                    <div class="knx-ops-vo__client-name">
+                      <strong>${esc(cName || 'Unknown')}</strong>
+                    </div>
+
+                    ${(cPhone || cEmail) ? `
+                      <div class="knx-ops-vo__client-actions" style="display:flex;flex-direction:column;gap:0.25rem;">
+                        ${cPhone ? `<a class="knx-ops-vo__link" href="tel:${esc(tel || cPhone)}" aria-label="Call ${esc(cName)}">${esc(cPhone)}</a>` : ``}
+                        ${cEmail ? `<a class="knx-ops-vo__link" href="mailto:${esc(cEmail)}" aria-label="Email ${esc(cName)}">${esc(cEmail)}</a>` : ``}
+                      </div>
+                    ` : ``}
+
+                    ${dAddr ? `${(lat !== null && lng !== null) ? `<a class="knx-ops-vo__client-address knx-ops-vo__link" href="${dNavWeb}" onclick="openNavigation(${JSON.stringify(lat)}, ${JSON.stringify(lng)}, ${JSON.stringify(dAddrRaw)}, event)" target="_blank" rel="noopener">${dAddr}</a>` : `<a class="knx-ops-vo__client-address knx-ops-vo__link" href="${dNavWeb}" onclick="openNavigation(null, null, ${JSON.stringify(dAddrRaw)}, event)" target="_blank" rel="noopener">${dAddr}</a>`}` : ``}
+                  </div>
+                ` : `
+                  <div class="knx-ops-vo__muted">Client info not available.</div>
+                `}
               </div>
 
               <div class="knx-ops-vo__divider"></div>

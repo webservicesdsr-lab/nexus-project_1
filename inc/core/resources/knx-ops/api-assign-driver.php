@@ -1,28 +1,25 @@
 <?php
+// inc/core/resources/knx-ops/api-assign-driver.php
 if (!defined('ABSPATH')) exit;
 
 /**
  * ==========================================================
- * KNX OPS — Assign Driver (OPS v1) — DB-CANON
+ * KNX OPS — Assign Driver (OPS v1) — DB-CANON (UPDATED)
  * Endpoint: POST /wp-json/knx/v1/ops/assign-driver
  *
  * Input JSON:
  * - order_id (int)
- * - driver_id (int)  // This is knx_drivers.id (as returned by /ops/drivers)
+ * - driver_id (int)  // knx_drivers.id
  *
- * Behavior:
- * - Fail-closed: requires KNX session + role (super_admin|manager)
- * - Manager is city-scoped via {prefix}knx_manager_cities (fail-closed)
- * - Requires order.payment_status='paid'
- * - Requires order.status in live pipeline (confirmed..picked_up)
- * - Writes:
- *   - orders.driver_id = driver_id (knx_drivers.id)
- *   - upsert {prefix}knx_driver_ops row:
- *       order_id, driver_user_id (from drivers row), assigned_by, ops_status='assigned', assigned_at
+ * Required behavior (CANON):
+ * - When OPS assigns a driver, it MUST set:
+ *   orders.driver_id = driver_id
+ *   orders.status = 'accepted_by_driver'   (because OPS assignment equals driver acceptance)
+ * - And MUST append status history row:
+ *   knx_order_status_history: accepted_by_driver
  *
- * Notes:
- * - If driver-city mapping table exists, enforce it.
- * - If mapping table is missing: managers are blocked; super_admin allowed.
+ * Also:
+ * - Upsert knx_driver_ops with ops_status='assigned'
  * ==========================================================
  */
 
@@ -36,13 +33,6 @@ add_action('rest_api_init', function () {
     ]);
 });
 
-/**
- * Resolve manager allowed city IDs based on knx_manager_cities pivot.
- * Fail-closed if missing or empty.
- *
- * @param int $manager_user_id
- * @return array<int>
- */
 function knx_ops_assign_driver_manager_city_ids($manager_user_id) {
     global $wpdb;
 
@@ -66,41 +56,16 @@ function knx_ops_assign_driver_manager_city_ids($manager_user_id) {
     return $ids;
 }
 
-/**
- * Read JSON body helper (fail-safe).
- *
- * @param WP_REST_Request $request
- * @return array
- */
 function knx_ops_assign_driver_json_body(WP_REST_Request $request) {
     $body = $request->get_json_params();
     return (is_array($body) ? $body : []);
 }
 
-/**
- * Find driver_user_id from drivers row.
- *
- * Priority:
- * - driver_user_id
- * - user_id
- * - id (fallback)
- *
- * @param object $driver_row
- * @return int
- */
 function knx_ops_assign_driver_resolve_driver_user_id($driver_row) {
     if (!$driver_row) return 0;
 
-    if (isset($driver_row->driver_user_id) && (int)$driver_row->driver_user_id > 0) {
-        return (int)$driver_row->driver_user_id;
-    }
-    if (isset($driver_row->user_id) && (int)$driver_row->user_id > 0) {
-        return (int)$driver_row->user_id;
-    }
-    if (isset($driver_row->id) && (int)$driver_row->id > 0) {
-        return (int)$driver_row->id;
-    }
-
+    if (isset($driver_row->driver_user_id) && (int)$driver_row->driver_user_id > 0) return (int)$driver_row->driver_user_id;
+    if (isset($driver_row->user_id) && (int)$driver_row->user_id > 0) return (int)$driver_row->user_id;
     return 0;
 }
 
@@ -124,17 +89,21 @@ function knx_ops_assign_driver(WP_REST_Request $request) {
 
     $body = knx_ops_assign_driver_json_body($request);
 
-    $order_id = isset($body['order_id']) ? (int)$body['order_id'] : (int)$request->get_param('order_id');
+    $order_id  = isset($body['order_id']) ? (int)$body['order_id'] : (int)$request->get_param('order_id');
     $driver_id = isset($body['driver_id']) ? (int)$body['driver_id'] : (int)$request->get_param('driver_id');
 
     if ($order_id <= 0) return knx_rest_error('order_id is required', 400);
     if ($driver_id <= 0) return knx_rest_error('driver_id is required', 400);
 
-    $orders_table  = $wpdb->prefix . 'knx_orders';
-    $drivers_table = $wpdb->prefix . 'knx_drivers';
-    $ops_table     = $wpdb->prefix . 'knx_driver_ops';
+    $orders_table   = $wpdb->prefix . 'knx_orders';
+    $drivers_table  = $wpdb->prefix . 'knx_drivers';
+    $ops_table      = $wpdb->prefix . 'knx_driver_ops';
+    $hist_table     = $wpdb->prefix . 'knx_order_status_history';
 
-    // Fetch order (fail-closed)
+    // Live pipeline (no pending_payment)
+    $live = ['confirmed','accepted_by_driver','accepted_by_hub','preparing','prepared','picked_up'];
+
+    // Fetch order
     $order = $wpdb->get_row($wpdb->prepare(
         "SELECT id, city_id, status, payment_status, driver_id
          FROM {$orders_table}
@@ -142,10 +111,9 @@ function knx_ops_assign_driver(WP_REST_Request $request) {
          LIMIT 1",
         $order_id
     ));
-
     if (!$order) return knx_rest_error('Order not found', 404);
 
-    // Enforce manager scope
+    // Manager scope
     if ($role === 'manager') {
         $allowed = knx_ops_assign_driver_manager_city_ids($user_id);
         if (empty($allowed)) return knx_rest_error('Manager city assignment not configured', 403);
@@ -156,27 +124,18 @@ function knx_ops_assign_driver(WP_REST_Request $request) {
         }
     }
 
-    // Payment must be paid
+    // Payment gate
     $ps = strtolower((string)($order->payment_status ?? ''));
-    if ($ps !== 'paid') {
-        return knx_rest_error('Order is not paid', 409);
-    }
+    if ($ps !== 'paid') return knx_rest_error('Order is not paid', 409);
 
-    // Order must be in live pipeline
-    $live = ['confirmed','accepted_by_driver','accepted_by_hub','preparing','prepared','picked_up'];
+    // Status gate
     $st = (string)($order->status ?? '');
-    if (!in_array($st, $live, true)) {
-        return knx_rest_error('Order not eligible for driver assignment', 409);
-    }
+    if (!in_array($st, $live, true)) return knx_rest_error('Order not eligible for driver assignment', 409);
 
-    // Driver row must exist and be active (when column exists)
-    $driver = $wpdb->get_row($wpdb->prepare(
-        "SELECT * FROM {$drivers_table} WHERE id = %d LIMIT 1",
-        $driver_id
-    ));
+    // Driver row exists + active if column exists
+    $driver = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$drivers_table} WHERE id = %d LIMIT 1", $driver_id));
     if (!$driver) return knx_rest_error('Driver not found', 404);
 
-    // Active enforcement (supports status col)
     if (isset($driver->status) && strtolower((string)$driver->status) !== 'active') {
         return knx_rest_error('Driver inactive', 409);
     }
@@ -184,10 +143,9 @@ function knx_ops_assign_driver(WP_REST_Request $request) {
     $driver_user_id = knx_ops_assign_driver_resolve_driver_user_id($driver);
     if ($driver_user_id <= 0) return knx_rest_error('Driver linkage invalid', 409);
 
-    // Enforce driver-city mapping if table exists
+    // Optional driver-city enforcement
     $driver_cities_table = $wpdb->prefix . 'knx_driver_cities';
     $mapping_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $driver_cities_table));
-
     if (!empty($mapping_exists)) {
         $city_id = (int)($order->city_id ?? 0);
         if ($city_id <= 0) return knx_rest_error('Order city missing', 409);
@@ -199,15 +157,10 @@ function knx_ops_assign_driver(WP_REST_Request $request) {
             $driver_id,
             $city_id
         ));
-
-        if (empty($ok_map)) {
-            return knx_rest_error('Driver not allowed for this city', 403);
-        }
+        if (empty($ok_map)) return knx_rest_error('Driver not allowed for this city', 403);
     } else {
         // Fail-closed for managers if mapping table is missing
-        if ($role === 'manager') {
-            return knx_rest_error('Forbidden: cannot validate driver-city mapping', 403);
-        }
+        if ($role === 'manager') return knx_rest_error('Forbidden: cannot validate driver-city mapping', 403);
     }
 
     $now = current_time('mysql');
@@ -215,9 +168,12 @@ function knx_ops_assign_driver(WP_REST_Request $request) {
     $wpdb->query('START TRANSACTION');
 
     try {
-        // Lock order row to prevent races
+        // Lock order row
         $locked = $wpdb->get_row($wpdb->prepare(
-            "SELECT id, driver_id, status, payment_status FROM {$orders_table} WHERE id = %d FOR UPDATE",
+            "SELECT id, city_id, status, payment_status, driver_id
+             FROM {$orders_table}
+             WHERE id = %d
+             FOR UPDATE",
             $order_id
         ));
         if (!$locked) throw new Exception('ORDER_LOCK_FAILED');
@@ -228,20 +184,34 @@ function knx_ops_assign_driver(WP_REST_Request $request) {
         $st_locked = (string)($locked->status ?? '');
         if (!in_array($st_locked, $live, true)) throw new Exception('ORDER_NOT_ELIGIBLE');
 
-        // Update orders.driver_id = drivers.id
+        // Update orders: assign driver + set status to accepted_by_driver (OPS assignment == driver acceptance)
         $u1 = $wpdb->update(
             $orders_table,
             [
-                'driver_id'   => $driver_id,
-                'updated_at'  => $now,
+                'driver_id'  => $driver_id,
+                'status'     => 'accepted_by_driver',
+                'updated_at' => $now,
             ],
             ['id' => $order_id],
-            ['%d','%s'],
+            ['%d','%s','%s'],
             ['%d']
         );
         if ($u1 === false) throw new Exception('ORDER_UPDATE_FAILED');
 
-        // Upsert driver_ops (unique by order_id)
+        // Insert status history (accepted_by_driver)
+        $iHist = $wpdb->insert(
+            $hist_table,
+            [
+                'order_id'   => $order_id,
+                'status'     => 'accepted_by_driver',
+                'changed_by' => $user_id,
+                'created_at' => $now,
+            ],
+            ['%d','%s','%d','%s']
+        );
+        if ($iHist === false) throw new Exception('HISTORY_INSERT_FAILED');
+
+        // Upsert driver_ops
         $existing_ops_id = $wpdb->get_var($wpdb->prepare(
             "SELECT id FROM {$ops_table} WHERE order_id = %d LIMIT 1",
             $order_id
@@ -287,8 +257,9 @@ function knx_ops_assign_driver(WP_REST_Request $request) {
 
     return knx_rest_response(true, 'Driver assigned', [
         'order_id' => $order_id,
-        'driver_id' => $driver_id,              // knx_drivers.id
-        'driver_user_id' => $driver_user_id,    // knx_users.id typically
+        'driver_id' => $driver_id,
+        'driver_user_id' => $driver_user_id,
+        'status' => 'accepted_by_driver',
         'ops_status' => 'assigned',
         'assigned_at' => $now,
     ], 200);

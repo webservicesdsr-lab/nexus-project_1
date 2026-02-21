@@ -315,3 +315,56 @@
   .knx-ops-vo__hist-item{grid-template-columns:18px 1fr}
   .knx-ops-vo__hist-time{grid-column:2 / -1}
 }
+
+/* ===== Client readability (drivers-friendly, minimal structure change) ===== */
+.knx-ops-vo__client{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.knx-ops-vo__client-name{
+  font-size:14px;
+  line-height:1.25;
+}
+
+.knx-ops-vo__client-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.knx-ops-vo__chip{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:10px 14px;
+  border-radius:999px;
+  text-decoration:none;
+  font-weight:900;
+  font-size:13px;
+  color:#fff;
+  background:var(--nxs-primary);
+  border:1px solid rgba(11,121,58,0.20);
+}
+
+.knx-ops-vo__chip--ghost{
+  background:#fff;
+  color:var(--nxs-primary);
+}
+
+.knx-ops-vo__client-meta{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  font-size:13px;
+  line-height:1.35;
+  color:#111;
+}
+
+.knx-ops-vo__client-address{
+  font-size:13px;
+  line-height:1.35;
+  color:#111;
+  word-break:break-word;
+}
