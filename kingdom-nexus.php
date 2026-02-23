@@ -238,15 +238,13 @@ add_action('plugins_loaded', function() {
     knx_require('inc/core/resources/knx-ops/api-assign-driver.php');
     knx_require('inc/core/resources/knx-ops/api-update-status.php');
     knx_require('inc/core/resources/knx-ops/api-unassign-driver.php');
-    // Driver-facing OPS endpoints
+    // Driver-facing OPS endpoints (legacy)
     knx_require('inc/core/resources/knx-ops/api-driver-available-orders.php');
     knx_require('inc/core/resources/knx-ops/api-driver-active-orders.php');
     knx_require('inc/core/resources/knx-ops/api-driver-self-assign.php');
     // Canonical availability engine for OPS/DRIVER
     knx_require('inc/core/resources/knx-ops/knx-ops-availability.php');
-    // Canonical v2 driver orders API (new)
-    knx_require('inc/core/resources/knx-ops/api-driver-orders.php');
-    // Canonical v2 driver orders API (new)
+    // Canonical v2 driver orders API
     knx_require('inc/core/resources/knx-ops/api-driver-orders.php');
 
     /* ======================================================
@@ -254,9 +252,7 @@ add_action('plugins_loaded', function() {
      * ====================================================== */
     // Runtime APIs removed in PHASE 13/14 CLEAN (deleted)
     // Administrative drivers endpoints (CRUD) remain loaded.
-
     knx_require('inc/core/resources/knx-drivers/api-drivers-crud.php');
-    // Push subscriptions and test endpoints removed (PHASE 13.CLEAN)
 
     /* ======================================================
      * MODULES — FEES
@@ -282,10 +278,18 @@ add_action('plugins_loaded', function() {
     knx_require('inc/modules/ops/view-order/view-order-shortcode.php');
     // Driver Ops UI
     knx_require('inc/modules/ops/driver-ops/driver-ops-shortcode.php');
-    knx_require('inc/modules/ops/driver-ops/driver-notifier-shortcode.php');
+    knx_require('inc/modules/ops/driver-notifier-shortcode.php');
     knx_require('inc/modules/ops/driver-live-orders/driver-live-orders-shortcode.php');
     // Driver Active Orders (execution-focused)
     knx_require('inc/modules/ops/driver-active-orders/driver-active-orders-shortcode.php');
+
+    /* ======================================================
+     * MODULES — DRIVERS (DB-canon Dashboards)
+     * Driver dashboards using ONLY knx_orders.status (8 DB-canon statuses).
+     * Cloned from manager patterns (fail-closed scope, inline assets, Nexus shell).
+     * ====================================================== */
+    knx_require('inc/modules/drivers/active-orders/driver-active-orders-shortcode.php');
+    knx_require('inc/modules/drivers/view-order/driver-view-order-shortcode.php');
 
     /* Driver quick menu + profile (mobile driver UX) */
     knx_require('inc/modules/ops/driver-quick-menu/driver-quick-menu-shortcode.php');
@@ -294,16 +298,10 @@ add_action('plugins_loaded', function() {
     knx_require('inc/modules/ops/driver-bottom-nav/driver-bottom-nav.php');
 
     /* ======================================================
-     * MODULES — ORDERS (Live admin dashboard)
-     * ====================================================== */
-    // Live orders module removed — use OPS dashboards instead
-
-    /* ======================================================
      * MODULES — DRIVERS (Driver Dashboard)
      * NOTE: drivers UI removed in PHASE 13.CLEAN — UI modules are deleted
      * Backend driver resources were reviewed and ops backend removed.
      * ====================================================== */
-
     // Drivers admin UI (plugin-first) — restore admin module
     knx_require('inc/modules/drivers/drivers-shortcode.php');
 
@@ -318,7 +316,6 @@ add_action('plugins_loaded', function() {
      * ====================================================== */
     knx_require('inc/modules/coupons/coupons-shortcode.php');
 
-    
     /* ======================================================
      * MODULES — KNX CITIES (NEW UI)
      * ====================================================== */
@@ -347,13 +344,6 @@ add_action('plugins_loaded', function() {
     // Navigation (Phase 3.6 — NAVIGATION CANON)
     knx_require('inc/public/navigation/navbar.php');              // Navbar: Public/Customer top nav
     knx_require('inc/public/navigation/corporate-sidebar.php');   // Corporate: Admin/Staff fixed sidebar
-
-    // Customer navigation (future Phase 4/5)
-    // knx_require('inc/public/navigation/sidebar.php');          // Customer: Profile/Orders sidebar
-
-    // Legacy navigation (DEPRECATED - will be removed)
-    // knx_require('inc/modules/navbar/navbar-render.php');
-    // knx_require('inc/modules/sidebar/sidebar-render.php');
 
     knx_require('inc/modules/auth/auth-shortcode.php');
     knx_require('inc/modules/auth/auth-handler.php');

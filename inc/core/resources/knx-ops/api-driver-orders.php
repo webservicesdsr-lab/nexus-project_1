@@ -1,23 +1,19 @@
 <?php
 /**
  * ==========================================================
- * Kingdom Nexus — Driver OPS Orders API (canonical)
+ * Kingdom Nexus — Driver Orders API (v2, DRIVER-ONLY)
  * ----------------------------------------------------------
+ * Canon rules:
+ * - Driver and Manager mutate the SAME DB status: knx_orders.status (ENUM DB-canon).
+ * - No ops_status parallel truth. "Order Created" is UI-only label for confirmed using created_at timestamp.
+ * - Auto-assign MUST transition confirmed -> accepted_by_driver (SSOT + history).
+ *
  * Routes:
  * - GET  /wp-json/knx/v2/driver/orders/available
+ * - GET  /wp-json/knx/v2/driver/orders/active
  * - POST /wp-json/knx/v2/driver/orders/{id}/assign
- *
- * Response contract (canonical):
- * {
- *   "success": true|false,
- *   "ok": true|false,              // compatibility alias
- *   "data": { ... }                // when success
- * }
- *
- * Notes:
- * - Fail-closed for scope (cities/hubs).
- * - Transactional assign with row locks.
- * - Uses $wpdb->prefix (never hardcoded).
+ * - POST /wp-json/knx/v2/driver/orders/{id}/ops-status   (name kept; payload is DB status)
+ * - POST /wp-json/knx/v2/driver/orders/{id}/release
  * ==========================================================
  */
 
@@ -31,6 +27,12 @@ add_action('rest_api_init', function () {
         'permission_callback' => 'knx_v2_driver_ops_permission',
     ));
 
+    register_rest_route('knx/v2', '/driver/orders/active', array(
+        'methods'  => WP_REST_Server::READABLE,
+        'callback' => 'knx_v2_driver_orders_active',
+        'permission_callback' => 'knx_v2_driver_ops_permission',
+    ));
+
     register_rest_route('knx/v2', '/driver/orders/(?P<id>\d+)/assign', array(
         'methods'  => WP_REST_Server::CREATABLE,
         'callback' => 'knx_v2_driver_order_assign',
@@ -39,12 +41,26 @@ add_action('rest_api_init', function () {
             'id' => array('required' => true, 'type' => 'integer'),
         ),
     ));
+
+    register_rest_route('knx/v2', '/driver/orders/(?P<id>\d+)/ops-status', array(
+        'methods'  => WP_REST_Server::CREATABLE,
+        'callback' => 'knx_v2_driver_order_ops_status',
+        'permission_callback' => 'knx_v2_driver_ops_permission',
+        'args' => array(
+            'id' => array('required' => true, 'type' => 'integer'),
+        ),
+    ));
+
+    register_rest_route('knx/v2', '/driver/orders/(?P<id>\d+)/release', array(
+        'methods'  => WP_REST_Server::CREATABLE,
+        'callback' => 'knx_v2_driver_order_release',
+        'permission_callback' => 'knx_v2_driver_ops_permission',
+        'args' => array(
+            'id' => array('required' => true, 'type' => 'integer'),
+        ),
+    ));
 });
 
-/**
- * Permission callback: strict driver context.
- * Returns WP_Error with status for REST.
- */
 function knx_v2_driver_ops_permission() {
     if (!function_exists('knx_get_driver_context')) {
         return new WP_Error('knx_missing_driver_context', 'Driver context helper missing.', array('status' => 500));
@@ -53,20 +69,34 @@ function knx_v2_driver_ops_permission() {
     if (empty($ctx) || empty($ctx->session) || empty($ctx->session->user_id)) {
         return new WP_Error('knx_forbidden', 'Driver context not available.', array('status' => 403));
     }
+    if (isset($ctx->session->role) && (string)$ctx->session->role !== 'driver') {
+        return new WP_Error('knx_forbidden', 'Driver role required.', array('status' => 403));
+    }
     return true;
 }
 
 function knx_driver_ops__resp($success, $data = array(), $status = 200) {
-    $payload = array(
+    return new WP_REST_Response([
         'success' => (bool)$success,
-        'ok'      => (bool)$success, // compatibility alias
+        'ok'      => (bool)$success,
         'data'    => $data,
-    );
-    return new WP_REST_Response($payload, (int)$status);
+    ], (int)$status);
+}
+
+function knx_driver_ops__json_body(WP_REST_Request $request) {
+    $params = $request->get_json_params();
+    return (is_array($params) ? $params : array());
+}
+
+function knx_driver_ops__get_knx_nonce(WP_REST_Request $request) {
+    $body = knx_driver_ops__json_body($request);
+    if (isset($body['knx_nonce']) && is_string($body['knx_nonce'])) return trim($body['knx_nonce']);
+    $p = $request->get_param('knx_nonce');
+    return (is_string($p) ? trim($p) : '');
 }
 
 function knx_driver_ops__table_has_column($table, $column) {
-    static $cache = array(); // [table => [col => bool]]
+    static $cache = array();
     if (!isset($cache[$table])) $cache[$table] = array();
     if (array_key_exists($column, $cache[$table])) return (bool)$cache[$table][$column];
 
@@ -84,10 +114,95 @@ function knx_driver_ops__pick_ts_column($table, $preferred) {
     return '';
 }
 
-/**
- * Resolve driver identity and scope.
- * Returns array: [driver_user_id, driver_profile_id, allowed_city_ids, allowed_hub_ids]
- */
+function knx_driver_ops__resolve_driver_profile_id($ctx, $driver_user_id) {
+    global $wpdb;
+
+    if (is_object($ctx) && isset($ctx->driver) && is_object($ctx->driver) && isset($ctx->driver->id)) {
+        $maybe = (int)$ctx->driver->id;
+        if ($maybe > 0) return $maybe;
+    }
+
+    $drivers_table = function_exists('knx_table') ? knx_table('drivers') : ($wpdb->prefix . 'knx_drivers');
+    $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $drivers_table));
+    if (empty($exists)) return 0;
+
+    $cols = $wpdb->get_results("SHOW COLUMNS FROM {$drivers_table}", ARRAY_A);
+    $names = $cols ? array_map(function($c){ return $c['Field']; }, $cols) : array();
+
+    $conds = array();
+    $args  = array();
+
+    if (in_array('driver_user_id', $names, true)) { $conds[] = "driver_user_id = %d"; $args[] = (int)$driver_user_id; }
+    if (in_array('user_id', $names, true))        { $conds[] = "user_id = %d";        $args[] = (int)$driver_user_id; }
+    if (in_array('id', $names, true))             { $conds[] = "id = %d";             $args[] = (int)$driver_user_id; }
+
+    if (empty($conds)) return 0;
+
+    $sql = "SELECT id FROM {$drivers_table} WHERE " . implode(' OR ', $conds) . " LIMIT 1";
+    $id = (int)$wpdb->get_var($wpdb->prepare($sql, $args));
+    return ($id > 0 ? $id : 0);
+}
+
+function knx_driver_ops__load_driver_city_ids($driver_profile_id, $driver_user_id) {
+    global $wpdb;
+
+    $t = $wpdb->prefix . 'knx_driver_cities';
+    $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $t));
+    if (empty($exists)) return array();
+
+    $ids = $wpdb->get_col($wpdb->prepare(
+        "SELECT DISTINCT city_id
+         FROM {$t}
+         WHERE driver_id = %d
+           AND city_id IS NOT NULL",
+        (int)$driver_profile_id
+    ));
+
+    $ids = array_values(array_filter(array_map('intval', (array)$ids), function($v){ return $v > 0; }));
+
+    if (empty($ids) && (int)$driver_user_id > 0) {
+        $ids2 = $wpdb->get_col($wpdb->prepare(
+            "SELECT DISTINCT city_id
+             FROM {$t}
+             WHERE driver_id = %d
+               AND city_id IS NOT NULL",
+            (int)$driver_user_id
+        ));
+        $ids2 = array_values(array_filter(array_map('intval', (array)$ids2), function($v){ return $v > 0; }));
+        if (!empty($ids2)) $ids = $ids2;
+    }
+
+    return array_values(array_unique($ids));
+}
+
+function knx_driver_ops__derive_hub_ids_from_cities(array $city_ids) {
+    global $wpdb;
+
+    $city_ids = array_values(array_filter(array_map('intval', $city_ids), function($v){ return $v > 0; }));
+    if (empty($city_ids)) return array();
+
+    $t = $wpdb->prefix . 'knx_hubs';
+    $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $t));
+    if (empty($exists)) return array();
+
+    $placeholders = implode(',', array_fill(0, count($city_ids), '%d'));
+    $args = $city_ids;
+
+    $where_status = '';
+    if (knx_driver_ops__table_has_column($t, 'status')) {
+        $where_status = " AND status = 'active' ";
+    }
+
+    $sql = "SELECT id
+            FROM {$t}
+            WHERE city_id IN ({$placeholders})
+              {$where_status}";
+
+    $hub_ids = $wpdb->get_col($wpdb->prepare($sql, $args));
+    $hub_ids = array_values(array_filter(array_map('intval', (array)$hub_ids), function($v){ return $v > 0; }));
+    return array_values(array_unique($hub_ids));
+}
+
 function knx_driver_ops__resolve_ctx_and_scope() {
 
     if (!function_exists('knx_get_driver_context')) {
@@ -100,23 +215,13 @@ function knx_driver_ops__resolve_ctx_and_scope() {
     }
 
     $driver_user_id = (int)$ctx->session->user_id;
-    $driver_profile_id = !empty($ctx->driver_id) ? (int)$ctx->driver_id : $driver_user_id;
+    $driver_profile_id = knx_driver_ops__resolve_driver_profile_id($ctx, $driver_user_id);
 
-    $allowed_city_ids = array();
-    $allowed_hub_ids  = array();
+    if ($driver_user_id <= 0) return array('ok' => false, 'reason' => 'driver_user_id_invalid');
+    if ($driver_profile_id <= 0) return array('ok' => false, 'reason' => 'driver_profile_missing');
 
-    // Canonical scope helper (preferred)
-    if (function_exists('knx_do__load_driver_scope')) {
-        $scope = knx_do__load_driver_scope($driver_profile_id);
-        if (is_array($scope)) {
-            $allowed_city_ids = !empty($scope['city_ids']) && is_array($scope['city_ids']) ? $scope['city_ids'] : array();
-            $allowed_hub_ids  = !empty($scope['hub_ids'])  && is_array($scope['hub_ids'])  ? $scope['hub_ids']  : array();
-        }
-    }
-
-    // Normalize ints + unique
-    $allowed_city_ids = array_values(array_unique(array_map('intval', $allowed_city_ids)));
-    $allowed_hub_ids  = array_values(array_unique(array_map('intval', $allowed_hub_ids)));
+    $allowed_city_ids = knx_driver_ops__load_driver_city_ids($driver_profile_id, $driver_user_id);
+    $allowed_hub_ids  = knx_driver_ops__derive_hub_ids_from_cities($allowed_city_ids);
 
     return array(
         'ok' => true,
@@ -127,39 +232,54 @@ function knx_driver_ops__resolve_ctx_and_scope() {
     );
 }
 
+function knx_driver_ops__require_knx_nonce(WP_REST_Request $request) {
+    $knx_nonce = knx_driver_ops__get_knx_nonce($request);
+    if (!$knx_nonce || !wp_verify_nonce($knx_nonce, 'knx_nonce')) {
+        return knx_driver_ops__resp(false, array('reason' => 'invalid_knx_nonce'), 403);
+    }
+    return true;
+}
+
+function knx_driver_ops__order_in_scope($order_city_id, $order_hub_id, array $allowed_city_ids, array $allowed_hub_ids) {
+    $order_city_id = (int)$order_city_id;
+    $order_hub_id  = (int)$order_hub_id;
+
+    if ($order_city_id > 0 && !empty($allowed_city_ids) && in_array($order_city_id, $allowed_city_ids, true)) return true;
+    if ($order_hub_id > 0 && !empty($allowed_hub_ids) && in_array($order_hub_id, $allowed_hub_ids, true)) return true;
+
+    return false;
+}
+
+function knx_driver_ops__payment_is_paid($payment_status) {
+    return strtolower((string)$payment_status) === 'paid';
+}
+
+function knx_driver_ops__is_terminal_order_status($status) {
+    $s = strtolower((string)$status);
+    return in_array($s, array('completed', 'cancelled'), true);
+}
+
 /**
  * GET /driver/orders/available
  */
 function knx_v2_driver_orders_available(WP_REST_Request $request) {
-    global $wpdb;
 
     $ctx = knx_driver_ops__resolve_ctx_and_scope();
-    if (empty($ctx['ok'])) {
-        return knx_driver_ops__resp(false, array('reason' => $ctx['reason']), 403);
-    }
+    if (empty($ctx['ok'])) return knx_driver_ops__resp(false, array('reason' => $ctx['reason']), 403);
 
     $driver_user_id    = (int)$ctx['driver_user_id'];
     $driver_profile_id = (int)$ctx['driver_profile_id'];
     $allowed_city_ids  = $ctx['allowed_city_ids'];
     $allowed_hub_ids   = $ctx['allowed_hub_ids'];
 
-    // Fail-closed: no scope => no orders.
     if (empty($allowed_city_ids) && empty($allowed_hub_ids)) {
         return knx_driver_ops__resp(true, array(
             'orders' => array(),
             'meta' => array(
-                'range' => 'recent',
-                'days' => 7,
-                'after_mysql' => '',
-                'no_after_filter' => false,
-                'limit' => 50,
-                'offset' => 0,
-                'statuses' => array('placed','confirmed','preparing','ready','out_for_delivery'),
                 'allowed_city_ids' => $allowed_city_ids,
                 'allowed_hub_ids'  => $allowed_hub_ids,
                 'driver_user_id' => $driver_user_id,
                 'driver_profile_id' => $driver_profile_id,
-                'server_gmt' => gmdate('Y-m-d H:i:s'),
             ),
         ));
     }
@@ -170,27 +290,19 @@ function knx_v2_driver_orders_available(WP_REST_Request $request) {
     $days = (int)($request->get_param('days') ?: 7);
     $days = max(1, min(60, $days));
 
-    $range = (string)($request->get_param('range') ?: 'recent');
-    if ($range !== 'recent') $range = 'recent';
+    $no_after_filter = (string)($request->get_param('no_after_filter') ?: '') === '1';
+    $after_mysql = '';
+    if (!$no_after_filter) $after_mysql = gmdate('Y-m-d H:i:s', time() - ($days * 86400));
 
     $statuses = $request->get_param('statuses');
     if (is_string($statuses) && trim($statuses) !== '') {
         $statuses = array_filter(array_map('trim', explode(',', $statuses)));
     }
     if (!is_array($statuses) || empty($statuses)) {
-        $statuses = array('placed','confirmed','preparing','ready','out_for_delivery');
+        $statuses = array('confirmed','accepted_by_hub','preparing','prepared');
     }
     $statuses = array_values(array_unique(array_map('strval', $statuses)));
 
-    $no_after_filter = (string)($request->get_param('no_after_filter') ?: '') === '1';
-    $after_mysql = '';
-    if (!$no_after_filter) {
-        $after_mysql = gmdate('Y-m-d H:i:s', time() - ($days * 86400));
-    }
-
-    $orders_table = $wpdb->prefix . 'knx_orders';
-    $ops_table    = $wpdb->prefix . 'knx_driver_ops';
-    // Use canonical availability engine with driver-specific filters (fail-closed)
     if (!function_exists('knx_ops_get_available_orders')) {
         return knx_driver_ops__resp(false, array('reason' => 'availability_engine_missing'), 500);
     }
@@ -213,7 +325,6 @@ function knx_v2_driver_orders_available(WP_REST_Request $request) {
     $rows = isset($avail['orders']) && is_array($avail['orders']) ? $avail['orders'] : array();
     $meta = isset($avail['meta']) && is_array($avail['meta']) ? $avail['meta'] : array();
 
-    // Add driver info to meta
     $meta['driver_user_id'] = $driver_user_id;
     $meta['driver_profile_id'] = $driver_profile_id;
 
@@ -221,59 +332,143 @@ function knx_v2_driver_orders_available(WP_REST_Request $request) {
 }
 
 /**
- * POST /driver/orders/{id}/assign
+ * GET /driver/orders/active
+ * Returns ONLY DB-canon status from knx_orders.status.
  */
-function knx_v2_driver_order_assign(WP_REST_Request $request) {
+function knx_v2_driver_orders_active(WP_REST_Request $request) {
     global $wpdb;
 
     $ctx = knx_driver_ops__resolve_ctx_and_scope();
-    if (empty($ctx['ok'])) {
-        return knx_driver_ops__resp(false, array('reason' => $ctx['reason']), 403);
-    }
+    if (empty($ctx['ok'])) return knx_driver_ops__resp(false, array('reason' => $ctx['reason']), 403);
 
     $driver_user_id    = (int)$ctx['driver_user_id'];
     $driver_profile_id = (int)$ctx['driver_profile_id'];
     $allowed_city_ids  = $ctx['allowed_city_ids'];
     $allowed_hub_ids   = $ctx['allowed_hub_ids'];
 
-    // Fail-closed scope
+    $limit  = max(1, min(100, (int)($request->get_param('limit') ?: 50)));
+    $offset = max(0, (int)($request->get_param('offset') ?: 0));
+    $include_terminal = ((string)($request->get_param('include_terminal') ?: '') === '1');
+
+    $orders_table = $wpdb->prefix . 'knx_orders';
+
+    if (empty($allowed_city_ids) && empty($allowed_hub_ids)) {
+        return knx_driver_ops__resp(true, array('orders' => array(), 'meta' => array('limit'=>$limit,'offset'=>$offset)));
+    }
+
+    $where = array();
+    $args  = array();
+
+    $where[] = "o.driver_id = %d";
+    $args[]  = $driver_profile_id;
+
+    $scopeParts = array();
+    if (!empty($allowed_city_ids)) {
+        $ph = implode(',', array_fill(0, count($allowed_city_ids), '%d'));
+        $scopeParts[] = "(o.city_id IS NOT NULL AND o.city_id IN ({$ph}))";
+        $args = array_merge($args, $allowed_city_ids);
+    }
+    if (!empty($allowed_hub_ids)) {
+        $ph = implode(',', array_fill(0, count($allowed_hub_ids), '%d'));
+        $scopeParts[] = "(o.hub_id IN ({$ph}))";
+        $args = array_merge($args, $allowed_hub_ids);
+    }
+    if (!empty($scopeParts)) $where[] = "(" . implode(" OR ", $scopeParts) . ")";
+
+    $where[] = "LOWER(o.payment_status) = 'paid'";
+    $where[] = "LOWER(o.status) <> 'pending_payment'";
+
+    if (!$include_terminal) {
+        $where[] = "LOWER(o.status) NOT IN ('completed','cancelled')";
+    }
+
+    $sql_where = implode(" AND ", $where);
+
+    $sql = "
+        SELECT
+            o.id,
+            o.order_number,
+            o.hub_id,
+            o.city_id,
+            o.status,
+            o.payment_status,
+            o.total,
+            o.customer_name,
+            o.customer_phone,
+            o.delivery_address,
+            o.delivery_lat,
+            o.delivery_lng,
+            o.created_at,
+            o.updated_at
+        FROM {$orders_table} o
+        WHERE {$sql_where}
+        ORDER BY o.updated_at DESC, o.id DESC
+        LIMIT %d OFFSET %d
+    ";
+
+    $args[] = $limit;
+    $args[] = $offset;
+
+    $rows = $wpdb->get_results($wpdb->prepare($sql, $args), ARRAY_A);
+    if (!is_array($rows)) $rows = array();
+
+    return knx_driver_ops__resp(true, array(
+        'orders' => $rows,
+        'meta' => array(
+            'limit' => $limit,
+            'offset' => $offset,
+            'include_terminal' => $include_terminal,
+            'driver_user_id' => $driver_user_id,
+            'driver_profile_id' => $driver_profile_id,
+        ),
+    ));
+}
+
+/**
+ * POST /driver/orders/{id}/assign
+ * Auto-assign must transition confirmed -> accepted_by_driver (SSOT).
+ */
+function knx_v2_driver_order_assign(WP_REST_Request $request) {
+    global $wpdb;
+
+    $ctx = knx_driver_ops__resolve_ctx_and_scope();
+    if (empty($ctx['ok'])) return knx_driver_ops__resp(false, array('reason' => $ctx['reason']), 403);
+
+    $driver_user_id    = (int)$ctx['driver_user_id'];
+    $driver_profile_id = (int)$ctx['driver_profile_id'];
+    $allowed_city_ids  = $ctx['allowed_city_ids'];
+    $allowed_hub_ids   = $ctx['allowed_hub_ids'];
+
     if (empty($allowed_city_ids) && empty($allowed_hub_ids)) {
         return knx_driver_ops__resp(false, array('reason' => 'driver_scope_empty'), 403);
     }
 
-    // Require knx_nonce (consistent with your secured POST patterns)
-    $params = $request->get_json_params();
-    $knx_nonce = '';
-    if (is_array($params) && isset($params['knx_nonce'])) $knx_nonce = (string)$params['knx_nonce'];
-    if (!$knx_nonce) $knx_nonce = (string)$request->get_param('knx_nonce');
+    $nonceRes = knx_driver_ops__require_knx_nonce($request);
+    if ($nonceRes !== true) return $nonceRes;
 
-    if (!$knx_nonce || !wp_verify_nonce($knx_nonce, 'knx_nonce')) {
-        return knx_driver_ops__resp(false, array('reason' => 'invalid_knx_nonce'), 403);
+    if (!function_exists('knx_orders_apply_status_change_db_canon')) {
+        return knx_driver_ops__resp(false, array('reason' => 'orders_status_ssot_missing'), 500);
     }
 
     $order_id = (int)$request->get_param('id');
-    if ($order_id <= 0) {
-        return knx_driver_ops__resp(false, array('reason' => 'invalid_order_id'), 400);
-    }
+    if ($order_id <= 0) return knx_driver_ops__resp(false, array('reason' => 'invalid_order_id'), 400);
 
     $orders_table = $wpdb->prefix . 'knx_orders';
-    $ops_table    = $wpdb->prefix . 'knx_driver_ops';
+    $now = current_time('mysql');
 
-    // Columns compatibility
-    $ops_ts_col = knx_driver_ops__pick_ts_column($ops_table, array('ops_updated_at','updated_at','modified_at'));
-    $orders_ts_col = knx_driver_ops__pick_ts_column($orders_table, array('updated_at','modified_at'));
-
-    $now_gmt = gmdate('Y-m-d H:i:s');
-
-    // Assignable statuses for "available" pool
-    $assignable_statuses = array('placed','confirmed','preparing','ready','out_for_delivery');
+    $assignable_statuses = array('confirmed','accepted_by_hub','preparing','prepared','picked_up');
 
     $wpdb->query('START TRANSACTION');
 
     try {
-        // Lock order row
         $order = $wpdb->get_row(
-            $wpdb->prepare("SELECT id, driver_id, status, city_id, hub_id FROM {$orders_table} WHERE id = %d FOR UPDATE", $order_id),
+            $wpdb->prepare(
+                "SELECT id, driver_id, status, payment_status, city_id, hub_id
+                 FROM {$orders_table}
+                 WHERE id = %d
+                 FOR UPDATE",
+                $order_id
+            ),
             ARRAY_A
         );
 
@@ -282,98 +477,57 @@ function knx_v2_driver_order_assign(WP_REST_Request $request) {
             return knx_driver_ops__resp(false, array('reason' => 'order_not_found'), 404);
         }
 
-        $current_driver_id = !empty($order['driver_id']) ? (int)$order['driver_id'] : 0;
-        if ($current_driver_id > 0) {
-            $wpdb->query('ROLLBACK');
-            return knx_driver_ops__resp(false, array('reason' => 'already_assigned'), 409);
-        }
+        $status = strtolower((string)($order['status'] ?? ''));
+        $ps     = strtolower((string)($order['payment_status'] ?? ''));
 
-        $status = (string)($order['status'] ?? '');
-        if (!$status || !in_array($status, $assignable_statuses, true)) {
-            $wpdb->query('ROLLBACK');
-            return knx_driver_ops__resp(false, array('reason' => 'status_not_assignable', 'status' => $status), 409);
-        }
+        if ($status === 'pending_payment') { $wpdb->query('ROLLBACK'); return knx_driver_ops__resp(false, array('reason' => 'order_pending_payment'), 409); }
+        if (!knx_driver_ops__payment_is_paid($ps)) { $wpdb->query('ROLLBACK'); return knx_driver_ops__resp(false, array('reason' => 'payment_not_paid'), 409); }
+        if (knx_driver_ops__is_terminal_order_status($status)) { $wpdb->query('ROLLBACK'); return knx_driver_ops__resp(false, array('reason' => 'order_terminal', 'status' => $status), 409); }
+        if (!in_array($status, $assignable_statuses, true)) { $wpdb->query('ROLLBACK'); return knx_driver_ops__resp(false, array('reason' => 'status_not_assignable', 'status' => $status), 409); }
 
         $order_hub  = !empty($order['hub_id'])  ? (int)$order['hub_id']  : 0;
         $order_city = !empty($order['city_id']) ? (int)$order['city_id'] : 0;
 
-        $in_scope = false;
-        if ($order_hub > 0 && !empty($allowed_hub_ids) && in_array($order_hub, $allowed_hub_ids, true)) $in_scope = true;
-        if (!$in_scope && $order_city > 0 && !empty($allowed_city_ids) && in_array($order_city, $allowed_city_ids, true)) $in_scope = true;
-
-        if (!$in_scope) {
+        if (!knx_driver_ops__order_in_scope($order_city, $order_hub, $allowed_city_ids, $allowed_hub_ids)) {
             $wpdb->query('ROLLBACK');
-            return knx_driver_ops__resp(false, array('reason' => 'forbidden_scope'), 403);
+            return knx_driver_ops__resp(false, array('reason' => 'order_not_found'), 404);
         }
 
-        // Lock ops row
-        $ops = $wpdb->get_row(
-            $wpdb->prepare("SELECT order_id, driver_user_id, ops_status FROM {$ops_table} WHERE order_id = %d FOR UPDATE", $order_id),
-            ARRAY_A
-        );
-
-        $ops_driver_user_id = $ops && !empty($ops['driver_user_id']) ? (int)$ops['driver_user_id'] : 0;
-        $ops_status = $ops && isset($ops['ops_status']) ? (string)$ops['ops_status'] : '';
-
-        // If another driver already has it
-        if ($ops_driver_user_id > 0 && $ops_driver_user_id !== $driver_user_id && $ops_status !== 'unassigned') {
+        $current_driver_id = !empty($order['driver_id']) ? (int)$order['driver_id'] : 0;
+        if ($current_driver_id > 0 && $current_driver_id !== $driver_profile_id) {
             $wpdb->query('ROLLBACK');
-            return knx_driver_ops__resp(false, array(
-                'reason' => 'already_assigned',
-                'assigned_driver_user_id' => $ops_driver_user_id,
-            ), 409);
+            return knx_driver_ops__resp(false, array('reason' => 'already_assigned'), 409);
         }
 
-        // Idempotent: already assigned to you
-        if ($ops_driver_user_id === $driver_user_id && $ops_status !== 'unassigned') {
-            $wpdb->query('COMMIT');
-            return knx_driver_ops__resp(true, array(
-                'assigned' => false,
-                'already_assigned' => true,
-                'assigned_to_you' => true,
-                'order_id' => $order_id,
-                'driver_user_id' => $driver_user_id,
-                'driver_profile_id' => $driver_profile_id,
-            ));
-        }
-
-        // Upsert ops row
-        $ops_data = array(
-            'driver_user_id' => $driver_user_id,
-            'assigned_by'    => $driver_user_id,
-            'ops_status'     => 'assigned',
-            'assigned_at'    => $now_gmt,
+        // Set driver_id (assignment)
+        $ok_order = $wpdb->update(
+            $orders_table,
+            array('driver_id' => $driver_profile_id, 'updated_at' => $now),
+            array('id' => $order_id),
+            array('%d','%s'),
+            array('%d')
         );
-
-        if ($ops_ts_col) $ops_data[$ops_ts_col] = $now_gmt;
-
-        if ($ops) {
-            $ok = $wpdb->update(
-                $ops_table,
-                $ops_data,
-                array('order_id' => $order_id)
-            );
-            if ($ok === false) {
-                $wpdb->query('ROLLBACK');
-                return knx_driver_ops__resp(false, array('reason' => 'db_ops_update_failed'), 500);
-            }
-        } else {
-            $ops_insert = array_merge(array('order_id' => $order_id), $ops_data);
-            $ok = $wpdb->insert($ops_table, $ops_insert);
-            if ($ok === false) {
-                $wpdb->query('ROLLBACK');
-                return knx_driver_ops__resp(false, array('reason' => 'db_ops_insert_failed'), 500);
-            }
-        }
-
-        // Update order: set driver_id to DRIVER PROFILE ID (canonical linkage)
-        $order_update = array('driver_id' => $driver_profile_id);
-        if ($orders_ts_col) $order_update[$orders_ts_col] = $now_gmt;
-
-        $ok_order = $wpdb->update($orders_table, $order_update, array('id' => $order_id));
         if ($ok_order === false) {
             $wpdb->query('ROLLBACK');
             return knx_driver_ops__resp(false, array('reason' => 'db_order_update_failed'), 500);
+        }
+
+        // Auto-transition: confirmed -> accepted_by_driver via SSOT
+        $status_after = $status;
+        $did_transition = false;
+
+        if ($status === 'confirmed') {
+            $res = knx_orders_apply_status_change_db_canon($order_id, 'accepted_by_driver', $driver_user_id, $now);
+            if (is_wp_error($res)) {
+                $wpdb->query('ROLLBACK');
+                $status_code = (int)($res->get_error_data()['status'] ?? 400);
+                return knx_driver_ops__resp(false, array(
+                    'reason' => $res->get_error_code(),
+                    'message' => $res->get_error_message(),
+                ), $status_code);
+            }
+            $status_after = (string)$res['status'];
+            $did_transition = true;
         }
 
         $wpdb->query('COMMIT');
@@ -383,12 +537,190 @@ function knx_v2_driver_order_assign(WP_REST_Request $request) {
             'order_id' => $order_id,
             'driver_user_id' => $driver_user_id,
             'driver_profile_id' => $driver_profile_id,
-            'ops_status' => 'assigned',
-            'server_gmt' => gmdate('Y-m-d H:i:s'),
+            'status_before' => $status,
+            'status_after'  => $status_after,
+            'status_changed' => (bool)$did_transition,
+            'server_time' => $now,
         ));
 
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
         $wpdb->query('ROLLBACK');
-        return knx_driver_ops__resp(false, array('reason' => 'exception', 'message' => $e->getMessage()), 500);
+        return knx_driver_ops__resp(false, array('reason' => 'exception'), 500);
     }
+}
+
+/**
+ * POST /driver/orders/{id}/ops-status
+ * Payload is DB-canon status: {status:"..."} or {to_status:"..."}
+ * Rejects ops_status param (no parallel truth).
+ */
+function knx_v2_driver_order_ops_status(WP_REST_Request $request) {
+    global $wpdb;
+
+    $ctx = knx_driver_ops__resolve_ctx_and_scope();
+    if (empty($ctx['ok'])) return knx_driver_ops__resp(false, array('reason' => $ctx['reason']), 403);
+
+    $driver_user_id    = (int)$ctx['driver_user_id'];
+    $driver_profile_id = (int)$ctx['driver_profile_id'];
+    $allowed_city_ids  = $ctx['allowed_city_ids'];
+    $allowed_hub_ids   = $ctx['allowed_hub_ids'];
+
+    $nonceRes = knx_driver_ops__require_knx_nonce($request);
+    if ($nonceRes !== true) return $nonceRes;
+
+    if (!function_exists('knx_orders_apply_status_change_db_canon') || !function_exists('knx_orders_allowed_statuses_db_canon')) {
+        return knx_driver_ops__resp(false, array('reason' => 'orders_status_ssot_missing'), 500);
+    }
+
+    $order_id = (int)$request->get_param('id');
+    if ($order_id <= 0) return knx_driver_ops__resp(false, array('reason' => 'invalid_order_id'), 400);
+
+    $body = knx_driver_ops__json_body($request);
+
+    // Hard reject old param
+    if (isset($body['ops_status']) || $request->get_param('ops_status')) {
+        return knx_driver_ops__resp(false, array('reason' => 'invalid_param', 'message' => 'Use status/to_status (DB-canon). ops_status is not supported.'), 400);
+    }
+
+    $new_status = isset($body['status']) ? (string)$body['status'] : (string)$request->get_param('status');
+    if ($new_status === '') $new_status = isset($body['to_status']) ? (string)$body['to_status'] : (string)$request->get_param('to_status');
+    $new_status = sanitize_text_field($new_status);
+
+    $allowed = knx_orders_allowed_statuses_db_canon();
+    if (!in_array($new_status, $allowed, true)) {
+        return knx_driver_ops__resp(false, array('reason' => 'invalid-status', 'allowed' => $allowed), 400);
+    }
+
+    $orders_table = $wpdb->prefix . 'knx_orders';
+    $now = current_time('mysql');
+
+    // Scope + ownership lock
+    $order = $wpdb->get_row(
+        $wpdb->prepare(
+            "SELECT id, status, payment_status, driver_id, city_id, hub_id
+             FROM {$orders_table}
+             WHERE id = %d
+             LIMIT 1",
+            $order_id
+        ),
+        ARRAY_A
+    );
+
+    if (!$order) return knx_driver_ops__resp(false, array('reason' => 'order_not_found'), 404);
+
+    $order_hub  = !empty($order['hub_id'])  ? (int)$order['hub_id']  : 0;
+    $order_city = !empty($order['city_id']) ? (int)$order['city_id'] : 0;
+
+    if (!knx_driver_ops__order_in_scope($order_city, $order_hub, $allowed_city_ids, $allowed_hub_ids)) {
+        return knx_driver_ops__resp(false, array('reason' => 'order_not_found'), 404);
+    }
+
+    $order_driver = (int)($order['driver_id'] ?? 0);
+    if ($order_driver <= 0 || $order_driver !== $driver_profile_id) {
+        return knx_driver_ops__resp(false, array('reason' => 'order_not_found'), 404);
+    }
+
+    // Apply SSOT (payment gating + transition matrix + history)
+    $res = knx_orders_apply_status_change_db_canon($order_id, $new_status, $driver_user_id, $now);
+
+    if (is_wp_error($res)) {
+        $status_code = (int)($res->get_error_data()['status'] ?? 400);
+        return knx_driver_ops__resp(false, array(
+            'reason' => $res->get_error_code(),
+            'message' => $res->get_error_message(),
+            'from' => (string)($order['status'] ?? ''),
+            'to' => $new_status,
+        ), $status_code);
+    }
+
+    return knx_driver_ops__resp(true, array(
+        'order_id' => $order_id,
+        'status_before' => (string)$res['from_status'],
+        'status_after'  => (string)$res['status'],
+        'server_time' => $now,
+    ));
+}
+
+/**
+ * POST /driver/orders/{id}/release
+ * Unassigns and if status == accepted_by_driver revert to confirmed via SSOT.
+ */
+function knx_v2_driver_order_release(WP_REST_Request $request) {
+    global $wpdb;
+
+    $ctx = knx_driver_ops__resolve_ctx_and_scope();
+    if (empty($ctx['ok'])) return knx_driver_ops__resp(false, array('reason' => $ctx['reason']), 403);
+
+    $driver_user_id    = (int)$ctx['driver_user_id'];
+    $driver_profile_id = (int)$ctx['driver_profile_id'];
+    $allowed_city_ids  = $ctx['allowed_city_ids'];
+    $allowed_hub_ids   = $ctx['allowed_hub_ids'];
+
+    $nonceRes = knx_driver_ops__require_knx_nonce($request);
+    if ($nonceRes !== true) return $nonceRes;
+
+    if (!function_exists('knx_orders_apply_status_change_db_canon')) {
+        return knx_driver_ops__resp(false, array('reason' => 'orders_status_ssot_missing'), 500);
+    }
+
+    $order_id = (int)$request->get_param('id');
+    if ($order_id <= 0) return knx_driver_ops__resp(false, array('reason' => 'invalid_order_id'), 400);
+
+    $orders_table = $wpdb->prefix . 'knx_orders';
+    $now = current_time('mysql');
+
+    $order = $wpdb->get_row(
+        $wpdb->prepare("SELECT id, status, payment_status, driver_id, city_id, hub_id FROM {$orders_table} WHERE id = %d LIMIT 1", $order_id),
+        ARRAY_A
+    );
+    if (!$order) return knx_driver_ops__resp(false, array('reason' => 'order_not_found'), 404);
+
+    $order_hub  = !empty($order['hub_id'])  ? (int)$order['hub_id']  : 0;
+    $order_city = !empty($order['city_id']) ? (int)$order['city_id'] : 0;
+
+    if (!knx_driver_ops__order_in_scope($order_city, $order_hub, $allowed_city_ids, $allowed_hub_ids)) {
+        return knx_driver_ops__resp(false, array('reason' => 'order_not_found'), 404);
+    }
+
+    $order_driver = (int)($order['driver_id'] ?? 0);
+    if ($order_driver <= 0 || $order_driver !== $driver_profile_id) {
+        return knx_driver_ops__resp(false, array('reason' => 'order_not_found'), 404);
+    }
+
+    // Unassign
+    $ok = $wpdb->update(
+        $orders_table,
+        array('driver_id' => null, 'updated_at' => $now),
+        array('id' => $order_id),
+        array('%s','%s'),
+        array('%d')
+    );
+
+    if ($ok === false) return knx_driver_ops__resp(false, array('reason' => 'db_order_update_failed'), 500);
+
+    // Revert accepted_by_driver -> confirmed via SSOT
+    $status_before = strtolower((string)($order['status'] ?? ''));
+    $status_after = $status_before;
+    $did_change = false;
+
+    if ($status_before === 'accepted_by_driver') {
+        $res = knx_orders_apply_status_change_db_canon($order_id, 'confirmed', $driver_user_id, $now);
+        if (is_wp_error($res)) {
+            return knx_driver_ops__resp(false, array(
+                'reason' => $res->get_error_code(),
+                'message' => $res->get_error_message(),
+            ), (int)($res->get_error_data()['status'] ?? 400));
+        }
+        $status_after = (string)$res['status'];
+        $did_change = true;
+    }
+
+    return knx_driver_ops__resp(true, array(
+        'order_id' => $order_id,
+        'unassigned' => true,
+        'status_before' => $status_before,
+        'status_after'  => $status_after,
+        'status_changed' => (bool)$did_change,
+        'server_time' => $now,
+    ));
 }

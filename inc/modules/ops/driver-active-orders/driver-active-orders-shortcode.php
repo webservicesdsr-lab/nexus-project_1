@@ -3,261 +3,173 @@ if (!defined('ABSPATH')) exit;
 
 /**
  * ==========================================================
- * KNX — Driver Active Orders (Detail UI)
+ * KNX DRIVER — Active Orders (CANON)
  * Shortcode: [knx_driver_active_orders]
  *
- * Rules:
- * - Snapshot v5 is the source of truth for UI content.
- * - No wp_footer usage; assets injected inline.
- * - Only two modals: Status update + Release order.
- * - Bottom navbar included (4 tabs; Support later).
+ * Canon:
+ * - Driver-only (knx_get_driver_context()).
+ * - Uses ONLY DB-canon status: knx_orders.status (8 values).
+ * - "Order Created" is UI-only label for status=confirmed (uses created_at timestamp).
+ * - Two modals only: Change Status, Release Order.
+ *
+ * Notes:
+ * - Assets injected inline via file_get_contents (no wp_footer dependency).
+ * - Data attributes provide API URLs + nonce.
  * ==========================================================
  */
 
-add_shortcode('knx_driver_active_orders', function () {
+add_shortcode('knx_driver_active_orders', function ($atts = []) {
 
     if (!function_exists('knx_get_driver_context')) {
-        return '<div class="knx-dao__empty"><strong>Driver context unavailable.</strong></div>';
+        return '<div class="knx-driver-orders-error">Driver context unavailable.</div>';
     }
 
     $ctx = knx_get_driver_context();
-    if (!$ctx || !is_object($ctx) || empty($ctx->session) || !is_object($ctx->session) || empty($ctx->session->user_id)) {
-        return '<div class="knx-dao__empty"><strong>Unauthorized.</strong></div>';
+    if (!$ctx || empty($ctx->session) || empty($ctx->session->user_id)) {
+        return '<div class="knx-driver-orders-error">Unauthorized (driver only).</div>';
     }
 
-    $role = !empty($ctx->session->role) ? (string) $ctx->session->role : '';
-    if (!in_array($role, array('driver', 'super_admin', 'manager'), true)) {
-        return '<div class="knx-dao__empty"><strong>Forbidden.</strong></div>';
+    $role = isset($ctx->session->role) ? (string)$ctx->session->role : '';
+    if ($role !== 'driver') {
+        return '<div class="knx-driver-orders-error">Unauthorized (driver only).</div>';
     }
 
-    $order_id = isset($_GET['order_id']) ? intval($_GET['order_id']) : 0;
+    $atts = shortcode_atts([
+        // Where clicking "View" should go (expects ?order_id=123)
+        'view_order_url' => site_url('/driver-view-order'),
+        // Polling interval (ms)
+        'poll_ms' => 10000,
+        // Include terminal in list response (we do our own bucketing in UI anyway)
+        'include_terminal' => 1,
+    ], (array)$atts, 'knx_driver_active_orders');
 
-    // Endpoints (kept configurable via dataset; frontend must not hardcode)
-    $api_detail = '/wp-json/knx/v1/ops/driver-active-orders';
-    // This should match the same base used by driver-ops accept: ".../knx/v2/driver/orders/"
-    $api_base_v2 = '/wp-json/knx/v2/driver/orders/';
+    $poll_ms = (int)$atts['poll_ms'];
+    if ($poll_ms < 5000) $poll_ms = 5000;
+    if ($poll_ms > 60000) $poll_ms = 60000;
 
-    // Back destination (Available orders reminder)
-    $back_url = '/driver-live-orders';
+    $include_terminal = ((int)$atts['include_terminal'] === 1) ? 1 : 0;
 
-    // Nonces
-    $wp_rest_nonce = wp_create_nonce('wp_rest');
+    $api_base_v2 = rest_url('knx/v2/driver/orders/');
+    $active_url  = rest_url('knx/v2/driver/orders/active');
+    $nonce       = wp_create_nonce('knx_nonce');
 
-    // Best-effort KNX nonce (if your session provides it)
-    $knx_nonce = '';
-    if (!empty($ctx->session->knx_nonce)) $knx_nonce = (string) $ctx->session->knx_nonce;
-    else if (!empty($ctx->session->nonce)) $knx_nonce = (string) $ctx->session->nonce;
+    // Inline assets
+    $css = '';
+    $js  = '';
 
-    // Bottom nav URLs (edit here later if your slugs differ)
-    $nav_live_url    = '/driver-live-orders';
-    $nav_active_url  = '/driver-active-orders';
-    $nav_past_url    = '/driver-past-orders';
-    $nav_profile_url = '/driver-profile';
+    $css_path = __DIR__ . '/driver-active-orders-style.css';
+    if (file_exists($css_path)) {
+        $css = (string)file_get_contents($css_path);
+    }
 
-    // Load bottom nav renderer (best-effort)
-    $bottom_nav_path = __DIR__ . '/../driver-bottom-nav/driver-bottom-nav.php';
-    if (file_exists($bottom_nav_path)) {
-        require_once $bottom_nav_path;
+    $js_path = __DIR__ . '/driver-active-orders-script.js';
+    if (file_exists($js_path)) {
+        $js = (string)file_get_contents($js_path);
     }
 
     ob_start();
     ?>
+    <?php if ($css !== ''): ?>
+        <style data-knx="driver-active-orders-style"><?php echo $css; ?></style>
+    <?php endif; ?>
+
     <div
-        id="knx-driver-active-order"
-        class="knx-dao knx-has-bottomnav"
-        data-order-id="<?php echo esc_attr($order_id); ?>"
-        data-api-detail="<?php echo esc_attr($api_detail); ?>"
+        class="knx-do"
+        data-knx-driver-module="active-orders"
         data-api-base-v2="<?php echo esc_attr($api_base_v2); ?>"
-        data-back-url="<?php echo esc_attr($back_url); ?>"
-        data-wp-rest-nonce="<?php echo esc_attr($wp_rest_nonce); ?>"
-        data-knx-nonce="<?php echo esc_attr($knx_nonce); ?>"
+        data-api-active-url="<?php echo esc_attr($active_url); ?>"
+        data-view-order-url="<?php echo esc_attr((string)$atts['view_order_url']); ?>"
+        data-knx-nonce="<?php echo esc_attr($nonce); ?>"
+        data-poll-ms="<?php echo (int)$poll_ms; ?>"
+        data-include-terminal="<?php echo (int)$include_terminal; ?>"
     >
-        <!-- Top back -->
-        <div class="knx-dao__top">
-            <a class="knx-dao__back" href="<?php echo esc_attr($back_url); ?>">
-                <span class="knx-dao__back-ico" aria-hidden="true">←</span>
-                <span>Back to Available</span>
-            </a>
-        </div>
-
-        <!-- Status card -->
-        <button type="button" class="knx-dao__status" id="knxDaoStatusCard" aria-label="Update order status">
-            <div class="knx-dao__status-left">
-                <div class="knx-dao__status-label">ORDER STATUS</div>
-                <div class="knx-dao__status-value" id="knxDaoStatusValue">Loading…</div>
-            </div>
-            <div class="knx-dao__status-right" aria-hidden="true">
-                <span class="knx-dao__chev">▾</span>
-            </div>
-        </button>
-
-        <!-- Main card -->
-        <div class="knx-dao__card" id="knxDaoCard" aria-busy="true">
-            <div class="knx-dao__card-title">YOUR ACTIVE ORDER</div>
-
-            <div class="knx-dao__totals">
-                <div class="knx-dao__total" id="knxDaoTotal">$—</div>
-                <div class="knx-dao__tips">
-                    <div class="knx-dao__tips-label">Tips</div>
-                    <div class="knx-dao__tips-value" id="knxDaoTips">$—</div>
-                </div>
-            </div>
-
-            <div class="knx-dao__restaurant" id="knxDaoRestaurant">—</div>
-            <div class="knx-dao__orderid">Order ID: <strong id="knxDaoOrderNumber">—</strong></div>
-
-            <div class="knx-dao__hr"></div>
-
-            <div class="knx-dao__section">ORDER ITEMS</div>
-            <div class="knx-dao__items" id="knxDaoItems"></div>
-
-            <div class="knx-dao__hr"></div>
-
-            <div class="knx-dao__locs">
-                <div class="knx-dao__loc">
-                    <div class="knx-dao__loc-ico knx-dao__loc-ico--pickup" aria-hidden="true">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                            <path d="M12 22s7-4.5 7-12a7 7 0 1 0-14 0c0 7.5 7 12 7 12Z" stroke="currentColor" stroke-width="2"/>
-                            <circle cx="12" cy="10" r="2.5" stroke="currentColor" stroke-width="2"/>
-                        </svg>
-                    </div>
-                    <div class="knx-dao__loc-body">
-                        <div class="knx-dao__loc-label">PICKUP LOCATION</div>
-                        <div class="knx-dao__loc-text" id="knxDaoPickup">—</div>
+        <div class="knx-do__shell">
+            <div class="knx-do__top">
+                <div class="knx-do__title-wrap">
+                    <h2 class="knx-do__title">My Orders</h2>
+                    <div class="knx-do__live">
+                        <span class="knx-do__dot" aria-hidden="true"></span>
+                        <span class="knx-do__live-text">Live</span>
                     </div>
                 </div>
 
-                <div class="knx-dao__loc">
-                    <div class="knx-dao__loc-ico knx-dao__loc-ico--delivery" aria-hidden="true">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                            <path d="M12 22s7-4.5 7-12a7 7 0 1 0-14 0c0 7.5 7 12 7 12Z" stroke="currentColor" stroke-width="2"/>
-                            <circle cx="12" cy="10" r="2.5" stroke="currentColor" stroke-width="2"/>
-                        </svg>
-                    </div>
-                    <div class="knx-dao__loc-body">
-                        <div class="knx-dao__loc-label">DELIVERY LOCATION</div>
-                        <div class="knx-dao__loc-text" id="knxDaoDelivery">—</div>
-                        <div class="knx-dao__customer" id="knxDaoCustomerLine">Customer: —</div>
-                    </div>
+                <div class="knx-do__tabs" role="tablist" aria-label="Driver orders tabs">
+                    <button class="knx-do__tab is-active" type="button" data-tab="active" role="tab" aria-selected="true">
+                        Active <span class="knx-do__count" data-count="active">0</span>
+                    </button>
+                    <button class="knx-do__tab" type="button" data-tab="completed" role="tab" aria-selected="false">
+                        Completed <span class="knx-do__count" data-count="completed">0</span>
+                    </button>
                 </div>
             </div>
 
-            <div class="knx-dao__hr"></div>
-
-            <div class="knx-dao__distance">
-                <strong id="knxDaoDistanceVal">—</strong>
-                <span>distance</span>
-            </div>
-
-            <div class="knx-dao__actions">
-                <a class="knx-dao__btn knx-dao__btn--green" id="knxDaoNavigate" href="#" target="_blank" rel="noopener">
-                    <span class="knx-dao__btn-ico" aria-hidden="true">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                            <path d="M22 2 11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                            <path d="M22 2 15 22l-4-9-9-4 20-7Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                        </svg>
-                    </span>
-                    <span>Navigate</span>
-                </a>
-
-                <a class="knx-dao__btn knx-dao__btn--green" id="knxDaoCustomer" href="#">
-                    <span class="knx-dao__btn-ico" aria-hidden="true">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.86.3 1.7.54 2.5a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.58-1.11a2 2 0 0 1 2.11-.45c.8.24 1.64.42 2.5.54A2 2 0 0 1 22 16.92Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                        </svg>
-                    </span>
-                    <span>Customer</span>
-                </a>
-            </div>
-        </div>
-
-        <!-- Release -->
-        <button type="button" class="knx-dao__release" id="knxDaoReleaseBtn">
-            <span class="knx-dao__release-ico" aria-hidden="true">⚠️</span>
-            <span>Release Order</span>
-        </button>
-
-        <!-- Empty/Error state -->
-        <div class="knx-dao__empty" id="knxDaoEmpty" hidden></div>
-
-        <!-- Toast container -->
-        <div class="knx-dao__toast" id="knxDaoToast" aria-live="polite" aria-atomic="true"></div>
-
-        <!-- STATUS MODAL (allowed) -->
-        <div class="knx-dao__modal" id="knxDaoStatusModal" aria-hidden="true">
-            <div class="knx-dao__modal-dialog" role="dialog" aria-modal="true" aria-labelledby="knxDaoStatusTitle">
-                <div class="knx-dao__modal-head">
-                    <div>
-                        <div class="knx-dao__modal-title" id="knxDaoStatusTitle">Update Order Status</div>
-                        <div class="knx-dao__modal-sub">Choose the current status of this order</div>
-                    </div>
-                    <button type="button" class="knx-dao__modal-x" data-close aria-label="Close">×</button>
+            <div class="knx-do__panels">
+                <div class="knx-do__panel is-active" data-panel="active" role="tabpanel">
+                    <div class="knx-do__list" data-list="active"></div>
                 </div>
-
-                <div class="knx-dao__modal-divider"></div>
-
-                <div class="knx-dao__status-list" id="knxDaoStatusList"></div>
-
-                <div class="knx-dao__status-warn" id="knxDaoCancelWarn" hidden>
-                    This action requires confirmation.
-                </div>
-
-                <div class="knx-dao__modal-foot">
-                    <button type="button" class="knx-dao__btn knx-dao__btn--ghost" data-close>Cancel</button>
-                    <button type="button" class="knx-dao__btn knx-dao__btn--solid" id="knxDaoUpdateStatusBtn">Update</button>
+                <div class="knx-do__panel" data-panel="completed" role="tabpanel">
+                    <div class="knx-do__list" data-list="completed"></div>
                 </div>
             </div>
         </div>
 
-        <!-- RELEASE MODAL (allowed) -->
-        <div class="knx-dao__modal" id="knxDaoReleaseModal" aria-hidden="true">
-            <div class="knx-dao__modal-dialog" role="dialog" aria-modal="true" aria-labelledby="knxDaoReleaseTitle">
-                <div class="knx-dao__modal-head">
-                    <div>
-                        <div class="knx-dao__modal-title" id="knxDaoReleaseTitle">Release Order</div>
-                        <div class="knx-dao__modal-sub">This will remove the order from your active queue.</div>
-                    </div>
-                    <button type="button" class="knx-dao__modal-x" data-close aria-label="Close">×</button>
+        <!-- Toast -->
+        <div class="knx-do__toast" data-toast aria-live="polite" aria-atomic="true"></div>
+
+        <!-- Modal: Change Status -->
+        <div class="knx-do__modal" data-modal="status" role="dialog" aria-modal="true" aria-label="Change Order Status">
+            <div class="knx-do__overlay" data-close-modal></div>
+            <div class="knx-do__dialog" role="document">
+                <div class="knx-do__dialog-head">
+                    <div class="knx-do__dialog-title">Change Order Status</div>
+                    <button class="knx-do__icon-btn" type="button" data-close-modal aria-label="Close">×</button>
                 </div>
 
-                <div class="knx-dao__modal-divider"></div>
-
-                <div class="knx-dao__release-body">
-                    Are you sure you want to release this order?
+                <div class="knx-do__dialog-body">
+                    <div class="knx-do__modal-meta" data-status-meta></div>
+                    <div class="knx-do__options" data-status-options></div>
                 </div>
 
-                <div class="knx-dao__modal-foot">
-                    <button type="button" class="knx-dao__btn knx-dao__btn--ghost" data-close>Cancel</button>
-                    <button type="button" class="knx-dao__btn knx-dao__btn--danger" id="knxDaoConfirmReleaseBtn">Release</button>
+                <div class="knx-do__dialog-foot">
+                    <button class="knx-do__btn" type="button" data-close-modal>Cancel</button>
+                    <button class="knx-do__btn knx-do__btn--primary" type="button" data-confirm-status disabled>
+                        Confirm
+                    </button>
                 </div>
             </div>
         </div>
+
+        <!-- Modal: Release -->
+        <div class="knx-do__modal" data-modal="release" role="dialog" aria-modal="true" aria-label="Release Order">
+            <div class="knx-do__overlay" data-close-modal></div>
+            <div class="knx-do__dialog" role="document">
+                <div class="knx-do__dialog-head">
+                    <div class="knx-do__dialog-title">Release Order</div>
+                    <button class="knx-do__icon-btn" type="button" data-close-modal aria-label="Close">×</button>
+                </div>
+
+                <div class="knx-do__dialog-body">
+                    <p class="knx-do__p">
+                        Are you sure you want to release this order? It will become available for other drivers.
+                    </p>
+                    <div class="knx-do__modal-meta" data-release-meta></div>
+                </div>
+
+                <div class="knx-do__dialog-foot">
+                    <button class="knx-do__btn" type="button" data-close-modal>Cancel</button>
+                    <button class="knx-do__btn knx-do__btn--danger" type="button" data-confirm-release>
+                        Release
+                    </button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
+    <?php if ($js !== ''): ?>
+        <script data-knx="driver-active-orders-script"><?php echo $js; ?></script>
+    <?php endif; ?>
+
     <?php
-    // Render bottom navbar (4 tabs)
-    if (function_exists('knx_driver_bottom_nav_render')) {
-        knx_driver_bottom_nav_render([
-            'current' => 'active',
-            'live_url' => $nav_live_url,
-            'active_url' => $nav_active_url,
-            'past_url' => $nav_past_url,
-            'profile_url' => $nav_profile_url,
-            'active_order_id' => $order_id,
-        ]);
-    }
-
-    // Inject CSS
-    $css_path = __DIR__ . '/driver-active-orders-style.css';
-    if (file_exists($css_path)) {
-        echo '<style>' . file_get_contents($css_path) . '</style>';
-    }
-
-    // Inject JS
-    $js_path = __DIR__ . '/driver-active-orders-script.js';
-    if (file_exists($js_path)) {
-        echo '<script>' . file_get_contents($js_path) . '</script>';
-    }
-
     return ob_get_clean();
 });
