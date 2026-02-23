@@ -1,571 +1,448 @@
 /**
- * KNX DRIVER — Active Orders (CANON, DB-canon only)
- *
- * Rules:
- * - No legacy status mapping (no out_for_delivery/ready/etc).
- * - "confirmed" is displayed as "Order Created" using created_at.
- * - Two modals only: Change Status, Release Order.
- * - No alert/prompt/confirm.
- * - Polling: pause when tab hidden, pause when modal open, backoff on errors.
+ * ==========================================================
+ * Kingdom Nexus — Driver Active Orders Script (BRIDGE)
+ * ----------------------------------------------------------
+ * - No alerts
+ * - Renders Nexus-shell cards similar to driver-ops
+ * - Entire card clickable -> /driver-view-order?order_id=...
+ * - Uses DB-canon status only (confirmed => "Order Created" UI label)
+ * - Live polling (pause when tab hidden)
+ * ==========================================================
  */
 
-(function () {
-  "use strict";
+document.addEventListener('DOMContentLoaded', function () {
+  'use strict';
 
-  const DB_STATUSES = [
-    "confirmed",
-    "accepted_by_driver",
-    "accepted_by_hub",
-    "preparing",
-    "prepared",
-    "picked_up",
-    "completed",
-    "cancelled",
-  ];
+  var root = document.getElementById('knx-driver-active-orders');
+  if (!root) return;
 
-  const STATUS_LABELS = {
-    confirmed: "Order Created",
-    accepted_by_driver: "Accepted by driver",
-    accepted_by_hub: "Restaurant accepted",
-    preparing: "Preparing",
-    prepared: "Prepared",
-    picked_up: "Picked up",
-    completed: "Completed",
-    cancelled: "Cancelled",
+  var cfg = (window.KNX_DRIVER_ACTIVE_CONFIG || {});
+  var apiActive = root.dataset.apiActive || cfg.apiActive || '';
+  var viewOrderUrl = root.dataset.viewOrderUrl || cfg.viewOrderUrl || '/driver-view-order';
+  var wpRestNonce = root.dataset.wpRestNonce || cfg.wpRestNonce || '';
+  var pollMs = parseInt(root.dataset.pollMs || cfg.pollMs, 10) || 15000;
+
+  var listEl = document.getElementById('knxActiveOrdersList');
+  var searchEl = document.getElementById('knxActiveSearch');
+  var refreshBtn = document.getElementById('knxActiveRefresh');
+  var liveEl = document.getElementById('knxActiveLive');
+  var archiveBtn = null;
+
+  var state = {
+    loading: false,
+    orders: [],
+    filtered: [],
+    pollTimer: null,
+    aborter: null,
+    showArchived: false
   };
 
-  const TRANSITIONS = {
-    confirmed: ["accepted_by_driver", "cancelled"],
-    accepted_by_driver: ["accepted_by_hub", "cancelled"],
-    accepted_by_hub: ["preparing", "cancelled"],
-    preparing: ["prepared", "cancelled"],
-    prepared: ["picked_up", "cancelled"],
-    picked_up: ["completed"],
-    completed: [],
-    cancelled: [],
-  };
+  function toast(message, type) {
+    var msg = (message || '').toString().trim() || 'Something went wrong.';
+    var t = (type || 'info').toString();
+    if (typeof window.knxToast === 'function') window.knxToast(msg, t);
+  }
 
-  function normalizeStatus(status) {
-    const st = String(status || "").trim().toLowerCase();
+  function escHtml(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function debounce(fn, wait) {
+    var t = null;
+    return function () {
+      var args = arguments;
+      clearTimeout(t);
+      t = setTimeout(function () { fn.apply(null, args); }, wait);
+    };
+  }
+
+  function money(val) {
+    var n = parseFloat(val);
+    if (!isFinite(n)) return '$—';
+    try {
+      return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(n);
+    } catch (e) {
+      return '$' + n.toFixed(2);
+    }
+  }
+
+  function normalizeStatus(s) {
+    var st = String(s || '').trim().toLowerCase();
+    // tolerate legacy aliases safely (UI only)
+    if (st === 'placed') return 'confirmed';
+    if (st === 'accepted_by_restaurant') return 'accepted_by_hub';
+    if (st === 'out_for_delivery') return 'picked_up';
+    if (st === 'ready') return 'prepared';
     return st;
   }
 
-  function statusLabel(status) {
-    const st = normalizeStatus(status);
-    return STATUS_LABELS[st] || (st ? st.replace(/_/g, " ") : "Unknown");
+  var STATUS_LABELS = {
+    confirmed: 'Order Created',
+    accepted_by_driver: 'Accepted by driver',
+    accepted_by_hub: 'Restaurant accepted',
+    preparing: 'Preparing',
+    prepared: 'Prepared',
+    picked_up: 'Picked up',
+    completed: 'Completed',
+    cancelled: 'Cancelled'
+  };
+
+  function statusLabel(st) {
+    var s = normalizeStatus(st);
+    return STATUS_LABELS[s] || s.replace(/_/g, ' ');
   }
 
-  function isTerminal(status) {
-    const st = normalizeStatus(status);
-    return st === "completed" || st === "cancelled";
+  function statusChipClass(st) {
+    var s = normalizeStatus(st);
+    if (s === 'confirmed') return 'is-new';
+    if (s === 'cancelled') return 'is-cancelled';
+    if (s === 'completed') return 'is-done';
+    return 'is-progress';
   }
 
-  function allowedTransitions(status) {
-    const st = normalizeStatus(status);
-    return TRANSITIONS[st] || [];
+  function buildViewUrl(orderId) {
+    var base = (viewOrderUrl || '/driver-view-order').toString().trim();
+    var sep = base.indexOf('?') === -1 ? '?' : '&';
+    return base + sep + 'order_id=' + encodeURIComponent(String(orderId));
   }
 
-  function escapeHtml(str) {
-    return String(str).replace(/[&<>"]/g, (s) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[s]));
+  function parseMysqlToDate(mysql) {
+    if (!mysql || typeof mysql !== 'string') return null;
+    var parts = mysql.split(' ');
+    if (parts.length !== 2) return null;
+    var d = parts[0].split('-').map(Number);
+    var t = parts[1].split(':').map(Number);
+    if (d.length !== 3 || t.length < 2) return null;
+    return new Date(Date.UTC(d[0], d[1] - 1, d[2], t[0] || 0, t[1] || 0, t[2] || 0));
   }
 
-  function parseMysqlDate(mysql) {
-    // MySQL "YYYY-MM-DD HH:MM:SS" (local or server time) -> Date
-    // This is best-effort; we also display raw if parsing fails.
-    if (!mysql) return null;
-    const s = String(mysql).trim().replace(" ", "T");
-    const d = new Date(s);
-    return isNaN(d.getTime()) ? null : d;
+  function relTime(mysql) {
+    var dt = parseMysqlToDate(mysql);
+    if (!dt) return '';
+    var diff = Date.now() - dt.getTime();
+    if (diff < 0) diff = 0;
+    var sec = Math.floor(diff / 1000);
+    if (sec < 60) return sec + 's ago';
+    var min = Math.floor(sec / 60);
+    if (min < 60) return min + 'm ago';
+    var hr = Math.floor(min / 60);
+    if (hr < 24) return hr + 'h ago';
+    var day = Math.floor(hr / 24);
+    return day + 'd ago';
   }
 
-  function relativeTimeFrom(mysql) {
-    const d = parseMysqlDate(mysql);
-    if (!d) return mysql ? String(mysql) : "";
-    const diffMs = Date.now() - d.getTime();
-    const diffSec = Math.floor(diffMs / 1000);
-    if (diffSec < 60) return `${diffSec}s ago`;
-    const diffMin = Math.floor(diffSec / 60);
-    if (diffMin < 60) return `${diffMin}m ago`;
-    const diffHr = Math.floor(diffMin / 60);
-    if (diffHr < 24) return `${diffHr}h ago`;
-    const diffDay = Math.floor(diffHr / 24);
-    return `${diffDay}d ago`;
+  async function fetchJson(url, opts) {
+    if (!url) return { ok: false, status: 0, data: null };
+
+    if (opts && opts._abortKey === 'list') {
+      try { if (state.aborter) state.aborter.abort(); } catch (e) {}
+      state.aborter = new AbortController();
+      opts.signal = state.aborter.signal;
+    }
+
+    var res = await fetch(url, Object.assign({ credentials: 'same-origin' }, opts || {}));
+    var data = null;
+    try { data = await res.json(); } catch (e) { data = null; }
+    return { ok: res.ok, status: res.status, data: data };
   }
 
-  function toast(root, msg, type = "info") {
-    // Prefer global core toast if present
-    if (window.knxToast && typeof window.knxToast === "function") {
-      window.knxToast(msg, type);
+  function applyFilter() {
+    var q = (searchEl && searchEl.value ? searchEl.value : '').trim().toLowerCase();
+    if (!q) {
+      state.filtered = state.orders.slice();
       return;
     }
 
-    const node = root.querySelector('[data-toast]');
-    if (!node) return;
-
-    node.textContent = msg;
-    node.classList.remove("is-success", "is-error", "is-info");
-    node.classList.add("is-show");
-    if (type === "success") node.classList.add("is-success");
-    else if (type === "error") node.classList.add("is-error");
-    else node.classList.add("is-info");
-
-    window.clearTimeout(toast._t);
-    toast._t = window.setTimeout(() => node.classList.remove("is-show"), 3500);
+    state.filtered = state.orders.filter(function (o) {
+      var id = String(o.id || o.order_id || '').toLowerCase();
+      var num = String(o.order_number || '').toLowerCase();
+      var restaurant = String(pickRestaurantName(o) || '').toLowerCase();
+      var customer = String(o.customer_name || o.customer || '').toLowerCase();
+      var delivery = String(o.delivery_address_text || o.delivery_address || '').toLowerCase();
+      return (
+        id.indexOf(q) !== -1 ||
+        num.indexOf(q) !== -1 ||
+        restaurant.indexOf(q) !== -1 ||
+        customer.indexOf(q) !== -1 ||
+        delivery.indexOf(q) !== -1
+      );
+    });
   }
 
-  async function fetchJson(url, opts = {}, abortSignal) {
-    const res = await fetch(url, Object.assign({ credentials: "include", signal: abortSignal }, opts));
-    const text = await res.text();
-    let json = null;
-    try { json = JSON.parse(text); } catch (_) {}
-    return { ok: res.ok, status: res.status, json, text };
+  function pickRestaurantName(o) {
+    if (!o) return '';
+    // direct string fields
+    if (o.hub_name) return String(o.hub_name);
+    if (o.restaurant_name) return String(o.restaurant_name);
+    if (o.store_name) return String(o.store_name);
+    if (o.merchant_name) return String(o.merchant_name);
+    if (o.restaurant && typeof o.restaurant === 'string') return String(o.restaurant);
+
+    // nested object shapes
+    if (o.hub && typeof o.hub === 'object') {
+      if (o.hub.name) return String(o.hub.name);
+      if (o.hub.title) return String(o.hub.title);
+    }
+
+    if (o.restaurant && typeof o.restaurant === 'object') {
+      if (o.restaurant.name) return String(o.restaurant.name);
+      if (o.restaurant.title) return String(o.restaurant.title);
+    }
+
+    if (o.merchant && typeof o.merchant === 'object') {
+      if (o.merchant.name) return String(o.merchant.name);
+      if (o.merchant.title) return String(o.merchant.title);
+      if (o.merchant.business_name) return String(o.merchant.business_name);
+    }
+
+    if (o.store && typeof o.store === 'object') {
+      if (o.store.name) return String(o.store.name);
+      if (o.store.title) return String(o.store.title);
+    }
+
+    return '';
   }
 
-  function getCfg(root) {
-    const pollMs = Math.max(5000, Math.min(60000, parseInt(root.dataset.pollMs || "10000", 10)));
-    return {
-      apiBaseV2: (root.dataset.apiBaseV2 || "/wp-json/knx/v2/driver/orders/").replace(/\/+$/, "/"),
-      activeUrl: root.dataset.apiActiveUrl || "/wp-json/knx/v2/driver/orders/active",
-      viewOrderUrl: root.dataset.viewOrderUrl || "/driver-view-order",
-      knxNonce: root.dataset.knxNonce || "",
-      pollMs,
-    };
+  function pickPickup(o) {
+    return (o && (o.pickup_address_text || o.pickup_address || o.pickup || o.pickup_address_line)) ? String(o.pickup_address_text || o.pickup_address || o.pickup || o.pickup_address_line) : '';
   }
 
-  function buildOpsStatusUrl(cfg, orderId) {
-    return cfg.apiBaseV2 + String(orderId) + "/ops-status";
+  function pickDelivery(o) {
+    return (o && (o.delivery_address_text || o.delivery_address || o.delivery || o.dropoff_address)) ? String(o.delivery_address_text || o.delivery_address || o.delivery || o.dropoff_address) : '';
   }
 
-  function buildReleaseUrl(cfg, orderId) {
-    return cfg.apiBaseV2 + String(orderId) + "/release";
+  function pickCustomerName(o) {
+    if (!o) return '';
+    if (o.customer_name) return String(o.customer_name);
+    if (o.customer) return String(o.customer);
+    if (o.name) return String(o.name);
+    return '';
   }
 
-  function buildViewOrderUrl(cfg, orderId) {
+  function renderList() {
+    if (!listEl) return;
+
+    if (state.loading) {
+      listEl.innerHTML = '<div class="knx-empty">Loading your active orders…</div>';
+      return;
+    }
+
+    if (!state.filtered.length) {
+      listEl.innerHTML = '<div class="knx-empty">No active orders right now.</div>';
+      return;
+    }
+
+    var html = state.filtered.map(function (o) {
+      var id = parseInt(o && (o.id || o.order_id), 10) || 0;
+      var restaurant = pickRestaurantName(o);
+      var customer = pickCustomerName(o);
+      var pickup = pickPickup(o);
+      var delivery = pickDelivery(o);
+
+      var st = normalizeStatus(o && o.status ? o.status : '');
+      var stLabel = statusLabel(st);
+      var stClass = statusChipClass(st);
+
+      var totalVal = (o && (o.total_amount || o.total || o.amount)) ? (o.total_amount || o.total || o.amount) : null;
+      var tipVal = (o && (o.tip_amount || o.tip)) ? (o.tip_amount || o.tip) : null;
+
+      var total = money(totalVal);
+      var tip = money(tipVal);
+
+      var timeRaw = (o && (o.assigned_at || o.updated_at || o.created_at)) ? (o.assigned_at || o.updated_at || o.created_at) : '';
+      var ago = relTime(timeRaw);
+
+      var viewUrl = buildViewUrl(id);
+
+      return (
+        '<a class="knx-aocard" href="' + escHtml(viewUrl) + '" data-id="' + id + '" aria-label="View order ' + id + '">' +
+          '<div class="knx-aocard__head">' +
+            '<div class="knx-aocard__idwrap">' +
+              '<div class="knx-aocard__idpill">#' + escHtml(String(id)) + '</div>' +
+            '</div>' +
+
+            '<div class="knx-aocard__titlewrap">' +
+              '<div class="knx-aocard__restaurant">' + escHtml(restaurant || '—') + '</div>' +
+              '<div class="knx-aocard__sub">' + escHtml(customer || '') + '</div>' +
+              '<div class="knx-aocard__sub">' +
+                (ago ? '<span class="knx-aocard__time">' + escHtml(ago) + '</span>' : '<span class="knx-aocard__time"> </span>') +
+              '</div>' +
+            '</div>' +
+
+            '<div class="knx-aocard__right">' +
+              '<div class="knx-aocard__chip ' + escHtml(stClass) + '">' + escHtml(stLabel) + '</div>' +
+              '<div class="knx-aocard__total">' + escHtml(total) + '</div>' +
+            '</div>' +
+          '</div>' +
+
+          '<div class="knx-aocard__addresses">' +
+            '<div class="knx-aocard__addr">' +
+              '<div class="knx-aocard__k"><span class="knx-addr-icon" aria-hidden="true">📍</span> PICKUP</div>' +
+              '<div class="knx-aocard__v">' + escHtml(pickup || restaurant || '—') + '</div>' +
+            '</div>' +
+            '<div class="knx-aocard__addr">' +
+              '<div class="knx-aocard__k"><span class="knx-addr-icon" aria-hidden="true">📦</span> DELIVERY</div>' +
+              '<div class="knx-aocard__v">' + escHtml(delivery || '—') + '</div>' +
+            '</div>' +
+          '</div>' +
+
+          '' +
+        '</a>'
+      );
+    }).join('');
+
+    listEl.innerHTML = html;
+  }
+
+  async function loadOrders(opts) {
+    if (!apiActive) {
+      toast('Active orders endpoint missing.', 'error');
+      return;
+    }
+
+    state.loading = true;
+    renderList();
+
+    var u = apiActive;
+    if (u.indexOf('?') === -1) u += '?limit=100';
+    else u += '&limit=100';
+
+    var out = await fetchJson(u, {
+      method: 'GET',
+      _abortKey: 'list',
+      headers: wpRestNonce ? { 'X-WP-Nonce': wpRestNonce } : {}
+    });
+
+    var json = out.data;
+    state.loading = false;
+
+    if (!out.ok || !json || json.success !== true) {
+      listEl.innerHTML = '<div class="knx-empty">Unable to load active orders.</div>';
+      return;
+    }
+
+    // Accept both shapes:
+    // - v2: { success:true, data:{ orders:[...] } }
+    // - fallback: { success:true, orders:[...] }
+    var orders = [];
+    if (json && json.data && Array.isArray(json.data.orders)) orders = json.data.orders;
+    else if (json && Array.isArray(json.orders)) orders = json.orders;
+
+    // client-side filtering:
+    // - default: hide completed/cancelled orders (active view)
+    // - archived view: show only completed orders from the same local day
+    if (opts && opts.showCompleted) {
+      var today = new Date();
+      orders = orders.filter(function (o) {
+        var st = normalizeStatus(o && o.status ? o.status : '');
+        if (st !== 'completed') return false;
+        var dateStr = (o && (o.completed_at || o.updated_at || o.created_at || o.assigned_at)) ? (o.completed_at || o.updated_at || o.created_at || o.assigned_at) : '';
+        var d = parseMysqlToDate(dateStr);
+        if (!d) return false;
+        // compare local date parts
+        return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
+      });
+    } else {
+      orders = orders.filter(function (o) {
+        var st = normalizeStatus(o && o.status ? o.status : '');
+        return (st !== 'completed' && st !== 'cancelled');
+      });
+    }
+
+    state.orders = orders;
+    applyFilter();
+    renderList();
+
+    if (!opts || !opts.silent) {
+      if (opts && opts.showCompleted) toast('Loaded ' + state.filtered.length + ' completed order(s) (today).', 'success');
+      else toast('Loaded ' + state.filtered.length + ' active order(s).', 'success');
+    }
+  }
+
+  function startPolling() {
+    // Polling disabled: switched to manual refresh only.
+    // Kept function as noop for compatibility with older markup.
+    stopPolling();
+  }
+
+  function stopPolling() {
+    if (state.pollTimer) {
+      clearInterval(state.pollTimer);
+      state.pollTimer = null;
+    }
+  }
+
+  if (searchEl) {
+    searchEl.addEventListener('input', debounce(function () {
+      applyFilter();
+      renderList();
+    }, 180));
+  }
+
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', function () {
+      loadOrders({ showCompleted: state.showArchived });
+    });
+  }
+
+  // Replace `live` control with an archive/tab button for "Completed Today".
+  (function setupArchiveControl(){
     try {
-      const u = new URL(cfg.viewOrderUrl, window.location.origin);
-      u.searchParams.set("order_id", String(orderId));
-      return u.toString();
-    } catch (_) {
-      const sep = cfg.viewOrderUrl.includes("?") ? "&" : "?";
-      return cfg.viewOrderUrl + sep + "order_id=" + encodeURIComponent(String(orderId));
-    }
-  }
+      // create button
+      archiveBtn = document.createElement('button');
+      archiveBtn.type = 'button';
+      archiveBtn.id = 'knxActiveArchiveBtn';
+      archiveBtn.className = 'knx-btn-secondary';
+      archiveBtn.setAttribute('aria-pressed', 'false');
+      archiveBtn.textContent = 'Completed Today';
 
-  function setTab(root, tab) {
-    const tabs = root.querySelectorAll(".knx-do__tab");
-    const panels = root.querySelectorAll(".knx-do__panel");
-    tabs.forEach((b) => {
-      const isOn = b.dataset.tab === tab;
-      b.classList.toggle("is-active", isOn);
-      b.setAttribute("aria-selected", isOn ? "true" : "false");
-    });
-    panels.forEach((p) => p.classList.toggle("is-active", p.dataset.panel === tab));
-    root.dataset.activeTab = tab;
-  }
-
-  function setCounts(root, activeCount, completedCount) {
-    const a = root.querySelector('[data-count="active"]');
-    const c = root.querySelector('[data-count="completed"]');
-    if (a) a.textContent = String(activeCount);
-    if (c) c.textContent = String(completedCount);
-  }
-
-  function chipTextForOrder(order) {
-    const st = normalizeStatus(order.status);
-    if (st === "confirmed") {
-      const rel = relativeTimeFrom(order.created_at);
-      return rel ? `${STATUS_LABELS.confirmed} • ${rel}` : STATUS_LABELS.confirmed;
-    }
-    return statusLabel(st);
-  }
-
-  function chipClassForOrder(order) {
-    const st = normalizeStatus(order.status);
-    if (st === "confirmed") return "is-new";
-    if (st === "cancelled") return "is-cancelled";
-    if (st === "completed") return "is-done";
-    return "is-progress";
-  }
-
-  function renderList(root, tabKey, orders) {
-    const list = root.querySelector(`[data-list="${tabKey}"]`);
-    if (!list) return;
-
-    if (!orders.length) {
-      list.innerHTML = `<div class="knx-do__empty">No ${tabKey} orders.</div>`;
-      return;
-    }
-
-    list.innerHTML = orders.map((o) => {
-      const id = o.id;
-      const num = o.order_number || id;
-      const st = normalizeStatus(o.status);
-
-      const viewUrl = buildViewOrderUrl(getCfg(root), id);
-
-      return `
-        <article class="knx-do__card" data-order-id="${escapeHtml(id)}" data-order-status="${escapeHtml(st)}">
-          <div class="knx-do__card-head">
-            <div class="knx-do__card-title">Order #${escapeHtml(num)}</div>
-            <div class="knx-do__chip ${chipClassForOrder(o)}" data-chip-status="${escapeHtml(st)}">
-              ${escapeHtml(chipTextForOrder(o))}
-            </div>
-          </div>
-
-          <div class="knx-do__card-body">
-            <div class="knx-do__kv"><span>Customer</span><strong>${escapeHtml(o.customer_name || "—")}</strong></div>
-            <div class="knx-do__kv"><span>Phone</span><strong>${escapeHtml(o.customer_phone || "—")}</strong></div>
-            <div class="knx-do__kv"><span>Address</span><strong>${escapeHtml(o.delivery_address || "—")}</strong></div>
-            <div class="knx-do__kv"><span>Total</span><strong>${escapeHtml(o.total != null ? String(o.total) : "—")}</strong></div>
-          </div>
-
-          <div class="knx-do__card-actions">
-            <button type="button" class="knx-do__btn knx-do__btn--primary" data-action="change-status" data-order-id="${escapeHtml(id)}">
-              Change status
-            </button>
-            <a class="knx-do__btn" href="${escapeHtml(viewUrl)}">View</a>
-            ${isTerminal(st) ? "" : `
-              <button type="button" class="knx-do__btn knx-do__btn--danger" data-action="release" data-order-id="${escapeHtml(id)}">
-                Release
-              </button>
-            `}
-          </div>
-        </article>
-      `;
-    }).join("");
-  }
-
-  function openModal(root, key) {
-    const modal = root.querySelector(`[data-modal="${key}"]`);
-    if (!modal) return;
-    modal.classList.add("is-open");
-    root.dataset.modalOpen = "1";
-  }
-
-  function closeModals(root) {
-    const modals = root.querySelectorAll(".knx-do__modal");
-    modals.forEach((m) => m.classList.remove("is-open"));
-    root.dataset.modalOpen = "0";
-  }
-
-  function setStatusModal(root, order) {
-    const meta = root.querySelector("[data-status-meta]");
-    const optionsWrap = root.querySelector("[data-status-options]");
-    const btnConfirm = root.querySelector("[data-confirm-status]");
-
-    if (!meta || !optionsWrap || !btnConfirm) return;
-
-    const st = normalizeStatus(order.status);
-    const allow = allowedTransitions(st);
-
-    meta.innerHTML = `
-      <div class="knx-do__meta-row"><span>Order</span><strong>#${escapeHtml(order.order_number || order.id)}</strong></div>
-      <div class="knx-do__meta-row"><span>Current</span><strong>${escapeHtml(chipTextForOrder(order))}</strong></div>
-    `;
-
-    if (!allow.length) {
-      optionsWrap.innerHTML = `<div class="knx-do__empty">No transitions available (terminal state).</div>`;
-      btnConfirm.disabled = true;
-      return;
-    }
-
-    // Radio list
-    optionsWrap.innerHTML = allow.map((to) => {
-      return `
-        <label class="knx-do__opt">
-          <input type="radio" name="knx_new_status" value="${escapeHtml(to)}" />
-          <span>${escapeHtml(statusLabel(to))}</span>
-        </label>
-      `;
-    }).join("");
-
-    btnConfirm.disabled = true;
-  }
-
-  function setReleaseModal(root, order) {
-    const meta = root.querySelector("[data-release-meta]");
-    if (!meta) return;
-
-    meta.innerHTML = `
-      <div class="knx-do__meta-row"><span>Order</span><strong>#${escapeHtml(order.order_number || order.id)}</strong></div>
-      <div class="knx-do__meta-row"><span>Status</span><strong>${escapeHtml(chipTextForOrder(order))}</strong></div>
-    `;
-  }
-
-  async function postStatus(cfg, orderId, newStatus, abortSignal) {
-    const url = buildOpsStatusUrl(cfg, orderId);
-    const body = { knx_nonce: cfg.knxNonce, status: newStatus };
-
-    return fetchJson(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    }, abortSignal);
-  }
-
-  async function postRelease(cfg, orderId, abortSignal) {
-    const url = buildReleaseUrl(cfg, orderId);
-    const body = { knx_nonce: cfg.knxNonce };
-
-    return fetchJson(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    }, abortSignal);
-  }
-
-  function splitBuckets(orders) {
-    const active = [];
-    const completed = [];
-    orders.forEach((o) => {
-      const st = normalizeStatus(o.status);
-      if (st === "completed" || st === "cancelled") completed.push(o);
-      else active.push(o);
-    });
-    return { active, completed };
-  }
-
-  function stableHash(orders) {
-    // Minimal hash to avoid re-render spam
-    return orders.map((o) => `${o.id}:${o.status}:${o.updated_at || ""}`).join("|");
-  }
-
-  document.addEventListener("DOMContentLoaded", () => {
-    const root = document.querySelector('[data-knx-driver-module="active-orders"]');
-    if (!root) return;
-
-    const cfg = getCfg(root);
-    if (!cfg.knxNonce) {
-      toast(root, "Missing knx_nonce. Please re-login.", "error");
-      return;
-    }
-
-    let state = {
-      tab: "active",
-      orders: [],
-      hash: "",
-      loading: false,
-      pollTimer: null,
-      abort: null,
-      backoffMs: cfg.pollMs,
-      consecutiveErrors: 0,
-      modalOrder: null,
-      modalNewStatus: "",
-    };
-
-    // Tabs
-    root.addEventListener("click", (e) => {
-      const btn = e.target.closest(".knx-do__tab");
-      if (!btn) return;
-      const tab = btn.dataset.tab === "completed" ? "completed" : "active";
-      state.tab = tab;
-      setTab(root, tab);
-    });
-
-    // Modal close
-    root.addEventListener("click", (e) => {
-      const close = e.target.closest("[data-close-modal]");
-      if (!close) return;
-      closeModals(root);
-      state.modalOrder = null;
-      state.modalNewStatus = "";
-      schedulePoll(0);
-    });
-
-    // Actions (delegation)
-    root.addEventListener("click", (e) => {
-      const a = e.target.closest("[data-action]");
-      if (!a) return;
-
-      const orderId = parseInt(a.dataset.orderId || "0", 10);
-      if (!orderId) return;
-
-      const order = state.orders.find((o) => parseInt(o.id, 10) === orderId);
-      if (!order) return;
-
-      const action = a.dataset.action;
-
-      if (action === "change-status") {
-        state.modalOrder = order;
-        state.modalNewStatus = "";
-        setStatusModal(root, order);
-        openModal(root, "status");
-        stopPoll();
-        return;
-      }
-
-      if (action === "release") {
-        state.modalOrder = order;
-        setReleaseModal(root, order);
-        openModal(root, "release");
-        stopPoll();
-        return;
-      }
-    });
-
-    // Status modal selection
-    root.addEventListener("change", (e) => {
-      const input = e.target;
-      if (!(input && input.name === "knx_new_status")) return;
-
-      state.modalNewStatus = String(input.value || "").trim().toLowerCase();
-      const btnConfirm = root.querySelector("[data-confirm-status]");
-      if (btnConfirm) btnConfirm.disabled = !state.modalNewStatus;
-    });
-
-    // Confirm status
-    const btnConfirmStatus = root.querySelector("[data-confirm-status]");
-    if (btnConfirmStatus) {
-      btnConfirmStatus.addEventListener("click", async () => {
-        if (!state.modalOrder || !state.modalNewStatus) return;
-
-        const from = normalizeStatus(state.modalOrder.status);
-        const to = state.modalNewStatus;
-
-        // UI-level guard: only allowed transitions
-        const allow = allowedTransitions(from);
-        if (!allow.includes(to)) {
-          toast(root, `Invalid transition: ${from} → ${to}`, "error");
-          return;
-        }
-
-        try {
-          btnConfirmStatus.disabled = true;
-          toast(root, "Updating status…", "info");
-
-          const abort = new AbortController();
-          const r = await postStatus(cfg, state.modalOrder.id, to, abort.signal);
-
-          if (r.json && r.json.success) {
-            toast(root, `Status updated to "${statusLabel(to)}"`, "success");
-            closeModals(root);
-            await loadOrders(true);
-          } else {
-            const reason = r.json?.data?.reason || "update_failed";
-            const msg = r.json?.data?.message || "";
-            toast(root, `Update failed (${r.status}): ${reason}${msg ? " — " + msg : ""}`, "error");
-          }
-        } finally {
-          btnConfirmStatus.disabled = false;
-          schedulePoll(0);
-        }
+      archiveBtn.addEventListener('click', function () {
+        state.showArchived = !state.showArchived;
+        archiveBtn.classList.toggle('is-active', state.showArchived);
+        archiveBtn.setAttribute('aria-pressed', state.showArchived ? 'true' : 'false');
+        // change label slightly to indicate mode
+        archiveBtn.textContent = state.showArchived ? 'Showing: Completed Today' : 'Completed Today';
+        // reload orders in the selected mode
+        loadOrders({ showCompleted: state.showArchived });
       });
-    }
 
-    // Confirm release
-    const btnConfirmRelease = root.querySelector("[data-confirm-release]");
-    if (btnConfirmRelease) {
-      btnConfirmRelease.addEventListener("click", async () => {
-        if (!state.modalOrder) return;
-
-        try {
-          btnConfirmRelease.disabled = true;
-          toast(root, "Releasing order…", "info");
-
-          const abort = new AbortController();
-          const r = await postRelease(cfg, state.modalOrder.id, abort.signal);
-
-          if (r.json && r.json.success) {
-            toast(root, "Order released ✅", "success");
-            closeModals(root);
-            await loadOrders(true);
-          } else {
-            const reason = r.json?.data?.reason || "release_failed";
-            const msg = r.json?.data?.message || "";
-            toast(root, `Release failed (${r.status}): ${reason}${msg ? " — " + msg : ""}`, "error");
-          }
-        } finally {
-          btnConfirmRelease.disabled = false;
-          schedulePoll(0);
+      // try to remove the visible live control (may be an input inside a container)
+      var replaced = false;
+      if (liveEl) {
+        var liveRoot = (typeof liveEl.closest === 'function') ? (liveEl.closest('.knx-live') || liveEl) : liveEl;
+        if (!liveRoot || !liveRoot.parentNode) {
+          liveRoot = document.querySelector('.knx-live') || liveEl;
         }
-      });
+        if (liveRoot && liveRoot.parentNode) {
+          liveRoot.parentNode.replaceChild(archiveBtn, liveRoot);
+          replaced = true;
+        } else if (liveEl.parentNode) {
+          try { liveEl.parentNode.removeChild(liveEl); } catch (e) {}
+          if (refreshBtn && refreshBtn.parentNode) refreshBtn.parentNode.insertBefore(archiveBtn, refreshBtn.nextSibling);
+          else root.appendChild(archiveBtn);
+          replaced = true;
+        }
+      }
+      if (!replaced) {
+        if (refreshBtn && refreshBtn.parentNode) {
+          refreshBtn.parentNode.insertBefore(archiveBtn, refreshBtn.nextSibling);
+        } else {
+          root.appendChild(archiveBtn);
+        }
+      }
+    } catch (e) {
+      // fail silently — UI enhancement only
+      archiveBtn = null;
     }
+  })();
 
-    // Polling controls
-    function stopPoll() {
-      if (state.pollTimer) {
-        window.clearTimeout(state.pollTimer);
-        state.pollTimer = null;
-      }
-      if (state.abort) {
-        try { state.abort.abort(); } catch (_) {}
-        state.abort = null;
-      }
-    }
-
-    function schedulePoll(delayMs) {
-      stopPoll();
-      const delay = Math.max(0, delayMs);
-      state.pollTimer = window.setTimeout(() => {
-        loadOrders(false);
-      }, delay);
-    }
-
-    function setBackoff(success) {
-      if (success) {
-        state.consecutiveErrors = 0;
-        state.backoffMs = cfg.pollMs;
-        return;
-      }
-      state.consecutiveErrors++;
-      const next = Math.min(60000, cfg.pollMs * Math.pow(2, Math.min(3, state.consecutiveErrors))); // cap exponent
-      state.backoffMs = next;
-    }
-
-    async function loadOrders(forceRender) {
-      if (root.dataset.modalOpen === "1") return; // pause while modal open
-      if (document.hidden) return; // pause when tab hidden
-      if (state.loading) return;
-
-      state.loading = true;
-      if (state.abort) {
-        try { state.abort.abort(); } catch (_) {}
-      }
-      state.abort = new AbortController();
-
-      const url = new URL(cfg.activeUrl, window.location.origin);
-      url.searchParams.set("limit", "100");
-      url.searchParams.set("include_terminal", "1"); // we bucket on client
-
-      const r = await fetchJson(url.toString(), { method: "GET" }, state.abort.signal);
-
-      if (!r.json || !r.json.success) {
-        setBackoff(false);
-        toast(root, `Load failed (${r.status}). Retrying in ${Math.round(state.backoffMs / 1000)}s…`, "error");
-        state.loading = false;
-        schedulePoll(state.backoffMs);
-        return;
-      }
-
-      const orders = Array.isArray(r.json.data?.orders) ? r.json.data.orders : [];
-      const hash = stableHash(orders);
-
-      state.orders = orders;
-
-      if (forceRender || hash !== state.hash) {
-        state.hash = hash;
-        const buckets = splitBuckets(orders);
-        setCounts(root, buckets.active.length, buckets.completed.length);
-        renderList(root, "active", buckets.active);
-        renderList(root, "completed", buckets.completed);
-      }
-
-      setBackoff(true);
-      state.loading = false;
-      schedulePoll(state.backoffMs);
-    }
-
-    // Visibility pause/resume
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) {
-        stopPoll();
-      } else {
-        schedulePoll(0);
-      }
-    });
-
-    // Initialize
-    setTab(root, "active");
-    loadOrders(true);
-  });
-})();
+  (function init() {
+    loadOrders({ silent: true, showCompleted: state.showArchived });
+    startPolling();
+  })();
+});

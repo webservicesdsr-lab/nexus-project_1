@@ -3,173 +3,137 @@ if (!defined('ABSPATH')) exit;
 
 /**
  * ==========================================================
- * KNX DRIVER — Active Orders (CANON)
+ * Kingdom Nexus — Driver Active Orders (BRIDGE)
  * Shortcode: [knx_driver_active_orders]
+ * Slug (WP Page): /driver-active-orders
+ *
+ * Purpose:
+ * - Show assigned (active) driver orders
+ * - UX bridge: tap any card -> /driver-view-order?order_id=...
  *
  * Canon:
- * - Driver-only (knx_get_driver_context()).
- * - Uses ONLY DB-canon status: knx_orders.status (8 values).
- * - "Order Created" is UI-only label for status=confirmed (uses created_at timestamp).
- * - Two modals only: Change Status, Release Order.
+ * - GET  /wp-json/knx/v2/driver/orders/active
+ * - Reads ONLY DB-canon status from response
  *
- * Notes:
- * - Assets injected inline via file_get_contents (no wp_footer dependency).
- * - Data attributes provide API URLs + nonce.
+ * Constraints:
+ * - No wp_footer dependency
+ * - Assets loaded via <link>/<script> (no enqueue)
  * ==========================================================
  */
 
-add_shortcode('knx_driver_active_orders', function ($atts = []) {
+add_shortcode('knx_driver_active_orders', function () {
 
-    if (!function_exists('knx_get_driver_context')) {
-        return '<div class="knx-driver-orders-error">Driver context unavailable.</div>';
+    // Strict driver context
+    $ctx = null;
+    $session = null;
+
+    if (function_exists('knx_get_driver_context')) {
+        $ctx = knx_get_driver_context();
+        if (empty($ctx) || empty($ctx->session) || empty($ctx->session->user_id) || (string)($ctx->session->role ?? '') !== 'driver') {
+            wp_safe_redirect(site_url('/login'));
+            exit;
+        }
+        $session = $ctx->session;
+    } else {
+        if (!function_exists('knx_get_session')) {
+            return '<div class="knx-drivers-err">Session unavailable.</div>';
+        }
+        $session = knx_get_session();
+        $role = $session && isset($session->role) ? (string)$session->role : '';
+        if (!$session || $role !== 'driver') {
+            wp_safe_redirect(site_url('/login'));
+            exit;
+        }
     }
 
-    $ctx = knx_get_driver_context();
-    if (!$ctx || empty($ctx->session) || empty($ctx->session->user_id)) {
-        return '<div class="knx-driver-orders-error">Unauthorized (driver only).</div>';
-    }
+    $driver_name = '';
+    if ($session && isset($session->username)) $driver_name = (string)$session->username;
 
-    $role = isset($ctx->session->role) ? (string)$ctx->session->role : '';
-    if ($role !== 'driver') {
-        return '<div class="knx-driver-orders-error">Unauthorized (driver only).</div>';
-    }
+    // Nonces (some installs still want wp_rest nonce header; safe to include)
+    $knx_nonce     = wp_create_nonce('knx_nonce');
+    $wp_rest_nonce = wp_create_nonce('wp_rest');
 
-    $atts = shortcode_atts([
-        // Where clicking "View" should go (expects ?order_id=123)
-        'view_order_url' => site_url('/driver-view-order'),
-        // Polling interval (ms)
-        'poll_ms' => 10000,
-        // Include terminal in list response (we do our own bucketing in UI anyway)
-        'include_terminal' => 1,
-    ], (array)$atts, 'knx_driver_active_orders');
+    // Canon API
+    $api_active = rest_url('knx/v2/driver/orders/active');
 
-    $poll_ms = (int)$atts['poll_ms'];
-    if ($poll_ms < 5000) $poll_ms = 5000;
-    if ($poll_ms > 60000) $poll_ms = 60000;
+    // View order URL (page route; uses query param order_id)
+    $view_order_url = site_url('/driver-view-order');
 
-    $include_terminal = ((int)$atts['include_terminal'] === 1) ? 1 : 0;
+    // Polling
+    $poll_ms = 15000;
 
-    $api_base_v2 = rest_url('knx/v2/driver/orders/');
-    $active_url  = rest_url('knx/v2/driver/orders/active');
-    $nonce       = wp_create_nonce('knx_nonce');
+    // Assets
+    $ver = defined('KNX_VERSION') ? KNX_VERSION : '1.0';
+    $base_url = defined('KNX_URL') ? KNX_URL : plugin_dir_url(dirname(__FILE__, 4) . '/kingdom-nexus.php');
 
-    // Inline assets
-    $css = '';
-    $js  = '';
+    $css_url = esc_url($base_url . 'inc/modules/ops/driver-active-orders/driver-active-orders-style.css?v=' . $ver);
+    $js_url  = esc_url($base_url . 'inc/modules/ops/driver-active-orders/driver-active-orders-script.js?v=' . $ver);
 
-    $css_path = __DIR__ . '/driver-active-orders-style.css';
-    if (file_exists($css_path)) {
-        $css = (string)file_get_contents($css_path);
-    }
-
-    $js_path = __DIR__ . '/driver-active-orders-script.js';
-    if (file_exists($js_path)) {
-        $js = (string)file_get_contents($js_path);
-    }
+    // Toast system (optional but consistent)
+    $toast_css_url = esc_url($base_url . 'inc/modules/core/knx-toast.css?v=' . $ver);
+    $toast_js_url  = esc_url($base_url . 'inc/modules/core/knx-toast.js?v=' . $ver);
 
     ob_start();
     ?>
-    <?php if ($css !== ''): ?>
-        <style data-knx="driver-active-orders-style"><?php echo $css; ?></style>
-    <?php endif; ?>
+    <link rel="stylesheet" href="<?php echo $toast_css_url; ?>">
+    <link rel="stylesheet" href="<?php echo $css_url; ?>">
 
-    <div
-        class="knx-do"
-        data-knx-driver-module="active-orders"
-        data-api-base-v2="<?php echo esc_attr($api_base_v2); ?>"
-        data-api-active-url="<?php echo esc_attr($active_url); ?>"
-        data-view-order-url="<?php echo esc_attr((string)$atts['view_order_url']); ?>"
-        data-knx-nonce="<?php echo esc_attr($nonce); ?>"
-        data-poll-ms="<?php echo (int)$poll_ms; ?>"
-        data-include-terminal="<?php echo (int)$include_terminal; ?>"
-    >
-        <div class="knx-do__shell">
-            <div class="knx-do__top">
-                <div class="knx-do__title-wrap">
-                    <h2 class="knx-do__title">My Orders</h2>
-                    <div class="knx-do__live">
-                        <span class="knx-do__dot" aria-hidden="true"></span>
-                        <span class="knx-do__live-text">Live</span>
-                    </div>
-                </div>
+    <div id="knx-driver-active-orders"
+         class="knx-driver-active-wrapper"
+         data-api-active="<?php echo esc_url($api_active); ?>"
+         data-view-order-url="<?php echo esc_url($view_order_url); ?>"
+         data-knx-nonce="<?php echo esc_attr($knx_nonce); ?>"
+         data-wp-rest-nonce="<?php echo esc_attr($wp_rest_nonce); ?>"
+         data-poll-ms="<?php echo (int)$poll_ms; ?>">
 
-                <div class="knx-do__tabs" role="tablist" aria-label="Driver orders tabs">
-                    <button class="knx-do__tab is-active" type="button" data-tab="active" role="tab" aria-selected="true">
-                        Active <span class="knx-do__count" data-count="active">0</span>
-                    </button>
-                    <button class="knx-do__tab" type="button" data-tab="completed" role="tab" aria-selected="false">
-                        Completed <span class="knx-do__count" data-count="completed">0</span>
-                    </button>
-                </div>
+        <div class="knx-active-header">
+            <div class="knx-active-title">
+                <h2>Active Orders<?php echo $driver_name ? ' — ' . esc_html($driver_name) : ''; ?></h2>
+                <div class="knx-active-sub">Tap any card to open details</div>
             </div>
 
-            <div class="knx-do__panels">
-                <div class="knx-do__panel is-active" data-panel="active" role="tabpanel">
-                    <div class="knx-do__list" data-list="active"></div>
-                </div>
-                <div class="knx-do__panel" data-panel="completed" role="tabpanel">
-                    <div class="knx-do__list" data-list="completed"></div>
+            <div class="knx-active-controls">
+                <button type="button" class="knx-btn-icon" id="knxActiveRefresh" title="Refresh" aria-label="Refresh">↻</button>
+
+                <div class="knx-live">
+                    <label class="knx-live-label" for="knxActiveLive">Live</label>
+                    <label class="knx-switch" aria-label="Toggle live refresh">
+                        <input id="knxActiveLive" type="checkbox" checked>
+                        <span class="knx-slider"></span>
+                    </label>
                 </div>
             </div>
         </div>
 
-        <!-- Toast -->
-        <div class="knx-do__toast" data-toast aria-live="polite" aria-atomic="true"></div>
-
-        <!-- Modal: Change Status -->
-        <div class="knx-do__modal" data-modal="status" role="dialog" aria-modal="true" aria-label="Change Order Status">
-            <div class="knx-do__overlay" data-close-modal></div>
-            <div class="knx-do__dialog" role="document">
-                <div class="knx-do__dialog-head">
-                    <div class="knx-do__dialog-title">Change Order Status</div>
-                    <button class="knx-do__icon-btn" type="button" data-close-modal aria-label="Close">×</button>
-                </div>
-
-                <div class="knx-do__dialog-body">
-                    <div class="knx-do__modal-meta" data-status-meta></div>
-                    <div class="knx-do__options" data-status-options></div>
-                </div>
-
-                <div class="knx-do__dialog-foot">
-                    <button class="knx-do__btn" type="button" data-close-modal>Cancel</button>
-                    <button class="knx-do__btn knx-do__btn--primary" type="button" data-confirm-status disabled>
-                        Confirm
-                    </button>
-                </div>
+        <div class="knx-active-toolbar">
+            <div class="knx-active-search">
+                <label class="sr-only" for="knxActiveSearch">Search</label>
+                <input id="knxActiveSearch" class="knx-input" type="text" inputmode="search"
+                       placeholder="Search by order #, restaurant, customer, address…" autocomplete="off">
             </div>
+
+            <a class="knx-btn-secondary knx-active-cta" href="/driver-ops">Catch Orders</a>
         </div>
 
-        <!-- Modal: Release -->
-        <div class="knx-do__modal" data-modal="release" role="dialog" aria-modal="true" aria-label="Release Order">
-            <div class="knx-do__overlay" data-close-modal></div>
-            <div class="knx-do__dialog" role="document">
-                <div class="knx-do__dialog-head">
-                    <div class="knx-do__dialog-title">Release Order</div>
-                    <button class="knx-do__icon-btn" type="button" data-close-modal aria-label="Close">×</button>
-                </div>
-
-                <div class="knx-do__dialog-body">
-                    <p class="knx-do__p">
-                        Are you sure you want to release this order? It will become available for other drivers.
-                    </p>
-                    <div class="knx-do__modal-meta" data-release-meta></div>
-                </div>
-
-                <div class="knx-do__dialog-foot">
-                    <button class="knx-do__btn" type="button" data-close-modal>Cancel</button>
-                    <button class="knx-do__btn knx-do__btn--danger" type="button" data-confirm-release>
-                        Release
-                    </button>
-                </div>
-            </div>
+        <div id="knxActiveOrdersList" class="knx-active-orders-list" aria-label="Active orders list">
+            <div class="knx-empty">Loading your active orders…</div>
         </div>
 
+        <?php echo do_shortcode('[knx_driver_bottom_nav]'); ?>
     </div>
 
-    <?php if ($js !== ''): ?>
-        <script data-knx="driver-active-orders-script"><?php echo $js; ?></script>
-    <?php endif; ?>
+    <script>
+      window.KNX_DRIVER_ACTIVE_CONFIG = {
+        apiActive: <?php echo wp_json_encode($api_active); ?>,
+        viewOrderUrl: <?php echo wp_json_encode($view_order_url); ?>,
+        knxNonce: <?php echo wp_json_encode($knx_nonce); ?>,
+        wpRestNonce: <?php echo wp_json_encode($wp_rest_nonce); ?>,
+        pollMs: <?php echo (int)$poll_ms; ?>
+      };
+    </script>
 
+    <script src="<?php echo $toast_js_url; ?>"></script>
+    <script src="<?php echo $js_url; ?>"></script>
     <?php
     return ob_get_clean();
 });

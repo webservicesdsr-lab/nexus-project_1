@@ -360,6 +360,7 @@ function knx_v2_driver_orders_active(WP_REST_Request $request) {
     $include_terminal = ((string)($request->get_param('include_terminal') ?: '') === '1');
 
     $orders_table = $wpdb->prefix . 'knx_orders';
+    $hubs_table = $wpdb->prefix . 'knx_hubs';
 
     if (empty($allowed_city_ids) && empty($allowed_hub_ids)) {
         return knx_driver_ops__resp(true, array('orders' => array(), 'meta' => array('limit'=>$limit,'offset'=>$offset)));
@@ -407,9 +408,15 @@ function knx_v2_driver_orders_active(WP_REST_Request $request) {
             o.delivery_address,
             o.delivery_lat,
             o.delivery_lng,
+            o.cart_snapshot,
+            h.name AS hub_name_live,
+            h.address AS pickup_address_live,
+            h.latitude AS pickup_lat_live,
+            h.longitude AS pickup_lng_live,
             o.created_at,
             o.updated_at
         FROM {$orders_table} o
+        LEFT JOIN {$hubs_table} h ON h.id = o.hub_id
         WHERE {$sql_where}
         ORDER BY o.updated_at DESC, o.id DESC
         LIMIT %d OFFSET %d
@@ -420,6 +427,60 @@ function knx_v2_driver_orders_active(WP_REST_Request $request) {
 
     $rows = $wpdb->get_results($wpdb->prepare($sql, $args), ARRAY_A);
     if (!is_array($rows)) $rows = array();
+
+    // Post-process: prefer snapshot hub (v5) if available, else fallback to live hub join
+    foreach ($rows as &$row) {
+        $snapshot = null;
+        $snapshot_version = null;
+
+        if (!empty($row['cart_snapshot'])) {
+            $decoded = json_decode($row['cart_snapshot'], true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $snapshot = $decoded;
+                $snapshot_version = isset($decoded['version']) ? $decoded['version'] : 'legacy';
+            }
+        }
+
+        if ($snapshot_version === 'v5' && isset($snapshot['hub']) && is_array($snapshot['hub'])) {
+            $hub = $snapshot['hub'];
+            $row['hub_name'] = isset($hub['name']) ? $hub['name'] : null;
+            $row['pickup_address_text'] = isset($hub['address']) ? (function_exists('knx_clean_driver_address') ? knx_clean_driver_address($hub['address']) : $hub['address']) : null;
+            $row['pickup_lat'] = isset($hub['lat']) ? $hub['lat'] : null;
+            $row['pickup_lng'] = isset($hub['lng']) ? $hub['lng'] : null;
+            $row['address_source'] = 'snapshot';
+        } elseif ($snapshot && isset($snapshot['hub_name'])) {
+            // legacy flat snapshot
+            $row['hub_name'] = $snapshot['hub_name'];
+            $row['pickup_address_text'] = isset($snapshot['hub_address']) ? (function_exists('knx_clean_driver_address') ? knx_clean_driver_address($snapshot['hub_address']) : $snapshot['hub_address']) : null;
+            $row['pickup_lat'] = isset($snapshot['hub_latitude']) ? $snapshot['hub_latitude'] : null;
+            $row['pickup_lng'] = isset($snapshot['hub_longitude']) ? $snapshot['hub_longitude'] : null;
+            $row['address_source'] = 'snapshot_legacy';
+        } else {
+            // fallback to live hub
+            $row['hub_name'] = isset($row['hub_name_live']) ? $row['hub_name_live'] : null;
+            $row['pickup_address_text'] = isset($row['pickup_address_live']) ? (function_exists('knx_clean_driver_address') ? knx_clean_driver_address($row['pickup_address_live']) : $row['pickup_address_live']) : null;
+            $row['pickup_lat'] = isset($row['pickup_lat_live']) ? $row['pickup_lat_live'] : null;
+            $row['pickup_lng'] = isset($row['pickup_lng_live']) ? $row['pickup_lng_live'] : null;
+            $row['address_source'] = 'live';
+        }
+
+        // Clean delivery address if present
+        if (!empty($row['delivery_address'])) {
+            if (function_exists('knx_clean_driver_address')) {
+                $row['delivery_address_text'] = knx_clean_driver_address($row['delivery_address']);
+            } else {
+                $row['delivery_address_text'] = $row['delivery_address'];
+            }
+        }
+
+        // remove heavy snapshot to keep response small
+        unset($row['cart_snapshot']);
+        unset($row['hub_name_live']);
+        unset($row['pickup_address_live']);
+        unset($row['pickup_lat_live']);
+        unset($row['pickup_lng_live']);
+    }
+    unset($row);
 
     return knx_driver_ops__resp(true, array(
         'orders' => $rows,
