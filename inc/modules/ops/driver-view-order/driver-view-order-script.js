@@ -1,348 +1,431 @@
-/**
- * KNX DRIVER — View Order (CANON)
- * - Uses GET /knx/v2/driver/orders/{id}
- * - Two modals only: Change Status, Release
- * - DB-canon only (no legacy mappings)
- * - No alert/prompt/confirm
- */
-
+// Adapted full view-order renderer for drivers — based on ops view-order script
+/* eslint-disable */
 (function () {
-  "use strict";
+  'use strict';
 
-  const STATUS_LABELS = {
-    confirmed: "Order Created",
-    accepted_by_driver: "Accepted by driver",
-    accepted_by_hub: "Restaurant accepted",
-    preparing: "Preparing",
-    prepared: "Prepared",
-    picked_up: "Picked up",
-    completed: "Completed",
-    cancelled: "Cancelled",
-  };
+  document.addEventListener('DOMContentLoaded', function () {
+    const app = document.getElementById('knxOpsViewOrderApp');
+    if (!app) return;
 
-  const TRANSITIONS = {
-    confirmed: ["accepted_by_driver", "cancelled"],
-    accepted_by_driver: ["accepted_by_hub", "cancelled"],
-    accepted_by_hub: ["preparing", "cancelled"],
-    preparing: ["prepared", "cancelled"],
-    prepared: ["picked_up", "cancelled"],
-    picked_up: ["completed"],
-    completed: [],
-    cancelled: [],
-  };
+    // Read data provided by shortcode
+    const apiUrl = String(app.dataset.apiUrl || '').replace(/\/+$/, '');
+    const restNonce = String(app.dataset.nonce || '').trim();
+    const orderIdAttr = parseInt(app.dataset.orderId || '0', 10);
+    const backUrl = String(app.dataset.backUrl || '/driver-active-orders');
 
-  function normalizeStatus(s) {
-    return String(s || "").trim().toLowerCase();
-  }
+    const stateEl = document.getElementById('knxOpsVOState');
+    const contentEl = document.getElementById('knxOpsVOContent');
+    if (!contentEl) return;
 
-  function statusLabel(s) {
-    const st = normalizeStatus(s);
-    return STATUS_LABELS[st] || (st ? st.replace(/_/g, " ") : "Unknown");
-  }
+    const orderId = (function () {
+      try {
+        if (orderIdAttr && Number.isFinite(orderIdAttr) && orderIdAttr > 0) return orderIdAttr;
+        const u = new URL(window.location.href);
+        const p = parseInt(u.searchParams.get('order_id') || '0', 10);
+        return (p && Number.isFinite(p) && p > 0) ? p : 0;
+      } catch (e) { return 0; }
+    })();
 
-  function escapeHtml(str) {
-    return String(str).replace(/[&<>"]/g, (x) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[x]));
-  }
-
-  function parseMysqlDate(mysql) {
-    if (!mysql) return null;
-    const s = String(mysql).trim().replace(" ", "T");
-    const d = new Date(s);
-    return isNaN(d.getTime()) ? null : d;
-  }
-
-  function relTime(mysql) {
-    const d = parseMysqlDate(mysql);
-    if (!d) return mysql ? String(mysql) : "";
-    const diff = Math.floor((Date.now() - d.getTime()) / 1000);
-    if (diff < 60) return `${diff}s ago`;
-    const m = Math.floor(diff / 60);
-    if (m < 60) return `${m}m ago`;
-    const h = Math.floor(m / 60);
-    if (h < 24) return `${h}h ago`;
-    return `${Math.floor(h / 24)}d ago`;
-  }
-
-  function toast(root, msg, type = "info") {
-    if (window.knxToast && typeof window.knxToast === "function") {
-      window.knxToast(msg, type);
-      return;
-    }
-    const node = root.querySelector("[data-toast]");
-    if (!node) return;
-    node.textContent = msg;
-    node.classList.remove("is-success", "is-error", "is-info");
-    node.classList.add("is-show");
-    if (type === "success") node.classList.add("is-success");
-    else if (type === "error") node.classList.add("is-error");
-    else node.classList.add("is-info");
-    window.clearTimeout(toast._t);
-    toast._t = window.setTimeout(() => node.classList.remove("is-show"), 3500);
-  }
-
-  async function fetchJson(url, opts = {}) {
-    const res = await fetch(url, Object.assign({ credentials: "include" }, opts));
-    const text = await res.text();
-    let json = null;
-    try { json = JSON.parse(text); } catch (_) {}
-    return { ok: res.ok, status: res.status, json, text };
-  }
-
-  function openModal(root, key) {
-    const m = root.querySelector(`[data-modal="${key}"]`);
-    if (!m) return;
-    m.classList.add("is-open");
-    root.dataset.modalOpen = "1";
-  }
-
-  function closeModals(root) {
-    root.querySelectorAll(".knx-vo__modal").forEach((m) => m.classList.remove("is-open"));
-    root.dataset.modalOpen = "0";
-  }
-
-  document.addEventListener("DOMContentLoaded", () => {
-    const root = document.querySelector('[data-knx-driver-module="view-order"]');
-    if (!root) return;
-
-    const orderId = parseInt(root.dataset.orderId || "0", 10);
-    const apiBase = (root.dataset.apiBaseV2 || "/wp-json/knx/v2/driver/orders/").replace(/\/+$/, "/");
-    const knxNonce = root.dataset.knxNonce || "";
-    const backUrl = root.dataset.backUrl || "/driver-active-orders";
-
-    const stateNode = root.querySelector("[data-state]");
-    const contentNode = root.querySelector("[data-content]");
-
-    const btnConfirmStatus = root.querySelector("[data-confirm-status]");
-    const btnConfirmRelease = root.querySelector("[data-confirm-release]");
-
-    let order = null;
-    let chosenStatus = "";
-
-    if (!orderId) {
-      if (stateNode) stateNode.textContent = "Invalid order_id";
-      return;
-    }
-    if (!knxNonce) {
-      if (stateNode) stateNode.textContent = "Missing knx_nonce (re-login).";
-      return;
+    function toast(msg, type) {
+      if (typeof window.knxToast === 'function') return window.knxToast(msg, type || 'info');
+      console.log('[knx-toast]', type || 'info', msg);
     }
 
-    function detailUrl() {
-      return apiBase + String(orderId);
-    }
-    function opsStatusUrl() {
-      return apiBase + String(orderId) + "/ops-status";
-    }
-    function releaseUrl() {
-      return apiBase + String(orderId) + "/release";
+    function esc(s) {
+      if (s === null || s === undefined) return '';
+      return String(s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
     }
 
-    function chipTextFor(orderRow) {
-      const st = normalizeStatus(orderRow.status);
-      if (st === "confirmed") {
-        const t = relTime(orderRow.created_at);
-        return t ? `${STATUS_LABELS.confirmed} • ${t}` : STATUS_LABELS.confirmed;
+    function setState(msg) { if (stateEl) stateEl.textContent = msg || ''; }
+
+    function money(n) { const v = Number(n); return (Number.isFinite(v) ? v : 0).toFixed(2); }
+
+    function safeHttpUrl(url) {
+      const s = String(url || '').trim(); if (!s) return ''; if (s.startsWith('http://') || s.startsWith('https://')) return s; return ''; }
+
+    function pick(obj, path, fallback) {
+      try {
+        const parts = String(path || '').split('.'); let cur = obj;
+        for (let i = 0; i < parts.length; i++) { if (!cur || typeof cur !== 'object' || !(parts[i] in cur)) return fallback; cur = cur[parts[i]]; }
+        return (cur === null || cur === undefined) ? fallback : cur;
+      } catch (e) { return fallback; }
+    }
+
+    function normalizeItems(order) {
+      const rawItems = order && order.raw ? order.raw.items : null;
+      if (Array.isArray(rawItems)) return rawItems;
+      if (rawItems && typeof rawItems === 'object' && Array.isArray(rawItems.items)) return rawItems.items;
+      if (order && Array.isArray(order.items)) return order.items;
+      if (order && order.items && typeof order.items === 'object' && Array.isArray(order.items.items)) return order.items.items;
+      return [];
+    }
+
+    function normalizeModifiers(mods) {
+      if (!Array.isArray(mods) || !mods.length) return [];
+      const out = [];
+      mods.forEach((group) => {
+        const gName = String(group?.group || group?.name || '').trim();
+        const options = Array.isArray(group?.options) ? group.options : (Array.isArray(group?.selected) ? group.selected : []);
+        if (!gName && !options.length) return;
+        const rendered = [];
+        options.forEach((opt) => {
+          const oName = String(opt?.option || opt?.name || opt?.value || '').trim(); if (!oName) return;
+          const deltaRaw = (opt?.price_adjustment !== undefined) ? opt.price_adjustment : (opt?.price !== undefined) ? opt.price : (opt?.delta !== undefined) ? opt.delta : undefined;
+          const delta = Number(deltaRaw);
+          const deltaTxt = (Number.isFinite(delta) && delta !== 0) ? ` (+$${money(delta)})` : '';
+          rendered.push(`${esc(oName)}${deltaTxt}`);
+        });
+        out.push({ group: esc(gName), optionsHtml: rendered.length ? rendered.join(', ') : '' });
+      });
+      return out;
+    }
+
+    function renderItems(items) {
+      if (!Array.isArray(items) || !items.length) return '<div class="knx-ops-vo__muted">No items.</div>';
+      const rows = items.map((it) => {
+        const name = esc(String(it?.name_snapshot || it?.name || it?.title || 'Item'));
+        const qty = Number(it?.qty ?? it?.quantity ?? 1) || 1;
+        const unitRaw = (it?.unit_price !== undefined) ? it.unit_price : (it?.price !== undefined ? it.price : 0);
+        const lineRaw = (it?.line_total !== undefined) ? it.line_total : (qty * (Number(unitRaw) || 0));
+        const unit = money(unitRaw); const line = money(lineRaw);
+        const mods = normalizeModifiers(it?.modifiers);
+        const modsHtml = mods.length ? `<div class="knx-ops-vo__order-mod">${mods.map(m => { const left = m.group ? `<span class="knx-ops-vo__order-mod-g">${m.group}</span>` : ''; const right = m.optionsHtml ? `<span class="knx-ops-vo__order-mod-o">${m.optionsHtml}</span>` : ''; if (!left && !right) return ''; return `<div class="knx-ops-vo__order-mod">${left}${left && right ? ': ' : ''}${right}</div>`; }).join('')}</div>` : '';
+        return `
+          <div class="knx-ops-vo__order-row">
+            <div class="knx-ops-vo__order-left">
+              <div class="knx-ops-vo__order-title">
+                <span class="knx-ops-vo__dot">•</span>
+                <span><strong>${qty} x</strong> ${name}</span>
+              </div>
+              <div class="knx-ops-vo__order-sub">Unit: $${unit}</div>
+              ${modsHtml}
+            </div>
+            <div class="knx-ops-vo__order-price">$${line}</div>
+          </div>
+        `;
+      }).join('');
+      return `<div class="knx-ops-vo__order-list">${rows}</div>`;
+    }
+
+    function humanStatusLabel(s) { const v = String(s || '').trim().toLowerCase(); if (!v) return '—'; return v.replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase()); }
+
+    function renderHistory(list) {
+      const arr = Array.isArray(list) ? list : [];
+      if (!arr.length) return `<div class="knx-ops-vo__muted">No history.</div>`;
+      const rows = arr.filter(h => String(h?.created_at || '').trim() !== '' && String(h?.status || '').trim().toLowerCase() !== 'confirmed')
+        .map((h) => {
+          const st = humanStatusLabel(h?.status);
+          const at = esc(String(h?.created_at || '').trim());
+          const by = esc(String(h?.changed_by_label || '').trim());
+          return `
+            <div class="knx-ops-vo__hist-item">
+              <div class="knx-ops-vo__hist-icon" aria-hidden="true"></div>
+              <div class="knx-ops-vo__hist-body">
+                <div class="knx-ops-vo__hist-title">${esc(st)}</div>
+                ${by ? `<div class="knx-ops-vo__hist-sub"><strong>Status from:</strong> ${by}</div>` : ``}
+              </div>
+              <div class="knx-ops-vo__hist-time">${at || '—'}</div>
+            </div>
+          `;
+        }).join('');
+      return rows ? `<div class="knx-ops-vo__hist">${rows}</div>` : `<div class="knx-ops-vo__muted">No history.</div>`;
+    }
+
+    function buildMapEmbed(lat, lng) { const la = Number(lat); const ln = Number(lng); if (!Number.isFinite(la) || !Number.isFinite(ln)) return ''; const q = encodeURIComponent(la + ',' + ln); return `https://www.google.com/maps?q=${q}&z=13&output=embed`; }
+
+    function normalizePhoneForTel(phone) { const p = String(phone || '').trim(); if (!p) return ''; const cleaned = p.replace(/[^\d+]/g, ''); return cleaned; }
+
+    /* ── Navigation helpers (native map schemes) ── */
+    function platformIsIOS() { return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream; }
+    function platformIsAndroid() { return /Android/i.test(navigator.userAgent); }
+
+    function buildWebNav(lat, lng, address) {
+      const la = (lat !== null && lat !== undefined) ? Number(lat) : NaN;
+      const ln = (lng !== null && lng !== undefined) ? Number(lng) : NaN;
+      const a = String(address || '').trim();
+      if (Number.isFinite(la) && Number.isFinite(ln)) {
+        return 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(String(la) + ',' + String(ln));
       }
-      return statusLabel(st);
+      if (a) return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(a);
+      return 'https://www.google.com/maps';
     }
 
-    function chipClass(st) {
-      const s = normalizeStatus(st);
-      if (s === "confirmed") return "is-new";
-      if (s === "completed") return "is-done";
-      if (s === "cancelled") return "is-cancelled";
-      return "is-progress";
-    }
+    // Must be global for inline onclick handlers in rendered HTML
+    window.openNavigation = function openNavigation(lat, lng, address, ev) {
+      try { if (ev && ev.preventDefault) ev.preventDefault(); } catch (e) {}
+      const web = buildWebNav(lat, lng, address);
+      if (platformIsIOS()) {
+        const native = (lat !== null && lng !== null)
+          ? 'maps://?daddr=' + encodeURIComponent(String(lat) + ',' + String(lng)) + (address ? '&q=' + encodeURIComponent(String(address)) : '')
+          : 'maps://?q=' + encodeURIComponent(String(address || ''));
+        window.location.href = native;
+        setTimeout(function () { window.location.href = web; }, 700);
+        return;
+      }
+      if (platformIsAndroid()) {
+        const native = (lat !== null && lng !== null)
+          ? 'geo:' + encodeURIComponent(String(lat) + ',' + String(lng)) + '?q=' + encodeURIComponent(String(address || ''))
+          : 'geo:0,0?q=' + encodeURIComponent(String(address || ''));
+        window.location.href = native;
+        setTimeout(function () { window.location.href = web; }, 700);
+        return;
+      }
+      window.location.href = web;
+    };
 
-    function render() {
-      if (!order) return;
-      if (stateNode) stateNode.textContent = "";
+    function renderOrder(order) {
+      const rName  = esc(String(pick(order, 'restaurant.name', '') || ''));
+      const rPhoneRaw = String(pick(order, 'restaurant.phone', '') || '').trim(); const rPhone = esc(rPhoneRaw);
+      const rTel = normalizePhoneForTel(rPhoneRaw); const rEmail = esc(String(pick(order, 'restaurant.email', '') || ''));
+      const rAddrRaw = String(pick(order, 'restaurant.address', '') || '').trim(); const rAddr  = esc(rAddrRaw);
+      const rLat = pick(order, 'restaurant.location.lat', null); const rLng = pick(order, 'restaurant.location.lng', null);
+      const rLogo  = safeHttpUrl(pick(order, 'restaurant.logo_url', '') || '');
 
-      const st = normalizeStatus(order.status);
-      const allow = TRANSITIONS[st] || [];
-      const canRelease = st !== "completed" && st !== "cancelled";
+      const cName  = String(pick(order, 'customer.name', '') || '').trim(); const cPhone = String(pick(order, 'customer.phone', '') || '').trim(); const cEmail = String(pick(order, 'customer.email', '') || '').trim();
 
-      contentNode.innerHTML = `
-        <div class="knx-vo__section">
-          <div class="knx-vo__row"><span>Order</span><strong>#${escapeHtml(order.order_number || order.id)}</strong></div>
-          <div class="knx-vo__row"><span>Status</span><strong><span class="knx-vo__chip ${chipClass(st)}">${escapeHtml(chipTextFor(order))}</span></strong></div>
-          <div class="knx-vo__row"><span>Total</span><strong>${escapeHtml(order.total != null ? String(order.total) : "—")}</strong></div>
-          <div class="knx-vo__row"><span>Created</span><strong>${escapeHtml(order.created_at || "—")}</strong></div>
-        </div>
+      const dAddrRaw = String(pick(order, 'delivery.address', '') || '').trim(); const dAddr  = esc(dAddrRaw);
+      const dSlot  = esc(String(pick(order, 'delivery.time_slot', '') || ''));
+      const dMethod = esc(String(pick(order, 'delivery.method', '') || ''));
 
-        <div class="knx-vo__section">
-          <div class="knx-vo__row"><span>Customer</span><strong>${escapeHtml(order.customer_name || "—")}</strong></div>
-          <div class="knx-vo__row"><span>Phone</span><strong>${escapeHtml(order.customer_phone || "—")}</strong></div>
-          <div class="knx-vo__row"><span>Address</span><strong>${escapeHtml(order.delivery_address || "—")}</strong></div>
-        </div>
+      const created = esc(String(pick(order, 'created_at', '') || ''));
+      const status = esc(String(pick(order, 'status', '') || ''));
+      const statusNice = humanStatusLabel(status);
 
-        <div class="knx-vo__actions">
-          ${allow.length ? `<button type="button" class="knx-vo__btn knx-vo__btn--primary" data-action="open-status">Change status</button>` : ""}
-          ${canRelease ? `<button type="button" class="knx-vo__btn knx-vo__btn--danger" data-action="open-release">Release</button>` : ""}
-          <button type="button" class="knx-vo__btn" data-action="back">Back</button>
+      const subtotal = (function () { const raw = pick(order, 'raw.items.subtotal', null); if (raw === null || raw === undefined) return null; const n = Number(raw); return Number.isFinite(n) ? n : null; })();
+
+      const total = Number(pick(order, 'totals.total', 0)); const tip = Number(pick(order, 'totals.tip', 0));
+      const quote = pick(order, 'totals.quote', null);
+      const taxesAndFees = (quote && typeof quote === 'object') ? Number(quote.taxes_and_fees ?? quote.taxes ?? quote.fees ?? NaN) : NaN;
+      const deliveryFee = (quote && typeof quote === 'object') ? Number(quote.delivery_fee ?? quote.delivery ?? NaN) : NaN;
+      const discount = (quote && typeof quote === 'object') ? Number(quote.discount ?? NaN) : NaN;
+
+      const payMethod = esc(String(pick(order, 'payment.method', '') || ''));
+      const payStatus = esc(String(pick(order, 'payment.status', '') || ''));
+
+      const lat = pick(order, 'location.lat', null); const lng = pick(order, 'location.lng', null);
+      const mapEmbed = buildMapEmbed(lat, lng);
+      const mapExternal = safeHttpUrl(pick(order, 'location.view_url', '') || '');
+
+      const items = normalizeItems(order);
+      const notes = String(pick(order, 'raw.notes', '') || '').trim();
+      const history = Array.isArray(order?.status_history) ? order.status_history : [];
+
+      const tel = normalizePhoneForTel(cPhone);
+      const hasCustomer = (cName !== '' || cPhone !== '' || cEmail !== '' || dAddr !== '');
+
+      const rHasCoords = (rLat !== null && rLng !== null);
+      const rNavWeb = rHasCoords ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(String(rLat) + ',' + String(rLng))}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rAddrRaw)}`;
+      const dHasCoords = (lat !== null && lng !== null);
+      const dNavWeb = dHasCoords ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(String(lat) + ',' + String(lng))}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(dAddrRaw)}`;
+
+      contentEl.innerHTML = `
+        <div class="knx-ops-vo__layout">
+
+          <div class="knx-ops-vo__left">
+            <div id="knxViewOrderActions" class="knx-ops-vo__actions knx-ops-vo__actions--in-left"></div>
+
+            <div class="knx-ops-vo__panel">
+              <div class="knx-ops-vo__panel-head">
+                <div class="knx-ops-vo__panel-title">Restaurant information</div>
+                <div class="knx-ops-vo__panel-pill">${esc(statusNice)}</div>
+              </div>
+
+              <div class="knx-ops-vo__info">
+                <div class="knx-ops-vo__info-row">
+                  ${rLogo ? `<img class="knx-ops-vo__logo" src="${esc(rLogo)}" alt="" loading="lazy">` : ``}
+                  <div class="knx-ops-vo__info-main">
+                    <div class="knx-ops-vo__info-name">${rName || '<span class="knx-ops-vo__muted">Unknown</span>'}</div>
+                    <div class="knx-ops-vo__info-sub">${rAddr ? `${(rLat !== null && rLng !== null) ? `<a class="knx-ops-vo__link" href="${rNavWeb}" onclick="openNavigation(${JSON.stringify(rLat)}, ${JSON.stringify(rLng)}, ${JSON.stringify(rAddrRaw)}, event)" target="_blank" rel="noopener">${rAddr}</a>` : `<a class="knx-ops-vo__link" href="${rNavWeb}" onclick="openNavigation(null, null, ${JSON.stringify(rAddrRaw)}, event)" target="_blank" rel="noopener">${rAddr}</a>`}` : ''}</div>
+                    <div class="knx-ops-vo__info-links">
+                      ${rPhone ? `<a class="knx-ops-vo__link" href="tel:${esc(rTel || rPhone)}" aria-label="Call restaurant">${rPhone}</a>` : ``}
+                      ${rEmail ? `<a class="knx-ops-vo__link" href="mailto:${esc(rEmail)}" aria-label="Email restaurant">${rEmail}</a>` : ``}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="knx-ops-vo__divider"></div>
+
+              <div class="knx-ops-vo__section">
+                <div class="knx-ops-vo__section-title">Client information</div>
+
+                ${hasCustomer ? `
+                  <div class="knx-ops-vo__client" style="display:flex;flex-direction:column;gap:0.4rem;font-size:1.05rem;">
+                    <div class="knx-ops-vo__client-name">
+                      <strong>${esc(cName || 'Unknown')}</strong>
+                    </div>
+
+                    ${(cPhone || cEmail) ? `
+                      <div class="knx-ops-vo__client-actions" style="display:flex;flex-direction:column;gap:0.25rem;">
+                        ${cPhone ? `<a class="knx-ops-vo__link" href="tel:${esc(tel || cPhone)}" aria-label="Call ${esc(cName)}">${esc(cPhone)}</a>` : ``}
+                        ${cEmail ? `<a class="knx-ops-vo__link" href="mailto:${esc(cEmail)}" aria-label="Email ${esc(cName)}">${esc(cEmail)}</a>` : ``}
+                      </div>
+                    ` : ``}
+
+                    ${dAddr ? `${(lat !== null && lng !== null) ? `<a class="knx-ops-vo__client-address knx-ops-vo__link" href="${dNavWeb}" onclick="openNavigation(${JSON.stringify(lat)}, ${JSON.stringify(lng)}, ${JSON.stringify(dAddrRaw)}, event)" target="_blank" rel="noopener">${dAddr}</a>` : `<a class="knx-ops-vo__client-address knx-ops-vo__link" href="${dNavWeb}" onclick="openNavigation(null, null, ${JSON.stringify(dAddrRaw)}, event)" target="_blank" rel="noopener">${dAddr}</a>`}` : ``}
+                  </div>
+                ` : `
+                  <div class="knx-ops-vo__muted">Client info not available.</div>
+                `}
+              </div>
+
+              <div class="knx-ops-vo__divider"></div>
+
+              <div class="knx-ops-vo__section">
+                <div class="knx-ops-vo__section-title">Order</div>
+                ${renderItems(items)}
+              </div>
+
+              <div class="knx-ops-vo__divider"></div>
+
+              <div class="knx-ops-vo__totals">
+                ${subtotal !== null ? `<div class="knx-ops-vo__tot-row"><span>Sub Total:</span><strong>$${money(subtotal)}</strong></div>` : ``}
+                ${Number.isFinite(taxesAndFees) ? `<div class="knx-ops-vo__tot-row"><span>Taxes and Fees:</span><strong>$${money(taxesAndFees)}</strong></div>` : ``}
+                ${Number.isFinite(deliveryFee) ? `<div class="knx-ops-vo__tot-row"><span>Delivery:</span><strong>$${money(deliveryFee)}</strong></div>` : ``}
+                ${Number.isFinite(discount) ? `<div class="knx-ops-vo__tot-row"><span>Discount:</span><strong>$${money(discount)}</strong></div>` : ``}
+                <div class="knx-ops-vo__tot-row"><span>Tip:</span><strong>$${money(tip)}</strong></div>
+
+                <div class="knx-ops-vo__tot-grand">
+                  <span>TOTAL:</span>
+                  <strong>$${money(total)}</strong>
+                </div>
+              </div>
+
+              <div class="knx-ops-vo__divider"></div>
+
+              <div class="knx-ops-vo__meta">
+                <div class="knx-ops-vo__meta-row"><span>Payment method:</span><strong>${payMethod || '<span class="knx-ops-vo__muted">—</span>'}</strong></div>
+                <div class="knx-ops-vo__meta-row"><span>Payment status:</span><strong>${payStatus || '<span class="knx-ops-vo__muted">—</span>'}</strong></div>
+              </div>
+
+              <div class="knx-ops-vo__divider"></div>
+
+              <div class="knx-ops-vo__meta">
+                <div class="knx-ops-vo__meta-row"><span>Delivery method:</span><strong>${dMethod || '<span class="knx-ops-vo__muted">—</span>'}</strong></div>
+                ${dSlot ? `<div class="knx-ops-vo__meta-row"><span>Time slot:</span><strong>${dSlot}</strong></div>` : ``}
+                <div class="knx-ops-vo__meta-row"><span>Created:</span><strong>${created || '<span class="knx-ops-vo__muted">—</span>'}</strong></div>
+              </div>
+
+              ${notes ? `
+                <div class="knx-ops-vo__divider"></div>
+                <div class="knx-ops-vo__section">
+                  <div class="knx-ops-vo__section-title">Notes</div>
+                  <div class="knx-ops-vo__notes">${esc(notes)}</div>
+                </div>
+              ` : ``}
+            </div>
+          </div>
+
+          <div class="knx-ops-vo__right">
+            <div class="knx-ops-vo__panel">
+              <div class="knx-ops-vo__section-title">Order tracking</div>
+
+              <div class="knx-ops-vo__map">
+                ${
+                  mapEmbed
+                    ? `<iframe class="knx-ops-vo__map-iframe" src="${esc(mapEmbed)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>`
+                    : `<div class="knx-ops-vo__map-empty">No map available.</div>`
+                }
+                ${
+                  mapExternal
+                    ? `<a class="knx-ops-vo__map-link" href="${esc(mapExternal)}" target="_blank" rel="noopener">Open in Google Maps</a>`
+                    : ``
+                }
+              </div>
+
+              <div class="knx-ops-vo__divider"></div>
+
+              <div class="knx-ops-vo__section">
+                <div class="knx-ops-vo__section-title">Status History</div>
+                ${renderHistory(history)}
+              </div>
+            </div>
+          </div>
         </div>
       `;
     }
 
-    function setStatusModal() {
-      const meta = root.querySelector("[data-status-meta]");
-      const opts = root.querySelector("[data-status-options]");
-      if (!meta || !opts || !btnConfirmStatus) return;
-
-      const st = normalizeStatus(order.status);
-      const allow = TRANSITIONS[st] || [];
-
-      meta.innerHTML = `
-        <div class="knx-vo__meta-row"><span>Order</span><strong>#${escapeHtml(order.order_number || order.id)}</strong></div>
-        <div class="knx-vo__meta-row"><span>Current</span><strong>${escapeHtml(chipTextFor(order))}</strong></div>
-      `;
-
-      if (!allow.length) {
-        opts.innerHTML = `<div class="knx-vo__empty">No transitions available.</div>`;
-        btnConfirmStatus.disabled = true;
-        return;
-      }
-
-      chosenStatus = "";
-      btnConfirmStatus.disabled = true;
-
-      opts.innerHTML = allow.map((to) => `
-        <label class="knx-vo__opt">
-          <input type="radio" name="knx_new_status" value="${escapeHtml(to)}" />
-          <span>${escapeHtml(statusLabel(to))}</span>
-        </label>
-      `).join("");
+    function extractOrder(json) {
+      if (!json || typeof json !== 'object') return null;
+      if (json.data && json.data.order) return json.data.order;
+      if (json.order) return json.order;
+      if (json.data && json.data.data && json.data.data.order) return json.data.data.order;
+      return null;
     }
 
-    function setReleaseModal() {
-      const meta = root.querySelector("[data-release-meta]");
-      if (!meta) return;
-      meta.innerHTML = `
-        <div class="knx-vo__meta-row"><span>Order</span><strong>#${escapeHtml(order.order_number || order.id)}</strong></div>
-        <div class="knx-vo__meta-row"><span>Status</span><strong>${escapeHtml(chipTextFor(order))}</strong></div>
+    function renderError(title, detail) {
+      contentEl.innerHTML = `
+        <div class="knx-ops-vo__error">
+          <div class="knx-ops-vo__error-title">${esc(title || 'Error')}</div>
+          <div class="knx-ops-vo__error-detail">${esc(detail || '')}</div>
+        </div>
       `;
     }
 
-    async function load() {
-      if (stateNode) stateNode.textContent = "Loading…";
-      const r = await fetchJson(detailUrl(), { method: "GET" });
-
-      if (!r.json || !r.json.success) {
-        const reason = r.json?.data?.reason || "load_failed";
-        if (stateNode) stateNode.textContent = `Failed: ${reason}`;
+    async function fetchOrder() {
+      if (!apiUrl || !orderId) {
+        setState('Missing order_id');
+        renderError('Missing order_id', 'Open this page with ?order_id=123 or provide data-order-id');
         return;
       }
 
-      order = r.json.data?.order || null;
-      if (!order) {
-        if (stateNode) stateNode.textContent = "Order not found.";
-        return;
-      }
-      render();
-    }
+      setState('Loading…');
 
-    // Click delegation (buttons)
-    root.addEventListener("click", (e) => {
-      const close = e.target.closest("[data-close-modal]");
-      if (close) {
-        closeModals(root);
-        return;
-      }
+      try {
+        // If apiUrl looks like v2 driver base, call /{id} endpoint; otherwise use ?order_id query
+        let url = '';
+        if (apiUrl.indexOf('/knx/v2/driver/orders') !== -1 || /\/knx\/v2\/driver\/orders/.test(apiUrl)) {
+          url = apiUrl.replace(/\/+$/, '') + '/' + encodeURIComponent(String(orderId));
+        } else {
+          url = apiUrl + '?order_id=' + encodeURIComponent(String(orderId));
+        }
 
-      const btn = e.target.closest("[data-action]");
-      if (!btn) return;
+        const headers = {};
+        if (restNonce) headers['X-WP-Nonce'] = restNonce;
 
-      const action = btn.dataset.action;
+        const res = await fetch(url, { credentials: 'same-origin', headers });
+        const json = await res.json().catch(() => ({}));
 
-      if (action === "open-status") {
-        setStatusModal();
-        openModal(root, "status");
-        return;
-      }
-
-      if (action === "open-release") {
-        setReleaseModal();
-        openModal(root, "release");
-        return;
-      }
-
-      if (action === "back") {
-        window.location.href = backUrl;
-        return;
-      }
-    });
-
-    // Radio change
-    root.addEventListener("change", (e) => {
-      const input = e.target;
-      if (!input || input.name !== "knx_new_status") return;
-      chosenStatus = String(input.value || "").trim().toLowerCase();
-      if (btnConfirmStatus) btnConfirmStatus.disabled = !chosenStatus;
-    });
-
-    // Confirm status
-    if (btnConfirmStatus) {
-      btnConfirmStatus.addEventListener("click", async () => {
-        if (!order || !chosenStatus) return;
-
-        const from = normalizeStatus(order.status);
-        const allow = TRANSITIONS[from] || [];
-        if (!allow.includes(chosenStatus)) {
-          toast(root, `Invalid transition: ${from} → ${chosenStatus}`, "error");
+        if (!res.ok) {
+          const msg = (json && json.message) ? json.message : (res.statusText || 'Request failed');
+          setState('');
+          renderError('Unable to load order', msg + ' (HTTP ' + res.status + ')');
+          toast('Unable to load order', 'error');
           return;
         }
 
-        btnConfirmStatus.disabled = true;
-        toast(root, "Updating status…", "info");
+        // extract order object from various shapes
+        let order = null;
+        if (json && json.data && json.data.order) order = json.data.order;
+        else if (json && json.order) order = json.order;
+        else if (json && json.data && json.data.data && json.data.data.order) order = json.data.data.order;
+        else if (json && json.data) order = json.data; // fallback to data being the order
 
-        const r = await fetchJson(opsStatusUrl(), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ knx_nonce: knxNonce, status: chosenStatus }),
-        });
-
-        if (r.json && r.json.success) {
-          toast(root, `Status updated to "${statusLabel(chosenStatus)}"`, "success");
-          closeModals(root);
-          await load();
-        } else {
-          const reason = r.json?.data?.reason || "update_failed";
-          const msg = r.json?.data?.message || "";
-          toast(root, `Update failed (${r.status}): ${reason}${msg ? " — " + msg : ""}`, "error");
+        if (!order) {
+          setState('');
+          renderError('Bad response', 'The server returned an unexpected payload.');
+          toast('Unexpected response', 'error');
+          return;
         }
 
-        btnConfirmStatus.disabled = false;
-      });
+        setState('');
+
+        try {
+          const st = String((order.status || '')).toLowerCase();
+          app.dataset.currentStatus = st;
+          window.KNX_VIEW_ORDER = { order: order };
+        } catch (e) {}
+
+        renderOrder(order);
+      } catch (e) {
+        setState('');
+        renderError('Network error', 'Check connection or session.');
+        toast('Network error', 'error');
+      }
     }
 
-    // Confirm release
-    if (btnConfirmRelease) {
-      btnConfirmRelease.addEventListener("click", async () => {
-        if (!order) return;
-
-        btnConfirmRelease.disabled = true;
-        toast(root, "Releasing…", "info");
-
-        const r = await fetchJson(releaseUrl(), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ knx_nonce: knxNonce }),
-        });
-
-        if (r.json && r.json.success) {
-          toast(root, "Order released ✅", "success");
-          closeModals(root);
-          window.location.href = backUrl;
-        } else {
-          const reason = r.json?.data?.reason || "release_failed";
-          const msg = r.json?.data?.message || "";
-          toast(root, `Release failed (${r.status}): ${reason}${msg ? " — " + msg : ""}`, "error");
-        }
-
-        btnConfirmRelease.disabled = false;
-      });
-    }
-
-    load();
+    fetchOrder();
   });
 })();

@@ -43,87 +43,41 @@ add_shortcode('knx_driver_view_order', function ($atts = []) {
     $api_base_v2 = rest_url('knx/v2/driver/orders/');
     $nonce       = wp_create_nonce('knx_nonce');
 
-    $css = '';
-    $js  = '';
+    $ver = defined('KNX_VERSION') ? KNX_VERSION : (string)time();
 
-    $css_path = __DIR__ . '/driver-view-order-style.css';
-    if (file_exists($css_path)) $css = (string)file_get_contents($css_path);
-
-    $js_path = __DIR__ . '/driver-view-order-script.js';
-    if (file_exists($js_path)) $js = (string)file_get_contents($js_path);
+    $api_url = esc_url(rest_url('knx/v2/driver/orders'));
+    $back_url = esc_url((string)$atts['back_url']);
 
     ob_start();
     ?>
-    <?php if ($css !== ''): ?>
-        <style data-knx="driver-view-order-style"><?php echo $css; ?></style>
-    <?php endif; ?>
+    <link rel="stylesheet" href="<?php echo esc_url(KNX_URL . 'inc/modules/ops/view-order/view-order-style.css'); ?>?v=<?php echo esc_attr($ver); ?>">
+    <link rel="stylesheet" href="<?php echo esc_url(KNX_URL . 'inc/modules/ops/view-order/view-order-actions.css'); ?>?v=<?php echo esc_attr($ver); ?>">
 
-    <div
-        class="knx-vo"
-        data-knx-driver-module="view-order"
-        data-order-id="<?php echo (int)$order_id; ?>"
-        data-api-base-v2="<?php echo esc_attr($api_base_v2); ?>"
-        data-knx-nonce="<?php echo esc_attr($nonce); ?>"
-        data-back-url="<?php echo esc_attr((string)$atts['back_url']); ?>"
+    <div id="knxOpsViewOrderApp"
+         class="knx-ops-vo"
+         data-api-url="<?php echo esc_attr($api_url); ?>"
+         data-nonce="<?php echo esc_attr(wp_create_nonce('wp_rest')); ?>"
+         data-back-url="<?php echo esc_attr($back_url); ?>"
+         data-order-id="<?php echo (int)$order_id; ?>"
     >
-        <div class="knx-vo__shell">
-            <div class="knx-vo__topbar">
-                <a class="knx-vo__back" href="<?php echo esc_url((string)$atts['back_url']); ?>">← Back</a>
-                <div class="knx-vo__title">Order Details</div>
+        <div class="knx-ops-vo__shell">
+
+            <div class="knx-ops-vo__topbar">
+                <a class="knx-ops-vo__back" href="<?php echo esc_url($back_url); ?>">&larr; Back</a>
             </div>
 
-            <div class="knx-vo__state" data-state>
-                <?php echo ($order_id > 0) ? 'Loading…' : 'Missing order_id'; ?>
-            </div>
-
-            <div class="knx-vo__card" data-content></div>
-        </div>
-
-        <!-- Toast -->
-        <div class="knx-vo__toast" data-toast aria-live="polite" aria-atomic="true"></div>
-
-        <!-- Modal: Change Status -->
-        <div class="knx-vo__modal" data-modal="status" role="dialog" aria-modal="true" aria-label="Change Order Status">
-            <div class="knx-vo__overlay" data-close-modal></div>
-            <div class="knx-vo__dialog" role="document">
-                <div class="knx-vo__dialog-head">
-                    <div class="knx-vo__dialog-title">Change Order Status</div>
-                    <button class="knx-vo__icon-btn" type="button" data-close-modal aria-label="Close">×</button>
-                </div>
-                <div class="knx-vo__dialog-body">
-                    <div class="knx-vo__meta" data-status-meta></div>
-                    <div class="knx-vo__options" data-status-options></div>
-                </div>
-                <div class="knx-vo__dialog-foot">
-                    <button class="knx-vo__btn" type="button" data-close-modal>Cancel</button>
-                    <button class="knx-vo__btn knx-vo__btn--primary" type="button" data-confirm-status disabled>Confirm</button>
+            <div class="knx-ops-vo__title">
+                <h2>Order tracking</h2>
+                <div id="knxOpsVOState" class="knx-ops-vo__state">
+                    <?php echo ($order_id > 0) ? 'Loading…' : 'Missing order_id'; ?>
                 </div>
             </div>
-        </div>
 
-        <!-- Modal: Release -->
-        <div class="knx-vo__modal" data-modal="release" role="dialog" aria-modal="true" aria-label="Release Order">
-            <div class="knx-vo__overlay" data-close-modal></div>
-            <div class="knx-vo__dialog" role="document">
-                <div class="knx-vo__dialog-head">
-                    <div class="knx-vo__dialog-title">Release Order</div>
-                    <button class="knx-vo__icon-btn" type="button" data-close-modal aria-label="Close">×</button>
-                </div>
-                <div class="knx-vo__dialog-body">
-                    <p class="knx-vo__p">Are you sure you want to release this order? It will become available for other drivers.</p>
-                    <div class="knx-vo__meta" data-release-meta></div>
-                </div>
-                <div class="knx-vo__dialog-foot">
-                    <button class="knx-vo__btn" type="button" data-close-modal>Cancel</button>
-                    <button class="knx-vo__btn knx-vo__btn--danger" type="button" data-confirm-release>Release</button>
-                </div>
-            </div>
+            <div id="knxOpsVOContent" class="knx-ops-vo__content"></div>
         </div>
     </div>
 
-    <?php if ($js !== ''): ?>
-        <script data-knx="driver-view-order-script"><?php echo $js; ?></script>
-    <?php endif; ?>
+    <script src="<?php echo esc_url(KNX_URL . 'inc/modules/ops/driver-view-order/driver-view-order-script.js'); ?>?v=<?php echo esc_attr($ver); ?>" defer></script>
 
     <?php
     return ob_get_clean();

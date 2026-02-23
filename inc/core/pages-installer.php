@@ -83,6 +83,7 @@ if (!function_exists('knx_install_pages')) {
             ['title' => 'Driver Ops', 'slug' => 'driver-ops', 'content' => '[knx_driver_ops_dashboard]'],
             ['title' => 'Driver Live Orders', 'slug' => 'driver-live-orders', 'content' => '[knx_driver_live_orders]'],
             ['title' => 'Active Orders', 'slug' => 'driver-active-orders', 'content' => '[knx_driver_active_orders]'],
+            ['title' => 'Driver View Order', 'slug' => 'driver-view-order', 'content' => '[knx_driver_view_order]'],
             // Driver quick & profile pages (shortcodes created by modules)
             ['title' => 'Driver Quick Menu', 'slug' => 'driver-quick-menu', 'content' => '[knx_driver_quick_menu]'],
             ['title' => 'Driver Profile', 'slug' => 'driver-profile', 'content' => '[knx_driver_profile]'],
