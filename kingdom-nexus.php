@@ -289,7 +289,7 @@ add_action('plugins_loaded', function() {
      * Cloned from manager patterns (fail-closed scope, inline assets, Nexus shell).
      * ====================================================== */
     knx_require('inc/modules/drivers/active-orders/driver-active-orders-shortcode.php');
-    knx_require('inc/modules/drivers/view-order/driver-view-order-shortcode.php');
+    knx_require('inc/modules/ops/driver-view-order/driver-view-order-shortcode.php');
 
     /* Driver quick menu + profile (mobile driver UX) */
     knx_require('inc/modules/ops/driver-quick-menu/driver-quick-menu-shortcode.php');

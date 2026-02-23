@@ -33,6 +33,15 @@ add_action('rest_api_init', function () {
         'permission_callback' => 'knx_v2_driver_ops_permission',
     ));
 
+    register_rest_route('knx/v2', '/driver/orders/(?P<id>\d+)', array(
+        'methods'  => WP_REST_Server::READABLE,
+        'callback' => 'knx_v2_driver_order_detail',
+        'permission_callback' => 'knx_v2_driver_ops_permission',
+        'args' => array(
+            'id' => array('required' => true, 'type' => 'integer'),
+        ),
+    ));
+
     register_rest_route('knx/v2', '/driver/orders/(?P<id>\d+)/assign', array(
         'methods'  => WP_REST_Server::CREATABLE,
         'callback' => 'knx_v2_driver_order_assign',
@@ -722,5 +731,124 @@ function knx_v2_driver_order_release(WP_REST_Request $request) {
         'status_after'  => $status_after,
         'status_changed' => (bool)$did_change,
         'server_time' => $now,
+    ));
+}
+
+/**
+ * GET /wp-json/knx/v2/driver/orders/{id}
+ * Driver-only, DB-canon only.
+ * Fail-closed:
+ * - Not found or not assigned => 404
+ * - Out of scope => 404
+ */
+function knx_v2_driver_order_detail(WP_REST_Request $request) {
+    global $wpdb;
+
+    $ctx = knx_driver_ops__resolve_ctx_and_scope();
+    if (empty($ctx['ok'])) {
+        return knx_driver_ops__resp(false, array('reason' => $ctx['reason']), 403);
+    }
+
+    $driver_user_id    = (int)$ctx['driver_user_id'];
+    $driver_profile_id = (int)$ctx['driver_profile_id'];
+    $allowed_city_ids  = $ctx['allowed_city_ids'];
+    $allowed_hub_ids   = $ctx['allowed_hub_ids'];
+
+    $order_id = (int)$request->get_param('id');
+    if ($order_id <= 0) {
+        return knx_driver_ops__resp(false, array('reason' => 'invalid_order_id'), 400);
+    }
+
+    $orders_table  = $wpdb->prefix . 'knx_orders';
+    $history_table = $wpdb->prefix . 'knx_order_status_history';
+
+    $order = $wpdb->get_row(
+        $wpdb->prepare(
+            "SELECT
+                id,
+                order_number,
+                hub_id,
+                city_id,
+                driver_id,
+                status,
+                payment_status,
+                total,
+                customer_name,
+                customer_phone,
+                delivery_address,
+                delivery_lat,
+                delivery_lng,
+                created_at,
+                updated_at
+             FROM {$orders_table}
+             WHERE id = %d
+             LIMIT 1",
+            $order_id
+        ),
+        ARRAY_A
+    );
+
+    if (!$order) {
+        return knx_driver_ops__resp(false, array('reason' => 'order_not_found'), 404);
+    }
+
+    // Payment gating (canon)
+    $status = strtolower((string)($order['status'] ?? ''));
+    $ps     = strtolower((string)($order['payment_status'] ?? ''));
+
+    if ($status === 'pending_payment') {
+        return knx_driver_ops__resp(false, array('reason' => 'order_pending_payment'), 409);
+    }
+    if (!knx_driver_ops__payment_is_paid($ps)) {
+        return knx_driver_ops__resp(false, array('reason' => 'payment_not_paid'), 409);
+    }
+
+    // Ownership: must be assigned to this driver (fail-closed)
+    $order_driver = !empty($order['driver_id']) ? (int)$order['driver_id'] : 0;
+    if ($order_driver <= 0 || $order_driver !== $driver_profile_id) {
+        return knx_driver_ops__resp(false, array('reason' => 'order_not_found'), 404);
+    }
+
+    // Scope
+    $order_hub  = !empty($order['hub_id'])  ? (int)$order['hub_id']  : 0;
+    $order_city = !empty($order['city_id']) ? (int)$order['city_id'] : 0;
+
+    if (!knx_driver_ops__order_in_scope($order_city, $order_hub, $allowed_city_ids, $allowed_hub_ids)) {
+        return knx_driver_ops__resp(false, array('reason' => 'order_not_found'), 404);
+    }
+
+    // Status history (best effort)
+    $history = array();
+    $hist_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $history_table));
+    if (!empty($hist_exists)) {
+        $rows = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT status, changed_by, created_at
+                 FROM {$history_table}
+                 WHERE order_id = %d
+                 ORDER BY id ASC",
+                $order_id
+            ),
+            ARRAY_A
+        );
+        if (is_array($rows)) {
+            foreach ($rows as $r) {
+                $history[] = array(
+                    'status' => (string)($r['status'] ?? ''),
+                    'changed_by' => (int)($r['changed_by'] ?? 0),
+                    'created_at' => (string)($r['created_at'] ?? ''),
+                );
+            }
+        }
+    }
+
+    return knx_driver_ops__resp(true, array(
+        'order' => $order,
+        'status_history' => $history,
+        'meta' => array(
+            'driver_user_id' => $driver_user_id,
+            'driver_profile_id' => $driver_profile_id,
+            'server_gmt' => gmdate('Y-m-d H:i:s'),
+        ),
     ));
 }
