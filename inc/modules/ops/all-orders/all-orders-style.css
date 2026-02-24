@@ -1,0 +1,532 @@
+/**
+ * ════════════════════════════════════════════════════════════════
+ * KNX OPS — All Orders History Styles v1.0
+ * ════════════════════════════════════════════════════════════════
+ * Nexus Shell tokens. Table layout matching the image spec.
+ * ID pill (teal/green), restaurant logo + name, status badge.
+ * Nexus-style pagination.
+ */
+
+/* ═══ TOKENS ═══ */
+:root {
+    --ao-primary:   #0b793a;
+    --ao-accent:    #1E6FF0;
+    --ao-card:      #ffffff;
+    --ao-bg:        #f6f7f9;
+    --ao-text:      #0b1220;
+    --ao-muted:     #6b7280;
+    --ao-border:    rgba(11,18,32,0.08);
+    --ao-radius:    14px;
+    --ao-radius-sm: 10px;
+    --ao-shadow:    0 4px 16px rgba(11,18,32,0.07);
+    --ao-font:      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+    /* ID pill */
+    --ao-id-bg:     #d1fae5;
+    --ao-id-text:   #065f46;
+
+    /* Status badge base */
+    --ao-badge-delivered-bg:   #ccfbf1;
+    --ao-badge-delivered-text: #0f766e;
+    --ao-badge-cancelled-bg:   #fee2e2;
+    --ao-badge-cancelled-text: #991b1b;
+    --ao-badge-active-bg:      #dbeafe;
+    --ao-badge-active-text:    #1d4ed8;
+    --ao-badge-default-bg:     #f1f5f9;
+    --ao-badge-default-text:   #475569;
+}
+
+/* ═══ WRAPPER ═══ */
+.knx-ao {
+    font-family: var(--ao-font);
+    color: var(--ao-text);
+    padding: 16px;
+    max-width: 1100px;
+    margin: 0 auto;
+    box-sizing: border-box;
+}
+
+.knx-ao-error {
+    padding: 20px;
+    color: #991b1b;
+    background: #fee2e2;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+/* ═══ TOP BAR ═══ */
+.knx-ao__topbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.knx-ao__topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+}
+
+.knx-ao__topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.knx-ao__cities-pill {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--ao-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 260px;
+}
+
+/* ═══ CONTROLS ═══ */
+.knx-ao-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: var(--ao-font);
+    border-radius: var(--ao-radius-sm);
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    text-decoration: none;
+}
+
+.knx-ao-btn--primary {
+    background: var(--ao-primary);
+    color: #fff;
+}
+.knx-ao-btn--primary:hover { background: #085e2e; }
+
+.knx-ao-btn--outline {
+    background: #fff;
+    color: var(--ao-text);
+    border: 1px solid var(--ao-border);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.knx-ao-btn--outline:hover { border-color: var(--ao-primary); color: var(--ao-primary); }
+
+.knx-ao-btn--ghost {
+    background: transparent;
+    color: var(--ao-muted);
+    border: 1px solid var(--ao-border);
+}
+.knx-ao-btn--ghost:hover { background: var(--ao-bg); color: var(--ao-text); }
+
+.knx-ao-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.knx-ao-select {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    font-family: var(--ao-font);
+    border: 1px solid var(--ao-border);
+    border-radius: var(--ao-radius-sm);
+    background: #fff;
+    color: var(--ao-text);
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.knx-ao-select:focus { border-color: var(--ao-primary); }
+
+.knx-ao__search-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.knx-ao__search-wrap svg {
+    position: absolute;
+    left: 10px;
+    color: var(--ao-muted);
+    pointer-events: none;
+}
+.knx-ao-input {
+    padding: 8px 12px 8px 32px;
+    font-size: 0.85rem;
+    font-family: var(--ao-font);
+    border: 1px solid var(--ao-border);
+    border-radius: var(--ao-radius-sm);
+    background: #fff;
+    color: var(--ao-text);
+    width: 200px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.knx-ao-input:focus { border-color: var(--ao-primary); }
+
+/* ═══ STATE MESSAGE ═══ */
+.knx-ao__state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--ao-muted);
+    font-size: 0.95rem;
+}
+
+/* ═══ TABLE WRAPPER ═══ */
+.knx-ao__table-wrap {
+    background: var(--ao-card);
+    border-radius: var(--ao-radius);
+    border: 1px solid var(--ao-border);
+    box-shadow: var(--ao-shadow);
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+
+.knx-ao__table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+/* ── Header row ── */
+.knx-ao__th {
+    padding: 14px 20px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ao-muted);
+    text-align: left;
+    background: #fafafa;
+    border-bottom: 1px solid var(--ao-border);
+}
+.knx-ao__th--id         { width: 130px; }
+.knx-ao__th--restaurant { }
+.knx-ao__th--status     { width: 160px; text-align: right; padding-right: 24px; }
+
+/* ── Body row ── */
+.knx-ao__row {
+    border-bottom: 1px solid var(--ao-border);
+    transition: background 0.15s;
+    cursor: pointer;
+}
+.knx-ao__row:last-child { border-bottom: none; }
+.knx-ao__row:hover { background: #f8fffe; }
+
+.knx-ao__td {
+    padding: 14px 20px;
+    vertical-align: middle;
+}
+
+/* ── ID pill ── */
+.knx-ao__id-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 12px;
+    background: var(--ao-id-bg);
+    color: var(--ao-id-text);
+    border-radius: 20px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+/* ── Restaurant cell ── */
+.knx-ao__restaurant {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.knx-ao__hub-logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: var(--ao-bg);
+    border: 1px solid var(--ao-border);
+}
+
+.knx-ao__hub-logo-placeholder {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: var(--ao-bg);
+    border: 1px solid var(--ao-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.knx-ao__hub-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--ao-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── Status badge ── */
+.knx-ao__td--status {
+    text-align: right;
+    padding-right: 24px;
+}
+
+.knx-ao__status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+/* Status colours */
+.knx-ao__status-badge--completed  { background: var(--ao-badge-delivered-bg);  color: var(--ao-badge-delivered-text); }
+.knx-ao__status-badge--cancelled  { background: var(--ao-badge-cancelled-bg);  color: var(--ao-badge-cancelled-text); }
+.knx-ao__status-badge--confirmed,
+.knx-ao__status-badge--accepted_by_driver,
+.knx-ao__status-badge--accepted_by_hub,
+.knx-ao__status-badge--preparing,
+.knx-ao__status-badge--prepared,
+.knx-ao__status-badge--picked_up  { background: var(--ao-badge-active-bg);     color: var(--ao-badge-active-text); }
+.knx-ao__status-badge--default    { background: var(--ao-badge-default-bg);    color: var(--ao-badge-default-text); }
+
+/* ── Empty row ── */
+.knx-ao__empty-row td {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--ao-muted);
+    font-size: 0.93rem;
+}
+
+/* ── Loading skeleton rows ── */
+.knx-ao__skel-row td { padding: 14px 20px; }
+.knx-ao__skel-bar {
+    height: 14px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+    background-size: 400% 100%;
+    animation: ao-skel-shimmer 1.4s ease infinite;
+}
+@keyframes ao-skel-shimmer {
+    0%   { background-position: 100% 50%; }
+    100% { background-position: 0%   50%; }
+}
+
+
+/* ═══════════════════════════════════════════
+   PAGINATION
+   ═══════════════════════════════════════════ */
+.knx-ao__pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 0 24px;
+}
+
+.knx-ao__pg-pages {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.knx-ao__pg-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    height: 34px;
+    padding: 0 6px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: var(--ao-font);
+    cursor: pointer;
+    border: 1px solid var(--ao-border);
+    background: #fff;
+    color: var(--ao-text);
+    transition: all 0.15s;
+}
+.knx-ao__pg-num:hover:not(.is-active) {
+    border-color: var(--ao-primary);
+    color: var(--ao-primary);
+}
+.knx-ao__pg-num.is-active {
+    background: var(--ao-primary);
+    color: #fff;
+    border-color: var(--ao-primary);
+    cursor: default;
+}
+.knx-ao__pg-ellipsis {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    height: 34px;
+    color: var(--ao-muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: var(--ao-font);
+    user-select: none;
+}
+
+.knx-ao__pg-prev,
+.knx-ao__pg-next {
+    min-width: 34px;
+    height: 34px;
+    padding: 0 8px;
+}
+
+/* ═══════════════════════════════════════════
+   CITY PICKER MODAL
+   ═══════════════════════════════════════════ */
+.knx-ao-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.knx-ao-modal.is-open {
+    pointer-events: auto;
+    opacity: 1;
+}
+
+.knx-ao-modal__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(11,18,32,0.45);
+    cursor: pointer;
+}
+
+.knx-ao-modal__panel {
+    position: relative;
+    background: var(--ao-card);
+    border-radius: var(--ao-radius);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+    width: min(480px, 94vw);
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transform: translateY(10px);
+    transition: transform 0.2s ease;
+}
+.knx-ao-modal.is-open .knx-ao-modal__panel {
+    transform: translateY(0);
+}
+
+.knx-ao-modal__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 20px 22px 14px;
+    border-bottom: 1px solid var(--ao-border);
+}
+.knx-ao-modal__title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--ao-text);
+}
+.knx-ao-modal__hint {
+    font-size: 0.8rem;
+    color: var(--ao-muted);
+    margin-top: 3px;
+}
+
+.knx-ao-modal__actions {
+    display: flex;
+    gap: 8px;
+    padding: 10px 22px;
+    border-bottom: 1px solid var(--ao-border);
+}
+
+.knx-ao-modal__list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.knx-ao-modal__city-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+    user-select: none;
+}
+.knx-ao-modal__city-item:hover { background: var(--ao-bg); }
+
+.knx-ao-modal__city-item input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--ao-primary);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.knx-ao-modal__city-name {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--ao-text);
+}
+
+.knx-ao-modal__footer {
+    padding: 14px 22px;
+    border-top: 1px solid var(--ao-border);
+    display: flex;
+    justify-content: flex-end;
+}
+
+.knx-ao-skel {
+    color: var(--ao-muted);
+    font-size: 0.88rem;
+    padding: 8px 0;
+}
+
+
+/* ═══════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════ */
+@media (max-width: 640px) {
+    .knx-ao__topbar { flex-direction: column; align-items: flex-start; }
+    .knx-ao__topbar-right { width: 100%; }
+    .knx-ao-input { width: 100%; }
+    .knx-ao-select { flex: 1; }
+
+    .knx-ao__th--status,
+    .knx-ao__td--status { display: none; }
+
+    .knx-ao__th--id { width: 100px; }
+
+    .knx-ao__hub-logo,
+    .knx-ao__hub-logo-placeholder { width: 34px; height: 34px; }
+
+    .knx-ao__hub-name { font-size: 0.87rem; }
+
+    .knx-ao__pagination { flex-wrap: wrap; }
+}
