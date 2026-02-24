@@ -1,0 +1,230 @@
+/**
+ * Kingdom Nexus — Driver View Order Actions
+ * Mobile-first: big tap targets for drivers on the road
+ */
+
+/* ── Action buttons container ── */
+.knx-ops-vo__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.knx-ops-vo__action-btn {
+  width: 100%;
+  padding: 1rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.knx-ops-vo__action-btn:active {
+  transform: scale(0.98);
+}
+
+.knx-ops-vo__action-btn--primary {
+  background: var(--nxs-primary, #2563eb);
+  color: white;
+}
+
+.knx-ops-vo__action-btn--primary:hover {
+  background: var(--nxs-primary-hover, #1d4ed8);
+}
+
+.knx-ops-vo__action-btn--danger {
+  background: var(--nxs-danger, #dc2626);
+  color: white;
+}
+
+.knx-ops-vo__action-btn--danger:hover {
+  background: var(--nxs-danger-hover, #b91c1c);
+}
+
+.knx-ops-vo__action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Modal overlay ── */
+.knx-ops-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+  backdrop-filter: blur(2px);
+  animation: knxModalFadeIn 0.2s ease;
+}
+
+@keyframes knxModalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.knx-ops-modal {
+  background: white;
+  border-radius: 0.75rem;
+  width: 100%;
+  max-width: 28rem;
+  max-height: 90vh;
+  overflow: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  animation: knxModalSlideUp 0.25s ease;
+}
+
+@keyframes knxModalSlideUp {
+  from {
+    transform: translateY(2rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.knx-ops-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--nxs-border, #e5e7eb);
+}
+
+.knx-ops-modal__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--nxs-text-primary, #111827);
+}
+
+.knx-ops-modal__close {
+  background: transparent;
+  border: none;
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--nxs-text-muted, #6b7280);
+  cursor: pointer;
+  padding: 0;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  transition: all 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.knx-ops-modal__close:hover {
+  background: var(--nxs-hover-bg, #f3f4f6);
+  color: var(--nxs-text-primary, #111827);
+}
+
+.knx-ops-modal__body {
+  padding: 1.5rem;
+}
+
+.knx-ops-modal__current {
+  padding: 1rem;
+  background: var(--nxs-bg-subtle, #f9fafb);
+  border-radius: 0.5rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.95rem;
+  color: var(--nxs-text-secondary, #4b5563);
+}
+
+.knx-ops-modal__current strong {
+  color: var(--nxs-text-primary, #111827);
+  font-weight: 600;
+}
+
+.knx-ops-modal__status-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* ── Status buttons (mobile-first: BIG tap targets) ── */
+.knx-ops-modal__status-btn {
+  width: 100%;
+  padding: 1.25rem 1.5rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: white;
+  background: var(--nxs-primary, #2563eb);
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.knx-ops-modal__status-btn:hover {
+  background: var(--nxs-primary-hover, #1d4ed8);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.knx-ops-modal__status-btn:active {
+  transform: scale(0.98);
+}
+
+.knx-ops-modal__status-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ── Responsive adjustments ── */
+@media (max-width: 768px) {
+  .knx-ops-modal {
+    max-width: 100%;
+    border-radius: 0.75rem 0.75rem 0 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 80vh;
+  }
+
+  @keyframes knxModalSlideUp {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  .knx-ops-modal__status-btn {
+    padding: 1.5rem 1.5rem;
+    font-size: 1.1rem;
+  }
+}
+
+/* ── Desktop: actions in the left panel ── */
+@media (min-width: 769px) {
+  .knx-ops-vo__actions--in-left {
+    margin-bottom: 1.5rem;
+  }
+}

@@ -109,13 +109,34 @@
       return `<div class="knx-ops-vo__order-list">${rows}</div>`;
     }
 
-    function humanStatusLabel(s) { const v = String(s || '').trim().toLowerCase(); if (!v) return '—'; return v.replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase()); }
+    function humanStatusLabel(s) {
+      const v = String(s || '').trim().toLowerCase();
+      if (!v) return '—';
+      // Canonical labels (same across ALL modules)
+      const labels = {
+        'pending_payment': 'Pending Payment',
+        'confirmed': 'Order Created',
+        'accepted_by_driver': 'Accepted by Driver',
+        'accepted_by_hub': 'Accepted by Restaurant',
+        'preparing': 'Preparing',
+        'prepared': 'Prepared',
+        'picked_up': 'Picked Up',
+        'completed': 'Completed',
+        'cancelled': 'Cancelled',
+        'order_created': 'Order Created',
+      };
+      return labels[v] || v.replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
+    }
 
     function renderHistory(list) {
       const arr = Array.isArray(list) ? list : [];
       if (!arr.length) return `<div class="knx-ops-vo__muted">No history.</div>`;
-      const rows = arr.filter(h => String(h?.created_at || '').trim() !== '' && String(h?.status || '').trim().toLowerCase() !== 'confirmed')
-        .map((h) => {
+      // Hide financial/internal states (pending_payment, confirmed) from timeline
+      const rows = arr.filter(h => {
+        const st = String(h?.status || '').trim().toLowerCase();
+        const ts = String(h?.created_at || '').trim();
+        return ts !== '' && st !== 'pending_payment' && st !== 'confirmed';
+      }).map((h) => {
           const st = humanStatusLabel(h?.status);
           const at = esc(String(h?.created_at || '').trim());
           const by = esc(String(h?.changed_by_label || '').trim());
@@ -315,6 +336,13 @@
                   <div class="knx-ops-vo__notes">${esc(notes)}</div>
                 </div>
               ` : ``}
+
+              <div class="knx-ops-vo__divider"></div>
+              <div class="knx-ops-vo__section">
+                <button type="button" class="knx-ops-vo__action-btn knx-ops-vo__action-btn--danger" id="knxBtnCancelBottom" style="width:100%;">
+                  Cancel Order
+                </button>
+              </div>
             </div>
           </div>
 
@@ -345,6 +373,395 @@
           </div>
         </div>
       `;
+    }
+
+    /* ── Action buttons & status change modal ── */
+    function getNextStatuses(currentStatus) {
+      const s = String(currentStatus || '').toLowerCase();
+      // Driver-allowed transitions (sequential only, no skipping states)
+      const map = {
+        'confirmed': ['accepted_by_driver'],
+        'accepted_by_driver': ['accepted_by_hub'],
+        'accepted_by_hub': ['preparing'],
+        'preparing': ['prepared'],
+        'prepared': ['picked_up'],
+        'picked_up': ['completed'],
+      };
+      return map[s] || [];
+    }
+
+    function getLabelForStatus(status) {
+      const s = String(status || '').toLowerCase();
+      // Canonical labels (same across ALL modules)
+      const labels = {
+        'pending_payment': 'Pending Payment',
+        'confirmed': 'Order Created',
+        'accepted_by_driver': 'Accepted by Driver',
+        'accepted_by_hub': 'Accepted by Restaurant',
+        'preparing': 'Preparing',
+        'prepared': 'Prepared',
+        'picked_up': 'Picked Up',
+        'completed': 'Completed',
+        'cancelled': 'Cancelled',
+        'order_created': 'Order Created',
+      };
+      return labels[s] || status.replace(/_/g, ' ').replace(/\b\w/g, m => m.toUpperCase());
+    }
+
+    function renderActionButtons(order) {
+      const currentStatus = String(order?.status || '').toLowerCase();
+      const nextStatuses = getNextStatuses(currentStatus);
+
+      const actionsContainer = document.getElementById('knxViewOrderActions');
+      if (!actionsContainer) return;
+
+      let html = '';
+
+      // Change Status button (only if next statuses exist)
+      if (nextStatuses.length > 0) {
+        html += `
+          <button type="button" class="knx-ops-vo__action-btn knx-ops-vo__action-btn--primary" id="knxBtnChangeStatus">
+            Change Status
+          </button>
+        `;
+      }
+
+      // Release button (only before picked_up)
+      const noReleaseStatuses = ['picked_up', 'completed', 'cancelled'];
+      if (!noReleaseStatuses.includes(currentStatus)) {
+        html += `
+          <button type="button" class="knx-ops-vo__action-btn knx-ops-vo__action-btn--danger" id="knxBtnRelease">
+            Release Order
+          </button>
+        `;
+      }
+
+      actionsContainer.innerHTML = html;
+
+      // Attach listeners
+      const btnChange = document.getElementById('knxBtnChangeStatus');
+      if (btnChange) {
+        btnChange.addEventListener('click', () => openStatusModal(order));
+      }
+
+      const btnRelease = document.getElementById('knxBtnRelease');
+      if (btnRelease) {
+        btnRelease.addEventListener('click', () => openReleaseModal(order.order_id));
+      }
+
+      // Attach cancel button at bottom of page
+      const btnCancelBottom = document.getElementById('knxBtnCancelBottom');
+      if (btnCancelBottom) {
+        btnCancelBottom.addEventListener('click', () => openCancelModal(order.order_id));
+      }
+    }
+
+    function openStatusModal(order) {
+      const currentStatus = String(order?.status || '').toLowerCase();
+      const nextStatuses = getNextStatuses(currentStatus);
+
+      if (!nextStatuses.length) {
+        toast('No status changes available', 'info');
+        return;
+      }
+
+      // Build modal HTML (mobile-first: big tap targets)
+      const modalHTML = `
+        <div class="knx-ops-modal-overlay" id="knxStatusModalOverlay">
+          <div class="knx-ops-modal">
+            <div class="knx-ops-modal__header">
+              <h3 class="knx-ops-modal__title">Change Status</h3>
+              <button type="button" class="knx-ops-modal__close" id="knxModalClose" aria-label="Close">&times;</button>
+            </div>
+            <div class="knx-ops-modal__body">
+              <div class="knx-ops-modal__current">
+                Current: <strong>${esc(getLabelForStatus(currentStatus))}</strong>
+              </div>
+              <div class="knx-ops-modal__status-list">
+                ${nextStatuses.map(st => `
+                  <button type="button" class="knx-ops-modal__status-btn" data-status="${esc(st)}">
+                    ${esc(getLabelForStatus(st))}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Inject modal
+      const existing = document.getElementById('knxStatusModalOverlay');
+      if (existing) existing.remove();
+
+      document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+      const overlay = document.getElementById('knxStatusModalOverlay');
+      const closeBtn = document.getElementById('knxModalClose');
+      const statusBtns = overlay.querySelectorAll('.knx-ops-modal__status-btn');
+
+      // Close handlers
+      const closeModal = () => {
+        if (overlay) overlay.remove();
+      };
+
+      closeBtn?.addEventListener('click', closeModal);
+      overlay?.addEventListener('click', (e) => {
+        if (e.target === overlay) closeModal();
+      });
+
+      // Status change handlers
+      statusBtns.forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const newStatus = btn.dataset.status;
+          if (!newStatus) return;
+
+          btn.disabled = true;
+          btn.textContent = 'Processing...';
+
+          try {
+            await changeOrderStatus(order.order_id, newStatus);
+            closeModal();
+            toast('Status updated successfully', 'success');
+            // Reload order
+            fetchOrder();
+          } catch (err) {
+            toast(err.message || 'Failed to update status', 'error');
+            btn.disabled = false;
+            btn.textContent = getLabelForStatus(newStatus);
+          }
+        });
+      });
+    }
+
+    async function changeOrderStatus(orderId, newStatus) {
+      const url = apiUrl.replace(/\/+$/, '') + '/' + encodeURIComponent(String(orderId)) + '/ops-status';
+
+      const body = JSON.stringify({
+        status: newStatus,
+        knx_nonce: await getKnxNonce(),
+      });
+
+      const headers = { 'Content-Type': 'application/json' };
+      if (restNonce) headers['X-WP-Nonce'] = restNonce;
+
+      const res = await fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers,
+        body,
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok || !json.success) {
+        const msg = (json && json.data && json.data.message) || (json && json.message) || 'Request failed';
+        throw new Error(msg);
+      }
+
+      return json.data;
+    }
+
+    function openReleaseModal(orderId) {
+      const modalHTML = `
+        <div class="knx-ops-modal-overlay" id="knxReleaseModalOverlay">
+          <div class="knx-ops-modal">
+            <div class="knx-ops-modal__header">
+              <h3 class="knx-ops-modal__title">Release Order</h3>
+              <button type="button" class="knx-ops-modal__close" id="knxReleaseModalClose" aria-label="Close">&times;</button>
+            </div>
+            <div class="knx-ops-modal__body">
+              <p style="margin:0 0 1.5rem;color:var(--text-secondary,#6b7280);">Are you sure you want to release this order? It will become available for other drivers.</p>
+              <div style="display:flex;gap:0.75rem;flex-direction:column;">
+                <button type="button" class="knx-ops-modal__status-btn" id="knxConfirmRelease" style="background:var(--danger,#ef4444);color:white;">
+                  Yes, Release Order
+                </button>
+                <button type="button" class="knx-ops-modal__status-btn" id="knxCancelRelease" style="background:var(--bg-secondary,#f3f4f6);color:var(--text,#111827);">
+                  No, Keep Order
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const existing = document.getElementById('knxReleaseModalOverlay');
+      if (existing) existing.remove();
+
+      document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+      const overlay = document.getElementById('knxReleaseModalOverlay');
+      const closeBtn = document.getElementById('knxReleaseModalClose');
+      const confirmBtn = document.getElementById('knxConfirmRelease');
+      const cancelBtn = document.getElementById('knxCancelRelease');
+
+      const closeModal = () => { if (overlay) overlay.remove(); };
+
+      closeBtn?.addEventListener('click', closeModal);
+      cancelBtn?.addEventListener('click', closeModal);
+      overlay?.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+
+      confirmBtn?.addEventListener('click', async () => {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Releasing...';
+        try {
+          await releaseOrder(orderId);
+          closeModal();
+        } catch (err) {
+          confirmBtn.disabled = false;
+          confirmBtn.textContent = 'Yes, Release Order';
+        }
+      });
+    }
+
+    function openCancelModal(orderId) {
+      const reasons = [
+        { value: 'rejected_by_hub', label: 'Rejected by Restaurant' },
+        { value: 'customer_requested', label: 'Customer Requested Cancellation' },
+        { value: 'unable_to_contact', label: 'Unable to Contact Customer' },
+        { value: 'other', label: 'Other Reason' },
+      ];
+
+      const modalHTML = `
+        <div class="knx-ops-modal-overlay" id="knxCancelModalOverlay">
+          <div class="knx-ops-modal">
+            <div class="knx-ops-modal__header">
+              <h3 class="knx-ops-modal__title">Cancel Order</h3>
+              <button type="button" class="knx-ops-modal__close" id="knxCancelModalClose" aria-label="Close">&times;</button>
+            </div>
+            <div class="knx-ops-modal__body">
+              <p style="margin:0 0 1rem;color:var(--text-secondary,#6b7280);">Select a reason for cancellation:</p>
+              <div class="knx-ops-modal__status-list">
+                ${reasons.map(r => `
+                  <button type="button" class="knx-ops-modal__status-btn" data-reason="${esc(r.value)}">
+                    ${esc(r.label)}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const existing = document.getElementById('knxCancelModalOverlay');
+      if (existing) existing.remove();
+
+      document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+      const overlay = document.getElementById('knxCancelModalOverlay');
+      const closeBtn = document.getElementById('knxCancelModalClose');
+      const reasonBtns = overlay.querySelectorAll('.knx-ops-modal__status-btn');
+
+      const closeModal = () => { if (overlay) overlay.remove(); };
+
+      closeBtn?.addEventListener('click', closeModal);
+      overlay?.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+
+      reasonBtns.forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const reason = btn.dataset.reason;
+          if (!reason) return;
+
+          btn.disabled = true;
+          btn.textContent = 'Processing...';
+
+          try {
+            await cancelOrder(orderId, reason);
+            closeModal();
+            toast('Order cancelled successfully', 'success');
+            fetchOrder();
+          } catch (err) {
+            toast(err.message || 'Failed to cancel order', 'error');
+            btn.disabled = false;
+            btn.textContent = btn.dataset.reason ? reasons.find(r => r.value === reason)?.label || 'Cancel' : 'Cancel';
+          }
+        });
+      });
+    }
+
+    async function releaseOrder(orderId) {
+
+      const url = apiUrl.replace(/\/+$/, '') + '/' + encodeURIComponent(String(orderId)) + '/release';
+
+      const body = JSON.stringify({
+        knx_nonce: await getKnxNonce(),
+      });
+
+      const headers = { 'Content-Type': 'application/json' };
+      if (restNonce) headers['X-WP-Nonce'] = restNonce;
+
+      setState('Releasing...');
+
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers,
+          body,
+        });
+
+        const json = await res.json().catch(() => ({}));
+
+        if (!res.ok || !json.success) {
+          const msg = (json && json.data && json.data.message) || (json && json.message) || 'Request failed';
+          setState('');
+          toast(msg, 'error');
+          return;
+        }
+
+        setState('');
+        toast('Order released successfully', 'success');
+
+        // Redirect back to active orders
+        setTimeout(() => {
+          window.location.href = backUrl;
+        }, 1000);
+
+      } catch (e) {
+        setState('');
+        toast('Network error', 'error');
+      }
+    }
+
+    async function cancelOrder(orderId, reason) {
+      const url = apiUrl.replace(/\/+$/, '') + '/' + encodeURIComponent(String(orderId)) + '/ops-status';
+
+      const body = JSON.stringify({
+        status: 'cancelled',
+        reason: reason,
+        knx_nonce: await getKnxNonce(),
+      });
+
+      const headers = { 'Content-Type': 'application/json' };
+      if (restNonce) headers['X-WP-Nonce'] = restNonce;
+
+      const res = await fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers,
+        body,
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok || !json.success) {
+        const msg = (json && json.data && json.data.message) || (json && json.message) || 'Request failed';
+        throw new Error(msg);
+      }
+
+      return json.data;
+    }
+
+    async function getKnxNonce() {
+      // Try to get from global WP
+      if (typeof window.knxNonce !== 'undefined') return window.knxNonce;
+      if (typeof window.wpApiSettings !== 'undefined' && window.wpApiSettings.nonce) return window.wpApiSettings.nonce;
+      // Generate via REST (fallback)
+      try {
+        const res = await fetch(apiUrl.replace(/\/driver\/orders.*$/, '/nonce/knx'), { credentials: 'same-origin' });
+        const json = await res.json();
+        if (json && json.nonce) return json.nonce;
+      } catch (e) {}
+      return '';
     }
 
     function extractOrder(json) {
@@ -419,6 +836,7 @@
         } catch (e) {}
 
         renderOrder(order);
+        renderActionButtons(order);
       } catch (e) {
         setState('');
         renderError('Network error', 'Check connection or session.');

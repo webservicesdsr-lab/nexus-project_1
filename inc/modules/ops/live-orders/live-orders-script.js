@@ -241,18 +241,15 @@
     // - Never show "confirmed" literal (use "Waiting for driver")
     function statusLabel(status) {
       const st = normalizeStatus(status);
+      // Canonical labels (same across ALL modules)
       const map = {
-        pending_payment: 'Processing payment',
-
-        confirmed: 'Waiting for driver',
-
+        pending_payment: 'Pending Payment',
+        confirmed: 'Order Created',
         accepted_by_driver: 'Accepted by Driver',
-        accepted_by_hub: 'Accepted by Hub',
-
+        accepted_by_hub: 'Accepted by Restaurant',
         preparing: 'Preparing',
         prepared: 'Prepared',
-        picked_up: 'Picked up',
-
+        picked_up: 'Picked Up',
         completed: 'Completed',
         cancelled: 'Cancelled',
 

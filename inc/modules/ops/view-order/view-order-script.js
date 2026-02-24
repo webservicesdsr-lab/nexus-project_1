@@ -163,7 +163,20 @@
     function humanStatusLabel(s) {
       const v = String(s || '').trim().toLowerCase();
       if (!v) return '—';
-      return v.replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
+      // Canonical labels (same across ALL modules)
+      const labels = {
+        'pending_payment': 'Pending Payment',
+        'confirmed': 'Order Created',
+        'accepted_by_driver': 'Accepted by Driver',
+        'accepted_by_hub': 'Accepted by Restaurant',
+        'preparing': 'Preparing',
+        'prepared': 'Prepared',
+        'picked_up': 'Picked Up',
+        'completed': 'Completed',
+        'cancelled': 'Cancelled',
+        'order_created': 'Order Created',
+      };
+      return labels[v] || v.replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
     }
 
     function renderHistory(list) {
@@ -171,9 +184,12 @@
       if (!arr.length) return `<div class="knx-ops-vo__muted">No history.</div>`;
 
       const rows = arr
-        // IMPORTANT: do not render “future” steps that have no timestamp.
-        // Also hide 'confirmed' status from the visual history (filter only client-side view).
-        .filter(h => String(h?.created_at || '').trim() !== '' && String(h?.status || '').trim().toLowerCase() !== 'confirmed')
+        // Hide financial/internal states (pending_payment, confirmed) from timeline
+        .filter(h => {
+          const st = String(h?.status || '').trim().toLowerCase();
+          const ts = String(h?.created_at || '').trim();
+          return ts !== '' && st !== 'pending_payment' && st !== 'confirmed';
+        })
         .map((h) => {
           const st = humanStatusLabel(h?.status);
           const at = esc(String(h?.created_at || '').trim());

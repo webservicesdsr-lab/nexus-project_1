@@ -58,8 +58,8 @@ add_shortcode('knx_driver_ops', function () {
     $knx_nonce     = wp_create_nonce('knx_nonce');
     $wp_rest_nonce = wp_create_nonce('wp_rest');
 
-    // API URLs
-    $api_available = rest_url('knx/v1/ops/driver-available-orders');
+    // API URLs (v2 = canon DB statuses)
+    $api_available = rest_url('knx/v2/driver/orders/available');
     $api_base      = rest_url('knx/v2/driver/orders/'); // {base}{id}/assign
 
     // Page URLs (canonical)

@@ -81,13 +81,15 @@ document.addEventListener('DOMContentLoaded', function () {
     return st;
   }
 
+  // Canonical status labels (same across ALL modules)
   var STATUS_LABELS = {
+    pending_payment: 'Pending Payment',
     confirmed: 'Order Created',
-    accepted_by_driver: 'Accepted by driver',
-    accepted_by_hub: 'Restaurant accepted',
+    accepted_by_driver: 'Accepted by Driver',
+    accepted_by_hub: 'Accepted by Restaurant',
     preparing: 'Preparing',
     prepared: 'Prepared',
-    picked_up: 'Picked up',
+    picked_up: 'Picked Up',
     completed: 'Completed',
     cancelled: 'Cancelled'
   };

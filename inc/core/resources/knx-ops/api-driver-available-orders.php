@@ -233,7 +233,8 @@ if (!function_exists('knx_v1_driver_available_orders')) {
         $statuses_csv = (string) $req->get_param('statuses');
         $statuses = knx_v1_driver_available_orders_parse_statuses($statuses_csv);
         if (empty($statuses)) {
-            $statuses = array('placed', 'confirmed', 'preparing', 'ready', 'out_for_delivery');
+            // Include accepted_by_driver for released orders reassignment
+            $statuses = array('confirmed', 'accepted_by_driver', 'accepted_by_hub', 'preparing', 'prepared');
         }
 
         $after = $req->get_param('after');
@@ -249,12 +250,10 @@ if (!function_exists('knx_v1_driver_available_orders')) {
         }
 
         // Compute after timestamp based on range if not explicitly provided
+        // For driver available orders, we don't filter by time (show all unassigned orders)
+        // This ensures released orders always appear regardless of original creation time
         if ($after_mysql === null) {
-            if ($range === 'all') {
-                $no_after_filter = true;
-            } else {
-                $after_mysql = knx_v1_driver_available_orders_compute_after_mysql($range, $days);
-            }
+            $no_after_filter = true;
         }
 
         // ---------- Build WHERE clause ----------
@@ -301,10 +300,10 @@ if (!function_exists('knx_v1_driver_available_orders')) {
 
         $where[] = '(' . implode(' OR ', $scope_parts) . ')';
 
-        // KNX-TASK 01: Filter to show only NEW orders (hard rule)
-        // NEW = unassigned AND created within last 15 minutes
+        // Available = unassigned (no driver assigned)
+        // This includes both NEW orders and RELEASED orders
+        $where[] = "(o.driver_id IS NULL OR o.driver_id = 0)";
         $where[] = "(COALESCE(dop.ops_status, 'unassigned') = 'unassigned')";
-        $where[] = "o.created_at >= DATE_SUB(NOW(), INTERVAL 15 MINUTE)";
 
         // Table definitions
         $orders_table = $wpdb->prefix . 'knx_orders';
@@ -414,9 +413,10 @@ if (!function_exists('knx_v1_driver_available_orders')) {
             unset($row['pickup_lat_live']);
             unset($row['pickup_lng_live']);
 
-            // KNX-TASK 01 + 02: Set is_new flag (all orders from this endpoint are NEW)
-            // Since SQL already filters to unassigned + last 15 min, all results are NEW
-            $row['is_new'] = true;
+            // Mark orders created in last 15 minutes as NEW
+            $created_timestamp = strtotime($row['created_at']);
+            $fifteen_min_ago = time() - (15 * 60);
+            $row['is_new'] = ($created_timestamp >= $fifteen_min_ago);
         }
         unset($row); // Break reference
 

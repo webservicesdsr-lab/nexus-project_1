@@ -52,6 +52,11 @@ add_shortcode('knx_driver_view_order', function ($atts = []) {
     ?>
     <link rel="stylesheet" href="<?php echo esc_url(KNX_URL . 'inc/modules/ops/view-order/view-order-style.css'); ?>?v=<?php echo esc_attr($ver); ?>">
     <link rel="stylesheet" href="<?php echo esc_url(KNX_URL . 'inc/modules/ops/view-order/view-order-actions.css'); ?>?v=<?php echo esc_attr($ver); ?>">
+    <link rel="stylesheet" href="<?php echo esc_url(KNX_URL . 'inc/modules/ops/driver-view-order/driver-view-order-actions.css'); ?>?v=<?php echo esc_attr($ver); ?>">
+
+    <script>
+      window.knxNonce = <?php echo json_encode(wp_create_nonce('knx_nonce')); ?>;
+    </script>
 
     <div id="knxOpsViewOrderApp"
          class="knx-ops-vo"

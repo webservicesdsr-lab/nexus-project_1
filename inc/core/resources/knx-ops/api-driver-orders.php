@@ -272,6 +272,7 @@ function knx_driver_ops__is_terminal_order_status($status) {
  * GET /driver/orders/available
  */
 function knx_v2_driver_orders_available(WP_REST_Request $request) {
+    global $wpdb;
 
     $ctx = knx_driver_ops__resolve_ctx_and_scope();
     if (empty($ctx['ok'])) return knx_driver_ops__resp(false, array('reason' => $ctx['reason']), 403);
@@ -296,46 +297,170 @@ function knx_v2_driver_orders_available(WP_REST_Request $request) {
     $limit  = max(1, min(100, (int)($request->get_param('limit') ?: 50)));
     $offset = max(0, (int)($request->get_param('offset') ?: 0));
 
-    $days = (int)($request->get_param('days') ?: 7);
-    $days = max(1, min(60, $days));
-
-    $no_after_filter = (string)($request->get_param('no_after_filter') ?: '') === '1';
-    $after_mysql = '';
-    if (!$no_after_filter) $after_mysql = gmdate('Y-m-d H:i:s', time() - ($days * 86400));
-
     $statuses = $request->get_param('statuses');
     if (is_string($statuses) && trim($statuses) !== '') {
         $statuses = array_filter(array_map('trim', explode(',', $statuses)));
     }
     if (!is_array($statuses) || empty($statuses)) {
-        $statuses = array('confirmed','accepted_by_hub','preparing','prepared');
+        // All states before picked_up are valid for assignment (after release)
+        $statuses = array('confirmed','accepted_by_driver','accepted_by_hub','preparing','prepared');
     }
     $statuses = array_values(array_unique(array_map('strval', $statuses)));
 
-    if (!function_exists('knx_ops_get_available_orders')) {
-        return knx_driver_ops__resp(false, array('reason' => 'availability_engine_missing'), 500);
+    $orders_table = $wpdb->prefix . 'knx_orders';
+    $driver_ops_table = $wpdb->prefix . 'knx_driver_ops';
+    $hubs_table = $wpdb->prefix . 'knx_hubs';
+
+    // Build WHERE clause
+    $where = array();
+    $params = array();
+
+    // Status filter (DB canon)
+    if (!empty($statuses)) {
+        $status_ph = implode(',', array_fill(0, count($statuses), '%s'));
+        $where[] = "o.status IN ($status_ph)";
+        foreach ($statuses as $s) $params[] = (string)$s;
     }
 
-    $avail = knx_ops_get_available_orders(array(
+    // Scope filter (hubs OR cities)
+    $scope_parts = array();
+    if (!empty($allowed_hub_ids)) {
+        $hub_ph = implode(',', array_fill(0, count($allowed_hub_ids), '%d'));
+        $scope_parts[] = "o.hub_id IN ($hub_ph)";
+        foreach ($allowed_hub_ids as $hid) $params[] = (int)$hid;
+    }
+    if (!empty($allowed_city_ids)) {
+        $city_ph = implode(',', array_fill(0, count($allowed_city_ids), '%d'));
+        $scope_parts[] = "o.city_id IN ($city_ph)";
+        foreach ($allowed_city_ids as $cid) $params[] = (int)$cid;
+    }
+    if (!empty($scope_parts)) {
+        $where[] = '(' . implode(' OR ', $scope_parts) . ')';
+    }
+
+    // Available = unassigned (includes both NEW and RELEASED orders)
+    $where[] = "(o.driver_id IS NULL OR o.driver_id = 0)";
+    $where[] = "(COALESCE(dop.ops_status, 'unassigned') = 'unassigned')";
+
+    // Payment gate
+    $where[] = "LOWER(o.payment_status) = 'paid'";
+    $where[] = "LOWER(o.status) <> 'pending_payment'";
+
+    // No time filter for available orders (show all unassigned regardless of creation time)
+    // This ensures released orders always appear
+
+    $where_sql = implode(' AND ', $where);
+
+    // Query with hub JOIN (provides hub_name, pickup_address for frontend)
+    $sql = "
+        SELECT
+            o.id,
+            o.order_number,
+            o.hub_id,
+            o.city_id,
+            o.fulfillment_type,
+            o.customer_name,
+            o.customer_phone,
+            o.customer_email,
+            o.delivery_address,
+            o.cart_snapshot,
+            o.subtotal,
+            o.tax_amount,
+            o.delivery_fee,
+            o.software_fee,
+            o.tip_amount,
+            o.discount_amount,
+            o.total,
+            o.status,
+            o.payment_method,
+            o.payment_status,
+            o.created_at,
+            o.updated_at,
+            h.name AS hub_name_live,
+            h.address AS pickup_address_live,
+            h.latitude AS pickup_lat_live,
+            h.longitude AS pickup_lng_live,
+            COALESCE(dop.ops_status, 'unassigned') AS ops_status,
+            dop.assigned_at,
+            dop.driver_user_id,
+            dop.assigned_by,
+            dop.updated_at AS ops_updated_at
+        FROM {$orders_table} o
+        LEFT JOIN {$driver_ops_table} dop ON dop.order_id = o.id
+        LEFT JOIN {$hubs_table} h ON h.id = o.hub_id
+        WHERE {$where_sql}
+        ORDER BY o.created_at DESC
+        LIMIT %d OFFSET %d
+    ";
+
+    $params[] = $limit;
+    $params[] = $offset;
+
+    $rows = $wpdb->get_results($wpdb->prepare($sql, $params), ARRAY_A);
+    if (!is_array($rows)) $rows = array();
+
+    // Post-process: prefer snapshot hub (v5) if available, else fallback to live hub join
+    foreach ($rows as &$row) {
+        $snapshot = null;
+        $snapshot_version = null;
+
+        if (!empty($row['cart_snapshot'])) {
+            $decoded = json_decode($row['cart_snapshot'], true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $snapshot = $decoded;
+                $snapshot_version = isset($decoded['version']) ? $decoded['version'] : 'legacy';
+            }
+        }
+
+        // Hub name and pickup address (snapshot > live)
+        if ($snapshot_version === 'v5' && isset($snapshot['hub']) && is_array($snapshot['hub'])) {
+            $hub = $snapshot['hub'];
+            $row['hub_name'] = isset($hub['name']) ? $hub['name'] : null;
+            $row['pickup_address_text'] = isset($hub['address']) ? (function_exists('knx_clean_driver_address') ? knx_clean_driver_address($hub['address']) : $hub['address']) : null;
+            $row['pickup_lat'] = isset($hub['lat']) ? $hub['lat'] : null;
+            $row['pickup_lng'] = isset($hub['lng']) ? $hub['lng'] : null;
+            $row['address_source'] = 'snapshot';
+        } elseif ($snapshot && isset($snapshot['hub_name'])) {
+            // legacy flat snapshot
+            $row['hub_name'] = $snapshot['hub_name'];
+            $row['pickup_address_text'] = isset($snapshot['hub_address']) ? (function_exists('knx_clean_driver_address') ? knx_clean_driver_address($snapshot['hub_address']) : $snapshot['hub_address']) : null;
+            $row['pickup_lat'] = isset($snapshot['hub_latitude']) ? $snapshot['hub_latitude'] : null;
+            $row['pickup_lng'] = isset($snapshot['hub_longitude']) ? $snapshot['hub_longitude'] : null;
+            $row['address_source'] = 'snapshot_legacy';
+        } else {
+            // fallback to live hub
+            $row['hub_name'] = isset($row['hub_name_live']) ? $row['hub_name_live'] : null;
+            $row['pickup_address_text'] = isset($row['pickup_address_live']) ? (function_exists('knx_clean_driver_address') ? knx_clean_driver_address($row['pickup_address_live']) : $row['pickup_address_live']) : null;
+            $row['pickup_lat'] = isset($row['pickup_lat_live']) ? $row['pickup_lat_live'] : null;
+            $row['pickup_lng'] = isset($row['pickup_lng_live']) ? $row['pickup_lng_live'] : null;
+            $row['address_source'] = 'live';
+        }
+
+        // Clean delivery address for search
+        if (!empty($row['delivery_address'])) {
+            $row['delivery_address_text'] = function_exists('knx_clean_driver_address') 
+                ? knx_clean_driver_address($row['delivery_address']) 
+                : $row['delivery_address'];
+        }
+
+        // Remove heavy snapshot to keep response small
+        unset($row['cart_snapshot']);
+        unset($row['hub_name_live']);
+        unset($row['pickup_address_live']);
+        unset($row['pickup_lat_live']);
+        unset($row['pickup_lng_live']);
+    }
+    unset($row);
+
+    $meta = array(
         'limit' => $limit,
         'offset' => $offset,
-        'days' => $days,
         'statuses' => $statuses,
-        'no_after_filter' => $no_after_filter,
-        'after_mysql' => $after_mysql,
+        'driver_user_id' => $driver_user_id,
+        'driver_profile_id' => $driver_profile_id,
         'allowed_city_ids' => $allowed_city_ids,
         'allowed_hub_ids' => $allowed_hub_ids,
-        'require_driver_null' => true,
-        'require_ops_unassigned' => true,
-        'require_payment_valid' => true,
-        'relaxed' => false,
-    ));
-
-    $rows = isset($avail['orders']) && is_array($avail['orders']) ? $avail['orders'] : array();
-    $meta = isset($avail['meta']) && is_array($avail['meta']) ? $avail['meta'] : array();
-
-    $meta['driver_user_id'] = $driver_user_id;
-    $meta['driver_profile_id'] = $driver_profile_id;
+    );
 
     return knx_driver_ops__resp(true, array('orders' => $rows, 'meta' => $meta));
 }
@@ -713,7 +838,8 @@ function knx_v2_driver_order_ops_status(WP_REST_Request $request) {
 
 /**
  * POST /driver/orders/{id}/release
- * Unassigns and if status == accepted_by_driver revert to confirmed via SSOT.
+ * Unassigns driver and reverts status to confirmed if accepted_by_driver (matches manager unassign logic).
+ * Uses transaction + FOR UPDATE lock for atomicity (prevents race conditions).
  */
 function knx_v2_driver_order_release(WP_REST_Request $request) {
     global $wpdb;
@@ -729,22 +855,22 @@ function knx_v2_driver_order_release(WP_REST_Request $request) {
     $nonceRes = knx_driver_ops__require_knx_nonce($request);
     if ($nonceRes !== true) return $nonceRes;
 
-    if (!function_exists('knx_orders_apply_status_change_db_canon')) {
-        return knx_driver_ops__resp(false, array('reason' => 'orders_status_ssot_missing'), 500);
-    }
-
     $order_id = (int)$request->get_param('id');
     if ($order_id <= 0) return knx_driver_ops__resp(false, array('reason' => 'invalid_order_id'), 400);
 
     $orders_table = $wpdb->prefix . 'knx_orders';
+    $driver_ops_table = $wpdb->prefix . 'knx_driver_ops';
+    $history_table = $wpdb->prefix . 'knx_order_status_history';
     $now = current_time('mysql');
 
+    // Preflight check (no lock yet)
     $order = $wpdb->get_row(
         $wpdb->prepare("SELECT id, status, payment_status, driver_id, city_id, hub_id FROM {$orders_table} WHERE id = %d LIMIT 1", $order_id),
         ARRAY_A
     );
     if (!$order) return knx_driver_ops__resp(false, array('reason' => 'order_not_found'), 404);
 
+    // Scope check
     $order_hub  = !empty($order['hub_id'])  ? (int)$order['hub_id']  : 0;
     $order_city = !empty($order['city_id']) ? (int)$order['city_id'] : 0;
 
@@ -752,47 +878,170 @@ function knx_v2_driver_order_release(WP_REST_Request $request) {
         return knx_driver_ops__resp(false, array('reason' => 'order_not_found'), 404);
     }
 
+    // Ownership check
     $order_driver = (int)($order['driver_id'] ?? 0);
     if ($order_driver <= 0 || $order_driver !== $driver_profile_id) {
         return knx_driver_ops__resp(false, array('reason' => 'order_not_found'), 404);
     }
 
-    // Unassign
-    $ok = $wpdb->update(
-        $orders_table,
-        array('driver_id' => null, 'updated_at' => $now),
-        array('id' => $order_id),
-        array('%s','%s'),
-        array('%d')
-    );
-
-    if ($ok === false) return knx_driver_ops__resp(false, array('reason' => 'db_order_update_failed'), 500);
-
-    // Revert accepted_by_driver -> confirmed via SSOT
+    // Block release after picked_up (order is physically with driver)
     $status_before = strtolower((string)($order['status'] ?? ''));
-    $status_after = $status_before;
-    $did_change = false;
-
-    if ($status_before === 'accepted_by_driver') {
-        $res = knx_orders_apply_status_change_db_canon($order_id, 'confirmed', $driver_user_id, $now);
-        if (is_wp_error($res)) {
-            return knx_driver_ops__resp(false, array(
-                'reason' => $res->get_error_code(),
-                'message' => $res->get_error_message(),
-            ), (int)($res->get_error_data()['status'] ?? 400));
-        }
-        $status_after = (string)$res['status'];
-        $did_change = true;
+    $no_release_statuses = array('picked_up', 'completed', 'cancelled');
+    
+    if (in_array($status_before, $no_release_statuses, true)) {
+        return knx_driver_ops__resp(false, array(
+            'reason' => 'cannot_release',
+            'message' => 'Cannot release order after picked_up. Status: ' . $status_before,
+            'status' => $status_before,
+        ), 409);
     }
 
-    return knx_driver_ops__resp(true, array(
-        'order_id' => $order_id,
-        'unassigned' => true,
-        'status_before' => $status_before,
-        'status_after'  => $status_after,
-        'status_changed' => (bool)$did_change,
-        'server_time' => $now,
-    ));
+    // Start transaction (match manager unassign pattern)
+    $wpdb->query('START TRANSACTION');
+
+    try {
+        // Lock order for update (prevents concurrent modifications)
+        $locked = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT id, status, payment_status, driver_id, city_id, hub_id
+                 FROM {$orders_table}
+                 WHERE id = %d
+                 FOR UPDATE",
+                $order_id
+            ),
+            ARRAY_A
+        );
+
+        if (!$locked) {
+            $wpdb->query('ROLLBACK');
+            return knx_driver_ops__resp(false, array('reason' => 'order_lock_failed'), 500);
+        }
+
+        // Recheck payment status under lock
+        $ps_locked = strtolower((string)($locked['payment_status'] ?? ''));
+        if ($ps_locked !== 'paid') {
+            $wpdb->query('ROLLBACK');
+            return knx_driver_ops__resp(false, array('reason' => 'payment_not_paid'), 409);
+        }
+
+        $st_locked = strtolower((string)($locked['status'] ?? ''));
+        if (in_array($st_locked, array('picked_up', 'completed', 'cancelled'), true)) {
+            $wpdb->query('ROLLBACK');
+            return knx_driver_ops__resp(false, array('reason' => 'cannot_release', 'status' => $st_locked), 409);
+        }
+
+        // Upsert knx_driver_ops to 'unassigned' (match manager pattern exactly)
+        $existing_ops_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$driver_ops_table} WHERE order_id = %d LIMIT 1",
+            $order_id
+        ));
+
+        if (!empty($existing_ops_id)) {
+            // Update existing record to unassigned
+            $ok_ops = $wpdb->update(
+                $driver_ops_table,
+                array(
+                    'driver_user_id' => null,
+                    'ops_status'     => 'unassigned',
+                    'assigned_at'    => null,
+                    'updated_at'     => $now,
+                ),
+                array('order_id' => $order_id),
+                array('%s','%s','%s','%s'),
+                array('%d')
+            );
+            if ($ok_ops === false) {
+                $wpdb->query('ROLLBACK');
+                return knx_driver_ops__resp(false, array('reason' => 'ops_update_failed'), 500);
+            }
+        } else {
+            // Insert new unassigned record
+            $ok_ops = $wpdb->insert(
+                $driver_ops_table,
+                array(
+                    'order_id'       => $order_id,
+                    'driver_user_id' => null,
+                    'assigned_by'    => $driver_user_id,
+                    'ops_status'     => 'unassigned',
+                    'assigned_at'    => null,
+                    'updated_at'     => $now,
+                ),
+                array('%d','%s','%d','%s','%s','%s')
+            );
+            if ($ok_ops === false) {
+                $wpdb->query('ROLLBACK');
+                return knx_driver_ops__resp(false, array('reason' => 'ops_insert_failed'), 500);
+            }
+        }
+
+        // Status transition logic (match manager unassign)
+        // If status is 'accepted_by_driver', revert to 'confirmed' (order goes back to waiting pool)
+        $status_after = $st_locked;
+        $did_status_change = false;
+
+        if ($st_locked === 'accepted_by_driver') {
+            $status_after = 'confirmed';
+            $did_status_change = true;
+        }
+
+        // Update knx_orders (driver + optional status change)
+        $update_data = array(
+            'driver_id'  => null,
+            'updated_at' => $now,
+        );
+        $update_fmt = array('%s', '%s');
+
+        if ($did_status_change) {
+            $update_data['status'] = $status_after;
+            $update_fmt[] = '%s';
+        }
+
+        $ok_order = $wpdb->update(
+            $orders_table,
+            $update_data,
+            array('id' => $order_id),
+            $update_fmt,
+            array('%d')
+        );
+
+        if ($ok_order === false) {
+            $wpdb->query('ROLLBACK');
+            return knx_driver_ops__resp(false, array('reason' => 'order_update_failed'), 500);
+        }
+
+        // Insert status history if status changed (audit trail)
+        if ($did_status_change && $st_locked !== $status_after) {
+            $ok_hist = $wpdb->insert(
+                $history_table,
+                array(
+                    'order_id'   => $order_id,
+                    'status'     => $status_after,
+                    'changed_by' => $driver_user_id,
+                    'created_at' => $now,
+                ),
+                array('%d','%s','%d','%s')
+            );
+            if ($ok_hist === false) {
+                $wpdb->query('ROLLBACK');
+                return knx_driver_ops__resp(false, array('reason' => 'history_insert_failed'), 500);
+            }
+        }
+
+        $wpdb->query('COMMIT');
+
+        return knx_driver_ops__resp(true, array(
+            'order_id' => $order_id,
+            'unassigned' => true,
+            'status_before' => $st_locked,
+            'status_after'  => $status_after,
+            'status_changed' => (bool)$did_status_change,
+            'server_time' => $now,
+        ));
+
+    } catch (Throwable $e) {
+        $wpdb->query('ROLLBACK');
+        return knx_driver_ops__resp(false, array('reason' => 'release_failed', 'message' => 'Transaction error'), 500);
+    }
 }
 
 /**
