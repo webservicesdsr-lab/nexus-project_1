@@ -151,7 +151,10 @@
     html += '<div class="knx-mo__card-body">';
     html +=   '<div class="knx-mo__card-hub">' + hubName + '</div>';
     html +=   '<div class="knx-mo__card-meta">';
-    html +=     '<span class="knx-mo__id-label">Order ID:</span> <span class="knx-mo__id-chip">#' + esc(String(o.order_id)) + '</span>';
+      html +=     '<div class="knx-mo__id-wrap">';
+      html +=       '<span class="knx-mo__id-label">Order ID:</span>';
+      html +=       '<span class="knx-mo__id-chip">#' + esc(String(o.order_id)) + '</span>';
+      html +=     '</div>';
     html +=     '<span class="knx-mo__dot"></span>';
     html +=     '<span>' + esc(relativeTime(o.created_at)) + '</span>';
     html +=   '</div>';

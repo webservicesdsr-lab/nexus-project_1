@@ -239,6 +239,13 @@
   white-space: nowrap;
 }
 
+/* Group label + chip so they stay together inside card meta */
+.knx-mo__id-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .knx-mo__dot {
   width: 3px;
   height: 3px;

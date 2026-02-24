@@ -138,7 +138,10 @@
     // ── Header ──
     html += '<div class="knx-os__header">';
     html +=   '<div class="knx-os__header-top">';
-    html +=     '<span class="knx-os__id-label">Order ID:</span> <span class="knx-os__id-chip">#' + esc(String(o.order_id)) + '</span>';
+    html +=     '<div class="knx-os__id-wrap">';
+    html +=       '<span class="knx-os__id-label">Order ID:</span>';
+    html +=       '<span class="knx-os__id-chip">#' + esc(String(o.order_id)) + '</span>';
+    html +=     '</div>';
     html +=     '<div class="knx-os__status-pill is-' + statusTone(status) + '">' + esc(statusLabel(status)) + '</div>';
     html +=   '</div>';
     html +=   '<div class="knx-os__header-meta">';

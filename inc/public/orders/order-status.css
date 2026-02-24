@@ -172,6 +172,13 @@
   white-space: nowrap;
 }
 
+/* Group label + chip so they act as a single flex item in the header */
+.knx-os__id-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .knx-os__header-meta {
   display: flex;
   align-items: center;
