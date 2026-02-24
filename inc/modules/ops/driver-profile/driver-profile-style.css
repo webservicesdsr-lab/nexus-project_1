@@ -4,6 +4,30 @@
 .knx-profile__avatar{width:64px;height:64px;border-radius:12px;background:var(--nxs-primary,#0b793a);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:22px}
 .knx-profile__name{font-size:18px;font-weight:900}
 .knx-profile__contact{font-size:13px;color:var(--nxs-muted,#6b7280);margin-top:4px}
+
+/* Section */
+.knx-profile__section{background:var(--nxs-card,#ffffff);padding:20px;border-radius:12px;margin-top:16px;box-shadow:0 12px 30px rgba(11,18,32,0.06)}
+.knx-profile__section-title{font-size:18px;font-weight:900;margin:0 0 16px 0;color:var(--nxs-text,#0b1220)}
+
+/* Form */
+.knx-profile__form{display:flex;flex-direction:column;gap:16px}
+.knx-form-field{display:flex;flex-direction:column;gap:6px}
+.knx-form-field label{font-weight:700;font-size:14px;color:var(--nxs-text,#0b1220)}
+.knx-form-field label .required{color:#dc2626}
+.knx-form-field input{padding:10px 14px;border:1px solid rgba(11,18,32,0.1);border-radius:8px;font-size:15px;font-family:inherit;transition:all 0.2s}
+.knx-form-field input:focus{outline:none;border-color:var(--nxs-primary,#0b793a);box-shadow:0 0 0 3px rgba(11,121,58,0.1)}
+.knx-form-hint{font-size:12px;color:var(--nxs-muted,#6b7280)}
+
+/* Message */
+.knx-profile__message{padding:12px 16px;border-radius:8px;font-size:14px;font-weight:600;margin-top:8px}
+.knx-profile__message--success{background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0}
+.knx-profile__message--error{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+
+/* Actions */
 .knx-profile__actions{display:flex;gap:10px;margin-top:16px}
-.knx-profile__btn{padding:10px 12px;border-radius:10px;background:var(--nxs-primary,#0b793a);color:#fff;text-decoration:none;font-weight:800}
+.knx-profile__btn{padding:10px 12px;border-radius:10px;background:var(--nxs-primary,#0b793a);color:#fff;text-decoration:none;font-weight:800;border:none;cursor:pointer;font-family:inherit;font-size:15px;transition:all 0.2s}
+.knx-profile__btn:hover{opacity:0.9}
+.knx-profile__btn:disabled{opacity:0.6;cursor:not-allowed}
+.knx-profile__btn--primary{background:var(--nxs-primary,#0b793a)}
 .knx-profile__btn--ghost{background:transparent;border:1px solid rgba(11,18,32,0.06);color:var(--nxs-text,#0b1220)}
+
