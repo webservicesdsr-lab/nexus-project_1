@@ -1,10 +1,12 @@
 /**
  * ==========================================================
- * Kingdom Nexus — Profile Page Script (PHASE 2.C+)
+ * Kingdom Nexus — Profile Page Script v3.1 (Canonical)
  * ----------------------------------------------------------
+ * Canonicalized profile client script.
  * - Loads profile via GET /knx/v2/profile/me
  * - Saves profile via POST /knx/v2/profile/update
  * - Shows loading/error/success states
+ * - Versioned and harmonized with My Addresses v3.1
  * ==========================================================
  */
 
@@ -17,7 +19,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const nameInput = document.getElementById('knx-name');
     const phoneInput = document.getElementById('knx-phone');
     const emailInput = document.getElementById('knx-email');
-    const notesInput = document.getElementById('knx-notes');
 
     if (!form || !window.KNX_PROFILE) return;
 
@@ -55,7 +56,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 nameInput.value = profile.name || '';
                 phoneInput.value = profile.phone || '';
                 emailInput.value = profile.email || '';
-                notesInput.value = profile.notes || '';
 
                 // Enable form
                 enableForm(true);
@@ -76,7 +76,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const name = nameInput.value.trim();
         const phone = phoneInput.value.trim();
         const email = emailInput.value.trim();
-        const notes = notesInput.value.trim();
 
         // Validation
         if (!name || !phone) {
@@ -92,7 +91,6 @@ document.addEventListener('DOMContentLoaded', function() {
             name: name,
             phone: phone,
             email: email,
-            notes: notes,
             knx_nonce: config.nonce
         };
 
@@ -158,7 +156,6 @@ document.addEventListener('DOMContentLoaded', function() {
         nameInput.disabled = !enable;
         phoneInput.disabled = !enable;
         emailInput.disabled = !enable;
-        notesInput.disabled = !enable;
         saveBtn.disabled = !enable;
     }
 

@@ -1,11 +1,33 @@
 /* ==========================================================
- * Kingdom Nexus — Profile Page Styles (PHASE 2.C+)
+ * Kingdom Nexus — Profile Page Styles v3.1 (Canonical)
+ * ==========================================================
+ * Canonicalized profile styles aligned with My Addresses v3.1.
+ * Nexus Shell tokens applied for color, spacing, radius and shadows.
+ * Keep layout minimal — map UI removed from cards; modal map only.
  * ========================================================== */
 
+:root {
+    --ka-accent: #225638;
+    --ka-accent-hover: #1a422b;
+    --ka-accent-light: #f0fdf4;
+    --ka-accent-border: #86efac;
+    --ka-bg: #f9fafb;
+    --ka-card: #ffffff;
+    --ka-border: #e5e7eb;
+    --ka-text: #111827;
+    --ka-text-muted: #6b7280;
+    --ka-danger: #dc2626;
+    --ka-radius: 12px;
+    --ka-radius-sm: 8px;
+    --ka-shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+    --ka-shadow-md: 0 4px 14px rgba(0,0,0,0.08);
+}
+
 #knx-profile-page {
-    max-width: 600px;
+    max-width: 640px;
     margin: 0 auto;
     padding: 20px;
+    color: var(--ka-text);
 }
 
 .knx-profile__header {
@@ -27,10 +49,11 @@
 }
 
 .knx-profile__card {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    padding: 30px;
+    background: var(--ka-card);
+    border-radius: var(--ka-radius);
+    box-shadow: var(--ka-shadow-sm);
+    border: 1px solid var(--ka-border);
+    padding: 28px;
 }
 
 .knx-profile__form {
@@ -43,20 +66,20 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(255,255,255,0.95);
+    background: rgba(255,255,255,0.92);
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1rem;
-    color: #6b7280;
-    border-radius: 12px;
+    color: var(--ka-text-muted);
+    border-radius: var(--ka-radius);
     z-index: 10;
 }
 
 .knx-form-section {
-    margin-bottom: 30px;
-    padding-bottom: 30px;
-    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 28px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--ka-border);
 }
 
 .knx-form-section:last-of-type {
@@ -65,10 +88,10 @@
 }
 
 .knx-form-section h3 {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: #374151;
-    margin: 0 0 20px 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--ka-text);
+    margin: 0 0 16px 0;
 }
 
 .knx-form-field {
@@ -82,8 +105,8 @@
 .knx-form-field label {
     display: block;
     font-size: 0.9rem;
-    font-weight: 500;
-    color: #374151;
+    font-weight: 600;
+    color: var(--ka-text);
     margin-bottom: 6px;
 }
 
@@ -95,19 +118,18 @@
 .knx-form-field input,
 .knx-form-field textarea {
     width: 100%;
-    padding: 10px 14px;
+    padding: 12px 14px;
     font-size: 0.95rem;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    transition: border-color 0.2s;
-    /* font removed to inherit theme typography */
+    border: 1px solid var(--ka-border);
+    border-radius: var(--ka-radius-sm);
+    transition: border-color var(--ka-transition);
 }
 
 .knx-form-field input:focus,
 .knx-form-field textarea:focus {
     outline: none;
-    border-color: #10b981;
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    border-color: var(--ka-accent);
+    box-shadow: 0 0 0 4px rgba(34,86,56,0.08);
 }
 
 .knx-form-field input:disabled,
@@ -125,13 +147,13 @@
 
 .knx-profile__message.success {
     background: #d1fae5;
-    border: 1px solid #10b981;
+    border: 1px solid var(--ka-accent);
     color: #065f46;
 }
 
 .knx-profile__message.error {
     background: #fee2e2;
-    border: 1px solid #ef4444;
+    border: 1px solid var(--ka-danger);
     color: #991b1b;
 }
 
@@ -142,13 +164,13 @@
 }
 
 .knx-btn {
-    padding: 12px 24px;
+    padding: 12px 18px;
     font-size: 0.95rem;
-    font-weight: 600;
-    border-radius: 8px;
+    font-weight: 700;
+    border-radius: var(--ka-radius-sm);
     text-decoration: none;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all var(--ka-transition);
     border: none;
     display: inline-flex;
     align-items: center;
@@ -157,13 +179,13 @@
 }
 
 .knx-btn--primary {
-    background: #10b981;
+    background: var(--ka-accent);
     color: white;
     flex: 1;
 }
 
 .knx-btn--primary:hover:not(:disabled) {
-    background: #059669;
+    background: var(--ka-accent-hover);
     transform: translateY(-1px);
 }
 

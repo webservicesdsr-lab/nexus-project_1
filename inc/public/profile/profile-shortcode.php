@@ -90,14 +90,7 @@ function knx_render_profile_page() {
                                disabled>
                     </div>
 
-                    <div class="knx-form-field">
-                        <label for="knx-notes">Delivery Notes</label>
-                        <textarea id="knx-notes" 
-                                  name="notes" 
-                                  rows="3" 
-                                  placeholder="Special delivery instructions..."
-                                  disabled></textarea>
-                    </div>
+                    <!-- Delivery Notes removed to simplify profile -->
                 </div>
 
                 <!-- Error/Success Messages -->

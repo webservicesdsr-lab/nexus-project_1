@@ -67,6 +67,7 @@ if (!function_exists('knx_install_pages')) {
             ['title' => 'Login', 'slug' => 'login', 'content' => '[knx_auth]'],
             ['title' => 'Reset Password', 'slug' => 'reset-password', 'content' => '[knx_reset_password]'],
             ['title' => 'My Addresses', 'slug' => 'my-addresses', 'content' => '[knx_my_addresses]'],
+            ['title' => 'Contact', 'slug' => 'contact', 'content' => '[knx_contact]'],
 
             // Administrative / management pages
             ['title' => 'Hubs', 'slug' => 'hubs', 'content' => '[knx_hubs]'],

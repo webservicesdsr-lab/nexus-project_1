@@ -44,25 +44,42 @@ if (!function_exists('knx_get_navigation_context')) {
         
         $is_logged = $session ? true : false;
         $username = $session ? ($session->username ?? '') : '';
-        $role = $session ? ($session->role ?? 'guest') : 'guest';
-        
+        $email    = $session ? ($session->email    ?? '') : '';
+        $role     = $session ? ($session->role     ?? 'guest') : 'guest';
+
+        // Fetch full name from knx_users (column added in profile phase)
+        $name = '';
+        if ($session && !empty($session->user_id)) {
+            global $wpdb;
+            $users_table = $wpdb->prefix . 'knx_users';
+            $row = $wpdb->get_row($wpdb->prepare(
+                "SELECT name FROM {$users_table} WHERE id = %d LIMIT 1",
+                $session->user_id
+            ));
+            if ($row && !empty($row->name)) {
+                $name = (string) $row->name;
+            }
+        }
+
         // Admin roles
         $admin_roles = ['super_admin', 'manager', 'hub_management', 'menu_uploader'];
         $is_admin = in_array($role, $admin_roles, true);
-        
+
         // Customer role
         $is_customer = ($role === 'customer');
-        
+
         // Driver role (future-safe)
         $is_driver = ($role === 'driver');
-        
+
         return [
-            'is_logged' => $is_logged,
-            'username' => $username,
-            'role' => $role,
-            'is_admin' => $is_admin,
-            'is_customer' => $is_customer,
-            'is_driver' => $is_driver,
+            'is_logged'    => $is_logged,
+            'name'         => $name,
+            'username'     => $username,
+            'email'        => $email,
+            'role'         => $role,
+            'is_admin'     => $is_admin,
+            'is_customer'  => $is_customer,
+            'is_driver'    => $is_driver,
             'current_slug' => $slug,
         ];
     }

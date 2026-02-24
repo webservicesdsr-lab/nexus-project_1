@@ -1,0 +1,279 @@
+/* ════════════════════════════════════════════════════════════════
+ * KINGDOM NEXUS — Contact & Support Styles v1.0
+ * ════════════════════════════════════════════════════════════════
+ * Nexus Shell design tokens. Mobile-first.
+ * ════════════════════════════════════════════════════════════════ */
+
+/* ═══ TOKENS ═══ */
+:root {
+    --ka-accent: #225638;
+    --ka-accent-hover: #1a422b;
+    --ka-accent-light: #f0fdf4;
+    --ka-accent-border: #86efac;
+    --ka-bg: #f9fafb;
+    --ka-card: #ffffff;
+    --ka-border: #e5e7eb;
+    --ka-text: #111827;
+    --ka-text-muted: #6b7280;
+    --ka-radius: 14px;
+    --ka-radius-sm: 10px;
+    --ka-shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+    --ka-shadow-md: 0 4px 14px rgba(0,0,0,0.08);
+    --ka-transition: 0.25s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* ═══ WRAPPER ═══ */
+.knx-contact {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 24px 16px 60px;
+    color: var(--ka-text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ═══════════════════════════════════════════
+   FAQ ACCORDION
+   ═══════════════════════════════════════════ */
+.knx-contact__faq {
+    background: var(--ka-card);
+    border-radius: var(--ka-radius);
+    box-shadow: var(--ka-shadow-sm);
+    border: 1px solid var(--ka-border);
+    overflow: hidden;
+    margin-bottom: 40px;
+}
+
+/* ── Single FAQ item ── */
+.knx-faq-item {
+    border-bottom: 1px solid var(--ka-border);
+}
+
+.knx-faq-item:last-child {
+    border-bottom: none;
+}
+
+/* ── Toggle button ── */
+.knx-faq-item__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 20px 22px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    transition: background var(--ka-transition);
+}
+
+.knx-faq-item__toggle:hover {
+    background: var(--ka-bg);
+}
+
+.knx-faq-item__toggle:focus-visible {
+    outline: 2px solid var(--ka-accent);
+    outline-offset: -2px;
+}
+
+.knx-faq-item__question {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--ka-text);
+    flex: 1;
+    padding-right: 12px;
+}
+
+/* ── Chevron ── */
+.knx-faq-item__chevron {
+    flex-shrink: 0;
+    color: var(--ka-text-muted);
+    transition: transform var(--ka-transition);
+}
+
+.knx-faq-item--open .knx-faq-item__chevron {
+    transform: rotate(180deg);
+}
+
+/* ── Answer panel ── */
+.knx-faq-item__answer {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.35s ease, padding 0.35s ease;
+    padding: 0 22px;
+}
+
+.knx-faq-item--open .knx-faq-item__answer {
+    max-height: 600px;
+    padding: 0 22px 20px;
+}
+
+.knx-faq-item__answer p {
+    margin: 0;
+    font-size: 0.93rem;
+    line-height: 1.6;
+    color: var(--ka-text-muted);
+}
+
+.knx-faq-item__answer a {
+    color: var(--ka-accent);
+    text-decoration: underline;
+    font-weight: 600;
+    transition: color var(--ka-transition);
+}
+
+.knx-faq-item__answer a:hover {
+    color: var(--ka-accent-hover);
+}
+
+
+/* ═══════════════════════════════════════════
+   CONTACT INFO SECTION
+   ═══════════════════════════════════════════ */
+.knx-contact__info {
+    text-align: center;
+}
+
+.knx-contact__title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--ka-text);
+    margin: 0 0 8px 0;
+}
+
+.knx-contact__subtitle {
+    font-size: 0.95rem;
+    color: var(--ka-text-muted);
+    margin: 0 0 28px 0;
+}
+
+/* ── Channel cards ── */
+.knx-contact__channels {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-width: 420px;
+    margin: 0 auto;
+}
+
+.knx-contact__channel {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 20px;
+    background: var(--ka-card);
+    border: 1px solid var(--ka-border);
+    border-radius: var(--ka-radius);
+    box-shadow: var(--ka-shadow-sm);
+    text-decoration: none;
+    color: inherit;
+    transition: box-shadow var(--ka-transition), border-color var(--ka-transition), transform var(--ka-transition);
+}
+
+.knx-contact__channel:hover {
+    border-color: var(--ka-accent-border);
+    box-shadow: var(--ka-shadow-md);
+    transform: translateY(-2px);
+}
+
+.knx-contact__channel:active {
+    transform: translateY(0);
+}
+
+.knx-contact__channel:focus-visible {
+    outline: 2px solid var(--ka-accent);
+    outline-offset: 2px;
+}
+
+/* ── Icon circle ── */
+.knx-contact__channel-icon {
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ka-accent-light);
+    border-radius: 50%;
+    color: var(--ka-accent);
+}
+
+/* ── Text body ── */
+.knx-contact__channel-body {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+    flex: 1;
+    min-width: 0;
+}
+
+.knx-contact__channel-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--ka-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+}
+
+.knx-contact__channel-value {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--ka-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── Arrow ── */
+.knx-contact__channel-arrow {
+    flex-shrink: 0;
+    color: var(--ka-text-muted);
+    transition: transform var(--ka-transition);
+}
+
+.knx-contact__channel:hover .knx-contact__channel-arrow {
+    transform: translateX(3px);
+    color: var(--ka-accent);
+}
+
+
+/* ═══════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════ */
+@media (max-width: 480px) {
+    .knx-contact {
+        padding: 16px 12px 48px;
+    }
+
+    .knx-faq-item__toggle {
+        padding: 16px 16px;
+    }
+
+    .knx-faq-item__answer {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .knx-faq-item--open .knx-faq-item__answer {
+        padding: 0 16px 16px;
+    }
+
+    .knx-contact__title {
+        font-size: 1.35rem;
+    }
+
+    .knx-contact__channel {
+        padding: 14px 16px;
+        gap: 12px;
+    }
+
+    .knx-contact__channel-icon {
+        width: 42px;
+        height: 42px;
+    }
+
+    .knx-contact__channel-value {
+        font-size: 0.93rem;
+    }
+}

@@ -45,6 +45,10 @@ if (!function_exists('knx_render_navbar')) {
         if ($context['is_logged']) {
             echo '<link rel="stylesheet" href="' . esc_url(KNX_URL . 'inc/modules/cart/cart-drawer.css?v=' . KNX_VERSION) . '">';
             echo '<script src="' . esc_url(KNX_URL . 'inc/modules/cart/cart-drawer.js?v=' . KNX_VERSION) . '" defer></script>';
+            
+            // Customer sidebar assets
+            echo '<link rel="stylesheet" href="' . esc_url(KNX_URL . 'inc/public/navigation/customer-sidebar.css?v=' . KNX_VERSION) . '">';
+            echo '<script src="' . esc_url(KNX_URL . 'inc/public/navigation/customer-sidebar.js?v=' . KNX_VERSION) . '" defer></script>';
         }
         
         // Location detector (only on explore page)
@@ -88,10 +92,17 @@ if (!function_exists('knx_render_navbar')) {
                     <?php endif; ?>
                     
                     <!-- User Menu -->
-                    <?php if ($context['is_logged']): ?>
-                        <div class="knx-nav__username">
-                            <span class="knx-nav__username-text"><?php echo esc_html($context['username']); ?></span>
-                        </div>
+                    <?php if ($context['is_logged']):
+                        // name (from profile) → email → username fallback
+                        $nav_display = $context['name']
+                            ?: $context['email']
+                            ?: $context['username']
+                            ?: 'Guest';
+                        ?>
+                        <button type="button" class="knx-nav__username" id="knxUserMenuToggle"
+                                aria-controls="knxSidebar" aria-expanded="false" aria-label="Open user menu">
+                            <span class="knx-nav__username-text"><?php echo esc_html($nav_display); ?></span>
+                        </button>
                         
                         <!-- [KNX-TASK-NAV-003] Fix 4: Desktop/mobile logout separation -->
                         <form method="post" class="knx-nav__logout knx-nav__logout--desktop">
@@ -149,7 +160,12 @@ if (!function_exists('knx_render_navbar')) {
         </aside>
         <?php endif; ?>
 
-        <!-- Admin overlay/sidebar removed to keep corporate sidebar canonical -->
+        <!-- Customer Sidebar -->
+        <?php
+        if ($context['is_logged']) {
+            include KNX_PATH . 'inc/public/navigation/customer-sidebar.php';
+        }
+        ?>
 
         <?php
     }

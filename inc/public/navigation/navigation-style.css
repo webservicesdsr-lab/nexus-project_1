@@ -211,6 +211,17 @@
   font-weight: 600;
   white-space: nowrap;
   height: 52px;
+  cursor: pointer;
+  transition: all var(--knx-transition);
+}
+
+/* Username button hover state */
+button.knx-nav__username:hover,
+button.knx-nav__username:focus {
+  background: var(--knx-accent);
+  color: #fff;
+  border-color: var(--knx-accent);
+  outline: none;
 }
 
 /* Username Button (admin - clickable) */
