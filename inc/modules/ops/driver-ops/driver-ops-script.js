@@ -37,9 +37,15 @@ document.addEventListener('DOMContentLoaded', function () {
   // Modals
   var modalOrder = document.getElementById('knxDriverOpsOrderModal');
   var modalConfirm = document.getElementById('knxDriverOpsConfirm');
+  var modalMap = document.getElementById('knxDriverOpsMapModal');
 
   var modalOrderBody = document.getElementById('knxDriverOpsOrderBody');
   var modalOrderTitle = document.getElementById('knxDriverOpsOrderTitle');
+
+  var modalMapEmbed = document.getElementById('knxDriverOpsMapEmbed');
+  var modalMapTitle = document.getElementById('knxDriverOpsMapTitle');
+  var modalMapPickup = document.getElementById('knxMapPickupAddress');
+  var modalMapDelivery = document.getElementById('knxMapDeliveryAddress');
 
   var lastFocusEl = null;
 
@@ -139,10 +145,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
   wireModal(modalOrder);
   wireModal(modalConfirm);
+  wireModal(modalMap);
 
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
     if (modalConfirm && modalConfirm.classList.contains('active')) return modalClose(modalConfirm);
+    if (modalMap && modalMap.classList.contains('active')) return modalClose(modalMap);
     if (modalOrder && modalOrder.classList.contains('active')) return modalClose(modalOrder);
   });
 
@@ -285,7 +293,7 @@ document.addEventListener('DOMContentLoaded', function () {
     $all('.knx-order-view', listEl).forEach(function (btn) {
       btn.addEventListener('click', function () {
         var id = parseInt(btn.getAttribute('data-id'), 10) || 0;
-        openOrderModal(id);
+        openMapModal(id);
       });
     });
 
@@ -295,6 +303,105 @@ document.addEventListener('DOMContentLoaded', function () {
         doAssign(id);
       });
     });
+  }
+
+  function openMapModal(id) {
+    if (!modalMap || !modalMapEmbed || !modalMapTitle) return;
+
+    var o = state.orders.find(function (x) { return parseInt(x.id, 10) === id; });
+    if (!o) return;
+
+    state.selectedOrderId = id;
+
+    var orderNum = o.order_number || ('#' + id);
+    modalMapTitle.textContent = 'Order ' + orderNum;
+
+    var pickupAddress = o.pickup_address_text || o.pickup_address || '—';
+    var deliveryAddress = o.delivery_address_text || o.delivery_address || '—';
+
+    if (modalMapPickup) modalMapPickup.textContent = pickupAddress;
+    if (modalMapDelivery) modalMapDelivery.textContent = deliveryAddress;
+
+    // Coordinates - focus on PICKUP (restaurant) for drivers
+    var pickupLat = parseFloat(o.pickup_lat);
+    var pickupLng = parseFloat(o.pickup_lng);
+
+    var hasPickup = isFinite(pickupLat) && isFinite(pickupLng);
+
+    // Google Maps embed showing PICKUP location (restaurant)
+    var embedHtml = '';
+    if (hasPickup) {
+      var mapUrl = 'https://www.google.com/maps?q=' + 
+        encodeURIComponent(pickupLat + ',' + pickupLng) + 
+        '&z=15&output=embed';
+      embedHtml = '<iframe src="' + escHtml(mapUrl) + '" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>';
+    } else {
+      embedHtml = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--nxs-muted);font-weight:700;font-size:14px;">No location available</div>';
+    }
+
+    modalMapEmbed.innerHTML = embedHtml;
+
+    // Setup navigate button to restaurant
+    var navBtn = $('.knx-map-navigate', modalMap);
+    if (navBtn) {
+      if (hasPickup) {
+        navBtn.style.display = '';
+        navBtn.onclick = function () {
+          var navUrl = 'https://www.google.com/maps/dir/?api=1&destination=' + 
+            encodeURIComponent(pickupLat + ',' + pickupLng) + '&travelmode=driving';
+          
+          var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+          if (isIOS) {
+            var appleMapsUrl = 'maps://maps.apple.com/?daddr=' + 
+              encodeURIComponent(pickupLat + ',' + pickupLng) + '&dirflg=d';
+            window.location.href = appleMapsUrl;
+            setTimeout(function () { window.open(navUrl, '_blank'); }, 500);
+          } else {
+            window.open(navUrl, '_blank');
+          }
+        };
+      } else {
+        navBtn.style.display = 'none';
+      }
+    }
+
+    modalOpen(modalMap);
+  }
+
+  function openNativeNavigation(pickupLat, pickupLng, deliveryLat, deliveryLng) {
+    var hasPickup = isFinite(pickupLat) && isFinite(pickupLng);
+    var hasDelivery = isFinite(deliveryLat) && isFinite(deliveryLng);
+
+    if (!hasPickup || !hasDelivery) {
+      toast('Coordinates not available', 'error');
+      return;
+    }
+
+    // Build navigation URL (works for iOS, Android, web browsers)
+    var origin = pickupLat + ',' + pickupLng;
+    var destination = deliveryLat + ',' + deliveryLng;
+
+    // Universal navigation URL (Google Maps)
+    var navUrl = 'https://www.google.com/maps/dir/?api=1' +
+      '&origin=' + encodeURIComponent(origin) +
+      '&destination=' + encodeURIComponent(destination) +
+      '&travelmode=driving';
+
+    // For iOS devices, try Apple Maps first
+    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIOS) {
+      var appleMapsUrl = 'maps://maps.apple.com/?saddr=' + encodeURIComponent(origin) +
+        '&daddr=' + encodeURIComponent(destination) +
+        '&dirflg=d';
+      window.location.href = appleMapsUrl;
+      
+      // Fallback to Google Maps after delay
+      setTimeout(function () {
+        window.open(navUrl, '_blank');
+      }, 500);
+    } else {
+      window.open(navUrl, '_blank');
+    }
   }
 
   function openOrderModal(id) {

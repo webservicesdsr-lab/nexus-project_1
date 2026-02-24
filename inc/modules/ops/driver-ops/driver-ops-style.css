@@ -1,10 +1,11 @@
 /**
  * ==========================================================
- * Kingdom Nexus — Driver OPS Dashboard Styles (v1.0)
+ * Kingdom Nexus — Driver OPS Dashboard Styles (v1.1)
  * ----------------------------------------------------------
- * - NEXUS SHELL tokens + consistent components
+ * - NEXUS SHELL design system (canon)
  * - Mobile-first, serious, readable
- * - Modals + toasts + focus visible
+ * - Enhanced shadows, refined animations
+ * - Accessible focus states
  * - Respects prefers-reduced-motion
  * ==========================================================
  */
@@ -18,11 +19,13 @@
 
   --nxs-border: rgba(11,18,32,0.08);
   --nxs-border-2: rgba(11,18,32,0.06);
-  --nxs-shadow: 0 12px 30px rgba(11,18,32,0.08);
-  --nxs-shadow-sm: 0 8px 20px rgba(11,18,32,0.06);
+  --nxs-shadow: 0 2px 8px rgba(11,18,32,0.04), 0 12px 30px rgba(11,18,32,0.08);
+  --nxs-shadow-sm: 0 1px 4px rgba(11,18,32,0.03), 0 4px 12px rgba(11,18,32,0.06);
+  --nxs-shadow-hover: 0 4px 16px rgba(11,18,32,0.08), 0 16px 40px rgba(11,18,32,0.12);
 
   --nxs-radius: 14px;
   --nxs-radius-sm: 12px;
+  --nxs-ease: cubic-bezier(.2,.9,.2,1);
 
   background: var(--nxs-card);
   color: var(--nxs-text);
@@ -59,14 +62,15 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 #knx-driver-ops-dashboard .knx-driver-ops-title h2{
   margin: 0;
-  font-size: 1.05rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: var(--nxs-text);
 }
 
 #knx-driver-ops-dashboard .knx-driver-ops-controls{
@@ -102,53 +106,65 @@
   background: transparent;
   border: 1px solid var(--nxs-border-2);
   border-radius: 10px;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   color: var(--nxs-muted);
-  transition: transform .12s ease, background .18s ease, border-color .18s ease;
+  transition: transform .2s var(--nxs-ease), background .2s var(--nxs-ease), border-color .2s var(--nxs-ease), box-shadow .2s var(--nxs-ease);
   padding: 0;
 }
 
 #knx-driver-ops-dashboard .knx-btn-icon:hover{
-  background: rgba(11,18,32,0.03);
+  background: rgba(11,18,32,0.04);
   transform: translateY(-1px);
-  border-color: rgba(11,18,32,0.10);
+  border-color: rgba(11,18,32,0.12);
+  box-shadow: 0 2px 8px rgba(11,18,32,0.06);
+}
+
+#knx-driver-ops-dashboard .knx-btn-icon:active{
+  transform: translateY(0);
 }
 
 #knx-driver-ops-dashboard .knx-btn-icon:focus-visible{
-  outline: 3px solid rgba(11,121,58,0.14);
+  outline: 3px solid rgba(11,121,58,0.16);
   outline-offset: 2px;
+  border-color: rgba(11,121,58,0.3);
 }
 
 /* Today's Orders bar */
 #knx-driver-ops-dashboard .knx-today-orders-bar{
   width: 100%;
-  padding: 10px 14px;
+  padding: 12px 16px;
   border-radius: 12px;
   border: 1px solid var(--nxs-border-2);
   background: rgba(11,18,32,0.02);
   color: var(--nxs-text);
   font-weight: 800;
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
-  transition: transform .12s ease, background .18s ease, border-color .18s ease;
+  transition: transform .2s var(--nxs-ease), background .2s var(--nxs-ease), border-color .2s var(--nxs-ease), box-shadow .2s var(--nxs-ease);
   text-align: center;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 #knx-driver-ops-dashboard .knx-today-orders-bar:hover{
-  background: rgba(11,18,32,0.04);
+  background: rgba(11,18,32,0.05);
   transform: translateY(-1px);
-  border-color: rgba(11,18,32,0.10);
+  border-color: rgba(11,18,32,0.12);
+  box-shadow: 0 2px 8px rgba(11,18,32,0.04);
+}
+
+#knx-driver-ops-dashboard .knx-today-orders-bar:active{
+  transform: translateY(0);
 }
 
 #knx-driver-ops-dashboard .knx-today-orders-bar:focus-visible{
-  outline: 3px solid rgba(11,121,58,0.14);
+  outline: 3px solid rgba(11,121,58,0.16);
   outline-offset: 2px;
+  border-color: rgba(11,121,58,0.3);
 }
 
 #knx-driver-ops-dashboard .knx-live{
@@ -173,26 +189,35 @@
   color: var(--nxs-card);
   border: 0;
   border-radius: 10px;
-  padding: 12px 14px;
+  padding: 12px 16px;
   cursor: pointer;
-  font-weight: 700;
-  transition: transform .12s ease, box-shadow .18s ease, background .18s ease;
-  box-shadow: 0 10px 22px rgba(11,121,58,0.14);
+  font-weight: 800;
+  font-size: 14px;
+  transition: transform .2s var(--nxs-ease), box-shadow .2s var(--nxs-ease), background .2s var(--nxs-ease);
+  box-shadow: 0 2px 8px rgba(11,121,58,0.12), 0 6px 16px rgba(11,121,58,0.18);
 }
 
-#knx-driver-ops-dashboard .knx-btn:hover{ transform: translateY(-1px); }
-#knx-driver-ops-dashboard .knx-btn:active{ transform: translateY(0); }
+#knx-driver-ops-dashboard .knx-btn:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(11,121,58,0.16), 0 10px 24px rgba(11,121,58,0.24);
+  background: #0a6e34;
+}
+
+#knx-driver-ops-dashboard .knx-btn:active{
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(11,121,58,0.12), 0 2px 8px rgba(11,121,58,0.16);
+}
 
 #knx-driver-ops-dashboard .knx-btn-secondary{
   background: transparent;
   color: var(--nxs-muted);
   border: 1px solid var(--nxs-border-2);
   border-radius: 10px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   cursor: pointer;
   font-weight: 800;
   font-size: 16px;
-  transition: transform .12s ease, background .18s ease, border-color .18s ease;
+  transition: transform .2s var(--nxs-ease), background .2s var(--nxs-ease), border-color .2s var(--nxs-ease), box-shadow .2s var(--nxs-ease);
   min-width: 40px;
   height: 40px;
   display: flex;
@@ -201,14 +226,19 @@
 }
 
 #knx-driver-ops-dashboard .knx-btn-secondary:hover{
-  background: rgba(11,18,32,0.03);
+  background: rgba(11,18,32,0.04);
   transform: translateY(-1px);
-  border-color: rgba(11,18,32,0.10);
+  border-color: rgba(11,18,32,0.12);
+  box-shadow: 0 2px 8px rgba(11,18,32,0.06);
+}
+
+#knx-driver-ops-dashboard .knx-btn-secondary:active{
+  transform: translateY(0);
 }
 
 #knx-driver-ops-dashboard .knx-btn:focus-visible,
 #knx-driver-ops-dashboard .knx-btn-secondary:focus-visible{
-  outline: 3px solid rgba(11,121,58,0.14);
+  outline: 3px solid rgba(11,121,58,0.16);
   outline-offset: 2px;
 }
 
@@ -216,8 +246,8 @@
 #knx-driver-ops-dashboard .knx-switch{
   position: relative;
   display: inline-block;
-  width: 46px;
-  height: 26px;
+  width: 48px;
+  height: 28px;
 }
 
 #knx-driver-ops-dashboard .knx-switch input{
@@ -232,28 +262,34 @@
   cursor: pointer;
   background-color: #cfd3d8;
   border-radius: 999px;
-  transition: 0.25s;
+  transition: background-color .25s var(--nxs-ease), box-shadow .25s var(--nxs-ease);
 }
 
 #knx-driver-ops-dashboard .knx-slider:before{
   position: absolute;
   content: "";
-  height: 18px;
-  width: 18px;
+  height: 20px;
+  width: 20px;
   left: 4px;
   bottom: 4px;
   background: #fff;
   border-radius: 999px;
-  transition: 0.25s;
-  box-shadow: 0 6px 16px rgba(11,18,32,0.12);
+  transition: transform .25s var(--nxs-ease);
+  box-shadow: 0 2px 6px rgba(11,18,32,0.12), 0 4px 12px rgba(11,18,32,0.08);
 }
 
 #knx-driver-ops-dashboard .knx-switch input:checked + .knx-slider{
   background-color: var(--nxs-primary);
+  box-shadow: 0 0 0 4px rgba(11,121,58,0.08);
 }
 
 #knx-driver-ops-dashboard .knx-switch input:checked + .knx-slider:before{
   transform: translateX(20px);
+}
+
+#knx-driver-ops-dashboard .knx-switch input:focus-visible + .knx-slider{
+  outline: 3px solid rgba(11,121,58,0.16);
+  outline-offset: 2px;
 }
 
 
@@ -280,30 +316,31 @@
   border: 1px solid var(--nxs-border-2);
   border-radius: 12px;
   box-shadow: var(--nxs-shadow-sm);
-  padding: 12px;
+  padding: 14px;
   display:flex;
   flex-direction: column;
   gap: 1px;
-  transition: all 0.2s ease;
+  transition: all .25s var(--nxs-ease);
   min-width: 0;
   overflow: hidden;
 }
 
 #knx-driver-ops-dashboard .knx-order-card:hover{
-  box-shadow: 0 4px 16px rgba(11,18,32,0.12);
-  transform: translateY(-2px);
+  box-shadow: var(--nxs-shadow-hover);
+  transform: translateY(-3px);
+  border-color: rgba(11,18,32,0.10);
 }
 
 /* Compact single-line header: Restaurant name + Order ID */
 #knx-driver-ops-dashboard .knx-order-header-inline{
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
 #knx-driver-ops-dashboard .knx-restaurant-name{
-  font-size: 0.98rem;
+  font-size: 1.05rem;
   font-weight: 900;
   color: var(--nxs-text);
   flex: 1;
@@ -311,18 +348,20 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: -0.01em;
 }
 
 #knx-driver-ops-dashboard .knx-order-id{
-  font-size: 10px;
-  font-weight: 800;
-  color: rgba(11, 121, 58, 0.85);
+  font-size: 12px;
+  font-weight: 900;
+  color: #1E6FF0;
   flex-shrink: 0;
-  padding: 3px 8px;
-  border-radius: 6px;
-  background: rgba(11, 121, 58, 0.08);
-  border: 1px solid rgba(11, 121, 58, 0.15);
-  letter-spacing: 0.02em;
+  padding: 5px 10px;
+  border-radius: 10px;
+  background: rgba(30,111,240,.14);
+  border: none;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
 }
 
 /* New-order badge + total layout tweaks */
@@ -449,25 +488,25 @@
 /* KNX-TASK 05: Action buttons inline (single row) - equal height, balanced width */
 #knx-driver-ops-dashboard .knx-order-actions{
   display:flex;
-  gap:8px;
-  margin-top: 6px;
+  gap:10px;
+  margin-top: 8px;
   flex-direction: row;
 }
 
 #knx-driver-ops-dashboard .knx-order-actions .knx-btn{
   flex: 1.2 1 0;
   min-width: 0;
-  padding: 10px 12px;
-  font-size: 13px;
-  font-weight: 800;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-weight: 900;
 }
 
 #knx-driver-ops-dashboard .knx-order-actions .knx-btn-secondary{
   flex: 1 1 0;
   min-width: 0;
-  padding: 10px 12px;
-  font-size: 13px;
-  font-weight: 800;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-weight: 900;
 }
 
 #knx-driver-ops-dashboard .knx-order-number{
@@ -505,28 +544,32 @@
 #knx-driver-ops-dashboard .knx-pill{
   display:inline-flex;
   align-items:center;
-  padding: 7px 11px;
+  padding: 8px 12px;
   border-radius: 999px;
   font-weight: 800;
   font-size: 12px;
-  border: 1px solid rgba(11,18,32,0.06);
-  background: rgba(11,18,32,0.03);
+  border: 1px solid rgba(11,18,32,0.08);
+  background: rgba(11,18,32,0.04);
   color: var(--nxs-muted);
+  transition: all .2s var(--nxs-ease);
 }
 
 #knx-driver-ops-dashboard .knx-pill.is-good{
   background:#F0FCF4;
   color:#0B6623;
+  border-color: rgba(11,102,35,0.12);
 }
 
 #knx-driver-ops-dashboard .knx-pill.is-warn{
   background:#FFF8E6;
   color:#7a5b10;
+  border-color: rgba(122,91,16,0.12);
 }
 
 #knx-driver-ops-dashboard .knx-pill.is-info{
   background:#EFF6FF;
   color:#1E3A8A;
+  border-color: rgba(30,58,138,0.12);
 }
 
 #knx-driver-ops-dashboard .knx-time{
@@ -540,9 +583,10 @@
   display:none;
   position: fixed;
   inset: 0;
-  background: rgba(11,18,32,0.48);
+  background: rgba(11,18,32,0.52);
+  backdrop-filter: blur(4px);
   z-index: 99999;
-  padding: 10px;
+  padding: 12px;
   align-items: center;
   justify-content: center;
 }
@@ -551,45 +595,56 @@
 
 .knx-modal-content{
   width: 100%;
-  max-width: 460px;
+  max-width: 480px;
   background: var(--nxs-card);
-  border-radius: 12px;
-  border: 1px solid rgba(11,18,32,0.06);
-  box-shadow: 0 18px 44px rgba(11,18,32,0.12);
-  padding: 16px;
-  animation: knxModalIn .18s cubic-bezier(.2,.9,.2,1);
+  border-radius: 14px;
+  border: 1px solid rgba(11,18,32,0.08);
+  box-shadow: 0 4px 12px rgba(11,18,32,0.08), 0 20px 48px rgba(11,18,32,0.16);
+  padding: 18px;
+  animation: knxModalIn .3s var(--nxs-ease);
 }
 
 .knx-modal-head{
   display:flex;
   align-items:center;
   justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .knx-modal-head h3{
   margin:0;
-  font-size: 1.05rem;
+  font-size: 1.15rem;
   font-weight: 900;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   color: var(--nxs-text);
 }
 
 .knx-modal-x{
   appearance:none;
-  border: 1px solid rgba(11,18,32,0.08);
-  background: rgba(11,18,32,0.03);
+  border: 1px solid rgba(11,18,32,0.10);
+  background: rgba(11,18,32,0.04);
   border-radius: 10px;
   width: 40px;
   height: 40px;
   cursor:pointer;
   font-weight: 900;
   color: var(--nxs-text);
+  transition: transform .2s var(--nxs-ease), background .2s var(--nxs-ease), border-color .2s var(--nxs-ease);
+}
+
+.knx-modal-x:hover{
+  transform: translateY(-1px);
+  background: rgba(11,18,32,0.06);
+  border-color: rgba(11,18,32,0.14);
+}
+
+.knx-modal-x:active{
+  transform: translateY(0);
 }
 
 .knx-modal-x:focus-visible{
-  outline: 3px solid rgba(11,121,58,0.14);
+  outline: 3px solid rgba(11,121,58,0.16);
   outline-offset: 2px;
 }
 
@@ -599,33 +654,38 @@
 
 .knx-modal-actions{
   display:flex;
-  gap: 10px;
+  gap: 12px;
   justify-content: flex-end;
-  margin-top: 14px;
+  margin-top: 16px;
 }
 
 .knx-modal-actions .knx-btn,
 .knx-modal-actions .knx-btn-secondary{
   border-radius: 10px;
-  padding: 12px 14px;
-  font-weight: 700;
+  padding: 12px 18px;
+  font-weight: 800;
 }
 
 .knx-modal-grid{
   display:grid;
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: 12px;
+  margin-bottom: 14px;
 }
 
 .knx-modal-row{
   display:flex;
   align-items:flex-start;
   justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
-  border: 1px solid rgba(11,18,32,0.06);
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(11,18,32,0.08);
   border-radius: 12px;
-  background: rgba(11,18,32,0.02);
+  background: rgba(11,18,32,0.025);
+  transition: background .2s var(--nxs-ease);
+}
+
+.knx-modal-row:hover{
+  background: rgba(11,18,32,0.04);
 }
 
 .knx-k{
@@ -641,20 +701,26 @@
 }
 
 .knx-breakdown{
-  border: 1px solid rgba(11,18,32,0.06);
+  border: 1px solid rgba(11,18,32,0.08);
   border-radius: 12px;
-  padding: 12px;
+  padding: 14px;
   background: #fff;
+  box-shadow: 0 1px 4px rgba(11,18,32,0.03);
 }
 
 .knx-break-row{
   display:flex;
   justify-content: space-between;
-  gap: 12px;
-  padding: 8px 0;
-  border-bottom: 1px solid rgba(11,18,32,0.06);
+  gap: 14px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(11,18,32,0.08);
   color: var(--nxs-text);
   font-weight: 700;
+  transition: color .2s var(--nxs-ease);
+}
+
+.knx-break-row:hover{
+  color: var(--nxs-primary);
 }
 
 .knx-break-row:last-child{ border-bottom: 0; }
@@ -665,9 +731,83 @@
   margin: 0 0 10px;
 }
 
+/* Map Modal */
+.knx-map-modal{
+  max-width: 680px;
+}
+
+.knx-map-embed{
+  width: 100%;
+  height: 360px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(11,18,32,0.04);
+  margin-bottom: 14px;
+  border: 1px solid rgba(11,18,32,0.08);
+}
+
+.knx-map-embed iframe{
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.knx-map-info{
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.knx-map-stop{
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(11,18,32,0.08);
+  border-radius: 12px;
+  background: rgba(11,18,32,0.025);
+  transition: background .2s var(--nxs-ease);
+}
+
+.knx-map-stop:hover{
+  background: rgba(11,18,32,0.04);
+}
+
+.knx-map-icon{
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.knx-map-details{
+  flex: 1;
+  min-width: 0;
+}
+
+.knx-map-label{
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: var(--nxs-muted);
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.knx-map-address{
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--nxs-text);
+  line-height: 1.4;
+}
+
 @keyframes knxModalIn{
-  from{ opacity: 0; transform: translateY(10px); }
-  to{ opacity: 1; transform: translateY(0); }
+  from{
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to{
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* Reduced motion */

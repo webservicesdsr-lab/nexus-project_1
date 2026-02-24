@@ -104,7 +104,7 @@ add_shortcode('knx_driver_ops', function () {
 
         <div class="knx-driver-ops-header">
             <div class="knx-driver-ops-title">
-                <h2>Hi<?php echo $driver_name ? ', ' . esc_html($driver_name) : ''; ?>! ðŸ‘‹</h2>
+                <h2>Hi<?php echo $driver_name ? ', ' . esc_html($driver_name) : ''; ?>! 👋</h2>
             </div>
 
             <div class="knx-driver-ops-controls">
@@ -116,7 +116,7 @@ add_shortcode('knx_driver_ops', function () {
                 </button>
 
                 <button type="button" class="knx-btn-secondary" id="knxDriverOpsRefresh" title="Refresh">
-                    â†»
+                    ↻
                 </button>
 
                 <div class="knx-live">
@@ -149,7 +149,7 @@ add_shortcode('knx_driver_ops', function () {
         <div class="knx-modal-content" role="dialog" aria-modal="true" aria-labelledby="knxDriverOpsOrderTitle">
             <div class="knx-modal-head">
                 <h3 id="knxDriverOpsOrderTitle">Order</h3>
-                <button type="button" class="knx-modal-x" aria-label="Close">âœ•</button>
+                <button type="button" class="knx-modal-x" aria-label="Close">✕</button>
             </div>
 
             <div class="knx-modal-body" id="knxDriverOpsOrderBody"></div>
@@ -166,12 +166,45 @@ add_shortcode('knx_driver_ops', function () {
         <div class="knx-modal-content knx-confirm" role="dialog" aria-modal="true" aria-labelledby="knxDriverOpsConfirmTitle">
             <div class="knx-modal-head">
                 <h3 id="knxDriverOpsConfirmTitle">Accept Order</h3>
-                <button type="button" class="knx-modal-x" aria-label="Close">âœ•</button>
+                <button type="button" class="knx-modal-x" aria-label="Close">✕</button>
             </div>
-            <p class="knx-confirm-text">Youâ€™ll be assigned to this order. Continue?</p>
+            <p class="knx-confirm-text">You'll be assigned to this order. Continue?</p>
             <div class="knx-modal-actions">
                 <button type="button" class="knx-btn-secondary knx-confirm-cancel">Cancel</button>
                 <button type="button" class="knx-btn knx-confirm-ok">Accept</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Map Modal (canon) -->
+    <div id="knxDriverOpsMapModal" class="knx-modal" aria-hidden="true">
+        <div class="knx-modal-content knx-map-modal" role="dialog" aria-modal="true" aria-labelledby="knxDriverOpsMapTitle">
+            <div class="knx-modal-head">
+                <h3 id="knxDriverOpsMapTitle">Route Preview</h3>
+                <button type="button" class="knx-modal-x" aria-label="Close">✕</button>
+            </div>
+            <div class="knx-modal-body">
+                <div id="knxDriverOpsMapEmbed" class="knx-map-embed"></div>
+                <div class="knx-map-info">
+                    <div class="knx-map-stop">
+                        <span class="knx-map-icon">📍</span>
+                        <div class="knx-map-details">
+                            <div class="knx-map-label">PICKUP</div>
+                            <div class="knx-map-address" id="knxMapPickupAddress">—</div>
+                        </div>
+                    </div>
+                    <div class="knx-map-stop">
+                        <span class="knx-map-icon">📦</span>
+                        <div class="knx-map-details">
+                            <div class="knx-map-label">DELIVERY</div>
+                            <div class="knx-map-address" id="knxMapDeliveryAddress">—</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="knx-modal-actions">
+                <button type="button" class="knx-btn-secondary knx-modal-cancel">Close</button>
+                <button type="button" class="knx-btn knx-map-navigate">Navigate</button>
             </div>
         </div>
     </div>
