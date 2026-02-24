@@ -189,9 +189,6 @@
     if (rAddr) {
       html +=     '<div class="knx-os__restaurant-addr">' + rAddr + '</div>';
     }
-    if (rPhone) {
-      html +=     '<a class="knx-os__restaurant-phone" href="tel:' + esc(rPhone) + '">' + esc(rPhone) + '</a>';
-    }
     html +=     '</div>';
     html +=   '</div>';
     html += '</div>';
