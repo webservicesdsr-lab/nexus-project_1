@@ -329,10 +329,50 @@
     stopPollingTimer();
     clearPending();
 
+    // ===================================================
+    // CART CLEANUP: Clear cart from localStorage (Safari-compatible)
+    // ===================================================
+    clearCartFromLocalStorage();
+
     setStatus('success', order_id ? ('Payment confirmed! Order ID: ' + order_id) : 'Payment confirmed — order placed!');
     disableBtn('Confirmed');
 
     showSuccessSplash(redirectUrl, order_id);
+  }
+
+  // Clear cart with Safari fallback strategies
+  function clearCartFromLocalStorage() {
+    try {
+      // Primary: Direct removal
+      localStorage.removeItem('knx_cart');
+      localStorage.removeItem('knx_cart_hub_id');
+      
+      // Verify removal worked (Safari may fail silently)
+      var cartCheck = localStorage.getItem('knx_cart');
+      if (cartCheck !== null) {
+        // Fallback: Overwrite with empty array
+        localStorage.setItem('knx_cart', '[]');
+      }
+      
+      // Dispatch cart update event for UI sync
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('knx-cart-updated'));
+      }
+      
+    } catch (e) {
+      // Safari private browsing or quota exceeded
+      try {
+        // Fallback: Overwrite with empty data
+        localStorage.setItem('knx_cart', '[]');
+        localStorage.setItem('knx_cart_hub_id', '');
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('knx-cart-updated'));
+        }
+      } catch (e2) {
+        // Complete localStorage failure - cart will be empty from backend anyway
+        console.warn('KNX: Cart cleanup failed, but order was created successfully. Cart cleared on server.');
+      }
+    }
   }
 
   function finalizeFailed(msg) {

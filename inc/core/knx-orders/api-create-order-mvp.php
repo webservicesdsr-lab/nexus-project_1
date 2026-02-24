@@ -706,6 +706,15 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
 
         $wpdb->query('COMMIT');
 
+        // ===================================================
+        // CART CLEANUP: Clear cart items to prevent Safari/iOS issues
+        // ===================================================
+        $wpdb->delete(
+            $table_cart_items,
+            ['cart_id' => $cart_id],
+            ['%d']
+        );
+
         return new WP_REST_Response([
             'success'      => true,
             'order_id'     => $order_id,
