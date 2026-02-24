@@ -362,6 +362,7 @@ add_action('plugins_loaded', function() {
     knx_require('inc/public/profile/profile-shortcode.php');
     knx_require('inc/public/checkout/checkout-shortcode.php');
     knx_require('inc/public/orders/order-status-shortcode.php');
+    knx_require('inc/public/orders/my-orders-shortcode.php');
 });
 
 /**

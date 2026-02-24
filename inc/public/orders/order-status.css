@@ -1,128 +1,549 @@
-/* Order Status page styles — KNX shell inspired
-   Uses project UX tokens (local subset) to style order-status page.
-*/
-:root{
+/**
+ * ==========================================================
+ * Kingdom Nexus — Customer Order Status (Canonical CSS)
+ * Nexus Shell UX — Mobile-first, system font, clean tokens
+ * ==========================================================
+ */
+
+:root {
   --nxs-primary: #0b793a;
+  --nxs-primary-light: rgba(11, 121, 58, 0.08);
   --nxs-card: #ffffff;
   --nxs-bg: #f6f7f9;
   --nxs-text: #0b1220;
   --nxs-muted: #6b7280;
+  --nxs-border: rgba(11, 18, 32, 0.08);
   --nxs-error: #b30000;
-  --nxs-radius: 12px;
+  --nxs-radius: 14px;
+  --nxs-radius-sm: 10px;
+  --nxs-shadow: 0 4px 24px rgba(11, 18, 32, 0.06);
+  --nxs-shadow-lg: 0 12px 40px rgba(11, 18, 32, 0.08);
+  --nxs-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --nxs-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --nxs-done: #0b793a;
+  --nxs-info: #0b5bd8;
+  --nxs-progress: #ff9800;
+  --nxs-active: #6d28d9;
+  --nxs-cancelled: #b30000;
 }
 
-.knx-order-status{
+/* ── Shell ── */
+.knx-order-status {
   background: var(--nxs-bg);
-  padding: 28px 16px;
+  min-height: 100vh;
+  padding: 0;
+  font-family: var(--nxs-font);
+  color: var(--nxs-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+.knx-os__shell {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 16px 16px 40px;
+}
+
+/* ── Topbar ── */
+.knx-os__topbar {
+  padding: 8px 0 16px;
+}
+
+.knx-os__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--nxs-muted);
+  text-decoration: none;
+  transition: color 0.2s var(--nxs-ease);
+}
+
+.knx-os__back:hover {
+  color: var(--nxs-text);
+}
+
+/* ── Loading ── */
+.knx-os__loading {
+  text-align: center;
+  padding: 60px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--nxs-muted);
+}
+
+/* ── Error ── */
+.knx-os__error {
+  text-align: center;
+  padding: 40px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--nxs-error);
+}
+
+.knx-os__error-card {
+  text-align: center;
+  padding: 48px 24px;
+  background: var(--nxs-card);
+  border-radius: var(--nxs-radius);
+  box-shadow: var(--nxs-shadow);
+}
+
+.knx-os__error-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background: rgba(179, 0, 0, 0.08);
+  color: var(--nxs-error);
+  font-size: 24px;
+  font-weight: 900;
   display: flex;
+  align-items: center;
   justify-content: center;
 }
 
-#knxOrderStatusContent{
-  width: 100%;
-  max-width: 880px;
+.knx-os__error-title {
+  font-size: 16px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.knx-os__error-detail {
+  font-size: 13px;
+  color: var(--nxs-muted);
+  margin-bottom: 20px;
+}
+
+.knx-os__btn {
+  display: inline-block;
+  padding: 10px 24px;
+  background: var(--nxs-primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 999px;
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+
+.knx-os__btn:hover { opacity: 0.9; }
+
+/* ── Content ── */
+.knx-os__content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Header ── */
+.knx-os__header {
   background: var(--nxs-card);
   border-radius: var(--nxs-radius);
-  box-shadow: 0 12px 30px rgba(11,18,32,0.06);
-  padding: 22px;
-  color: var(--nxs-text);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  box-shadow: var(--nxs-shadow);
+  padding: 20px;
 }
 
-#knxOrderStatusContent h2{
-  margin: 0 0 12px 0;
-  font-size: 1.25rem;
-}
-
-#knxOrderStatusBox{
-  margin-top: 8px;
-}
-
-.knx-order-status-error{
-  color: var(--nxs-error);
-  background: rgba(179,0,0,0.06);
-  border: 1px solid rgba(179,0,0,0.12);
-  padding: 12px;
-  border-radius: 10px;
-}
-
-.knx-order-meta{
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 8px 16px;
-  align-items: start;
-  margin-bottom: 14px;
-}
-
-.knx-order-meta p{
-  margin: 0;
-  color: var(--nxs-text);
-  font-size: 14px;
-}
-
-.knx-order-meta p strong{ font-weight: 700; margin-right: 6px; }
-
-.knx-order-items{
-  list-style: none;
-  padding: 0;
-  margin: 8px 0 16px 0;
-  display: grid;
-  gap: 8px;
-}
-
-.knx-order-items li{
-  background: rgba(11,121,58,0.03);
-  border: 1px solid rgba(11,18,32,0.04);
-  padding: 10px 12px;
-  border-radius: 10px;
+.knx-os__header-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 14px;
-}
-
-.knx-order-items li::after{ content: ''; }
-
-.knx-order-history{
-  padding-left: 16px;
-  margin: 4px 0 0 0;
-}
-
-.knx-order-history li{
-  padding: 10px 12px;
+  gap: 12px;
   margin-bottom: 8px;
-  background: #fff;
-  border-radius: 10px;
-  border: 1px solid rgba(11,18,32,0.04);
-  font-size: 13px;
 }
 
-.knx-order-history li strong{ display:inline-block; min-width:110px; }
+.knx-os__id-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--nxs-muted);
+}
 
-/* Status pill */
-.knx-status-pill{
-  display: inline-block;
-  padding: 6px 10px;
+.knx-os__id-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  background: rgba(11, 91, 216, 0.1);
+  color: var(--nxs-info);
+  font-size: 13px;
+  font-weight: 800;
   border-radius: 999px;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.knx-os__header-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--nxs-muted);
+}
+
+.knx-os__dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--nxs-muted);
+  flex-shrink: 0;
+}
+
+/* ── Status Pill ── */
+.knx-os__status-pill {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 12px;
   font-weight: 700;
+  white-space: nowrap;
+}
+
+.knx-os__status-pill.is-done { background: rgba(11, 121, 58, 0.1); color: var(--nxs-done); }
+.knx-os__status-pill.is-info { background: rgba(11, 91, 216, 0.1); color: var(--nxs-info); }
+.knx-os__status-pill.is-progress { background: rgba(255, 152, 0, 0.12); color: #e67c00; }
+.knx-os__status-pill.is-active { background: rgba(109, 40, 217, 0.1); color: var(--nxs-active); }
+.knx-os__status-pill.is-cancelled { background: rgba(179, 0, 0, 0.08); color: var(--nxs-cancelled); }
+.knx-os__status-pill.is-muted { background: rgba(11, 18, 32, 0.06); color: var(--nxs-muted); }
+
+/* ── Timeline ── */
+.knx-os__timeline {
+  background: var(--nxs-card);
+  border-radius: var(--nxs-radius);
+  box-shadow: var(--nxs-shadow);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.knx-os__step {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  position: relative;
+  padding-bottom: 20px;
+}
+
+.knx-os__step:last-child {
+  padding-bottom: 0;
+}
+
+.knx-os__step-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--nxs-border);
+  border: 2px solid var(--nxs-border);
+  flex-shrink: 0;
+  margin-top: 2px;
+  position: relative;
+  z-index: 1;
+  transition: all 0.3s var(--nxs-ease);
+}
+
+.knx-os__step-line {
+  position: absolute;
+  left: 5px;
+  top: 16px;
+  bottom: 0;
+  width: 2px;
+  background: var(--nxs-border);
+  transition: background 0.3s var(--nxs-ease);
+}
+
+.knx-os__step.is-done .knx-os__step-dot {
+  background: var(--nxs-done);
+  border-color: var(--nxs-done);
+}
+
+.knx-os__step.is-done .knx-os__step-line {
+  background: var(--nxs-done);
+}
+
+.knx-os__step.is-current .knx-os__step-dot {
+  background: var(--nxs-primary);
+  border-color: var(--nxs-primary);
+  box-shadow: 0 0 0 4px rgba(11, 121, 58, 0.2);
+  animation: knxPulse 2s ease-in-out infinite;
+}
+
+@keyframes knxPulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(11, 121, 58, 0.2); }
+  50% { box-shadow: 0 0 0 8px rgba(11, 121, 58, 0.08); }
+}
+
+.knx-os__step-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.knx-os__step-label {
   font-size: 13px;
-  color: #fff;
+  font-weight: 700;
+  color: var(--nxs-muted);
+  transition: color 0.3s var(--nxs-ease);
 }
 
-.knx-status--placed{ background: var(--nxs-muted); color: #fff; }
-.knx-status--confirmed{ background: var(--nxs-primary); }
-.knx-status--preparing{ background: #ff9800; }
-.knx-status--dispatched{ background: #0b5bd8; }
-.knx-status--delivered{ background: #2aa04a; }
-.knx-status--cancelled{ background: var(--nxs-error); }
-
-/* Responsive tweaks */
-@media (max-width: 600px){
-  #knxOrderStatusContent{ padding: 16px; border-radius: 10px; }
-  .knx-order-meta{ grid-template-columns: 1fr; }
-  .knx-order-history li{ font-size: 13px; }
+.knx-os__step.is-done .knx-os__step-label,
+.knx-os__step.is-current .knx-os__step-label {
+  color: var(--nxs-text);
 }
 
-/* Small helpers for better readability */
-.knx-muted{ color: var(--nxs-muted); }
-.knx-quiet{ color: rgba(11,18,32,0.5); }
+.knx-os__step-time {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--nxs-muted);
+  margin-top: 2px;
+}
+
+/* ── Cards ── */
+.knx-os__card {
+  background: var(--nxs-card);
+  border-radius: var(--nxs-radius);
+  box-shadow: var(--nxs-shadow);
+  padding: 18px 20px;
+}
+
+.knx-os__card-title {
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--nxs-muted);
+  margin-bottom: 14px;
+}
+
+/* ── Restaurant ── */
+.knx-os__restaurant {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.knx-os__logo {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--nxs-radius-sm);
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--nxs-bg);
+}
+
+.knx-os__restaurant-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.knx-os__restaurant-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--nxs-text);
+  margin-bottom: 2px;
+}
+
+.knx-os__restaurant-addr {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--nxs-muted);
+  line-height: 1.4;
+}
+
+.knx-os__restaurant-phone {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--nxs-info);
+  text-decoration: none;
+  margin-top: 4px;
+  display: inline-block;
+}
+
+.knx-os__restaurant-phone:hover { text-decoration: underline; }
+
+/* ── Delivery address ── */
+.knx-os__delivery-addr {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--nxs-text);
+  line-height: 1.5;
+}
+
+/* ── Items ── */
+.knx-os__items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.knx-os__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--nxs-bg);
+  border-radius: var(--nxs-radius-sm);
+  transition: background 0.15s;
+}
+
+.knx-os__item-img {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--nxs-border);
+}
+
+.knx-os__item-img--placeholder {
+  background: linear-gradient(135deg, rgba(11,18,32,0.04) 0%, rgba(11,18,32,0.08) 100%);
+}
+
+.knx-os__item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.knx-os__item-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--nxs-text);
+  margin-bottom: 2px;
+}
+
+.knx-os__item-mods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.knx-os__mod {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--nxs-muted);
+  background: rgba(11, 18, 32, 0.04);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.knx-os__item-price {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--nxs-text);
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+
+/* ── Totals ── */
+.knx-os__totals {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.knx-os__total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--nxs-text);
+}
+
+.knx-os__total-row span:first-child {
+  color: var(--nxs-muted);
+}
+
+.knx-os__total-grand {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  margin-top: 6px;
+  border-top: 2px solid var(--nxs-border);
+}
+
+.knx-os__total-grand span {
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--nxs-muted);
+}
+
+.knx-os__total-grand strong {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--nxs-text);
+}
+
+/* ── Payment & Meta rows ── */
+.knx-os__meta-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.knx-os__meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.knx-os__meta-row span:first-child {
+  color: var(--nxs-muted);
+}
+
+.knx-os__pay-pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.knx-os__pay-pill.is-done { background: rgba(11, 121, 58, 0.1); color: var(--nxs-done); }
+.knx-os__pay-pill.is-muted { background: rgba(11, 18, 32, 0.06); color: var(--nxs-muted); }
+
+/* ── Live indicator ── */
+.knx-os__live-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--nxs-muted);
+}
+
+.knx-os__live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--nxs-done);
+  animation: knxLiveBlink 1.5s ease-in-out infinite;
+}
+
+@keyframes knxLiveBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ── Responsive ── */
+@media (max-width: 480px) {
+  .knx-os__shell { padding: 12px 12px 32px; }
+  .knx-os__header { padding: 16px; }
+  .knx-os__card { padding: 14px 16px; }
+  .knx-os__timeline { padding: 16px; }
+  .knx-os__item-img { width: 36px; height: 36px; }
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .knx-order-status * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

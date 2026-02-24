@@ -1,0 +1,535 @@
+/**
+ * ==========================================================
+ * Kingdom Nexus — Customer Order List (Nexus Shell CSS)
+ * ----------------------------------------------------------
+ * - Mobile-first, 640px max-width shell
+ * - Card-based order list with hub logo, status pills
+ * - Active vs Past sections with headers
+ * - Load more pagination
+ * - Auth gate + empty state
+ * - Reduced motion support
+ * ==========================================================
+ */
+
+/* ── Tokens (shared with order-status.css) ── */
+:root {
+  --nxs-primary: #0b793a;
+  --nxs-primary-light: rgba(11, 121, 58, 0.08);
+  --nxs-card: #ffffff;
+  --nxs-bg: #f6f7f9;
+  --nxs-text: #0b1220;
+  --nxs-muted: #6b7280;
+  --nxs-border: rgba(11, 18, 32, 0.08);
+  --nxs-error: #b30000;
+  --nxs-radius: 14px;
+  --nxs-radius-sm: 10px;
+  --nxs-shadow: 0 4px 24px rgba(11, 18, 32, 0.06);
+  --nxs-shadow-lg: 0 12px 40px rgba(11, 18, 32, 0.08);
+  --nxs-font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --nxs-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Status tones */
+  --nxs-done: #0b793a;
+  --nxs-info: #0b5bd8;
+  --nxs-progress: #ff9800;
+  --nxs-active: #6d28d9;
+  --nxs-cancelled: #b30000;
+}
+
+/* ── Reset scope ── */
+.knx-my-orders,
+.knx-my-orders * {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.knx-my-orders {
+  min-height: 100vh;
+  background: var(--nxs-bg);
+  font-family: var(--nxs-font);
+  color: var(--nxs-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Shell ── */
+.knx-mo__shell {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 16px 16px 40px;
+}
+
+/* ── Topbar ── */
+.knx-mo__topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0 20px;
+}
+
+.knx-mo__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--nxs-text);
+}
+
+/* ── Loading ── */
+.knx-mo__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 80px 20px;
+  color: var(--nxs-muted);
+  font-size: 0.9rem;
+}
+
+.knx-mo__spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--nxs-border);
+  border-top-color: var(--nxs-primary);
+  border-radius: 50%;
+  animation: knxMoSpin 0.7s linear infinite;
+}
+
+@keyframes knxMoSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Section headers ── */
+.knx-mo__section {
+  margin-bottom: 24px;
+}
+
+.knx-mo__section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px 10px;
+}
+
+.knx-mo__section-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--nxs-muted);
+}
+
+.knx-mo__section-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  background: var(--nxs-border);
+  border-radius: 11px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--nxs-muted);
+}
+
+.knx-mo__section-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--nxs-primary);
+  flex-shrink: 0;
+}
+
+.knx-mo__section-dot.is-pulse {
+  animation: knxMoPulse 2s ease-in-out infinite;
+}
+
+@keyframes knxMoPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.3); }
+}
+
+/* ── List ── */
+.knx-mo__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ── Order Card ── */
+.knx-mo__card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  background: var(--nxs-card);
+  border-radius: var(--nxs-radius);
+  box-shadow: var(--nxs-shadow);
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow 0.2s var(--nxs-ease), transform 0.2s var(--nxs-ease);
+  cursor: pointer;
+}
+
+.knx-mo__card:hover {
+  box-shadow: var(--nxs-shadow-lg);
+  transform: translateY(-1px);
+}
+
+.knx-mo__card:active {
+  transform: translateY(0);
+}
+
+/* Logo */
+.knx-mo__card-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--nxs-radius-sm);
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--nxs-bg);
+}
+
+.knx-mo__card-logo--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--nxs-primary-light) 0%, var(--nxs-bg) 100%);
+}
+
+/* Body */
+.knx-mo__card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.knx-mo__card-hub {
+  font-size: 0.95rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+
+.knx-mo__card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--nxs-muted);
+  margin-bottom: 6px;
+}
+
+.knx-mo__id-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--nxs-muted);
+}
+
+.knx-mo__id-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  background: rgba(11, 91, 216, 0.1);
+  color: var(--nxs-info);
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.knx-mo__dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--nxs-muted);
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.knx-mo__card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+/* End (total + arrow) */
+.knx-mo__card-end {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.knx-mo__card-total {
+  font-size: 0.95rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.knx-mo__card-arrow {
+  font-size: 1.4rem;
+  color: var(--nxs-muted);
+  line-height: 1;
+  opacity: 0.5;
+}
+
+/* ── Status pills ── */
+.knx-mo__pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.knx-mo__pill.is-done {
+  background: rgba(11, 121, 58, 0.1);
+  color: var(--nxs-done);
+}
+.knx-mo__pill.is-info {
+  background: rgba(11, 91, 216, 0.1);
+  color: var(--nxs-info);
+}
+.knx-mo__pill.is-progress {
+  background: rgba(255, 152, 0, 0.1);
+  color: var(--nxs-progress);
+}
+.knx-mo__pill.is-active {
+  background: rgba(109, 40, 217, 0.1);
+  color: var(--nxs-active);
+}
+.knx-mo__pill.is-cancelled {
+  background: rgba(179, 0, 0, 0.1);
+  color: var(--nxs-cancelled);
+}
+.knx-mo__pill.is-muted {
+  background: rgba(107, 114, 128, 0.08);
+  color: var(--nxs-muted);
+}
+.knx-mo__pill.is-pickup {
+  background: rgba(109, 40, 217, 0.08);
+  color: var(--nxs-active);
+}
+
+/* ── Load More ── */
+.knx-mo__load-more-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0 8px;
+}
+
+/* ── Summary ── */
+.knx-mo__summary {
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--nxs-muted);
+  padding: 12px 0 0;
+}
+
+/* ── Buttons ── */
+.knx-mo__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 28px;
+  border-radius: var(--nxs-radius-sm);
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: var(--nxs-font);
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s var(--nxs-ease), transform 0.15s var(--nxs-ease);
+}
+
+.knx-mo__btn:active {
+  transform: scale(0.97);
+}
+
+.knx-mo__btn--primary {
+  background: var(--nxs-primary);
+  color: #fff;
+}
+
+.knx-mo__btn--primary:hover {
+  background: #096b32;
+}
+
+.knx-mo__btn--secondary {
+  background: var(--nxs-card);
+  color: var(--nxs-text);
+  border: 1px solid var(--nxs-border);
+  box-shadow: var(--nxs-shadow);
+}
+
+.knx-mo__btn--secondary:hover {
+  box-shadow: var(--nxs-shadow-lg);
+}
+
+.knx-mo__btn--secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Empty state ── */
+.knx-mo__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.knx-mo__empty-icon {
+  font-size: 3rem;
+  margin-bottom: 16px;
+}
+
+.knx-mo__empty-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.knx-mo__empty-text {
+  font-size: 0.9rem;
+  color: var(--nxs-muted);
+  margin-bottom: 24px;
+  max-width: 280px;
+}
+
+/* ── Error state ── */
+.knx-mo__error-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 60px 20px;
+  background: var(--nxs-card);
+  border-radius: var(--nxs-radius);
+  box-shadow: var(--nxs-shadow);
+  margin-top: 20px;
+}
+
+.knx-mo__error-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(179, 0, 0, 0.1);
+  color: var(--nxs-error);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.knx-mo__error-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.knx-mo__error-detail {
+  font-size: 0.85rem;
+  color: var(--nxs-muted);
+  margin-bottom: 20px;
+}
+
+/* ── Auth gate ── */
+.knx-mo__auth-gate {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--nxs-bg);
+  font-family: var(--nxs-font);
+  padding: 20px;
+}
+
+.knx-mo__auth-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 48px 32px;
+  background: var(--nxs-card);
+  border-radius: var(--nxs-radius);
+  box-shadow: var(--nxs-shadow-lg);
+  max-width: 360px;
+  width: 100%;
+}
+
+.knx-mo__auth-icon {
+  font-size: 2.5rem;
+  margin-bottom: 16px;
+}
+
+.knx-mo__auth-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--nxs-text);
+}
+
+.knx-mo__auth-text {
+  font-size: 0.9rem;
+  color: var(--nxs-muted);
+  margin-bottom: 24px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 480px) {
+  .knx-mo__shell {
+    padding: 12px 12px 32px;
+  }
+
+  .knx-mo__title {
+    font-size: 1.3rem;
+  }
+
+  .knx-mo__card {
+    padding: 14px 12px;
+    gap: 10px;
+  }
+
+  .knx-mo__card-logo {
+    width: 40px;
+    height: 40px;
+  }
+
+  .knx-mo__card-hub {
+    font-size: 0.88rem;
+  }
+
+  .knx-mo__card-total {
+    font-size: 0.88rem;
+  }
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .knx-mo__spinner {
+    animation: none;
+    opacity: 0.5;
+  }
+
+  .knx-mo__section-dot.is-pulse {
+    animation: none;
+  }
+
+  .knx-mo__card {
+    transition: none;
+  }
+
+  .knx-mo__btn {
+    transition: none;
+  }
+}

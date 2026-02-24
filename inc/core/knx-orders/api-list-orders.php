@@ -105,8 +105,12 @@ function knx_api_list_orders(WP_REST_Request $req) {
     // ====================================================
 
     // Build WHERE clause based on role
+    // NOTE: All columns reference 'o.' alias (orders table) for the JOIN
     $where_clauses = ['1=1'];
     $where_values = [];
+
+    // Hub table (used by manager scope check + main JOIN)
+    $table_hubs = $wpdb->prefix . 'knx_hubs';
 
     // Super admin: see all orders
     if ($role === 'super_admin') {
@@ -119,8 +123,6 @@ function knx_api_list_orders(WP_REST_Request $req) {
         // TODO: Full city-scoping requires knx_users.managed_cities or similar
         // For now, we enforce hub-level validation as best-effort restriction
         
-        $table_hubs = $wpdb->prefix . 'knx_hubs';
-        
         // Get all hub IDs (will be restricted to manager's cities in future)
         // TEMPORARY: Allow all hubs until city-scoping is fully implemented
         // Future: Filter hubs by city_id IN manager's managed_cities array
@@ -132,39 +134,43 @@ function knx_api_list_orders(WP_REST_Request $req) {
         } else {
             // Restrict to hubs (future: only hubs in manager's cities)
             $placeholders = implode(',', array_fill(0, count($hub_ids), '%d'));
-            $where_clauses[] = "hub_id IN ({$placeholders})";
+            $where_clauses[] = "o.hub_id IN ({$placeholders})";
             $where_values = array_merge($where_values, $hub_ids);
         }
     }
     // Customer: only own orders
     elseif ($role === 'customer') {
-        $where_clauses[] = 'customer_id = %d';
+        $where_clauses[] = 'o.customer_id = %d';
         $where_values[] = $session->user_id;
     }
     // Guest or other roles: filter by session token
     else {
-        $where_clauses[] = 'session_token = %s';
+        $where_clauses[] = 'o.session_token = %s';
         $where_values[] = $session->token;
     }
 
     // Apply optional filters
     if ($status !== null) {
-        $where_clauses[] = 'status = %s';
+        $where_clauses[] = 'o.status = %s';
         $where_values[] = $status;
     }
 
     if ($hub_id !== null) {
-        $where_clauses[] = 'hub_id = %d';
+        $where_clauses[] = 'o.hub_id = %d';
         $where_values[] = $hub_id;
     }
 
     $where_sql = implode(' AND ', $where_clauses);
 
-    // Build main query
-    $query = "SELECT id, hub_id, status, subtotal, created_at 
-              FROM {$table_orders} 
-              WHERE {$where_sql} 
-              ORDER BY created_at DESC 
+    // Build main query — enriched for customer list view
+    $query = "SELECT o.id, o.hub_id, o.order_number, o.status,
+                     o.fulfillment_type, o.subtotal, o.total,
+                     o.payment_status, o.created_at,
+                     h.name AS hub_name, h.logo_url AS hub_logo
+              FROM {$table_orders} AS o
+              LEFT JOIN {$table_hubs} AS h ON h.id = o.hub_id
+              WHERE {$where_sql}
+              ORDER BY o.created_at DESC
               LIMIT %d OFFSET %d";
 
     $query_values = array_merge($where_values, [$limit, $offset]);
@@ -176,7 +182,7 @@ function knx_api_list_orders(WP_REST_Request $req) {
     $orders = $wpdb->get_results($query);
 
     // Count total (for pagination)
-    $count_query = "SELECT COUNT(*) FROM {$table_orders} WHERE {$where_sql}";
+    $count_query = "SELECT COUNT(*) FROM {$table_orders} AS o WHERE {$where_sql}";
     
     if (!empty($where_values)) {
         $count_query = $wpdb->prepare($count_query, $where_values);
@@ -184,14 +190,20 @@ function knx_api_list_orders(WP_REST_Request $req) {
     
     $total = (int)$wpdb->get_var($count_query);
 
-    // Format orders
+    // Format orders — enriched for customer list
     $formatted_orders = array_map(function($order) {
         return [
-            'order_id' => (int)$order->id,
-            'hub_id' => (int)$order->hub_id,
-            'status' => $order->status,
-            'subtotal' => (float)$order->subtotal,
-            'created_at' => $order->created_at,
+            'order_id'         => (int)$order->id,
+            'order_number'     => $order->order_number ?: ('#' . $order->id),
+            'hub_id'           => (int)$order->hub_id,
+            'hub_name'         => $order->hub_name ?: '',
+            'hub_logo'         => $order->hub_logo ?: '',
+            'status'           => $order->status,
+            'fulfillment_type' => $order->fulfillment_type ?: 'delivery',
+            'subtotal'         => (float)$order->subtotal,
+            'total'            => (float)$order->total,
+            'payment_status'   => $order->payment_status ?: 'pending',
+            'created_at'       => $order->created_at,
         ];
     }, $orders);
 

@@ -62,6 +62,7 @@ if (!function_exists('knx_install_pages')) {
             ['title' => 'Cart', 'slug' => 'cart', 'content' => '[knx_cart_page]'],
             ['title' => 'Checkout', 'slug' => 'checkout', 'content' => '[knx_checkout]'],
             ['title' => 'Order Status', 'slug' => 'order-status', 'content' => '[knx_order_status]'],
+            ['title' => 'My Orders', 'slug' => 'my-orders', 'content' => '[knx_my_orders]'],
             ['title' => 'Profile', 'slug' => 'profile', 'content' => '[knx_profile]'],
             ['title' => 'Login', 'slug' => 'login', 'content' => '[knx_auth]'],
             ['title' => 'Reset Password', 'slug' => 'reset-password', 'content' => '[knx_reset_password]'],

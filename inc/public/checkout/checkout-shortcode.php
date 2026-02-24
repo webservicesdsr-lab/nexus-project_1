@@ -650,13 +650,13 @@ function knx_render_checkout_page() {
             </div>
             <h2 class="knx-splash-title" id="knxSplashTitle">Order confirmed</h2>
             <p class="knx-splash-body">Thanks for your order. We're getting everything ready.</p>
-            <p class="knx-splash-subtext">Redirecting you home…</p>
+            <p class="knx-splash-subtext">Redirecting to your order…</p>
             <div class="knx-splash-actions">
-                <a href="<?php echo esc_url(home_url('/')); ?>" class="knx-splash-btn knx-splash-btn-primary">
-                    Explore more restaurants
+                <a href="<?php echo esc_url(home_url('/order-status')); ?>" class="knx-splash-btn knx-splash-btn-primary">
+                    View my order status
                 </a>
-                <a href="<?php echo esc_url(home_url('/order-status')); ?>" class="knx-splash-btn knx-splash-btn-secondary">
-                    View my current order status
+                <a href="<?php echo esc_url(home_url('/')); ?>" class="knx-splash-btn knx-splash-btn-secondary">
+                    Explore more restaurants
                 </a>
             </div>
         </div>

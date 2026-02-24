@@ -109,9 +109,22 @@
   // ----------------------------
   // Splash UI
   // ----------------------------
-  function showSuccessSplash(redirectUrl) {
+  function showSuccessSplash(redirectUrl, orderId) {
+    // Build order-status URL with order_id
+    var orderStatusUrl = '';
+    if (orderId) {
+      try {
+        var base = new URL('/order-status', window.location.origin);
+        base.searchParams.set('order_id', String(orderId));
+        orderStatusUrl = base.href;
+      } catch (e) {
+        orderStatusUrl = '/order-status?order_id=' + encodeURIComponent(orderId);
+      }
+    }
+
     var safeUrl =
       safeRedirectUrl(redirectUrl) ||
+      (orderStatusUrl ? safeRedirectUrl(orderStatusUrl) : '') ||
       safeRedirectUrl(cfg.successRedirectUrl) ||
       safeRedirectUrl(cfg.homeUrl) ||
       '/';
@@ -123,6 +136,16 @@
         window.location.href = safeUrl;
       }, 50);
       return;
+    }
+
+    // Update splash "View order status" link with order_id (best-effort)
+    if (orderStatusUrl) {
+      try {
+        var statusLinks = splash.querySelectorAll('a[href*="order-status"]');
+        for (var i = 0; i < statusLinks.length; i++) {
+          statusLinks[i].href = orderStatusUrl;
+        }
+      } catch (e) {}
     }
 
     // Best-effort: blur active element to reduce Stripe Elements a11y warnings
@@ -309,7 +332,7 @@
     setStatus('success', order_id ? ('Payment confirmed! Order ID: ' + order_id) : 'Payment confirmed — order placed!');
     disableBtn('Confirmed');
 
-    showSuccessSplash(redirectUrl);
+    showSuccessSplash(redirectUrl, order_id);
   }
 
   function finalizeFailed(msg) {

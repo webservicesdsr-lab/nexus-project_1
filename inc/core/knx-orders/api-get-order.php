@@ -163,23 +163,226 @@ function knx_api_get_order(WP_REST_Request $req) {
         $cart_snapshot = json_decode($order->cart_snapshot, true);
     }
 
+    // Resolve hub info from cart_snapshot (frozen at order time) or live fallback
+    $hub_name    = null;
+    $hub_address = null;
+    $hub_phone   = null;
+    $hub_logo    = null;
+
+    if ($cart_snapshot && isset($cart_snapshot['hub'])) {
+        $h = $cart_snapshot['hub'];
+        $hub_name    = isset($h['name'])     ? (string)$h['name']     : null;
+        $hub_address = isset($h['address'])  ? (string)$h['address']  : null;
+        $hub_phone   = isset($h['phone'])    ? (string)$h['phone']    : null;
+        $hub_logo    = isset($h['logo_url']) ? (string)$h['logo_url'] : null;
+    }
+
+    // Live fallback if snapshot hub data is missing
+    if (!$hub_name) {
+        $table_hubs = $wpdb->prefix . 'knx_hubs';
+        $hub_row = $wpdb->get_row($wpdb->prepare(
+            "SELECT name, address, phone, logo_url FROM {$table_hubs} WHERE id = %d LIMIT 1",
+            (int)$order->hub_id
+        ));
+        if ($hub_row) {
+            $hub_name    = $hub_name    ?: (isset($hub_row->name)     ? (string)$hub_row->name     : null);
+            $hub_address = $hub_address ?: (isset($hub_row->address)  ? (string)$hub_row->address  : null);
+            $hub_phone   = $hub_phone   ?: (isset($hub_row->phone)    ? (string)$hub_row->phone    : null);
+            $hub_logo    = $hub_logo    ?: (isset($hub_row->logo_url) ? (string)$hub_row->logo_url : null);
+        }
+    }
+
+    // Resolve items from knx_order_items (authoritative) with cart_snapshot fallback
+    $table_order_items = $wpdb->prefix . 'knx_order_items';
+    $db_items = $wpdb->get_results($wpdb->prepare(
+        "SELECT name_snapshot, image_snapshot, quantity, unit_price, line_total, modifiers_json
+         FROM {$table_order_items}
+         WHERE order_id = %d
+         ORDER BY id ASC",
+        $order_id
+    ));
+
+    $items = [];
+    if (!empty($db_items)) {
+        foreach ($db_items as $it) {
+            $mods = null;
+            if (!empty($it->modifiers_json)) {
+                $decoded = json_decode($it->modifiers_json, true);
+                if (json_last_error() === JSON_ERROR_NONE) $mods = $decoded;
+            }
+            $items[] = [
+                'name'       => (string)($it->name_snapshot ?? ''),
+                'image'      => !empty($it->image_snapshot) ? (string)$it->image_snapshot : null,
+                'quantity'   => (int)($it->quantity ?? 0),
+                'unit_price' => (float)($it->unit_price ?? 0),
+                'line_total' => (float)($it->line_total ?? 0),
+                'modifiers'  => $mods,
+            ];
+        }
+    } elseif ($cart_snapshot && isset($cart_snapshot['items']) && is_array($cart_snapshot['items'])) {
+        foreach ($cart_snapshot['items'] as $it) {
+            $items[] = [
+                'name'       => (string)($it['name_snapshot'] ?? $it['name'] ?? ''),
+                'image'      => !empty($it['image_snapshot']) ? (string)$it['image_snapshot'] : null,
+                'quantity'   => (int)($it['quantity'] ?? 0),
+                'unit_price' => (float)($it['unit_price'] ?? 0),
+                'line_total' => (float)($it['line_total'] ?? 0),
+                'modifiers'  => isset($it['modifiers']) ? $it['modifiers'] : null,
+            ];
+        }
+    }
+
+    // Fulfillment
+    $fulfillment_type = isset($order->fulfillment_type) ? (string)$order->fulfillment_type : 'delivery';
+
+    // Canonical status timeline (ordered progression)
+    $canonical_statuses = [
+        'order_created',
+        'confirmed',
+        'accepted_by_driver',
+        'accepted_by_hub',
+        'preparing',
+        'prepared',
+        'picked_up',
+        'completed',
+    ];
+
+    // If pickup, remove driver/delivery-specific statuses
+    if ($fulfillment_type === 'pickup') {
+        $canonical_statuses = [
+            'order_created',
+            'confirmed',
+            'accepted_by_hub',
+            'preparing',
+            'prepared',
+            'ready_for_pickup',
+            'completed',
+        ];
+    }
+
+    // Build status history lookup
+    $history_by_status = [];
+    foreach ($status_history as $h) {
+        $st = (string)$h->status;
+        if (!isset($history_by_status[$st])) {
+            $history_by_status[$st] = $h;
+        }
+    }
+
+    // Map order_created from orders.created_at
+    $history_by_status['order_created'] = (object)[
+        'status'     => 'order_created',
+        'changed_by' => null,
+        'created_at' => $order->created_at,
+    ];
+
+    // Current status position
+    $current_status = (string)$order->status;
+    $current_index  = array_search($current_status, $canonical_statuses);
+
+    // Handle confirmed = order_created alias
+    if ($current_status === 'confirmed' && $current_index === false) {
+        $current_index = array_search('confirmed', $canonical_statuses);
+    }
+
+    $timeline = [];
+    foreach ($canonical_statuses as $i => $st) {
+        // Skip pending_payment from timeline
+        if ($st === 'pending_payment') continue;
+
+        $has_record = isset($history_by_status[$st]);
+        $is_current = ($st === $current_status);
+        $is_done    = false;
+
+        if ($current_index !== false) {
+            $is_done = ($i <= $current_index);
+        } elseif ($has_record) {
+            $is_done = true;
+        }
+
+        // For cancelled orders
+        if ($current_status === 'cancelled') {
+            $is_current = ($st === 'cancelled');
+            $is_done    = $has_record;
+        }
+
+        $labels = [
+            'order_created'      => 'Order Created',
+            'confirmed'          => 'Confirmed',
+            'accepted_by_driver' => 'Driver Assigned',
+            'accepted_by_hub'    => 'Restaurant Accepted',
+            'preparing'          => 'Preparing',
+            'prepared'           => 'Ready',
+            'picked_up'          => 'On the Way',
+            'ready_for_pickup'   => 'Ready for Pickup',
+            'completed'          => 'Completed',
+            'cancelled'          => 'Cancelled',
+        ];
+
+        $timeline[] = [
+            'status'     => $st,
+            'label'      => isset($labels[$st]) ? $labels[$st] : ucwords(str_replace('_', ' ', $st)),
+            'is_done'    => $is_done,
+            'is_current' => $is_current,
+            'hidden'     => ($st === 'confirmed'),
+            'created_at' => $has_record ? $history_by_status[$st]->created_at : null,
+        ];
+    }
+
+    // Add cancelled to timeline if applicable
+    if ($current_status === 'cancelled' && isset($history_by_status['cancelled'])) {
+        $timeline[] = [
+            'status'     => 'cancelled',
+            'label'      => 'Cancelled',
+            'is_done'    => true,
+            'is_current' => true,
+            'created_at' => $history_by_status['cancelled']->created_at,
+        ];
+    }
+
     // Build response
     return new WP_REST_Response([
         'success' => true,
         'order' => [
-            'order_id' => (int)$order->id,
-            'hub_id' => (int)$order->hub_id,
-            'status' => $order->status,
-            'subtotal' => (float)$order->subtotal,
-            'created_at' => $order->created_at,
-            'cart_snapshot' => $cart_snapshot,
-            'status_history' => array_map(function($h) {
-                return [
-                    'status' => $h->status,
-                    'changed_by' => $h->changed_by ? (int)$h->changed_by : null,
-                    'created_at' => $h->created_at,
-                ];
-            }, $status_history),
+            'order_id'         => (int)$order->id,
+            'order_number'     => isset($order->order_number) ? (string)$order->order_number : null,
+            'hub_id'           => (int)$order->hub_id,
+            'status'           => $current_status,
+            'fulfillment_type' => $fulfillment_type,
+            'created_at'       => $order->created_at,
+            'created_at_iso'   => $order->created_at ? date('c', strtotime($order->created_at)) : null,
+
+            'restaurant' => [
+                'name'     => $hub_name,
+                'address'  => $hub_address,
+                'phone'    => $hub_phone,
+                'logo_url' => $hub_logo,
+            ],
+
+            'delivery' => [
+                'address' => isset($order->delivery_address) ? (string)$order->delivery_address : null,
+                'lat'     => isset($order->delivery_lat) ? (float)$order->delivery_lat : null,
+                'lng'     => isset($order->delivery_lng) ? (float)$order->delivery_lng : null,
+            ],
+
+            'payment' => [
+                'method' => isset($order->payment_method) ? (string)$order->payment_method : null,
+                'status' => isset($order->payment_status) ? (string)$order->payment_status : null,
+            ],
+
+            'totals' => [
+                'subtotal'        => (float)($order->subtotal ?? 0),
+                'tax_amount'      => (float)($order->tax_amount ?? 0),
+                'delivery_fee'    => (float)($order->delivery_fee ?? 0),
+                'software_fee'    => (float)($order->software_fee ?? 0),
+                'tip_amount'      => (float)($order->tip_amount ?? 0),
+                'discount_amount' => (float)($order->discount_amount ?? 0),
+                'total'           => (float)($order->total ?? 0),
+            ],
+
+            'items' => $items,
+
+            'status_history' => $timeline,
         ]
     ], 200);
 }
