@@ -59,14 +59,14 @@ if (!function_exists('knx_resolve_software_fee')) {
             ));
         }
 
-        // Priority 2: City SSOT
+        // Priority 2: City SSOT (hub_id can be 0 or NULL depending on insert path)
         if (!$row && $city_id > 0) {
             $row = $wpdb->get_row($wpdb->prepare(
                 "SELECT id, scope, city_id, hub_id, fee_amount
                  FROM {$table_fees}
                  WHERE scope = 'city'
                    AND city_id = %d
-                   AND hub_id = 0
+                   AND (hub_id = 0 OR hub_id IS NULL)
                    AND status = 'active'
                  ORDER BY id DESC
                  LIMIT 1",

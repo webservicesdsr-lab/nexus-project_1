@@ -3,12 +3,11 @@ if (!defined('ABSPATH')) exit;
 
 /**
  * ==========================================================
- * KNX Software Fees — Admin UI (City SSOT + Hub Overrides)
+ * KNX Software Fees — Nexus Shell Admin UI
  * Shortcode: [knx_software_fees]
  * ----------------------------------------------------------
- * - No enqueues (inline link/script tags)
- * - City cards view
- * - Edit view: city fee + hub overrides
+ * City SSOT + Hub Overrides — Nexus Shell Design Language
+ * No enqueues (inline link/script tags)
  * ==========================================================
  */
 
@@ -23,10 +22,10 @@ add_shortcode('knx_software_fees', function () {
         exit;
     }
 
-    $api_list = rest_url('knx/v1/software-fees');
-    $api_save = rest_url('knx/v1/software-fees/save');
+    $api_list   = rest_url('knx/v1/software-fees');
+    $api_save   = rest_url('knx/v1/software-fees/save');
     $api_toggle = rest_url('knx/v1/software-fees/toggle');
-    $api_hubs = rest_url('knx/v1/software-fees/hubs');
+    $api_hubs   = rest_url('knx/v1/software-fees/hubs');
 
     $nonce = wp_create_nonce('knx_nonce');
 
@@ -49,75 +48,67 @@ add_shortcode('knx_software_fees', function () {
          data-nonce="<?php echo esc_attr($nonce); ?>"
          data-cities="<?php echo esc_attr(wp_json_encode($cities)); ?>"
     >
-        <div class="knx-fees__header">
-            <div class="knx-fees__title">
-                <h2>Software Fees</h2>
-                <span class="knx-fees__pill">CITY SSOT</span>
-            </div>
-            <p class="knx-fees__subtitle">Set a fixed <strong>city fee</strong> with optional <strong>hub overrides</strong>.</p>
-        </div>
 
         <!-- Cards -->
         <div class="knx-fees__cards" id="knxFeesCards">
             <div class="knx-fees__loading">
                 <div class="knx-fees__spinner"></div>
-                <p>Loading cities...</p>
+                <p>Loading cities&hellip;</p>
             </div>
         </div>
 
         <!-- Edit -->
         <div class="knx-fees__edit" id="knxFeesEdit" style="display:none;">
             <div class="knx-fees__editTop">
-                <button type="button" class="knx-fees__btn knx-fees__btn--ghost" id="knxFeesBackBtn">← Back</button>
-                <div>
-                    <h3 class="knx-fees__editTitle" id="knxFeesEditTitle">Edit City</h3>
+                <button type="button" class="knx-fees__btn knx-fees__btn--ghost" id="knxFeesBackBtn">&larr; All Cities</button>
+                <div class="knx-fees__editMeta">
+                    <h3 class="knx-fees__editTitle" id="knxFeesEditTitle">Configure Fees</h3>
                     <p class="knx-fees__muted">City: <strong id="knxFeesEditCityName"></strong></p>
                 </div>
             </div>
 
-            <!-- City Fee -->
-            <div class="knx-fees__panel">
-                <div class="knx-fees__panelHead">
-                    <h4>City Fee (SSOT)</h4>
-                    <p class="knx-fees__muted">Applies to all hubs in the city unless overridden.</p>
-                </div>
+            <div class="knx-fees__panels">
+                <!-- City Fee -->
+                <div class="knx-fees__panel">
+                    <div class="knx-fees__panelHead">
+                        <h4>
+                            <span class="knx-fees__panelIcon knx-fees__panelIcon--city" aria-hidden="true">🏙</span>
+                            Default City Fee
+                        </h4>
+                        <p class="knx-fees__muted">This fee applies to <strong>every hub</strong> in the city unless overridden below.</p>
+                    </div>
 
-                <form class="knx-fees__form" id="knxFeesCityForm">
-                    <input type="hidden" id="knxFeesCityId" value="">
-                    <input type="hidden" id="knxFeesCityFeeId" value="">
+                    <form class="knx-fees__form" id="knxFeesCityForm">
+                        <input type="hidden" id="knxFeesCityId" value="">
+                        <input type="hidden" id="knxFeesCityFeeId" value="">
 
-                    <div class="knx-fees__row">
                         <div class="knx-fees__field">
                             <label for="knxFeesCityAmount">Fee Amount ($)</label>
-                            <input id="knxFeesCityAmount" type="number" min="0" step="0.01" class="knx-fees__input" placeholder="2.50">
-                            <small class="knx-fees__hint">Fixed amount. Must be ≥ 0.</small>
+                            <input id="knxFeesCityAmount" type="number" min="0" step="0.01" class="knx-fees__input" placeholder="e.g. 2.50">
+                            <small class="knx-fees__hint">Fixed dollar amount charged per order. Enter 0 for no fee.</small>
                         </div>
 
-                        <div class="knx-fees__field knx-fees__field--toggle">
-                            <label class="knx-fees__toggle">
-                                <input id="knxFeesCityActive" type="checkbox" checked>
-                                <span>Active</span>
-                            </label>
+                        <div class="knx-fees__actions">
+                            <button type="submit" class="knx-fees__btn knx-fees__btn--primary" id="knxFeesCitySaveBtn">Save City Fee</button>
                         </div>
-                    </div>
-
-                    <div class="knx-fees__actions">
-                        <button type="submit" class="knx-fees__btn knx-fees__btn--primary" id="knxFeesCitySaveBtn">Save City Fee</button>
-                    </div>
-                </form>
-            </div>
-
-            <!-- Hub Overrides -->
-            <div class="knx-fees__panel">
-                <div class="knx-fees__panelHead">
-                    <h4>Hub Overrides (Optional)</h4>
-                    <p class="knx-fees__muted">Override the city fee for a specific hub.</p>
+                    </form>
                 </div>
 
-                <div id="knxFeesHubsList">
-                    <div class="knx-fees__loading">
-                        <div class="knx-fees__spinner"></div>
-                        <p>Loading hubs...</p>
+                <!-- Hub Overrides -->
+                <div class="knx-fees__panel">
+                    <div class="knx-fees__panelHead">
+                        <h4>
+                            <span class="knx-fees__panelIcon knx-fees__panelIcon--hub" aria-hidden="true">🏪</span>
+                            Hub Overrides
+                        </h4>
+                        <p class="knx-fees__muted">Set a <strong>custom fee</strong> for specific hubs. Hubs without an override use the city default.</p>
+                    </div>
+
+                    <div id="knxFeesHubsList">
+                        <div class="knx-fees__loading">
+                            <div class="knx-fees__spinner"></div>
+                            <p>Loading hubs&hellip;</p>
+                        </div>
                     </div>
                 </div>
             </div>

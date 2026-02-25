@@ -1,15 +1,8 @@
 // ==========================================================
-// FILE: inc/modules/fees/fees-script.js
+// KNX Software Fees — Nexus Shell Admin UI Script
+// ----------------------------------------------------------
+// City SSOT + Hub Overrides — Canonical Duality
 // ==========================================================
-/**
- * ==========================================================
- * KNX Software Fees — Admin UI Script
- * ----------------------------------------------------------
- * - City cards view
- * - Edit view: city fee + per-hub overrides
- * - Aligns payload with DB schema: city_id, hub_id, fee_amount
- * ==========================================================
- */
 
 (function () {
   'use strict';
@@ -18,11 +11,11 @@
   if (!root) return;
 
   const API = {
-    list: root.getAttribute('data-api-list') || '',
-    save: root.getAttribute('data-api-save') || '',
+    list:   root.getAttribute('data-api-list')   || '',
+    save:   root.getAttribute('data-api-save')   || '',
     toggle: root.getAttribute('data-api-toggle') || '',
-    hubs: root.getAttribute('data-api-hubs') || '',
-    nonce: root.getAttribute('data-nonce') || ''
+    hubs:   root.getAttribute('data-api-hubs')   || '',
+    nonce:  root.getAttribute('data-nonce')       || ''
   };
 
   let cities = [];
@@ -36,28 +29,29 @@
   let fees = [];
   let currentCityId = null;
 
-  const elCards = document.getElementById('knxFeesCards');
-  const elEdit = document.getElementById('knxFeesEdit');
-  const elBack = document.getElementById('knxFeesBackBtn');
+  const elCards     = document.getElementById('knxFeesCards');
+  const elEdit      = document.getElementById('knxFeesEdit');
+  const elBack      = document.getElementById('knxFeesBackBtn');
 
-  const elEditTitle = document.getElementById('knxFeesEditTitle');
+  const elEditTitle    = document.getElementById('knxFeesEditTitle');
   const elEditCityName = document.getElementById('knxFeesEditCityName');
 
-  const elCityForm = document.getElementById('knxFeesCityForm');
-  const elCityId = document.getElementById('knxFeesCityId');
-  const elCityFeeId = document.getElementById('knxFeesCityFeeId');
+  const elCityForm   = document.getElementById('knxFeesCityForm');
+  const elCityId     = document.getElementById('knxFeesCityId');
+  const elCityFeeId  = document.getElementById('knxFeesCityFeeId');
   const elCityAmount = document.getElementById('knxFeesCityAmount');
-  const elCityActive = document.getElementById('knxFeesCityActive');
-  const elCitySave = document.getElementById('knxFeesCitySaveBtn');
+  const elCitySave   = document.getElementById('knxFeesCitySaveBtn');
 
   const elHubsList = document.getElementById('knxFeesHubsList');
+
+  /* ── Helpers ──────────────────────────────────────────── */
 
   function toast(msg, type) {
     if (typeof window.knx_toast === 'function') {
       window.knx_toast(msg, type || 'info');
       return;
     }
-    console.log('[KNX]', msg);
+    console.log('[KNX Fees]', type || 'info', msg);
   }
 
   function esc(str) {
@@ -69,6 +63,12 @@
       .replace(/'/g, '&#039;');
   }
 
+  function fmtMoney(n) {
+    const x = Number(n);
+    if (!isFinite(x)) return '$0.00';
+    return '$' + x.toFixed(2);
+  }
+
   async function fetchJson(url, options) {
     const opts = options || {};
     opts.credentials = 'same-origin';
@@ -77,37 +77,31 @@
     try {
       const res = await fetch(url, opts);
       const text = await res.text();
-      try {
-        return JSON.parse(text);
-      } catch (e) {
-        return { success: false, message: 'Invalid JSON response.' };
-      }
+      try { return JSON.parse(text); }
+      catch (e) { return { success: false, message: 'Invalid JSON response.' }; }
     } catch (err) {
       return { success: false, message: 'Network error.' };
     }
   }
 
-  // Normalize knx_rest_response shape
   function pickData(res) {
     if (!res) return null;
-    if (res.data) return res.data;
-    return res;
+    return res.data || res;
   }
 
+  /* ── Fee Index ────────────────────────────────────────── */
+
   function buildFeeIndex(list) {
-    // We want the most recent row per key
-    // City key: city_id + hub_id=0
-    // Hub key: hub_id
     const byCity = new Map();
-    const byHub = new Map();
+    const byHub  = new Map();
 
     (list || []).forEach(row => {
       const scope = String(row.scope || '');
-      const id = Number(row.id || 0);
+      const id    = Number(row.id || 0);
+      const hubId = Number(row.hub_id || row.hub_id_safe || 0);
 
       if (scope === 'city') {
         const cityId = Number(row.city_id || 0);
-        const hubId = Number(row.hub_id || 0);
         if (cityId > 0 && hubId === 0) {
           const prev = byCity.get(cityId);
           if (!prev || Number(prev.id || 0) < id) byCity.set(cityId, row);
@@ -115,7 +109,6 @@
       }
 
       if (scope === 'hub') {
-        const hubId = Number(row.hub_id || 0);
         if (hubId > 0) {
           const prev = byHub.get(hubId);
           if (!prev || Number(prev.id || 0) < id) byHub.set(hubId, row);
@@ -126,17 +119,13 @@
     return { byCity, byHub };
   }
 
-  function fmtMoney(n) {
-    const x = Number(n);
-    if (!isFinite(x)) return '$0.00';
-    return '$' + x.toFixed(2);
-  }
+  /* ── Load Fees ────────────────────────────────────────── */
 
   async function loadFees() {
     const res = await fetchJson(API.list, { method: 'GET' });
     if (!res || res.success !== true) {
       toast((res && (res.message || res.error)) || 'Failed to load fees.', 'error');
-      if (elCards) elCards.innerHTML = `<div class="knx-fees__empty"><p>${esc('Failed to load fees.')}</p></div>`;
+      if (elCards) elCards.innerHTML = `<div class="knx-fees__empty"><p>Unable to load fee data.</p></div>`;
       return;
     }
 
@@ -146,48 +135,80 @@
     renderCards();
   }
 
+  /* ── Cards View ───────────────────────────────────────── */
+
   function renderCards() {
     if (!elCards) return;
 
     if (!cities.length) {
-      elCards.innerHTML = `<div class="knx-fees__empty"><p>${esc('No cities found.')}</p></div>`;
+      elCards.innerHTML = `<div class="knx-fees__empty"><p>No cities have been created yet.</p></div>`;
       return;
     }
 
     const { byCity } = buildFeeIndex(fees);
 
-    elCards.innerHTML = cities.map(c => {
-      const cityId = Number(c.id || 0);
-      const cityName = c.name || `City #${cityId}`;
+    // Count hub overrides per city
+    const hubOverrideCounts = new Map();
+    (fees || []).forEach(row => {
+      if (String(row.scope) === 'hub' && String(row.status) === 'active') {
+        const cid = Number(row.city_id || 0);
+        if (cid > 0) hubOverrideCounts.set(cid, (hubOverrideCounts.get(cid) || 0) + 1);
+      }
+    });
 
-      const row = byCity.get(cityId);
-      const has = !!row;
+    elCards.innerHTML = cities.map(c => {
+      const cityId   = Number(c.id || 0);
+      const cityName = c.name || ('City #' + cityId);
+
+      const row    = byCity.get(cityId);
+      const has    = !!row;
       const active = has && String(row.status || '') === 'active';
 
-      const badge = has ? (active ? 'Active' : 'Inactive') : 'Not set';
+      const badge      = has ? (active ? 'Active' : 'Inactive') : 'Not configured';
       const badgeClass = has ? (active ? 'is-active' : 'is-inactive') : 'is-muted';
+      const amount     = has ? fmtMoney(row.fee_amount) : '—';
 
-      const amount = has ? fmtMoney(row.fee_amount) : '—';
+      const overrides = hubOverrideCounts.get(cityId) || 0;
 
       return `
         <div class="knx-fees__card">
           <div class="knx-fees__cardTop">
-            <h3>${esc(cityName)}</h3>
+            <div class="knx-fees__cardLeft">
+              <div class="knx-fees__cardIcon" aria-hidden="true">🏙</div>
+              <h3>${esc(cityName)}</h3>
+            </div>
             <span class="knx-fees__badge ${esc(badgeClass)}">${esc(badge)}</span>
           </div>
           <div class="knx-fees__cardMid">
-            <div class="knx-fees__kv">
-              <span>Fee</span>
-              <strong>${esc(amount)}</strong>
+            <div class="knx-fees__cardStats">
+              <div class="knx-fees__cardStat">
+                <span>City Fee</span>
+                <strong>${esc(amount)}</strong>
+              </div>
+              ${overrides > 0 ? `
+                <div class="knx-fees__cardStat">
+                  <span>Overrides</span>
+                  <strong>${overrides}</strong>
+                </div>
+              ` : ''}
             </div>
           </div>
           <div class="knx-fees__cardBot">
-            <button class="knx-fees__btn knx-fees__btn--primary" data-action="edit" data-city-id="${esc(cityId)}">Edit</button>
+            <label class="knx-fees__toggle">
+              <span class="knx-fees__switch">
+                <input type="checkbox" ${active ? 'checked' : ''} data-action="toggle-city" data-city-id="${esc(cityId)}" data-fee-id="${esc(has ? (row.id || '') : '')}">
+                <span class="knx-fees__switchTrack"></span>
+              </span>
+              <span class="knx-fees__toggleText">Active</span>
+            </label>
+            <button class="knx-btn knx-fees__btn knx-fees__btn--primary knx-fees__btn--small" data-action="edit" data-city-id="${esc(cityId)}">Manage</button>
           </div>
         </div>
       `;
     }).join('');
   }
+
+  /* ── Edit View ────────────────────────────────────────── */
 
   function showEdit(cityId) {
     const city = cities.find(x => String(x.id) === String(cityId));
@@ -201,8 +222,8 @@
     if (elCards) elCards.style.display = 'none';
     if (elEdit) elEdit.style.display = 'block';
 
-    if (elEditTitle) elEditTitle.textContent = `Edit City Fee`;
-    if (elEditCityName) elEditCityName.textContent = city.name || `City #${city.id}`;
+    if (elEditTitle) elEditTitle.textContent = 'Configure Fees';
+    if (elEditCityName) elEditCityName.textContent = city.name || ('City #' + city.id);
 
     // Load city fee row (latest)
     const { byCity } = buildFeeIndex(fees);
@@ -212,7 +233,6 @@
     if (elCityFeeId) elCityFeeId.value = row ? String(row.id || '') : '';
 
     if (elCityAmount) elCityAmount.value = row ? String(row.fee_amount ?? '') : '';
-    if (elCityActive) elCityActive.checked = row ? (String(row.status) === 'active') : true;
 
     loadHubs(currentCityId);
   }
@@ -223,24 +243,30 @@
     if (elCards) elCards.style.display = 'grid';
   }
 
+  /* ── Save City Fee ────────────────────────────────────── */
+
   async function saveCityFee(e) {
     e.preventDefault();
 
     const cityId = elCityId ? Number(elCityId.value) : NaN;
-    const feeId = elCityFeeId ? String(elCityFeeId.value || '').trim() : '';
+    const feeId  = elCityFeeId ? String(elCityFeeId.value || '').trim() : '';
 
     if (!isFinite(cityId) || cityId <= 0) {
-      toast('Invalid city id.', 'error');
+      toast('Invalid city.', 'error');
       return;
     }
 
     const amount = elCityAmount ? Number(elCityAmount.value) : NaN;
     if (!isFinite(amount) || amount < 0) {
-      toast('Fee amount must be >= 0.', 'error');
+      toast('Fee amount must be $0.00 or more.', 'error');
       return;
     }
 
-    const status = (elCityActive && elCityActive.checked) ? 'active' : 'inactive';
+    // Status is controlled by the card toggle - don't change it here
+    // Read current status from DB row
+    const { byCity } = buildFeeIndex(fees);
+    const currentRow = byCity.get(cityId);
+    const status = (currentRow && String(currentRow.status)) || 'active';
 
     const payload = {
       scope: 'city',
@@ -266,10 +292,12 @@
       return;
     }
 
-    toast('City fee saved.', 'success');
+    toast('City fee saved successfully.', 'success');
     await loadFees();
     showEdit(cityId);
   }
+
+  /* ── Load Hubs ────────────────────────────────────────── */
 
   async function loadHubs(cityId) {
     if (!elHubsList) return;
@@ -277,13 +305,13 @@
     elHubsList.innerHTML = `
       <div class="knx-fees__loading">
         <div class="knx-fees__spinner"></div>
-        <p>Loading hubs...</p>
+        <p>Loading hubs&hellip;</p>
       </div>
     `;
 
     const res = await fetchJson(API.hubs + '?city_id=' + encodeURIComponent(String(cityId)), { method: 'GET' });
     if (!res || res.success !== true) {
-      elHubsList.innerHTML = `<div class="knx-fees__empty"><p>${esc('Failed to load hubs.')}</p></div>`;
+      elHubsList.innerHTML = `<div class="knx-fees__empty"><p>Unable to load hubs.</p></div>`;
       return;
     }
 
@@ -291,34 +319,54 @@
     const hubs = (data && Array.isArray(data.hubs)) ? data.hubs : [];
 
     if (!hubs.length) {
-      elHubsList.innerHTML = `<div class="knx-fees__empty"><p>${esc('No hubs found in this city.')}</p></div>`;
+      elHubsList.innerHTML = `<div class="knx-fees__empty"><p>No hubs found in this city.</p></div>`;
       return;
     }
 
     renderHubs(hubs);
   }
 
+  /* ── Render Hubs ──────────────────────────────────────── */
+
   function renderHubs(hubs) {
     if (!elHubsList) return;
 
-    const { byHub } = buildFeeIndex(fees);
+    const { byCity, byHub } = buildFeeIndex(fees);
+    const cityRow = byCity.get(currentCityId);
+    const cityFee = (cityRow && String(cityRow.status) === 'active')
+      ? fmtMoney(cityRow.fee_amount)
+      : null;
 
     elHubsList.innerHTML = hubs.map(h => {
-      const hubId = Number(h.id || 0);
-      const hubName = h.name || `Hub #${hubId}`;
+      const hubId   = Number(h.id || 0);
+      const hubName = h.name || ('Hub #' + hubId);
 
-      const row = byHub.get(hubId);
-      const has = !!row;
+      const row    = byHub.get(hubId);
+      const has    = !!row;
       const active = has && String(row.status || '') === 'active';
 
       const amount = has ? String(row.fee_amount ?? '') : '';
-      const statusText = has ? (active ? 'Active override' : 'Inactive override') : 'Uses city fee';
+
+      let statusText, dotClass;
+      if (has && active) {
+        statusText = 'Custom override: ' + fmtMoney(row.fee_amount);
+        dotClass   = 'knx-fees__hubDot--orange';
+      } else if (cityFee) {
+        statusText = 'Using city default: ' + cityFee;
+        dotClass   = 'knx-fees__hubDot--green';
+      } else {
+        statusText = 'No fee configured';
+        dotClass   = 'knx-fees__hubDot--gray';
+      }
 
       return `
         <div class="knx-fees__hub">
           <div class="knx-fees__hubLeft">
             <div class="knx-fees__hubName">${esc(hubName)}</div>
-            <div class="knx-fees__hubMeta">${esc(statusText)}</div>
+            <div class="knx-fees__hubMeta">
+              <span class="knx-fees__hubDot ${esc(dotClass)}"></span>
+              ${esc(statusText)}
+            </div>
           </div>
 
           <div class="knx-fees__hubRight">
@@ -338,24 +386,26 @@
               Save
             </button>
             ${has && active ? `
-              <button class="knx-fees__btn knx-fees__btn--small knx-fees__btn--ghost"
+              <button class="knx-fees__btn knx-fees__btn--small knx-fees__btn--danger"
                       data-action="remove-hub"
                       data-fee-id="${esc(row.id || '')}">
                 Remove
               </button>
-            ` : ``}
+            ` : ''}
           </div>
         </div>
       `;
     }).join('');
   }
 
+  /* ── Save Hub Override ────────────────────────────────── */
+
   async function saveHubOverride(hubId, feeId) {
-    const input = root.querySelector(`[data-hub-amount="${CSS.escape(String(hubId))}"]`);
+    const input  = root.querySelector('[data-hub-amount="' + CSS.escape(String(hubId)) + '"]');
     const amount = input ? Number(input.value) : NaN;
 
     if (!isFinite(amount) || amount < 0) {
-      toast('Fee amount must be >= 0.', 'error');
+      toast('Fee amount must be $0.00 or more.', 'error');
       return;
     }
 
@@ -384,10 +434,12 @@
     if (currentCityId) showEdit(currentCityId);
   }
 
+  /* ── Remove Hub Override ──────────────────────────────── */
+
   async function removeHubOverride(feeId) {
     if (!feeId) return;
 
-    const ok = confirm('Remove this hub override? The hub will use the city fee.');
+    const ok = confirm('Remove this hub override?\n\nThe hub will revert to the city default fee.');
     if (!ok) return;
 
     const res = await fetchJson(API.toggle, {
@@ -400,16 +452,86 @@
       return;
     }
 
-    toast('Hub override removed.', 'success');
+    toast('Hub override removed — city default restored.', 'success');
     await loadFees();
     if (currentCityId) showEdit(currentCityId);
   }
 
-  function onCardsClick(e) {
+  /* ── Event Delegation ─────────────────────────────────── */
+
+  async function onCardsClick(e) {
+    // Handle toggle
+    const toggle = e.target.closest('[data-action="toggle-city"]');
+    if (toggle) {
+      e.preventDefault();
+      await handleCityToggle(toggle);
+      return;
+    }
+
+    // Handle edit
     const btn = e.target.closest('[data-action="edit"]');
     if (!btn) return;
     const cityId = btn.getAttribute('data-city-id');
     if (cityId) showEdit(cityId);
+  }
+
+  async function handleCityToggle(checkbox) {
+    const cityId = checkbox.getAttribute('data-city-id');
+    const feeId = checkbox.getAttribute('data-fee-id');
+    const isChecked = checkbox.checked;
+
+    // If no fee exists yet, create one
+    if (!feeId || feeId === '') {
+      const { byCity } = buildFeeIndex(fees);
+      const row = byCity.get(Number(cityId));
+      const amount = row ? Number(row.fee_amount || 0) : 0;
+
+      const payload = {
+        knx_nonce: API.nonce,
+        scope: 'city',
+        city_id: cityId,
+        hub_id: 0,
+        fee_amount: amount,
+        status: isChecked ? 'active' : 'inactive'
+      };
+
+      const res = await fetchJson(API.save, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res || res.success !== true) {
+        checkbox.checked = !isChecked; // Revert
+        toast((res && (res.message || res.error)) || 'Failed to create fee.', 'error');
+        return;
+      }
+
+      toast('Fee created successfully.', 'success');
+      await loadFees();
+      return;
+    }
+
+    // Otherwise, toggle existing fee
+    const payload = {
+      knx_nonce: API.nonce,
+      id: feeId
+    };
+
+    const res = await fetchJson(API.toggle, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res || res.success !== true) {
+      checkbox.checked = !isChecked; // Revert
+      toast((res && (res.message || res.error)) || 'Failed to toggle status.', 'error');
+      return;
+    }
+
+    toast('Status updated.', 'success');
+    await loadFees();
   }
 
   function onHubsClick(e) {
@@ -428,6 +550,8 @@
       return;
     }
   }
+
+  /* ── Init ─────────────────────────────────────────────── */
 
   function init() {
     if (elBack) elBack.addEventListener('click', hideEdit);

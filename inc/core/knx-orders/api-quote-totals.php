@@ -49,6 +49,7 @@ function knx_quote_totals_try_load_engines() {
         $root . 'inc/functions/address-engine.php',
 
         // Fees / software fee engines
+        $root . 'inc/functions/totals-engine.php',
         $root . 'inc/functions/software-fee-engine.php',
         $root . 'inc/functions/software-fees-engine.php',
         $root . 'inc/functions/fees-engine.php',

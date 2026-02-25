@@ -1,260 +1,524 @@
+/* ==========================================================
+   KNX Software Fees — Nexus Shell Admin UI (SEALED v2)
+   Focus: Configure Fees page (Edit view)
+   ========================================================== */
+
 .knx-fees {
-  /* font removed to inherit theme typography */
-  color: #111827;
-  background: #fff;
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 18px;
+  --knx-green: #0b793a;
+  --knx-green-hover: #096c33;
+
+  --knx-text: #0b1220;
+  --knx-muted: #6b7280;
+
+  --knx-border: rgba(11, 18, 32, 0.08);
+  --knx-card: #ffffff;
+  --knx-bg: #f6f7f9;
+
+  --knx-shadow: 0 18px 44px rgba(11, 18, 32, 0.08);
+  --knx-shadow-sm: 0 10px 26px rgba(11, 18, 32, 0.06);
+
+  --knx-radius: 14px;
+  --knx-radius-sm: 12px;
+
+  --knx-focus: 0 0 0 4px rgba(11, 121, 58, 0.12);
+
+  color: var(--knx-text);
+  max-width: 1180px;
+  margin: 18px auto;
+  padding: 28px 22px;
+  background: var(--knx-bg);
+  border-radius: 18px;
 }
 
-.knx-fees__header {
-  display: grid;
-  gap: 6px;
-  margin-bottom: 14px;
-}
-
-.knx-fees__title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.knx-fees__title h2 {
-  margin: 0;
-  font-size: 20px;
-}
-
-.knx-fees__pill {
-  font-size: 12px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  border: 1px solid #d1fae5;
-  background: #ecfdf5;
-}
-
-.knx-fees__subtitle {
-  margin: 0;
-  color: #6b7280;
-}
+/* ── City Cards Grid (left as-is) ───────────────────────── */
 
 .knx-fees__cards {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 16px;
+  grid-auto-rows: 1fr;
+  align-items: stretch;
 }
 
 @media (max-width: 980px) {
   .knx-fees__cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-@media (max-width: 640px) {
+@media (max-width: 600px) {
   .knx-fees__cards { grid-template-columns: 1fr; }
 }
 
 .knx-fees__card {
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
-  background: #ffffff;
-  padding: 12px;
-  display: grid;
-  gap: 10px;
+  border: 1px solid var(--knx-border);
+  border-radius: 16px;
+  background: var(--knx-card);
+  box-shadow: 0 8px 20px rgba(11, 18, 32, 0.06);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  transition: box-shadow 0.18s ease, transform 0.12s ease, border-color 0.18s ease;
+}
+
+.knx-fees__card:hover {
+  box-shadow: var(--knx-shadow);
+  border-color: rgba(11, 18, 32, 0.14);
+  transform: translateY(-1px);
 }
 
 .knx-fees__cardTop {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
+}
+
+.knx-fees__cardLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .knx-fees__cardTop h3 {
   margin: 0;
-  font-size: 16px;
-  line-height: 1.2;
-}
-
-.knx-fees__badge {
-  font-size: 12px;
-  padding: 4px 9px;
-  border-radius: 999px;
-  border: 1px solid #e5e7eb;
-  background: #f9fafb;
-  color: #374151;
+  font-size: 1rem;
+  font-weight: 850;
+  line-height: 1.15;
+  color: var(--knx-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.knx-fees__badge.is-active {
-  border-color: #bbf7d0;
-  background: #f0fdf4;
+.knx-fees__cardIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, rgba(240, 253, 244, 1), rgba(232, 249, 235, 1));
+  color: var(--knx-green);
+  font-size: 18px;
+  flex-shrink: 0;
 }
 
-.knx-fees__badge.is-inactive {
-  border-color: #fde68a;
-  background: #fffbeb;
+.knx-fees__cardMid {
+  margin: 14px 0;
 }
 
-.knx-fees__badge.is-muted {
-  border-color: #e5e7eb;
-  background: #f9fafb;
-  color: #6b7280;
-}
-
-.knx-fees__kv {
+.knx-fees__cardStats {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  color: #374151;
+  gap: 14px;
+  flex-wrap: wrap;
 }
 
-.knx-fees__kv span {
-  color: #6b7280;
-  font-size: 13px;
+.knx-fees__cardStat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
-.knx-fees__kv strong {
-  font-size: 16px;
+.knx-fees__cardStat span {
+  font-size: 12px;
+  color: var(--knx-muted);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.knx-fees__cardStat strong {
+  font-size: 15px;
+  color: var(--knx-text);
+  font-weight: 900;
+  line-height: 1.2;
 }
 
 .knx-fees__cardBot {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(11, 18, 32, 0.06);
+}
+
+/* ── Badges ─────────────────────────────────────────────── */
+
+.knx-fees__badge {
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.knx-fees__badge.is-active {
+  border: 1px solid rgba(11, 121, 58, 0.16);
+  background: #f0fdf4;
+  color: #0b6623;
+}
+
+.knx-fees__badge.is-inactive {
+  border: 1px solid rgba(122, 16, 16, 0.14);
+  background: #fff6f6;
+  color: #7a1010;
+}
+
+.knx-fees__badge.is-muted {
+  border: 1px solid var(--knx-border);
+  background: #f3f4f6;
+  color: var(--knx-muted);
+}
+
+/* ── Buttons ────────────────────────────────────────────── */
+
+.knx-btn {
+  -webkit-appearance: none;
+  appearance: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  line-height: inherit;
 }
 
 .knx-fees__btn {
+  -webkit-appearance: none;
   appearance: none;
-  border: 1px solid #e5e7eb;
-  background: #ffffff;
-  color: #111827;
-  padding: 8px 12px;
-  border-radius: 10px;
+  border: 1px solid var(--knx-border);
+  background: var(--knx-card);
+  color: var(--knx-text);
+  padding: 10px 18px;
+  border-radius: var(--knx-radius-sm);
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 800;
+  font-size: 0.92rem;
+  line-height: 1;
+  transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+}
+
+.knx-fees__btn:focus-visible {
+  outline: none;
+  box-shadow: var(--knx-focus);
 }
 
 .knx-fees__btn--primary {
-  border-color: #0B793A;
-  background: #0B793A;
-  color: #ffffff;
+  border-color: var(--knx-green);
+  background: var(--knx-green);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(11, 121, 58, 0.10);
+}
+
+.knx-fees__btn--primary:hover {
+  background: var(--knx-green-hover);
+  box-shadow: 0 10px 22px rgba(11, 121, 58, 0.14);
+  transform: translateY(-1px);
 }
 
 .knx-fees__btn--ghost {
-  background: #f9fafb;
+  background: #eef0f3;
+  border-color: rgba(11, 18, 32, 0.10);
+  color: var(--knx-muted);
+}
+
+.knx-fees__btn--ghost:hover {
+  background: #e7eaee;
+  color: var(--knx-text);
+}
+
+.knx-fees__btn--danger {
+  background: #fff6f6;
+  border-color: rgba(122, 16, 16, 0.14);
+  color: #7a1010;
+}
+
+.knx-fees__btn--danger:hover {
+  background: #fee2e2;
+  transform: translateY(-1px);
 }
 
 .knx-fees__btn--small {
-  padding: 7px 10px;
-  border-radius: 10px;
-  font-weight: 700;
+  padding: 8px 12px;
   font-size: 13px;
+  border-radius: 10px;
 }
 
 .knx-fees__btn:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ── Edit View Top ──────────────────────────────────────── */
+
+.knx-fees__edit {
+  margin-top: 6px;
 }
 
 .knx-fees__editTop {
-  display: grid;
-  grid-template-columns: 120px 1fr;
-  gap: 12px;
+  display: flex;
   align-items: center;
-  margin-bottom: 12px;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 14px 14px;
+  border: 1px solid var(--knx-border);
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 16px;
+  box-shadow: 0 10px 22px rgba(11, 18, 32, 0.05);
+  backdrop-filter: blur(6px);
+}
+
+.knx-fees__editMeta {
+  min-width: 0;
+  text-align: right;
 }
 
 @media (max-width: 640px) {
   .knx-fees__editTop {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .knx-fees__editMeta {
+    text-align: left;
   }
 }
 
 .knx-fees__editTitle {
   margin: 0;
-}
-
-.knx-fees__panel {
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
-  padding: 12px;
-  background: #fff;
-  margin-bottom: 12px;
-}
-
-.knx-fees__panelHead {
-  display: grid;
-  gap: 4px;
-  margin-bottom: 10px;
-}
-
-.knx-fees__panelHead h4 {
-  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  color: var(--knx-text);
 }
 
 .knx-fees__muted {
   margin: 0;
-  color: #6b7280;
+  color: var(--knx-muted);
   font-size: 13px;
+  line-height: 1.4;
 }
 
-.knx-fees__form {
+/* ── Panels (FORCED SINGLE COLUMN ON DESKTOP) ───────────── */
+
+.knx-fees__panels {
   display: grid;
-  gap: 12px;
+  grid-template-columns: 1fr; /* <- siempre columna */
+  gap: 16px;
+  align-items: start;
 }
+
+/* ── Panel ──────────────────────────────────────────────── */
+
+.knx-fees__panel {
+  border: 1px solid var(--knx-border);
+  border-radius: 14px;
+  padding: 22px;
+  background: var(--knx-card);
+  box-shadow: 0 8px 20px rgba(11, 18, 32, 0.05);
+}
+
+.knx-fees__panelHead {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--knx-border);
+}
+
+.knx-fees__panelHead h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: var(--knx-text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.knx-fees__panelIcon {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.knx-fees__panelIcon--city {
+  background: rgba(11, 121, 58, 0.10);
+  color: var(--knx-green);
+}
+
+.knx-fees__panelIcon--hub {
+  background: rgba(59, 130, 246, 0.10);
+  color: #2563eb;
+}
+
+/* ── Form / Row (toggle overflow fix) ───────────────────── */
+
+.knx-fees__form { margin: 0; }
 
 .knx-fees__row {
   display: grid;
-  grid-template-columns: 1fr 140px;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) minmax(140px, max-content);
+  gap: 16px;
   align-items: end;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 700px) {
   .knx-fees__row {
     grid-template-columns: 1fr;
   }
 }
 
+.knx-fees__field { min-width: 0; }
+
 .knx-fees__field label {
   display: block;
-  font-weight: 700;
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--knx-text);
   margin-bottom: 6px;
-}
-
-.knx-fees__input {
-  width: 100%;
-  border: 1px solid #e5e7eb;
-  background: #fff;
-  border-radius: 10px;
-  padding: 10px 10px;
-  font-size: 14px;
+  letter-spacing: 0.02em;
 }
 
 .knx-fees__hint {
   display: block;
   margin-top: 6px;
-  color: #6b7280;
+  color: var(--knx-muted);
   font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Inputs */
+
+.knx-fees__input {
+  width: 100%;
+  border: 1px solid var(--knx-border);
+  background: var(--knx-card);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 14px;
+  color: var(--knx-text);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+}
+
+.knx-fees__input:focus {
+  outline: none;
+  border-color: var(--knx-green);
+  box-shadow: var(--knx-focus);
+}
+
+.knx-fees__input::placeholder {
+  color: var(--knx-muted);
+  opacity: 0.65;
+}
+
+/* Toggle / Switch (NO OVERFLOW) */
+
+.knx-fees__field--toggle {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding-bottom: 6px;
+  min-width: 0;
+  overflow: hidden; /* <- hard stop overflow */
 }
 
 .knx-fees__toggle {
   display: inline-flex;
   gap: 10px;
   align-items: center;
-  font-weight: 700;
-  color: #111827;
+  font-weight: 900;
+  font-size: 14px;
+  color: var(--knx-text);
+  cursor: pointer;
+  user-select: none;
+  max-width: 100%;
+}
+
+.knx-fees__toggleText {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap; /* Active nunca debería romper */
+}
+
+.knx-fees__switch {
+  position: relative;
+  width: 46px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+.knx-fees__switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.knx-fees__switchTrack {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: #d1d5db;
+  transition: background 0.2s ease, box-shadow 0.15s ease;
+  cursor: pointer;
+}
+
+.knx-fees__switchTrack::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(11, 18, 32, 0.12);
+  transition: transform 0.2s ease;
+}
+
+.knx-fees__switch input:checked + .knx-fees__switchTrack {
+  background: var(--knx-green);
+}
+
+.knx-fees__switch input:checked + .knx-fees__switchTrack::after {
+  transform: translateX(20px);
+}
+
+.knx-fees__switch input:focus-visible + .knx-fees__switchTrack {
+  box-shadow: var(--knx-focus);
 }
 
 .knx-fees__actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+  padding-top: 10px;
 }
+
+/* ── Hub Overrides List ─────────────────────────────────── */
 
 .knx-fees__hub {
   display: grid;
-  grid-template-columns: 1fr 360px;
-  gap: 12px;
-  padding: 10px 0;
-  border-top: 1px solid #f3f4f6;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 0;
+  border-top: 1px solid var(--knx-border);
 }
 
 .knx-fees__hub:first-child {
@@ -265,54 +529,93 @@
 @media (max-width: 760px) {
   .knx-fees__hub {
     grid-template-columns: 1fr;
+    gap: 10px;
   }
+}
+
+.knx-fees__hubLeft {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
 }
 
 .knx-fees__hubName {
-  font-weight: 800;
+  font-weight: 900;
+  font-size: 0.92rem;
+  color: var(--knx-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .knx-fees__hubMeta {
-  color: #6b7280;
+  color: var(--knx-muted);
   font-size: 12px;
-  margin-top: 3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
+
+.knx-fees__hubDot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.knx-fees__hubDot--green { background: var(--knx-green); }
+.knx-fees__hubDot--orange { background: #f59e0b; }
+.knx-fees__hubDot--gray { background: #d1d5db; }
 
 .knx-fees__hubRight {
-  display: grid;
-  grid-template-columns: 1fr 80px 90px;
-  gap: 8px;
+  display: flex;
   align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
+.knx-fees__hubInput { width: 110px; }
+
 @media (max-width: 760px) {
-  .knx-fees__hubRight {
-    grid-template-columns: 1fr 1fr;
-  }
-  .knx-fees__hubRight .knx-fees__btn--ghost {
-    grid-column: 1 / -1;
-  }
+  .knx-fees__hubRight { flex-wrap: wrap; }
+  .knx-fees__hubInput { flex: 1; min-width: 90px; }
 }
+
+/* ── Empty / Loading States ─────────────────────────────── */
 
 .knx-fees__loading,
 .knx-fees__empty {
-  border: 1px dashed #e5e7eb;
-  border-radius: 14px;
-  padding: 18px;
+  border: 1px dashed rgba(11, 18, 32, 0.12);
+  border-radius: var(--knx-radius);
+  padding: 32px 20px;
   text-align: center;
-  color: #6b7280;
+  color: var(--knx-muted);
+  font-size: 0.92rem;
+  background: rgba(255, 255, 255, 0.55);
 }
 
 .knx-fees__spinner {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   border-radius: 999px;
-  border: 2px solid #e5e7eb;
-  border-top-color: #0B793A;
-  margin: 0 auto 8px;
-  animation: knxFeesSpin 0.8s linear infinite;
+  border: 2.5px solid rgba(11, 18, 32, 0.10);
+  border-top-color: var(--knx-green);
+  margin: 0 auto 10px;
+  animation: knxFeesSpin 0.7s linear infinite;
 }
 
-@keyframes knxFeesSpin {
-  to { transform: rotate(360deg); }
+@keyframes knxFeesSpin { to { transform: rotate(360deg); } }
+
+/* ── Reduced motion ─────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .knx-fees__card,
+  .knx-fees__btn,
+  .knx-fees__input,
+  .knx-fees__switchTrack,
+  .knx-fees__switchTrack::after {
+    transition: none;
+  }
+  .knx-fees__spinner { animation-duration: 1.5s; }
 }

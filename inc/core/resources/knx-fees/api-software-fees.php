@@ -84,12 +84,13 @@ function knx_api_list_software_fees(WP_REST_Request $req) {
     $sql = "
         SELECT
             f.*,
+            COALESCE(f.hub_id, 0) AS hub_id_safe,
             c.name AS city_name,
             h.name AS hub_name
         FROM {$table_fees} f
         LEFT JOIN {$table_cities} c ON f.city_id = c.id
-        LEFT JOIN {$table_hubs}   h ON f.hub_id = h.id
-        ORDER BY f.scope ASC, f.city_id ASC, f.hub_id ASC, f.id DESC
+        LEFT JOIN {$table_hubs}   h ON f.hub_id IS NOT NULL AND f.hub_id > 0 AND f.hub_id = h.id
+        ORDER BY f.scope ASC, f.city_id ASC, COALESCE(f.hub_id, 0) ASC, f.id DESC
     ";
 
     $fees = $wpdb->get_results($sql);
@@ -243,7 +244,7 @@ function knx_api_save_software_fee(WP_REST_Request $req) {
                      SET status = 'inactive', updated_at = %s
                      WHERE scope = 'city'
                        AND city_id = %d
-                       AND hub_id = 0
+                       AND (hub_id = 0 OR hub_id IS NULL)
                        AND status = 'active'
                        AND id != %d",
                     $now,
@@ -367,7 +368,7 @@ function knx_api_toggle_software_fee(WP_REST_Request $req) {
                      SET status = 'inactive', updated_at = %s
                      WHERE scope = 'city'
                        AND city_id = %d
-                       AND hub_id = 0
+                       AND (hub_id = 0 OR hub_id IS NULL)
                        AND status = 'active'
                        AND id != %d",
                     $now,
