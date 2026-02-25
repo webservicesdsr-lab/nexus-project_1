@@ -219,6 +219,7 @@
     position: relative;
     min-height: 240px;
     width: 100%;
+    transition: none;
 }
 
 .knx-dash__chart-canvas-wrap canvas {
@@ -237,4 +238,37 @@
     border-radius: var(--dash-card-radius);
     border: 1px solid var(--dash-border);
     margin-top: 16px;
+}
+
+/* Desktop-specific fixes: stable chart heights and readable labels */
+@media (min-width: 1200px) {
+    /* Force stable pixel heights for canvas wrappers so Chart.js has a predictable box */
+    .knx-dash__chart-canvas-wrap {
+        height: 360px !important;
+        min-height: 360px !important;
+        max-height: 360px !important;
+    }
+
+    .knx-dash__chart-card--orders .knx-dash__chart-canvas-wrap {
+        height: 320px !important;
+        min-height: 320px !important;
+        max-height: 320px !important;
+    }
+
+    /* Allow labels to wrap on desktop so "( 30 DAYS )" is visible. */
+    .knx-dash__card-label {
+        white-space: normal;
+        font-size: 12px;
+        line-height: 1.05;
+    }
+
+    /* Align label + value to start so multi-line label looks natural */
+    .knx-dash__card-body {
+        align-items: flex-start;
+    }
+
+    /* Slightly reduce numerical sizes to avoid overflow while keeping emphasis */
+    .knx-dash__card-value {
+        font-size: clamp(18px, 1.6vw, 28px);
+    }
 }
