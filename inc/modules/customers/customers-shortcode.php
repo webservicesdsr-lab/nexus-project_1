@@ -3,11 +3,11 @@ if (!defined('ABSPATH')) exit;
 
 /**
  * ==========================================================
- * Kingdom Nexus — Customers Admin UI (v1.0 Cities/Hubs UX)
+ * Kingdom Nexus — Customers Admin UI (v1.1 Hubs Desktop 1:1)
  * ----------------------------------------------------------
  * Shortcode: [knx_customers_admin]
- * - Desktop: table layout
- * - Mobile: cards layout (CSS switch)
+ * - Desktop: table layout (matches /hubs 1:1)
+ * - Mobile: cards layout
  * - Modal Add/Edit (REST create/update)
  * - Toggle status (REST toggle)
  * - Search + Status filter + Pagination
@@ -18,7 +18,6 @@ if (!defined('ABSPATH')) exit;
 
 add_shortcode('knx_customers_admin', function () {
 
-    // Defensive session guard (do not fatal if session system isn't loaded).
     if (!function_exists('knx_get_session')) {
         return '<div style="padding:16px;background:#fff;border:1px solid #e2e5e8;border-radius:12px;">
             <strong>Customers UI unavailable:</strong> knx_get_session() not found.
@@ -56,14 +55,11 @@ add_shortcode('knx_customers_admin', function () {
          data-nonce="<?php echo esc_attr($nonce); ?>">
 
         <div class="knx-customers-header">
-            <h2>
-                <i class="fas fa-users"></i>
-                Customers Management
-            </h2>
+            <h2>Customers Management</h2>
 
             <div class="knx-customers-controls">
                 <div class="knx-search-form">
-                    <input type="text" id="knxCustomersSearchInput" placeholder="Search name, email, phone...">
+                    <input type="text" id="knxCustomersSearchInput" placeholder="Search customers...">
                     <button type="button" id="knxCustomersSearchBtn" title="Search">
                         <i class="fas fa-search"></i>
                     </button>
@@ -99,9 +95,7 @@ add_shortcode('knx_customers_admin', function () {
         </table>
 
         <!-- Mobile: Cards -->
-        <div class="knx-customers-cards" id="knxCustomersCards" aria-label="Customers Cards">
-            <!-- JS renders -->
-        </div>
+        <div class="knx-customers-cards" id="knxCustomersCards" aria-label="Customers Cards"></div>
 
         <!-- Pagination -->
         <div class="knx-pagination" id="knxCustomersPagination"></div>

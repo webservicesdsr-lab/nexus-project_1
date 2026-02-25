@@ -1,209 +1,220 @@
 /**
  * ==========================================================
- * Kingdom Nexus - Hubs Script (v3.6)
+ * Kingdom Nexus - Hubs Script (v4.0)
  * ----------------------------------------------------------
- * Handles modal interactions and REST API toggle (Add / Deactivate / Reactivate)
- * Unified with global knxToast() system.
- * ----------------------------------------------------------
- * Changelog v3.6:
- * ✅ Removed local toast implementation
- * ✅ All feedback now uses global knxToast()
- * ✅ Cleaner and lighter code
+ * ✅ Works for BOTH desktop table rows and mobile cards
+ * ✅ Add Hub modal (FormData) using wrapper dataset endpoints/nonces
+ * ✅ Toggle with confirm modal on deactivate
+ * ✅ Updates status pill in the same container
+ * ✅ Uses knxToast() (global)
  * ==========================================================
  */
 
 document.addEventListener("DOMContentLoaded", () => {
+  const wrapper = document.querySelector(".knx-hubs-wrapper");
+  if (!wrapper) return;
+
+  const API = {
+    add: wrapper.dataset.apiAdd || "",
+    toggle: wrapper.dataset.apiToggle || "",
+    nonceAdd: wrapper.dataset.nonceAdd || "",
+    nonceToggle: wrapper.dataset.nonceToggle || "",
+  };
+
   const addBtn = document.getElementById("knxAddHubBtn");
   const modal = document.getElementById("knxAddHubModal");
-  const closeModal = document.getElementById("knxCloseModal");
+  const closeModalBtn = document.getElementById("knxCloseModal");
+  const addForm = document.getElementById("knxAddHubForm");
+  const firstInput = addForm?.querySelector('input[name="name"]');
+
   const confirmModal = document.getElementById("knxConfirmDeactivate");
-  const cancelDeactivate = document.getElementById("knxCancelDeactivate");
+  const cancelDeactivateBtn = document.getElementById("knxCancelDeactivate");
   const confirmDeactivateBtn = document.getElementById("knxConfirmDeactivateBtn");
 
-  const addForm = document.getElementById("knxAddHubForm");
-  const hubsWrapper = document.querySelector(".knx-hubs-wrapper");
-  const nonce = hubsWrapper?.dataset.nonce || "";
+  let pendingToggle = null; // { containerEl, checkboxEl, id }
 
-  let pendingHub = null;
+  function toast(msg, type = "info") {
+    if (typeof window.knxToast === "function") return window.knxToast(msg, type);
+    if (typeof window.knx_toast === "function") return window.knx_toast(msg, type);
+    console.log("[KNX HUBS]", type, msg);
+  }
 
-  /** ------------------------------------------------------
-   * Open Add Hub modal
-   * ------------------------------------------------------ */
-  addBtn?.addEventListener("click", () => {
-    modal?.classList.add("active");
+  function openModal() {
+    if (!modal) return;
+    modal.classList.add("active");
+    modal.setAttribute("aria-hidden", "false");
     document.body.classList.add("knx-modal-open");
-  });
+    document.body.style.overflow = "hidden";
+    setTimeout(() => firstInput?.focus(), 120);
+  }
 
-  /** ------------------------------------------------------
-   * Close Add Hub modal
-   * ------------------------------------------------------ */
-  closeModal?.addEventListener("click", () => {
-    modal?.classList.remove("active");
+  function closeModal() {
+    if (!modal) return;
+    modal.classList.remove("active");
+    modal.setAttribute("aria-hidden", "true");
     document.body.classList.remove("knx-modal-open");
-  });
+    document.body.style.overflow = "";
+    addBtn?.focus();
+  }
 
-  // Accessibility & UX helpers: focus management, ESC to close, prevent body scroll
-  (function modalEnhancements(){
-    const firstInput = addForm?.querySelector('input[name="name"]');
+  function openConfirm() {
+    if (!confirmModal) return;
+    confirmModal.classList.add("active");
+    confirmModal.setAttribute("aria-hidden", "false");
+  }
 
-    // When modal opens, focus first input and trap body scroll
-    addBtn?.addEventListener('click', () => {
-      setTimeout(() => { firstInput?.focus(); }, 150);
-      document.body.style.overflow = 'hidden';
-    });
+  function closeConfirm() {
+    if (!confirmModal) return;
+    confirmModal.classList.remove("active");
+    confirmModal.setAttribute("aria-hidden", "true");
+  }
 
-    // When modal closes, restore body scroll
-    const cleanup = () => { document.body.style.overflow = ''; };
-    closeModal?.addEventListener('click', cleanup);
+  function setStatusPill(containerEl, status) {
+    if (!containerEl) return;
+    containerEl.dataset.status = status;
 
-    // Close modal on Escape
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        if (modal?.classList.contains('active')) {
-          modal.classList.remove('active');
-          document.body.classList.remove('knx-modal-open');
-          cleanup();
-        }
-        if (confirmModal?.classList.contains('active')) {
-          confirmModal.classList.remove('active');
-        }
-      }
-    });
-  })();
+    const pillHost =
+      containerEl.querySelector(".knx-status-cell") ||
+      containerEl.querySelector("td:nth-child(3)") ||
+      containerEl;
 
-  /** ------------------------------------------------------
-   * Handle toggle switch (Active / Inactive)
-   * ------------------------------------------------------ */
-  document.querySelectorAll(".knx-toggle-hub").forEach((toggle) => {
-    toggle.addEventListener("change", (e) => {
-      const tr = e.target.closest("tr");
-      const id = tr.getAttribute("data-id");
-      const status = e.target.checked ? "active" : "inactive";
-
-      if (!id || !nonce) {
-        knxToast("Missing Hub ID or security token.", "error");
-        e.target.checked = !e.target.checked;
-        return;
-      }
-
-      // Ask confirmation only when deactivating
-      if (status === "inactive") {
-        pendingHub = { id, nonce };
-        // If a confirm modal exists in DOM, show it; otherwise fall back to native confirm
-        if (confirmModal) {
-          confirmModal.classList.add("active");
-        } else {
-          const ok = window.confirm('Are you sure you want to deactivate this hub?');
-          if (ok) updateHubStatus(id, status, nonce);
-          else e.target.checked = true;
-        }
-      } else {
-        updateHubStatus(id, status, nonce);
-      }
-    });
-  });
-
-  /** ------------------------------------------------------
-   * Cancel deactivate action
-   * ------------------------------------------------------ */
-  cancelDeactivate?.addEventListener("click", () => {
-    confirmModal?.classList.remove("active");
-    if (pendingHub) {
-      const row = document.querySelector(`tr[data-id="${pendingHub.id}"]`);
-      if (row) row.querySelector(".knx-toggle-hub").checked = true;
-    }
-  });
-
-  /** ------------------------------------------------------
-   * Confirm deactivate action
-   * ------------------------------------------------------ */
-  confirmDeactivateBtn?.addEventListener("click", () => {
-    if (pendingHub) {
-      updateHubStatus(pendingHub.id, "inactive", pendingHub.nonce);
-      confirmModal?.classList.remove("active");
-    }
-  });
-
-  /**
-   * ==========================================================
-   * Update Hub Status (Active / Inactive)
-   * ==========================================================
-   */
-  async function updateHubStatus(id, status, nonce) {
-    try {
-      const res = await fetch("/wp-json/knx/v1/toggle-hub", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hub_id: id, status, knx_nonce: nonce }),
-      });
-
-      const data = await res.json();
-      console.log("Toggle response:", data);
-
-      if (!data.success) {
-        knxToast(data.error || "Error updating hub", "error");
-        const row = document.querySelector(`tr[data-id="${id}"]`);
-        if (row) row.querySelector(".knx-toggle-hub").checked = status === "inactive";
-        return;
-      }
-
-      const row = document.querySelector(`tr[data-id="${id}"]`);
-      const statusCell = row?.querySelector("td:nth-child(3) span");
-      if (statusCell) {
-        statusCell.textContent = status.charAt(0).toUpperCase() + status.slice(1);
-        statusCell.className = "status-" + status;
-      }
-
-      knxToast(`Hub ${status === "active" ? "activated" : "deactivated"} successfully.`, "success");
-    } catch (err) {
-      console.error("Fetch error:", err);
-      knxToast("Connection error updating hub.", "error");
+    const pill = pillHost.querySelector(".status-active, .status-inactive");
+    if (pill) {
+      pill.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+      pill.className = "status-" + status;
     }
   }
 
-  /**
-   * ==========================================================
-   * Add Hub (Modal Form)
-   * ==========================================================
-   */
-  addForm?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    const formData = new FormData(addForm);
-    const name = formData.get("name")?.trim();
-    const email = formData.get("email")?.trim();
-    const phone = formData.get("phone")?.trim();
-
-    if (!name || !email) {
-      knxToast("Please enter at least a Name and Email.", "warning");
-      return;
-    }
-
+  async function doToggle(id, status, checkboxEl, containerEl) {
     try {
-      const res = await fetch("/wp-json/knx/v1/add-hub", {
+      const payload = {
+        id: String(id),
+        hub_id: String(id),
+        status: status,
+        nonce: API.nonceToggle,
+        knx_nonce: API.nonceToggle,
+      };
+
+      const res = await fetch(API.toggle, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          email,
-          phone,
-          knx_nonce: nonce,
-        }),
+        body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
-      console.log("Add Hub response:", data);
+      const out = await res.json();
 
-      if (!data.success) {
-        knxToast(data.error || "Error adding hub", "error");
+      if (!out || out.success !== true) {
+        toast(out?.error || out?.message || "Toggle failed", "error");
+        if (checkboxEl) checkboxEl.checked = !checkboxEl.checked;
         return;
       }
 
-      knxToast("Hub added successfully ✅", "success");
-      setTimeout(() => location.reload(), 1200);
+      setStatusPill(containerEl, status);
+      toast(`Hub ${status === "active" ? "activated" : "deactivated"} successfully.`, "success");
     } catch (err) {
-      console.error("Add Hub error:", err);
-      knxToast("Connection error while adding hub.", "error");
+      console.error("Toggle error:", err);
+      toast("Network error toggling hub", "error");
+      if (checkboxEl) checkboxEl.checked = !checkboxEl.checked;
+    }
+  }
+
+  // ---- Add Hub modal
+  addBtn?.addEventListener("click", openModal);
+  closeModalBtn?.addEventListener("click", closeModal);
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (modal?.classList.contains("active")) closeModal();
+    if (confirmModal?.classList.contains("active")) {
+      // if confirm is open, cancel and restore checkbox
+      if (pendingToggle?.checkboxEl) pendingToggle.checkboxEl.checked = true;
+      pendingToggle = null;
+      closeConfirm();
+    }
+  });
+
+  addForm?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    if (!API.add || !API.nonceAdd) {
+      toast("Missing add endpoint or nonce.", "error");
+      return;
+    }
+
+    const data = new FormData(addForm);
+    data.append("knx_nonce", API.nonceAdd);
+
+    try {
+      const res = await fetch(API.add, { method: "POST", body: data });
+      const out = await res.json();
+
+      if (out && out.success) {
+        toast("Hub added successfully", "success");
+        setTimeout(() => location.reload(), 800);
+      } else {
+        toast(out?.error || out?.message || "Error adding hub", "error");
+      }
+    } catch (err) {
+      console.error("Add Hub error", err);
+      toast("Network error while adding hub", "error");
+    }
+  });
+
+  // ---- Toggle (delegated; works for table + cards)
+  wrapper.addEventListener("change", (e) => {
+    const checkbox = e.target.closest(".knx-toggle-hub");
+    if (!checkbox) return;
+
+    const container = checkbox.closest("[data-id]");
+    const id = container?.dataset?.id;
+    if (!id) {
+      toast("Missing Hub ID.", "error");
+      checkbox.checked = !checkbox.checked;
+      return;
+    }
+
+    const status = checkbox.checked ? "active" : "inactive";
+
+    // confirm only on deactivate
+    if (status === "inactive") {
+      pendingToggle = { containerEl: container, checkboxEl: checkbox, id: id };
+      openConfirm();
+      return;
+    }
+
+    doToggle(id, status, checkbox, container);
+  });
+
+  // ---- Confirm modal actions
+  cancelDeactivateBtn?.addEventListener("click", () => {
+    if (pendingToggle?.checkboxEl) pendingToggle.checkboxEl.checked = true;
+    pendingToggle = null;
+    closeConfirm();
+  });
+
+  confirmDeactivateBtn?.addEventListener("click", async () => {
+    if (!pendingToggle) {
+      closeConfirm();
+      return;
+    }
+
+    const { id, checkboxEl, containerEl } = pendingToggle;
+    pendingToggle = null;
+    closeConfirm();
+
+    await doToggle(id, "inactive", checkboxEl, containerEl);
+  });
+
+  // close modal if clicking overlay
+  modal?.addEventListener("click", (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  confirmModal?.addEventListener("click", (e) => {
+    if (e.target === confirmModal) {
+      if (pendingToggle?.checkboxEl) pendingToggle.checkboxEl.checked = true;
+      pendingToggle = null;
+      closeConfirm();
     }
   });
 });

@@ -1,6 +1,6 @@
 /**
  * ==========================================================
- * Kingdom Nexus — Customers Script (v1.0 Cities/Hubs UX)
+ * Kingdom Nexus — Customers Script (v1.1 Hubs Desktop 1:1)
  * ----------------------------------------------------------
  * - Renders table (desktop) + cards (mobile)
  * - Search + Status filter + Pagination via REST list
@@ -89,7 +89,6 @@ document.addEventListener("DOMContentLoaded", () => {
       return { success: false, message: "Invalid JSON response." };
     }
 
-    // Some endpoints may return HTTP 200 with success:false
     if (data && data.success === false) return data;
 
     if (!res.ok) {
@@ -109,11 +108,16 @@ document.addEventListener("DOMContentLoaded", () => {
     modal.classList.add("active");
     modal.setAttribute("aria-hidden", "false");
     modalTitle.textContent = isEdit ? "Edit Customer" : "Add Customer";
+    document.body.classList.add("knx-modal-open");
+    document.body.style.overflow = "hidden";
+    setTimeout(() => nameEl?.focus(), 120);
   }
 
   function closeModal() {
     modal.classList.remove("active");
     modal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("knx-modal-open");
+    document.body.style.overflow = "";
     resetForm();
   }
 
@@ -147,7 +151,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const end = Math.min(pages, start + max - 1);
 
     let html = "";
-
     html += `<a href="#" data-page="${page - 1}" class="${page <= 1 ? "disabled" : ""}">&laquo; Prev</a>`;
 
     for (let i = start; i <= end; i++) {
@@ -155,7 +158,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     html += `<a href="#" data-page="${page + 1}" class="${page >= pages ? "disabled" : ""}">Next &raquo;</a>`;
-
     pagination.innerHTML = html;
   }
 
@@ -181,7 +183,6 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Table rows
     const rows = customers
       .map((c) => {
         const id = c.id ?? c.user_id ?? "";
@@ -215,7 +216,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     tbody.innerHTML = rows;
 
-    // Cards
     const cardsHtml = customers
       .map((c) => {
         const id = c.id ?? c.user_id ?? "";
@@ -272,7 +272,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (st) params.set("status", st);
 
     const url = `${API.list}?${params.toString()}`;
-
     const out = await fetchJson(url, { method: "GET" });
 
     if (!out || out.success !== true) {
@@ -280,7 +279,6 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Flexible payload shape
     const list = out?.data?.customers || out?.customers || [];
     const pag = out?.data?.pagination || out?.pagination || null;
 
@@ -307,14 +305,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!email) return toast("Email is required.", "error");
     if (!phone) return toast("Phone is required.", "error");
 
-    const payload = {
-      name,
-      email,
-      phone,
-      status,
-      knx_nonce: API.nonce,
-    };
-
+    const payload = { name, email, phone, status, knx_nonce: API.nonce };
     if (password) payload.password = password;
 
     setSaving(true);
@@ -351,7 +342,7 @@ document.addEventListener("DOMContentLoaded", () => {
       method: "POST",
       body: JSON.stringify({
         user_id: parseInt(id, 10),
-        status: desired, // safe even if backend ignores
+        status: desired,
         knx_nonce: API.nonce,
       }),
     });
@@ -362,7 +353,6 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Update UI status pill + dataset
     containerEl.dataset.status = desired;
 
     const statusCell = containerEl.querySelector(".knx-status-cell");
@@ -386,7 +376,6 @@ document.addEventListener("DOMContentLoaded", () => {
     passEl.value = "";
   }
 
-  // Events
   addBtn?.addEventListener("click", () => {
     resetForm();
     openModal(false);
@@ -396,6 +385,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   modal?.addEventListener("click", (e) => {
     if (e.target === modal) closeModal();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modal?.classList.contains("active")) closeModal();
   });
 
   form?.addEventListener("submit", (e) => {
@@ -421,7 +414,6 @@ document.addEventListener("DOMContentLoaded", () => {
     loadCustomers(1);
   });
 
-  // Delegate edit + toggle for BOTH table rows and cards
   wrapper.addEventListener("click", (e) => {
     const editBtn = e.target.closest(".knx-edit-link[data-action='edit'], .knx-edit-link");
     if (editBtn) {
@@ -436,7 +428,7 @@ document.addEventListener("DOMContentLoaded", () => {
   wrapper.addEventListener("change", (e) => {
     const toggle = e.target.closest(".knx-toggle-customer");
     if (!toggle) return;
-    const container = toggle.closest("[data-id]"); // works for <tr> and card
+    const container = toggle.closest("[data-id]");
     if (!container) return;
     toggleCustomer(container, toggle);
   });
@@ -454,6 +446,5 @@ document.addEventListener("DOMContentLoaded", () => {
     loadCustomers(p);
   });
 
-  // Boot
   loadCustomers(1);
 });

@@ -3,12 +3,13 @@ if (!defined('ABSPATH')) exit;
 
 /**
  * ==========================================================
- * Kingdom Nexus - Hubs Shortcode (v3.9)
+ * Kingdom Nexus - Hubs Shortcode (v4.0)
  * ----------------------------------------------------------
  * ✅ REST-only CRUD (Add + Toggle)
  * ✅ Unified global knxToast() system
- * ✅ Preserves all Add/Toggle/Search/Pagination logic
- * ✅ Fully backward compatible with v3.8
+ * ✅ Desktop: table (unchanged)
+ * ✅ Mobile: REAL cards container (same pattern as /customers)
+ * ✅ Preserves Search/Pagination + existing endpoints/nonces
  * ==========================================================
  */
 
@@ -57,9 +58,12 @@ add_shortcode('knx_hubs', function() {
     $nonce_add    = wp_create_nonce('knx_add_hub_nonce');
     $nonce_toggle = wp_create_nonce('knx_toggle_hub_nonce');
 
+    $css_url = KNX_URL . 'inc/modules/hubs/hubs-style.css?v=' . rawurlencode(defined('KNX_VERSION') ? KNX_VERSION : '1');
+    $js_url  = KNX_URL . 'inc/modules/hubs/hubs-script.js?v=' . rawurlencode(defined('KNX_VERSION') ? KNX_VERSION : '1');
+
     ob_start(); ?>
 
-    <link rel="stylesheet" href="<?php echo esc_url(KNX_URL . 'inc/modules/hubs/hubs-style.css'); ?>">
+    <link rel="stylesheet" href="<?php echo esc_url($css_url); ?>">
 
     <div class="knx-hubs-wrapper"
         data-api-add="<?php echo esc_url(rest_url('knx/v1/add-hub')); ?>"
@@ -80,6 +84,7 @@ add_shortcode('knx_hubs', function() {
             </div>
         </div>
 
+        <!-- Desktop: Table -->
         <table class="knx-hubs-table">
             <thead>
                 <tr>
@@ -92,9 +97,12 @@ add_shortcode('knx_hubs', function() {
             </thead>
             <tbody>
                 <?php if ($hubs): foreach ($hubs as $hub): ?>
-                    <tr data-id="<?php echo esc_attr($hub->id); ?>">
+                    <tr data-id="<?php echo esc_attr($hub->id); ?>"
+                        data-name="<?php echo esc_attr(stripslashes($hub->name)); ?>"
+                        data-phone="<?php echo esc_attr($hub->phone); ?>"
+                        data-status="<?php echo esc_attr($hub->status); ?>">
                         <td>
-                            <div class="knx-hub-identity" style="display: flex; align-items: center; gap: 12px;">
+                            <div class="knx-hub-identity">
                                 <?php if (!empty($hub->logo_url)): ?>
                                     <img class="knx-hub-thumb" src="<?php echo esc_url($hub->logo_url); ?>" alt="<?php echo esc_attr(stripslashes($hub->name)); ?>">
                                 <?php endif; ?>
@@ -109,7 +117,7 @@ add_shortcode('knx_hubs', function() {
                             </div>
                         </td>
                         <td><?php echo esc_html($hub->phone); ?></td>
-                        <td>
+                        <td class="knx-status-cell">
                             <span class="status-<?php echo esc_attr($hub->status); ?>">
                                 <?php echo ucfirst($hub->status); ?>
                             </span>
@@ -132,6 +140,59 @@ add_shortcode('knx_hubs', function() {
             </tbody>
         </table>
 
+        <!-- Mobile: Cards (same pattern as /customers) -->
+        <div class="knx-hubs-cards" aria-label="Hubs Cards">
+            <?php if ($hubs): foreach ($hubs as $hub): ?>
+                <div class="knx-hub-card"
+                     data-id="<?php echo esc_attr($hub->id); ?>"
+                     data-name="<?php echo esc_attr(stripslashes($hub->name)); ?>"
+                     data-phone="<?php echo esc_attr($hub->phone); ?>"
+                     data-status="<?php echo esc_attr($hub->status); ?>">
+
+                    <div class="knx-hub-card__top">
+                        <div class="knx-hub-card__identity">
+                            <?php if (!empty($hub->logo_url)): ?>
+                                <img class="knx-hub-thumb" src="<?php echo esc_url($hub->logo_url); ?>" alt="<?php echo esc_attr(stripslashes($hub->name)); ?>">
+                            <?php endif; ?>
+                            <div class="knx-hub-name-wrap">
+                                <div class="knx-hub-name"><?php echo esc_html(stripslashes($hub->name)); ?></div>
+                            </div>
+                            <?php if (($hub->is_featured ?? 0) == 1): ?>
+                                <span class="knx-badge--featured" title="Featured in Locals Love These" aria-hidden="false">
+                                    <i class="fas fa-star" aria-hidden="true"></i>
+                                </span>
+                            <?php endif; ?>
+                        </div>
+
+                        <div class="knx-hub-card__status knx-status-cell">
+                            <span class="status-<?php echo esc_attr($hub->status); ?>">
+                                <?php echo ucfirst($hub->status); ?>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="knx-hub-card__meta">
+                        <div><strong>Phone:</strong> <?php echo esc_html($hub->phone ?: '—'); ?></div>
+                    </div>
+
+                    <div class="knx-hub-card__actions">
+                        <a href="<?php echo esc_url(site_url('/edit-hub?id=' . $hub->id)); ?>" class="knx-edit-link" title="Edit Hub">
+                            <i class="fas fa-pen"></i> Edit
+                        </a>
+
+                        <div class="knx-hub-card__toggle">
+                            <label class="knx-switch">
+                                <input type="checkbox" class="knx-toggle-hub" <?php checked($hub->status, 'active'); ?>>
+                                <span class="knx-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach; else: ?>
+                <div class="knx-empty">No hubs found.</div>
+            <?php endif; ?>
+        </div>
+
         <?php if ($pages > 1): ?>
             <div class="knx-pagination">
                 <?php
@@ -150,7 +211,7 @@ add_shortcode('knx_hubs', function() {
     </div>
 
     <!-- Modal: Add Hub -->
-    <div id="knxAddHubModal" class="knx-modal">
+    <div id="knxAddHubModal" class="knx-modal" aria-hidden="true">
         <div class="knx-modal-content">
             <h3>Add Hub</h3>
             <form id="knxAddHubForm">
@@ -168,135 +229,14 @@ add_shortcode('knx_hubs', function() {
         <div class="knx-modal-content knx-confirm-content" role="dialog" aria-modal="true" aria-labelledby="knxConfirmTitle">
             <h3 id="knxConfirmTitle">Deactivate Hub</h3>
             <p class="knx-confirm-message">Are you sure you want to deactivate this hub? This will make it unavailable to customers.</p>
-            <div class="knx-confirm-actions" style="display:flex; gap:10px; justify-content:flex-end; margin-top:12px;">
+            <div class="knx-confirm-actions">
                 <button id="knxCancelDeactivate" type="button" class="knx-btn-secondary">Cancel</button>
                 <button id="knxConfirmDeactivateBtn" type="button" class="knx-btn">Deactivate</button>
             </div>
         </div>
     </div>
 
-    <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const wrapper = document.querySelector('.knx-hubs-wrapper');
-        const apiAdd = wrapper.dataset.apiAdd;
-        const apiToggle = wrapper.dataset.apiToggle;
-        const nonceAdd = wrapper.dataset.nonceAdd;
-        const nonceToggle = wrapper.dataset.nonceToggle;
-
-        // --- Add Hub Modal ---
-        const modal = document.getElementById('knxAddHubModal');
-        const openBtn = document.getElementById('knxAddHubBtn');
-        const closeBtn = document.getElementById('knxCloseModal');
-        const form = document.getElementById('knxAddHubForm');
-        const firstInput = form?.querySelector('input[name="name"]');
-
-        const openModal = () => {
-            modal.classList.add('active');
-            modal.setAttribute('aria-hidden', 'false');
-            document.body.classList.add('knx-modal-open');
-            document.body.style.overflow = 'hidden';
-            setTimeout(() => firstInput?.focus(), 120);
-        };
-
-        const closeModal = () => {
-            modal.classList.remove('active');
-            modal.setAttribute('aria-hidden', 'true');
-            document.body.classList.remove('knx-modal-open');
-            document.body.style.overflow = '';
-            openBtn?.focus();
-        };
-
-        openBtn.addEventListener('click', openModal);
-        closeBtn.addEventListener('click', closeModal);
-
-        // close on ESC
-        document.addEventListener('keydown', (ev) => {
-            if (ev.key === 'Escape') {
-                if (modal.classList.contains('active')) closeModal();
-            }
-        });
-
-        form.addEventListener('submit', async e => {
-            e.preventDefault();
-            const data = new FormData(form);
-            data.append('knx_nonce', nonceAdd);
-
-            try {
-                const res = await fetch(apiAdd, { method: 'POST', body: data });
-                const out = await res.json();
-
-                if (out.success) {
-                    knxToast('Hub added successfully', 'success');
-                    setTimeout(() => location.reload(), 800);
-                } else {
-                    knxToast(out.error || 'Error adding hub', 'error');
-                }
-            } catch (err) {
-                console.error('Add Hub error', err);
-                knxToast('Network error while adding hub', 'error');
-            }
-        });
-
-        // --- Toggle Switch ---
-        document.querySelectorAll('.knx-toggle-hub').forEach(sw => {
-            sw.addEventListener('change', async e => {
-                const row = e.target.closest('tr');
-                const id = row.dataset.id;
-                const status = e.target.checked ? 'active' : 'inactive';
-
-                // Confirm deactivation with a nicer UX: if there's a confirm modal use it, otherwise fallback
-                if (status === 'inactive') {
-                    const confirmModal = document.getElementById('knxConfirmDeactivate');
-                    if (confirmModal) {
-                        confirmModal.classList.add('active');
-                        // wire up confirm buttons if present
-                        const confirmBtn = document.getElementById('knxConfirmDeactivateBtn');
-                        const cancelBtn = document.getElementById('knxCancelDeactivate');
-                        const cleanup = () => { confirmModal.classList.remove('active'); };
-                        cancelBtn?.addEventListener('click', () => { e.target.checked = true; cleanup(); });
-                        confirmBtn?.addEventListener('click', async () => { cleanup(); await doToggle(); });
-                        return; // wait for confirmation
-                    }
-
-                    if (!window.confirm('Are you sure you want to deactivate this hub?')) {
-                        e.target.checked = true;
-                        return;
-                    }
-                }
-
-                // perform toggle
-                async function doToggle() {
-                    try {
-                        const res = await fetch(apiToggle, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ id, status, nonce: nonceToggle })
-                        });
-                        const out = await res.json();
-
-                        if (out.success) {
-                            const label = row.querySelector('.status-active, .status-inactive');
-                            if (label) {
-                                label.textContent = status.charAt(0).toUpperCase() + status.slice(1);
-                                label.className = 'status-' + status;
-                            }
-                            knxToast('Hub ' + status + ' successfully', 'success');
-                        } else {
-                            knxToast(out.error || 'Toggle failed', 'error');
-                            e.target.checked = !e.target.checked;
-                        }
-                    } catch (err) {
-                        console.error('Toggle error', err);
-                        knxToast('Network error toggling hub', 'error');
-                        e.target.checked = !e.target.checked;
-                    }
-                }
-
-                if (status === 'active') await doToggle();
-            });
-        });
-    });
-    </script>
+    <script src="<?php echo esc_url($js_url); ?>"></script>
 
     <?php
     return ob_get_clean();
