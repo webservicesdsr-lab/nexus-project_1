@@ -19,12 +19,14 @@
     const isExpanded = sessionStorage.getItem('knx_corporate_sidebar_expanded') === 'true';
     if (isExpanded) {
         sidebar.classList.add('expanded');
+        document.body.classList.add('knx-sidebar-expanded');
     }
 
     // Toggle on button click
     expandBtn.addEventListener('click', function() {
         sidebar.classList.toggle('expanded');
         const expanded = sidebar.classList.contains('expanded');
+        document.body.classList.toggle('knx-sidebar-expanded', expanded);
         sessionStorage.setItem('knx_corporate_sidebar_expanded', expanded);
     });
 

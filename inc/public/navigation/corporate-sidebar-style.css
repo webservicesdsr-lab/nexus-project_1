@@ -182,9 +182,15 @@
     transform: rotate(180deg);
   }
 
-  /* No body push on mobile */
-  body {
-    margin-left: 0;
+  /* Push body by collapsed sidebar width (58px) */
+  body.knx-has-corporate-sidebar {
+    margin-left: 58px;
+    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Push body by expanded sidebar width (200px) */
+  body.knx-has-corporate-sidebar.knx-sidebar-expanded {
+    margin-left: 200px;
   }
 }
 
