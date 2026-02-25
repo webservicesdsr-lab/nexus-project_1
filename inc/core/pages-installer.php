@@ -92,6 +92,7 @@ if (!function_exists('knx_install_pages')) {
             ['title' => 'Drivers Admin', 'slug' => 'drivers-admin', 'content' => '[knx_drivers_admin]'],
             // Canonical drivers admin page (matches navigation-engine admin nav)
             ['title' => 'Drivers', 'slug' => 'drivers', 'content' => '[knx_drivers_admin]'],
+            ['title' => 'KNX Dashboard', 'slug' => 'knx-dashboard', 'content' => '[knx_ops_dashboard]'],
             ['title' => 'Live Orders', 'slug' => 'live-orders', 'content' => '[knx_ops_live_orders]'],
             ['title' => 'All Orders', 'slug' => 'orders', 'content' => '[knx_all_orders]'],
             // Alternate path for OPS view-order (helps install a direct route)

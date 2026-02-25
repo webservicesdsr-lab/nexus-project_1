@@ -17,13 +17,26 @@ add_action('template_redirect', function() {
     $slug = is_object($post) ? $post->post_name : '';
 
     // Define route categories
-    $public_pages    = ['home', 'about', 'contact', 'terms', 'privacy', 'login', 'register'];
-    $restricted_pages = ['hubs', 'drivers', 'customers', 'cities', 'advanced-dashboard', 'dashboard', 'account-settings'];
-    $dashboard_pages = ['hubs', 'drivers', 'customers', 'cities', 'advanced-dashboard', 'dashboard'];
+    $public_pages     = ['home', 'about', 'contact', 'terms', 'privacy', 'login', 'register'];
+    $restricted_pages = ['hubs', 'drivers', 'customers', 'cities', 'advanced-dashboard', 'dashboard',
+                         'account-settings', 'knx-dashboard', 'live-orders', 'orders', 'view-order',
+                         'fees', 'coupons', 'knx-cities', 'knx-edit-city', 'edit-hub',
+                         'edit-hub-items', 'edit-item', 'edit-item-categories', 'drivers-admin'];
+    $dashboard_pages  = ['hubs', 'drivers', 'customers', 'cities', 'advanced-dashboard', 'dashboard',
+                         'knx-dashboard', 'live-orders', 'orders', 'fees', 'coupons',
+                         'knx-cities', 'drivers-admin'];
+
+    // Admin/manager roles: redirect away from login to their dashboard
+    $admin_roles = ['super_admin', 'manager', 'hub_management', 'menu_uploader'];
 
     // Redirect logged-in users away from login/register
     if ($session && in_array($slug, ['login', 'register'])) {
-        wp_safe_redirect(site_url('/cart'));
+        $role = $session->role ?? '';
+        if (in_array($role, ['super_admin', 'manager'], true)) {
+            wp_safe_redirect(site_url('/knx-dashboard'));
+        } else {
+            wp_safe_redirect(site_url('/cart'));
+        }
         exit;
     }
 
