@@ -355,6 +355,8 @@ add_action('plugins_loaded', function() {
     knx_require('inc/modules/auth/auth-redirects.php');
 
     knx_require('inc/modules/admin/admin-menu.php');
+    // Settings module: site branding editable by admin (logo upload)
+    knx_require('inc/modules/settings/settings-shortcode.php');
 
     /* ======================================================
      * PUBLIC FRONTEND

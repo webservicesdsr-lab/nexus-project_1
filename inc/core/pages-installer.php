@@ -69,6 +69,9 @@ if (!function_exists('knx_install_pages')) {
             ['title' => 'My Addresses', 'slug' => 'my-addresses', 'content' => '[knx_my_addresses]'],
             ['title' => 'Contact', 'slug' => 'contact', 'content' => '[knx_contact]'],
 
+            // Settings page for site branding (admin editable logo)
+            ['title' => 'Settings', 'slug' => 'settings', 'content' => '[knx_settings]'],
+
             // Administrative / management pages
             ['title' => 'Hubs', 'slug' => 'hubs', 'content' => '[knx_hubs]'],
             ['title' => 'Hub Categories', 'slug' => 'hub-categories', 'content' => '[knx_hub_categories]'],
