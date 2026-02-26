@@ -69,19 +69,19 @@ add_shortcode('knx_edit_hub_items', function() {
 
           <!-- Action Buttons -->
             <div class="knx-hubs-buttons">
-            <a class="knx-btn-secondary" href="<?php echo $back_hubs_url; ?>">
+            <a class="knx-btn-secondary" href="<?php echo $back_hubs_url; ?>" aria-label="Back to Hubs">
               <i class="fas fa-arrow-left"></i> Back to Hubs
             </a>
 
-            <a class="knx-btn-yellow" href="<?php echo $manage_cats_url; ?>">
+            <a class="knx-btn-yellow" href="<?php echo $manage_cats_url; ?>" aria-label="Manage Categories">
               <i class="fas fa-layer-group"></i> Manage Categories
             </a>
 
-            <button id="knxAddItemBtn" class="knx-add-btn">
+            <button id="knxAddItemBtn" class="knx-add-btn" aria-label="Add Item">
               <i class="fas fa-plus"></i> Add Item
             </button>
 
-            <button id="knxUploadCsvBtn" class="knx-btn-secondary" title="Upload CSV">
+            <button id="knxUploadCsvBtn" class="knx-btn-secondary" title="Upload CSV" aria-label="Upload CSV">
               <i class="fas fa-file-csv"></i> Upload CSV
             </button>
           </div>
@@ -171,15 +171,6 @@ add_shortcode('knx_edit_hub_items', function() {
 </noscript>
 
 <script src="<?php echo esc_url(KNX_URL . 'inc/modules/items/edit-hub-items.js?v=' . KNX_VERSION); ?>"></script>
-
-<style>
-@media (max-width: 900px) {
-  .knx-with-sidebar { margin-left: 58px; }
-}
-
-@media (max-width: 1012px) {
-}
-</style>
 
 <?php
     return ob_get_clean();

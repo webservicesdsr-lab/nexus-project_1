@@ -1,245 +1,339 @@
 /**
- * ════════════════════════════════════════════════════════════════
- * KNX OPS — Dashboard Analytics Script  v1.0
- * ════════════════════════════════════════════════════════════════
- *
- * Fetches /knx/v1/ops/dashboard and renders:
- *  - 8 KPI cards (animated count-up)
- *  - Sales Value line chart  (Chart.js)
- *  - Total Orders bar chart  (Chart.js)
+ * ==========================================================
+ * KNX Cities — UI Script (NEXUS)
+ * ----------------------------------------------------------
+ * Desktop → TABLE (CSS controls visibility)
+ * Mobile  → CARDS (CSS controls visibility)
+ * - Add City modal (super_admin)
+ * - Operational toggle
+ * - Edit link (new slug base)
+ * - Delete → existing delete modal ONLY (no browser confirm)
+ * - Toast → knxToast(message, type)
+ * ==========================================================
  */
 
 (function () {
-    'use strict';
+  function qs(sel, root) { return (root || document).querySelector(sel); }
 
-    // DOMContentLoaded may have already fired when inline <script> runs
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
+  function toast(msg, type) {
+    try {
+      if (typeof window.knxToast === "function") {
+        window.knxToast(String(msg || ""), type || "info");
+        return;
+      }
+    } catch (_) {}
+    console.log("[KNX]", msg);
+  }
+
+  function esc(str) {
+    return String(str ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  async function apiJson(url, payload) {
+    const res = await fetch(url, {
+      method: payload ? "POST" : "GET",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: payload ? JSON.stringify(payload) : null
+    });
+
+    let json = null;
+    try { json = await res.json(); } catch (e) {}
+
+    return { ok: res.ok, status: res.status, json };
+  }
+
+  function normalizeOperational(city) {
+    return Number(city?.is_operational ?? 1) === 1;
+  }
+
+  function normalizeStatus(city) {
+    const s = String(city?.status ?? "active").toLowerCase();
+    return (s === "inactive") ? "inactive" : "active";
+  }
+
+  function buildEditUrl(editBase, id) {
+    const base = String(editBase || "");
+    if (!base) return "#";
+    return base + encodeURIComponent(String(id));
+  }
+
+  function wireOperationalToggle(hostEl, id, apiToggle, nonceToggle) {
+    const toggle = qs(".knx-operational-toggle", hostEl);
+    if (!toggle) return;
+
+    toggle.addEventListener("change", async () => {
+      const desired = toggle.checked ? 1 : 0;
+      hostEl.classList.add("is-busy");
+
+      const { ok, json } = await apiJson(apiToggle, {
+        city_id: id,
+        operational: desired,
+        knx_nonce: nonceToggle
+      });
+
+      hostEl.classList.remove("is-busy");
+
+      if (!ok || !json || json.success === false) {
+        toggle.checked = !toggle.checked;
+        toast((json && (json.message || json.error)) || "Operational toggle failed", "error");
+        return;
+      }
+
+      toast("Operational updated", "success");
+    });
+  }
+
+  function wireDelete(hostEl, id, apiDelete, nonceDelete) {
+    const delBtn = qs(".knx-delete-city", hostEl);
+    if (!delBtn) return;
+
+    delBtn.addEventListener("click", () => {
+      if (typeof window.knxOpenCityDeleteModal !== "function") {
+        toast("Delete modal is not loaded.", "error");
+        return;
+      }
+
+      window.knxOpenCityDeleteModal({
+        city_id: String(id),
+        api: apiDelete,
+        nonce: nonceDelete
+      });
+    });
+  }
+
+  function renderRow(city, role, editBase) {
+    const id = city.id;
+    const name = city.name || ("City #" + id);
+    const status = normalizeStatus(city);
+    const operational = normalizeOperational(city);
+
+    const tr = document.createElement("tr");
+    tr.setAttribute("data-city-id", String(id));
+
+    tr.innerHTML = `
+      <td class="knx-citycell">
+        <div class="knx-cityname">${esc(name)}</div>
+        <div class="knx-citymeta">ID: ${esc(id)}</div>
+      </td>
+
+      <td>
+        <span class="knx-status knx-status--${status}">
+          ${status === "active" ? "Active" : "Inactive"}
+        </span>
+      </td>
+
+      <td>
+        <label class="knx-switch" title="Operational">
+          <input type="checkbox" class="knx-operational-toggle" ${operational ? "checked" : ""}>
+          <span class="knx-slider"></span>
+        </label>
+      </td>
+
+      <td class="knx-center">
+        <a class="knx-iconbtn" href="${esc(buildEditUrl(editBase, id))}" title="Edit City">
+          <i class="fas fa-pen"></i>
+        </a>
+      </td>
+
+      ${role === "super_admin" ? `
+        <td class="knx-center">
+          <button type="button" class="knx-iconbtn knx-iconbtn--danger knx-delete-city" title="Delete City">
+            <i class="fas fa-trash"></i>
+          </button>
+        </td>
+      ` : ``}
+    `;
+
+    return tr;
+  }
+
+  function renderCard(city, role, editBase) {
+    const id = city.id;
+    const name = city.name || ("City #" + id);
+    const status = normalizeStatus(city);
+    const operational = normalizeOperational(city);
+
+    const card = document.createElement("div");
+    card.className = "knx-citycard";
+    card.setAttribute("data-city-id", String(id));
+
+    card.innerHTML = `
+      <div class="knx-citycard__top">
+        <div>
+          <div class="knx-citycard__name">${esc(name)}</div>
+          <div class="knx-citycard__meta">ID: ${esc(id)}</div>
+        </div>
+        <span class="knx-status knx-status--${status}">
+          ${status === "active" ? "Active" : "Inactive"}
+        </span>
+      </div>
+
+      <div class="knx-citycard__row">
+        <div class="knx-citycard__label">Operational</div>
+        <label class="knx-switch">
+          <input type="checkbox" class="knx-operational-toggle" ${operational ? "checked" : ""}>
+          <span class="knx-slider"></span>
+        </label>
+      </div>
+
+      <div class="knx-citycard__actions">
+        <a class="knx-btn knx-btn--ghost knx-btn--sm" href="${esc(buildEditUrl(editBase, id))}">
+          <i class="fas fa-pen"></i> Edit
+        </a>
+
+        ${role === "super_admin" ? `
+          <button type="button" class="knx-btn knx-btn--danger knx-btn--sm knx-delete-city">
+            <i class="fas fa-trash"></i> Delete
+          </button>
+        ` : ``}
+      </div>
+    `;
+
+    return card;
+  }
+
+  async function init() {
+    const root = qs(".knx-cities-signed");
+    if (!root) return;
+
+    const role = root.getAttribute("data-role") || "";
+    const apiGet = root.getAttribute("data-api-get") || "";
+    const apiAdd = root.getAttribute("data-api-add") || "";
+    const apiToggle = root.getAttribute("data-api-toggle") || "";
+    const apiDelete = root.getAttribute("data-api-delete") || "";
+    const nonceAdd = root.getAttribute("data-nonce-add") || "";
+    const nonceToggle = root.getAttribute("data-nonce-toggle") || "";
+    const nonceDelete = root.getAttribute("data-nonce-delete") || "";
+    const editBase = root.getAttribute("data-edit-base") || "";
+
+    const tbody = qs("#knxCitiesTbody", root);
+    const cards = qs("#knxCitiesCards", root);
+    const search = qs("#knxCitiesSearch", root);
+
+    if (!apiGet || !tbody || !cards) return;
+
+    // Fetch cities
+    const { ok, json } = await apiJson(apiGet);
+    if (!ok || !json || json.success === false) {
+      toast((json && (json.message || json.error)) || "Failed to load cities", "error");
+      return;
     }
 
-    function init() {
-        const app = document.getElementById('knxDashboardApp');
-        if (!app) return;
+    let cities = (json?.data?.cities && Array.isArray(json.data.cities)) ? json.data.cities : [];
 
-        const apiUrl    = app.dataset.apiUrl    || '';
-        const restNonce = app.dataset.restNonce || '';
+    function doRender() {
+      const f = String(search?.value || "").trim().toLowerCase();
+      const filtered = !f
+        ? cities
+        : cities.filter(c => String(c?.name || "").toLowerCase().includes(f));
 
-        // Show skeleton shimmer
-        setCardLoading(true);
+      // Table
+      tbody.innerHTML = "";
+      filtered.forEach(city => {
+        const tr = renderRow(city, role, editBase);
+        tbody.appendChild(tr);
 
-        fetchDashboard(apiUrl, restNonce);
+        // Wire row actions
+        wireOperationalToggle(tr, city.id, apiToggle, nonceToggle);
+        if (role === "super_admin") wireDelete(tr, city.id, apiDelete, nonceDelete);
+      });
+
+      // Cards
+      cards.innerHTML = "";
+      filtered.forEach(city => {
+        const card = renderCard(city, role, editBase);
+        cards.appendChild(card);
+
+        // Wire card actions
+        wireOperationalToggle(card, city.id, apiToggle, nonceToggle);
+        if (role === "super_admin") wireDelete(card, city.id, apiDelete, nonceDelete);
+      });
     }
 
-    async function fetchDashboard(apiUrl, restNonce) {
-        try {
-            const res = await fetch(apiUrl, {
-                headers: { 'X-WP-Nonce': restNonce },
-                credentials: 'same-origin',
-            });
-            const json = await res.json();
+    doRender();
 
-            if (!res.ok || !json.success) {
-                showError(json.message || 'Failed to load dashboard.');
-                return;
-            }
+    if (search) search.addEventListener("input", doRender);
 
-            const data = json.data || {};
-            renderCards(data.cards || {});
-            renderSalesChart(data.sales_series || []);
-            renderOrdersChart(data.orders_series || []);
+    // ==========================
+    // Add City Modal (super_admin)
+    // ==========================
+    const addBtn = qs("#knxAddCityBtn");
+    const addModal = qs("#knxAddCityModal");
+    const addCancel = qs("#knxAddCityCancel");
+    const addForm = qs("#knxAddCityForm");
+    const addSave = qs("#knxAddCitySave");
 
-        } catch (e) {
-            showError('Network error — please refresh.');
+    function openAddModal() {
+      if (!addModal) return;
+      addModal.classList.add("active");
+      addModal.setAttribute("aria-hidden", "false");
+      const input = qs('input[name="name"]', addModal);
+      if (input) setTimeout(() => input.focus(), 50);
+    }
+
+    function closeAddModal() {
+      if (!addModal) return;
+      addModal.classList.remove("active");
+      addModal.setAttribute("aria-hidden", "true");
+      const input = qs('input[name="name"]', addModal);
+      if (input) input.value = "";
+    }
+
+    if (addBtn && addModal) addBtn.addEventListener("click", openAddModal);
+    if (addCancel && addModal) addCancel.addEventListener("click", closeAddModal);
+
+    if (addModal) {
+      addModal.addEventListener("click", (e) => {
+        const t = e.target;
+        if (t && t.getAttribute && t.getAttribute("data-knx-close") === "1") closeAddModal();
+      });
+    }
+
+    if (addForm) {
+      addForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        if (!apiAdd) {
+          toast("Add API not configured.", "error");
+          return;
         }
+
+        const input = qs('input[name="name"]', addForm);
+        const name = String(input?.value || "").trim();
+
+        if (!name) {
+          toast("City name is required.", "warning");
+          return;
+        }
+
+        if (addSave) addSave.disabled = true;
+
+        const { ok: okAdd, json: out } = await apiJson(apiAdd, { name, knx_nonce: nonceAdd });
+
+        if (addSave) addSave.disabled = false;
+
+        if (!okAdd || !out || out.success === false) {
+          toast((out && (out.message || out.error)) || "Error adding city", "error");
+          return;
+        }
+
+        toast("City added successfully", "success");
+        closeAddModal();
+
+        const fresh = await apiJson(apiGet);
+        if (fresh.ok && fresh.json && fresh.json.success) {
+          cities = Array.isArray(fresh.json?.data?.cities) ? fresh.json.data.cities : cities;
+        }
+        doRender();
+      });
     }
+  }
 
-    // ── Cards ───────────────────────────────────────────────────
-    function renderCards(cards) {
-        setCardLoading(false);
-
-        setVal('knxDashOrders',      formatInt(cards.orders));
-        setVal('knxDashSalesVol',    '$' + formatMoney(cards.sales_volume));
-        setVal('knxDashCustomers',   formatInt(cards.unique_customers) + ' Unique users');
-        setVal('knxDashExposure',    formatInt(cards.exposure) + ' Users');
-        setVal('knxDashDeliveryFee', '$' + formatMoney(cards.delivery_fee));
-        setVal('knxDashStaticFee',   '$' + formatMoney(cards.static_fee));
-        setVal('knxDashTotalFee',    '$' + formatMoney(cards.total_fee));
-        setVal('knxDashExposure2',   formatInt(cards.exposure) + ' Users');
-    }
-
-    function setVal(id, text) {
-        const el = document.getElementById(id);
-        if (el) el.textContent = text;
-    }
-
-    function setCardLoading(on) {
-        const vals = document.querySelectorAll('.knx-dash__card-value');
-        vals.forEach(v => {
-            if (on) {
-                v.textContent = '';
-                v.classList.add('knx-dash__card-value--loading');
-            } else {
-                v.classList.remove('knx-dash__card-value--loading');
-            }
-        });
-    }
-
-    // ── Sales Chart (Line / Area) ───────────────────────────────
-    function renderSalesChart(series) {
-        const ctx = document.getElementById('knxDashSalesChart');
-        if (!ctx || typeof Chart === 'undefined') return;
-
-        const labels = series.map(s => s.month);
-        const values = series.map(s => s.value);
-
-        new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Sales value',
-                    data: values,
-                    borderColor: '#1E6FF0',
-                    backgroundColor: createGradient(ctx, 'rgba(30,111,240,0.25)', 'rgba(30,111,240,0)'),
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 0,
-                    pointHoverRadius: 5,
-                    pointHoverBackgroundColor: '#1E6FF0',
-                    borderWidth: 3,
-                }],
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        backgroundColor: '#1e293b',
-                        titleColor: '#94a3b8',
-                        bodyColor: '#f8fafc',
-                        bodyFont: { weight: '600' },
-                        padding: 12,
-                        cornerRadius: 10,
-                        callbacks: {
-                            label: function (ctx) {
-                                return '$' + formatMoney(ctx.parsed.y);
-                            },
-                        },
-                    },
-                },
-                scales: {
-                    x: {
-                        grid: { display: false },
-                        ticks: { color: 'rgba(255,255,255,0.45)', font: { size: 12 } },
-                        border: { display: false },
-                    },
-                    y: {
-                        grid: { color: 'rgba(255,255,255,0.06)' },
-                        ticks: {
-                            color: 'rgba(255,255,255,0.45)',
-                            font: { size: 11 },
-                            callback: function (v) { return formatCompact(v); },
-                        },
-                        border: { display: false },
-                        beginAtZero: true,
-                    },
-                },
-            },
-        });
-    }
-
-    // ── Orders Chart (Bar) ──────────────────────────────────────
-    function renderOrdersChart(series) {
-        const ctx = document.getElementById('knxDashOrdersChart');
-        if (!ctx || typeof Chart === 'undefined') return;
-
-        const labels = series.map(s => s.month);
-        const values = series.map(s => s.value);
-
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Total orders',
-                    data: values,
-                    backgroundColor: '#0b793a',
-                    borderRadius: 6,
-                    borderSkipped: false,
-                    barPercentage: 0.55,
-                    categoryPercentage: 0.7,
-                }],
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        backgroundColor: '#1e293b',
-                        titleColor: '#94a3b8',
-                        bodyColor: '#f8fafc',
-                        bodyFont: { weight: '600' },
-                        padding: 12,
-                        cornerRadius: 10,
-                    },
-                },
-                scales: {
-                    x: {
-                        grid: { display: false },
-                        ticks: { color: '#6b7280', font: { size: 12 } },
-                        border: { display: false },
-                    },
-                    y: {
-                        grid: { color: 'rgba(0,0,0,0.05)', drawTicks: false },
-                        ticks: {
-                            color: '#6b7280',
-                            font: { size: 11 },
-                            stepSize: 20,
-                        },
-                        border: { display: false },
-                        beginAtZero: true,
-                    },
-                },
-            },
-        });
-    }
-
-    // ── Helpers ─────────────────────────────────────────────────
-    function createGradient(canvas, top, bottom) {
-        const c = canvas.getContext('2d');
-        const g = c.createLinearGradient(0, 0, 0, canvas.parentElement.clientHeight || 300);
-        g.addColorStop(0, top);
-        g.addColorStop(1, bottom);
-        return g;
-    }
-
-    function formatMoney(n) {
-        return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-
-    function formatInt(n) {
-        return Number(n || 0).toLocaleString('en-US');
-    }
-
-    function formatCompact(value) {
-        if (value >= 1000000) return (value / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
-        if (value >= 1000)    return (value / 1000).toFixed(0) + 'k';
-        return value;
-    }
-
-    function showError(msg) {
-        setCardLoading(false);
-        const app = document.getElementById('knxDashboardApp');
-        if (!app) return;
-        const div = document.createElement('div');
-        div.className = 'knx-dash__error';
-        div.textContent = msg;
-        app.appendChild(div);
-    }
+  document.addEventListener("DOMContentLoaded", init);
 })();

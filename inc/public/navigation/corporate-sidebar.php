@@ -59,13 +59,12 @@ if (!function_exists('knx_render_corporate_sidebar')) {
             'menus',
             'hub-categories',
             'drivers-admin',
+            'drivers',
             'customers',
             'knx-cities',
             'knx-edit-city',
             'settings',
-            'edit-hub-items',
             'edit-item-categories',
-            'edit-hub',
             // OPS pages
             'live-orders',
             'orders',
@@ -186,8 +185,8 @@ function knx_should_render_corporate_sidebar() {
     $slug = isset($context['current_slug']) ? $context['current_slug'] : '';
 
     $private_pages = [
-        'dashboard', 'knx-dashboard', 'hubs', 'menus', 'hub-categories', 'drivers-admin',
-        'customers', 'knx-cities', 'knx-edit-city', 'settings', 'edit-hub-items',
+        'dashboard', 'knx-dashboard', 'hubs', 'menus', 'hub-categories', 'drivers-admin', 'drivers',
+        'customers', 'knx-cities', 'knx-edit-city', 'settings',
         'edit-item-categories', 'edit-hub', 'live-orders', 'orders',
     ];
 

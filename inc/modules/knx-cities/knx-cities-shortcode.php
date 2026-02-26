@@ -3,13 +3,13 @@ if (!defined('ABSPATH')) exit;
 
 /**
  * ==========================================================
- * KNX Cities — Sealed CRUD UI (NEXUS FINAL)
+ * KNX Cities — CRUD UI (NEXUS)
  * Shortcode: [knx_cities_signed]
  *
  * Uses:
  * - v2 sealed REST APIs
  * - Global knxToast()
- * - Sidebar layout (CSS margin-left)
+ * - Desktop: table | Mobile: cards (CSS controls visibility)
  * - Add City modal (super_admin)
  * - Delete City modal (super_admin)
  * ==========================================================
@@ -44,7 +44,6 @@ add_shortcode('knx_cities_signed', function () {
     $css_main_url  = KNX_URL . 'inc/modules/knx-cities/knx-cities-style.css?v=' . KNX_VERSION;
     $css_main_path = KNX_PATH . 'inc/modules/knx-cities/knx-cities-style.css';
 
- 
     $css_del_url   = KNX_URL . 'inc/modules/knx-cities/knx-cities-delete-modal.css?v=' . KNX_VERSION;
     $css_del_path  = KNX_PATH . 'inc/modules/knx-cities/knx-cities-delete-modal.css';
 
@@ -58,7 +57,7 @@ add_shortcode('knx_cities_signed', function () {
         <link rel="stylesheet" href="<?php echo esc_url($css_del_url); ?>">
     <?php endif; ?>
 
-    <div class="knx-cities-signed"
+    <div class="knx-cities-signed knx-admin-page"
          data-role="<?php echo esc_attr($role); ?>"
          data-api-get="<?php echo esc_url($api_get); ?>"
          data-api-add="<?php echo esc_url($api_add); ?>"
@@ -74,7 +73,7 @@ add_shortcode('knx_cities_signed', function () {
             <div class="knx-cities-title">
                 <i class="fas fa-city"></i>
                 <h2>KNX Cities</h2>
-                <span class="knx-badge-sealed">SEALED v2</span>
+                <!-- SEALED chip removed (requested) -->
             </div>
 
             <div class="knx-cities-controls">

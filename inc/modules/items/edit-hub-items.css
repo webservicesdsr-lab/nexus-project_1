@@ -17,21 +17,23 @@ body {
 }
 
 
-.knx-with-sidebar { margin: 0px 150px; }
-  
-@media (max-width: 900px) {
-  .knx-with-sidebar { margin: 0px 0px 50px 0px; }
+/* PAGE WRAPPER — constrained width, no lateral overflow */
+.knx-with-sidebar {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 24px 60px;
+  box-sizing: border-box;
 }
 
-
-/* HEADER */
+/* HEADER
+   Row 1: title
+   Row 2: search  |  action buttons
+   ─────────────────────────────── */
 .knx-hubs-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 25px;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 28px;
 }
 .knx-hubs-header h2 {
   margin: 0;
@@ -43,21 +45,75 @@ body {
   gap: 8px;
 }
 
-/* BUTTONS */
+/* Controls row: search on the left, action buttons on the right */
+.knx-hubs-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Search stretches to fill leftover space */
+.knx-search-form {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.knx-search-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  border-radius: 6px 0 0 6px;
+  border: 1px solid #ccc;
+  border-right: none;
+  font-size: 14px;
+  height: 40px;
+  box-sizing: border-box;
+}
+.knx-search-form button {
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 0 6px 6px 0;
+  border: 1px solid #ccc;
+  background: #f1f3f5;
+  color: #333;
+  cursor: pointer;
+  transition: background .2s;
+  flex-shrink: 0;
+}
+.knx-search-form button:hover { background: #e2e6ea; }
+
+/* Action buttons group — always same height, no overflow */
+.knx-hubs-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+}
+
+/* BUTTONS — uniform 40px height across all variants */
 .knx-btn,
 .knx-add-btn,
 .knx-btn-secondary,
 .knx-btn-yellow {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   border: none;
   border-radius: 6px;
   cursor: pointer;
   font-weight: 600;
-  padding: 10px 16px;
+  font-size: 14px;
+  padding: 0 16px;
+  height: 40px;
+  white-space: nowrap;
   transition: all .25s;
   text-decoration: none;
+  box-sizing: border-box;
 }
 .knx-btn,
 .knx-add-btn {
@@ -111,10 +167,10 @@ body {
   font-size: 14px;
 }
 
-/* GRID ITEMS */
+/* GRID ITEMS — 2 columns on desktop/tablet, 1 on mobile */
 .knx-item-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 18px;
 }
 .knx-item-card {
@@ -339,5 +395,32 @@ body {
   gap: 10px;
 }
 
+/* ─── RESPONSIVE ───────────────────────────────────────────────── */
 
+/* Tablet landscape (≤1024px): 2-col grid stays, slight padding reduction */
+@media (max-width: 1024px) {
+  .knx-with-sidebar { padding: 20px 16px 60px; }
+}
 
+/* Tablet portrait (≤768px): wrap buttons into 2-per-row */
+@media (max-width: 768px) {
+  .knx-with-sidebar { padding: 16px 14px 60px; }
+  .knx-hubs-controls { gap: 10px; }
+  .knx-hubs-buttons {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  .knx-hubs-buttons > * {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 130px;
+  }
+}
+
+/* Mobile (≤480px): single column grid, buttons stack full-width */
+@media (max-width: 480px) {
+  .knx-with-sidebar { padding: 12px 10px 60px; }
+  .knx-item-grid { grid-template-columns: 1fr; }
+  .knx-hubs-buttons > * {
+    flex: 1 1 100%;
+  }
+}

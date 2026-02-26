@@ -120,15 +120,36 @@ add_shortcode('knx_edit_hub', function () {
       .knx-actionbar .knx-btn{
         display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;
         border:1px solid #e7e7e7;background:#fff;text-decoration:none;font-weight:600;line-height:1;
-        transition:transform .06s ease, box-shadow .12s ease, background .12s ease;
+        transition:transform .06s ease, box-shadow .12s ease, background .12s ease, color .12s ease;
+        min-width: 120px;
+        justify-content: center;
       }
       .knx-actionbar .knx-btn:hover{
-        transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,.06);
+        transform:translateY(-2px);box-shadow:0 6px 22px rgba(0,0,0,.08);
       }
+      /* Secondary/neutral action style (Back, Edit Items) */
+      .knx-actionbar .knx-btn.knx-btn-secondary{
+        background: #ffffff;
+        color: #0b1220;
+        border-color: #d1d5db;
+      }
+      .knx-actionbar .knx-btn.knx-btn-secondary:hover{
+        background:#f3f4f6;
+      }
+      /* Primary action (Preview)
+         keep an explicit primary selector so templates can use .primary */
       .knx-actionbar .knx-btn.primary{
-        background:#0B793A;color:#fff;border-color:#0B793A;
+        background:#0b793a;color:#fff;border-color:#0b793a;
       }
-      .knx-actionbar .knx-btn i{ font-size:14px; }
+      .knx-actionbar .knx-btn i{ font-size:14px; margin-right:6px; }
+      .knx-actionbar .knx-btn:focus{ outline: 3px solid rgba(11,121,58,0.14); outline-offset: 2px; }
+      /* Back button sits at the left; other actions stay right */
+      .knx-actionbar .knx-btn-back {
+        order: -1;
+        margin-right: auto;
+        justify-content: flex-start;
+        min-width: 90px;
+      }
       @media (max-width: 720px){ .knx-actionbar{ justify-content:flex-start; } }
 
       /* Minimal height for map if CSS not loaded yet */
@@ -451,14 +472,14 @@ add_shortcode('knx_edit_hub', function () {
 
       <!-- Action Bar -->
       <div class="knx-actionbar">
-        <a class="knx-btn" href="<?php echo $back_url; ?>">
-          <i class="fas fa-arrow-left"></i> Back to Hubs
-        </a>
-        <a class="knx-btn" href="<?php echo $edit_items_url; ?>">
+        <a class="knx-btn knx-btn-secondary" href="<?php echo $edit_items_url; ?>" aria-label="Edit Items">
           <i class="fas fa-pen-to-square"></i> Edit Items
         </a>
-        <a class="knx-btn primary" href="<?php echo $preview_url; ?>" target="_blank" rel="noopener">
+        <a class="knx-btn primary" href="<?php echo $preview_url; ?>" target="_blank" rel="noopener" aria-label="Preview Hub">
           <i class="fas fa-eye"></i> Preview
+        </a>
+        <a class="knx-btn knx-btn-secondary knx-btn-back" href="<?php echo $back_url; ?>" aria-label="Back to Hubs">
+          <i class="fas fa-arrow-left"></i> Back to Hubs
         </a>
       </div>
 

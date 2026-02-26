@@ -369,7 +369,7 @@ if (!function_exists('knx_get_navigation_layout')) {
         
         // Admin pages: sidebar only
         $admin_slugs = [
-            'dashboard', 'knx-dashboard', 'hubs', 'edit-hub', 'edit-hub-items', 'edit-item-categories',
+            'dashboard', 'knx-dashboard', 'hubs', 'edit-hub', 'edit-item-categories',
             'menus', 'hub-categories', 'drivers', 'customers', 'knx-cities', 'settings', 'live-orders', 'orders', 'coupons'
         ];
         

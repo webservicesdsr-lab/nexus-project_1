@@ -1,274 +1,512 @@
-/* ════════════════════════════════════════════════════════════════
-   KNX OPS — Dashboard Analytics  v1.2  (Nexus Shell)
-   ════════════════════════════════════════════════════════════════ */
+/* ==========================================================
+   KNX Cities — CRUD UI (DESKTOP CONSISTENT)
+   - Desktop: align 1:1 with /hubs + /customers wrapper + table
+   - Mobile: keep existing cards UX (do not change card layout)
+   - Theme-safe (Hello Elementor hover bleed blocked)
+========================================================== */
 
-/* ── Nexus Shell tokens ──────────────────────────────────────── */
-:root {
-    --dash-primary:     #0b793a;
-    --dash-accent:      #1E6FF0;
-    --dash-bg:          #f6f7f9;
-    --dash-card:        #ffffff;
-    --dash-card-radius: 14px;
-    --dash-card-shadow: 0 4px 16px rgba(11,18,32,0.07);
-    --dash-border:      rgba(11,18,32,0.08);
-    --dash-text:        #0b1220;
-    --dash-muted:       #6b7280;
-    --dash-font:        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    --dash-icon-yellow: #fbbf24;
-    --dash-icon-red:    #f87171;
-    --dash-icon-orange: #fb923c;
-    --dash-icon-cyan:   #22d3ee;
-    --dash-chart-dark:  #0f172a;
+/* Scope variables ONLY inside module (avoid global :root pollution) */
+.knx-cities-signed{
+  --knx-green: #0b793a;
+  --knx-green-dark: #096631;
+  --knx-bg: #ffffff;
+  --knx-soft: #f6f7f8;
+  --knx-border: #e2e5e8;
+  --knx-text: #111827;
+  --knx-muted: #6b7280;
+  --knx-danger: #b33a3a;
+  --knx-danger-bg: #f6eaea;
+  --knx-success-bg: #e5f7eb;
+
+  /* DESKTOP CONSISTENCY (fix “pushed right”) */
+  max-width: 1100px;
+  margin: 48px auto;
+  padding: 28px;
+
+  background: var(--knx-bg);
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(11,18,32,0.06);
+
+  color: var(--knx-text);
 }
 
-/* ── Elementor container reset ────────────────────────────────
-   Force full-width even when Elementor wraps the shortcode
-   in boxed / constrained containers. ─────────────────────── */
-.elementor-widget-shortcode .elementor-widget-container,
-.elementor-widget-shortcode .elementor-shortcode,
-.elementor-element .elementor-widget-container {
-    max-width: 100% !important;
-    width: 100% !important;
-    padding-left: 0 !important;
-    padding-right: 0 !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
+/* When corporate sidebar is present, do NOT add extra left push */
+@media (min-width: 901px) {
+  body.knx-has-corporate-sidebar .knx-cities-signed{
+    margin-left: auto;
+    margin-right: auto;
+  }
 }
 
-/* ── Outer wrapper ───────────────────────────────────────────── */
-.knx-dash {
-    font-family: var(--dash-font);
-    color: var(--dash-text);
-    background: var(--dash-bg);
-    padding: 24px 16px 48px;
-    min-height: 100vh;
-    box-sizing: border-box;
-    width: 100%;
-    max-width: 100%;
+/* ==========================================================
+   Theme / Elementor sanitization (NO hover bleed)
+========================================================== */
+
+.knx-cities-signed,
+.knx-cities-signed *{
+  box-sizing: border-box;
 }
 
-.knx-dash *, .knx-dash *::before, .knx-dash *::after {
-    box-sizing: border-box;
+/* Kill underline + theme link hover coloring inside module */
+.knx-cities-signed a{
+  color: inherit;
+  text-decoration: none;
+}
+.knx-cities-signed a:hover,
+.knx-cities-signed a:focus,
+.knx-cities-signed a:active{
+  color: inherit !important;
+  text-decoration: none !important;
+  box-shadow: none !important;
+  outline: none;
 }
 
-/* ── Inner container: fills available width, never overflows ─── */
-.knx-dash__inner {
-    width: 100%;
-    max-width: 100%;
-    margin: 0 auto;
+/* Prevent theme button hover palettes from bleeding in */
+.knx-cities-signed button:hover,
+.knx-cities-signed button:focus,
+.knx-cities-signed button:active{
+  filter: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+  outline: none;
 }
 
-/* ── KPI Cards: 4 equal columns, shrink gracefully ──────────── */
-.knx-dash__cards {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 14px;
-    margin-bottom: 14px;
+.knx-cities-signed *{
+  -webkit-tap-highlight-color: transparent;
 }
 
-@media (max-width: 900px) {
-    .knx-dash__cards { grid-template-columns: repeat(2, 1fr); }
-}
-@media (max-width: 480px) {
-    .knx-dash__cards { grid-template-columns: 1fr; }
-}
+/* ==========================================================
+   Header
+========================================================== */
 
-/* ── Card ────────────────────────────────────────────────────── */
-.knx-dash__card {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: var(--dash-card);
-    border-radius: var(--dash-card-radius);
-    box-shadow: var(--dash-card-shadow);
-    border: 1px solid var(--dash-border);
-    padding: 18px 20px;
-    min-height: 90px;
-    min-width: 0;        /* CRITICAL: allows grid cell to shrink below content size */
-    overflow: hidden;    /* prevents any child from pushing the card wider */
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+.knx-cities-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 20px; /* slightly more like hubs/customers */
 }
 
-.knx-dash__card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(11,18,32,0.11);
+.knx-cities-title{
+  display:flex;
+  align-items:center;
+  gap:10px;
 }
 
-.knx-dash__card-body {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    min-width: 0;
-    flex: 1;
+.knx-cities-title i{
+  color: var(--knx-green);
+  font-size: 1.15rem;
 }
 
-.knx-dash__card-label {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.7px;
-    color: var(--dash-muted);
-    text-transform: uppercase;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.knx-cities-title h2{
+  margin:0;
+  font-size: 1.25rem;         /* match hubs/customers */
+  font-weight: 700;
+  color: var(--knx-text);      /* match hubs/customers (not green title) */
 }
 
-.knx-dash__card-value {
-    font-size: clamp(16px, 2vw, 22px);
-    font-weight: 700;
-    color: var(--dash-text);
-    line-height: 1.15;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    min-width: 0;   /* lets the text truncate instead of pushing the flex parent */
-    max-width: 100%;
+/* (Sealed chip removed from markup; keep class harmless if referenced elsewhere) */
+.knx-badge-sealed{ display:none !important; }
+
+/* ==========================================================
+   Controls
+========================================================== */
+
+.knx-cities-controls{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap: wrap;
 }
 
-
-/* ── Icon circle ─────────────────────────────────────────────── */
-.knx-dash__card-icon {
-    flex-shrink: 0;
-    width: 46px;
-    height: 46px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: 12px;
-    color: #fff;
-    font-size: 17px;
+.knx-search{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  background: transparent; /* match hubs/customers */
+  border-radius: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(11,18,32,0.06);
 }
 
-.knx-dash__card-icon--yellow  { background: var(--dash-icon-yellow); }
-.knx-dash__card-icon--red     { background: var(--dash-icon-red); }
-.knx-dash__card-icon--orange  { background: var(--dash-icon-orange); }
-.knx-dash__card-icon--cyan    { background: var(--dash-icon-cyan); }
+.knx-search i{ color: var(--knx-green); }
 
-/* ── Skeleton shimmer ────────────────────────────────────────── */
-.knx-dash__card-value--loading {
-    display: inline-block;
-    width: 80px;
-    height: 22px;
-    border-radius: 6px;
-    background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
-    background-size: 200% 100%;
-    animation: knx-dash-shimmer 1.4s ease-in-out infinite;
+.knx-search input{
+  border:none;
+  outline:none;
+  background: transparent;
+  font-size: .95rem;
+  width: 220px;
+  color: var(--knx-text);
 }
 
-@keyframes knx-dash-shimmer {
-    0%   { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+/* ==========================================================
+   Buttons (NO hover shifts)
+========================================================== */
+
+.knx-btn{
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-weight: 700; /* match hubs/customers */
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  line-height: 1;
+  transition: none !important;
 }
 
-/* ── Charts row: 2/3 + 1/3, full width ──────────────────────── */
-.knx-dash__charts {
-    display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: 14px;
-    margin-top: 4px;
-    width: 100%;
-    align-items: stretch;
+/* Primary */
+.knx-btn--primary{
+  background: var(--knx-green);
+  color:#fff;
+  box-shadow: 0 6px 18px rgba(11,121,58,0.09);
+}
+.knx-btn--primary:hover,
+.knx-btn--primary:focus,
+.knx-btn--primary:active{
+  background: var(--knx-green);
+  color:#fff !important;
 }
 
-@media (max-width: 900px) {
-    .knx-dash__charts { grid-template-columns: 1fr; }
+/* Ghost */
+.knx-btn--ghost{
+  background: transparent;
+  color: var(--knx-muted);
+  border: 1px solid rgba(11,18,32,0.04);
+}
+.knx-btn--ghost:hover,
+.knx-btn--ghost:focus,
+.knx-btn--ghost:active{
+  background: transparent !important;
+  color: var(--knx-muted) !important;
+  border-color: rgba(11,18,32,0.04) !important;
 }
 
-/* ── Chart card ──────────────────────────────────────────────── */
-.knx-dash__chart-card {
-    background: var(--dash-card);
-    border-radius: var(--dash-card-radius);
-    box-shadow: var(--dash-card-shadow);
-    border: 1px solid var(--dash-border);
-    padding: 20px 22px;
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
+/* Danger */
+.knx-btn--danger{
+  background: var(--knx-danger-bg);
+  color: var(--knx-danger);
+  border: 1px solid #efcaca;
+}
+.knx-btn--danger:hover,
+.knx-btn--danger:focus,
+.knx-btn--danger:active{
+  background: var(--knx-danger-bg) !important;
+  color: var(--knx-danger) !important;
+  border-color: #efcaca !important;
 }
 
-.knx-dash__chart-card--sales {
-    background: var(--dash-chart-dark);
-    border-color: transparent;
-    color: #fff;
+.knx-btn--sm{
+  padding: 8px 12px;
+  border-radius: 9px;
+  font-size: .92rem;
 }
 
-.knx-dash__chart-header {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    margin-bottom: 16px;
+/* ==========================================================
+   Table (desktop consistent with hubs/customers “serious”)
+========================================================== */
+
+.knx-cities-tablewrap{ width:100%; }
+
+.knx-cities-table{
+  width:100%;
+  border-collapse: collapse;
+  background: var(--knx-bg);
 }
 
-.knx-dash__chart-overtitle {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.8px;
-    text-transform: uppercase;
-    opacity: 0.45;
+.knx-cities-table th,
+.knx-cities-table td{
+  text-align:left;
+  padding: 14px 12px;
+  border-bottom: 1px solid rgba(11,18,32,0.04);
+  font-size: .95rem;
+  vertical-align: middle;
 }
 
-.knx-dash__chart-title {
-    font-size: 17px;
-    font-weight: 700;
-    line-height: 1.3;
+.knx-cities-table th{
+  background: transparent;
+  font-weight: 700;
+  color: var(--knx-muted);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: .02em;
 }
 
-.knx-dash__chart-canvas-wrap {
-    flex: 1;
-    position: relative;
-    min-height: 240px;
-    width: 100%;
-    transition: none;
+/* Hubs/customers: very subtle hover */
+.knx-cities-table tbody tr:hover{
+  background: rgba(11,18,32,0.02) !important;
 }
 
-.knx-dash__chart-canvas-wrap canvas {
-    display: block;
-    width: 100% !important;
-    height: 100% !important;
+.knx-center{ text-align:center; }
+
+.knx-citycell .knx-cityname{
+  font-weight: 800;
+  color: var(--knx-text);
 }
 
-/* ── Error / empty state ─────────────────────────────────────── */
-.knx-dash__error {
-    text-align: center;
-    padding: 40px 20px;
-    color: var(--dash-muted);
-    font-size: 15px;
-    background: var(--dash-card);
-    border-radius: var(--dash-card-radius);
-    border: 1px solid var(--dash-border);
-    margin-top: 16px;
+.knx-citycell .knx-citymeta{
+  margin-top: 2px;
+  font-size: .82rem;
+  color: var(--knx-muted);
 }
 
-/* Desktop-specific fixes: stable chart heights and readable labels */
-@media (min-width: 1200px) {
-    /* Force stable pixel heights for canvas wrappers so Chart.js has a predictable box */
-    .knx-dash__chart-canvas-wrap {
-        height: 360px !important;
-        min-height: 360px !important;
-        max-height: 360px !important;
-    }
+/* Status labels */
+.knx-status{
+  display:inline-block;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  text-transform: capitalize;
+}
 
-    .knx-dash__chart-card--orders .knx-dash__chart-canvas-wrap {
-        height: 320px !important;
-        min-height: 320px !important;
-        max-height: 320px !important;
-    }
+.knx-status--active{
+  background: var(--knx-success-bg);
+  color: var(--knx-green);
+}
 
-    /* Allow labels to wrap on desktop so "( 30 DAYS )" is visible. */
-    .knx-dash__card-label {
-        white-space: normal;
-        font-size: 12px;
-        line-height: 1.05;
-    }
+.knx-status--inactive{
+  background: var(--knx-danger-bg);
+  color: var(--knx-danger);
+}
 
-    /* Align label + value to start so multi-line label looks natural */
-    .knx-dash__card-body {
-        align-items: flex-start;
-    }
+/* ==========================================================
+   Icon buttons (NO hover)
+========================================================== */
 
-    /* Slightly reduce numerical sizes to avoid overflow while keeping emphasis */
-    .knx-dash__card-value {
-        font-size: clamp(18px, 1.6vw, 28px);
-    }
+.knx-iconbtn{
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 10px;
+  color: var(--knx-green);
+  transition: none !important;
+  line-height: 1;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.knx-iconbtn i{ pointer-events: none; }
+
+.knx-iconbtn:hover,
+.knx-iconbtn:focus,
+.knx-iconbtn:active{
+  background: transparent !important;
+  color: var(--knx-green) !important;
+}
+
+.knx-iconbtn--danger{ color: var(--knx-danger); }
+.knx-iconbtn--danger:hover,
+.knx-iconbtn--danger:focus,
+.knx-iconbtn--danger:active{
+  background: transparent !important;
+  color: var(--knx-danger) !important;
+}
+
+/* ==========================================================
+   Toggle Switch
+========================================================== */
+
+.knx-switch{
+  position: relative;
+  display:inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.knx-switch input{
+  opacity:0;
+  width:0;
+  height:0;
+}
+
+.knx-slider{
+  position:absolute;
+  cursor:pointer;
+  top:0; left:0; right:0; bottom:0;
+  background:#ccc;
+  transition:.3s;
+  border-radius: 24px;
+}
+
+.knx-slider:before{
+  position:absolute;
+  content:"";
+  height: 18px;
+  width: 18px;
+  left:3px;
+  bottom:3px;
+  background:#fff;
+  transition:.3s;
+  border-radius: 50%;
+}
+
+.knx-switch input:checked + .knx-slider{
+  background: var(--knx-green);
+}
+
+.knx-switch input:checked + .knx-slider:before{
+  transform: translateX(20px);
+}
+
+.is-busy{
+  opacity: .6;
+  pointer-events: none;
+}
+
+/* ==========================================================
+   Cards (mobile) — KEEP AS-IS (do not redesign)
+========================================================== */
+
+.knx-cities-cards{
+  display:none;
+  gap: 12px;
+}
+
+.knx-citycard{
+  border: 1px solid var(--knx-border);
+  background: #fff;
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.06);
+}
+
+.knx-citycard__top{
+  display:flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.knx-citycard__name{
+  font-weight: 900;
+  color:#111;
+  line-height: 1.2;
+}
+
+.knx-citycard__meta{
+  font-size: .82rem;
+  color: var(--knx-muted);
+  margin-top: 3px;
+}
+
+.knx-citycard__row{
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-top: 1px solid #f1f3f5;
+  border-bottom: 1px solid #f1f3f5;
+  margin: 10px 0;
+}
+
+.knx-citycard__label{
+  font-weight: 800;
+  color:#333;
+}
+
+.knx-citycard__actions{
+  display:flex;
+  justify-content:flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ==========================================================
+   Modal (Add City)
+========================================================== */
+
+.knx-modal{
+  display:none;
+  position: fixed;
+  inset:0;
+  z-index: 9999;
+}
+
+.knx-modal.active{ display:block; }
+
+.knx-modal-backdrop{
+  position:absolute;
+  inset:0;
+  background: rgba(0,0,0,.45);
+}
+
+.knx-modal-box{
+  position: relative;
+  width: 92%;
+  max-width: 420px;
+  margin: 10vh auto;
+  background: #fff;
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.22);
+}
+
+.knx-modal-box h3{
+  margin:0 0 6px 0;
+  color: var(--knx-green);
+  font-weight: 900;
+}
+
+.knx-modal-sub{
+  margin: 0 0 14px 0;
+  color: var(--knx-muted);
+  font-size: .95rem;
+}
+
+.knx-field span{
+  display:block;
+  font-weight: 900;
+  color:#333;
+  margin-bottom: 6px;
+}
+
+.knx-field input{
+  width:100%;
+  padding: 11px 12px;
+  border: 1px solid rgba(11,18,32,0.06);
+  border-radius: 12px;
+  font-size: 1rem;
+  outline: none;
+  color: var(--knx-text);
+  background: #fff;
+}
+
+.knx-field input:focus{
+  border-color: #bfe3cf;
+  box-shadow: 0 0 0 3px rgba(11,121,58,.10);
+}
+
+.knx-modal-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+/* ==========================================================
+   Responsive: Desktop table | Mobile cards (KEEP MOBILE UX)
+   Also fix mobile “pushed right” by removing margin-left offsets.
+========================================================== */
+
+@media (max-width: 768px){
+  .knx-cities-signed{
+    margin: 18px;
+    padding: 18px;
+  }
+
+  .knx-search input{ width: 160px; }
+
+  #knxCitiesTableWrap{ display:none; }
+
+  .knx-cities-cards{ display:grid; }
+
+  .knx-btn--primary{ width:100%; }
 }
