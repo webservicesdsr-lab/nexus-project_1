@@ -248,14 +248,15 @@ function knx_api_get_order(WP_REST_Request $req) {
     ];
 
     // If pickup, remove driver/delivery-specific statuses
+    // Note: backend double-jumps prepared → picked_up automatically for pickup orders.
+    // We map 'picked_up' → 'ready_for_pickup' in the timeline for customer UX.
     if ($fulfillment_type === 'pickup') {
         $canonical_statuses = [
             'order_created',
             'confirmed',
             'accepted_by_hub',
             'preparing',
-            'prepared',
-            'ready_for_pickup',
+            'ready_for_pickup',  // Maps to backend 'picked_up' (double-jump from 'prepared')
             'completed',
         ];
     }
@@ -278,10 +279,17 @@ function knx_api_get_order(WP_REST_Request $req) {
 
     // Current status position
     $current_status = (string)$order->status;
-    $current_index  = array_search($current_status, $canonical_statuses);
+    
+    // For pickup orders: backend sends 'picked_up' (double-jump result), but we show 'ready_for_pickup' to customer
+    $timeline_status = $current_status;
+    if ($fulfillment_type === 'pickup' && $current_status === 'picked_up') {
+        $timeline_status = 'ready_for_pickup';
+    }
+    
+    $current_index  = array_search($timeline_status, $canonical_statuses);
 
     // Handle confirmed = order_created alias
-    if ($current_status === 'confirmed' && $current_index === false) {
+    if ($timeline_status === 'confirmed' && $current_index === false) {
         $current_index = array_search('confirmed', $canonical_statuses);
     }
 
@@ -290,8 +298,14 @@ function knx_api_get_order(WP_REST_Request $req) {
         // Skip pending_payment from timeline
         if ($st === 'pending_payment') continue;
 
-        $has_record = isset($history_by_status[$st]);
-        $is_current = ($st === $current_status);
+        // For pickup orders: 'ready_for_pickup' maps to backend 'picked_up' status/history
+        $db_status = $st;
+        if ($fulfillment_type === 'pickup' && $st === 'ready_for_pickup') {
+            $db_status = 'picked_up';
+        }
+
+        $has_record = isset($history_by_status[$db_status]);
+        $is_current = ($st === $timeline_status);
         $is_done    = false;
 
         if ($current_index !== false) {
@@ -325,7 +339,7 @@ function knx_api_get_order(WP_REST_Request $req) {
             'is_done'    => $is_done,
             'is_current' => $is_current,
             'hidden'     => ($st === 'confirmed'),
-            'created_at' => $has_record ? $history_by_status[$st]->created_at : null,
+            'created_at' => $has_record ? $history_by_status[$db_status]->created_at : null,
         ];
     }
 

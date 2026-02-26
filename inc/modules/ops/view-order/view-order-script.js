@@ -179,16 +179,19 @@
       return labels[v] || v.replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
     }
 
-    function renderHistory(list) {
+    function renderHistory(list, isPickupOrder) {
       const arr = Array.isArray(list) ? list : [];
       if (!arr.length) return `<div class="knx-ops-vo__muted">No history.</div>`;
 
       const rows = arr
         // Hide financial/internal states (pending_payment, confirmed) from timeline
+        // For pickup orders, also hide picked_up (auto double-jump, not a manual step)
         .filter(h => {
           const st = String(h?.status || '').trim().toLowerCase();
           const ts = String(h?.created_at || '').trim();
-          return ts !== '' && st !== 'pending_payment' && st !== 'confirmed';
+          if (ts === '' || st === 'pending_payment' || st === 'confirmed') return false;
+          if (isPickupOrder && st === 'picked_up') return false;
+          return true;
         })
         .map((h) => {
           const st = humanStatusLabel(h?.status);
@@ -302,7 +305,9 @@
       const dAddrRaw = String(pick(order, 'delivery.address', '') || '').trim();
       const dAddr  = esc(dAddrRaw);
       const dSlot  = esc(String(pick(order, 'delivery.time_slot', '') || ''));
-      const dMethod = esc(String(pick(order, 'delivery.method', '') || ''));
+      const dMethodRaw = String(pick(order, 'delivery.method', '') || '').trim();
+      const dMethod = esc(dMethodRaw);
+      const isPickup = dMethodRaw.toLowerCase() === 'pickup';
 
       const created = esc(String(pick(order, 'created_at', '') || ''));
       const status = esc(String(pick(order, 'status', '') || ''));
@@ -426,7 +431,10 @@
               <div class="knx-ops-vo__divider"></div>
 
               <div class="knx-ops-vo__meta">
-                <div class="knx-ops-vo__meta-row"><span>Delivery method:</span><strong>${dMethod || '<span class="knx-ops-vo__muted">—</span>'}</strong></div>
+                ${isPickup
+                  ? `<div class="knx-ops-vo__meta-row"><span>Fulfillment:</span><strong>🛍️ Customer Pickup</strong></div>`
+                  : `<div class="knx-ops-vo__meta-row"><span>Delivery method:</span><strong>${dMethod || '<span class="knx-ops-vo__muted">—</span>'}</strong></div>`
+                }
                 ${dSlot ? `<div class="knx-ops-vo__meta-row"><span>Time slot:</span><strong>${dSlot}</strong></div>` : ``}
                 <div class="knx-ops-vo__meta-row"><span>Created:</span><strong>${created || '<span class="knx-ops-vo__muted">—</span>'}</strong></div>
               </div>
@@ -446,15 +454,20 @@
               <div class="knx-ops-vo__section-title">Order tracking</div>
 
               <div class="knx-ops-vo__map">
-                ${
-                  mapEmbed
-                    ? `<iframe class="knx-ops-vo__map-iframe" src="${esc(mapEmbed)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>`
-                    : `<div class="knx-ops-vo__map-empty">No map available.</div>`
-                }
-                ${
-                  mapExternal
-                    ? `<a class="knx-ops-vo__map-link" href="${esc(mapExternal)}" target="_blank" rel="noopener">Open in Google Maps</a>`
-                    : ``
+                ${isPickup
+                  ? `<div class="knx-ops-vo__pickup-banner" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:32px 20px;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;text-align:center;">
+                      <div style="font-size:2.5rem;">🛍️</div>
+                      <div style="font-size:1.1rem;font-weight:700;color:#166534;">Customer Pickup Order</div>
+                      <div style="font-size:0.95rem;color:#15803d;">The customer will pick up this order directly at the restaurant. No delivery needed.</div>
+                    </div>`
+                  : `${mapEmbed
+                      ? `<iframe class="knx-ops-vo__map-iframe" src="${esc(mapEmbed)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>`
+                      : `<div class="knx-ops-vo__map-empty">No map available.</div>`
+                    }
+                    ${mapExternal
+                      ? `<a class="knx-ops-vo__map-link" href="${esc(mapExternal)}" target="_blank" rel="noopener">Open in Google Maps</a>`
+                      : ``
+                    }`
                 }
               </div>
 
@@ -462,7 +475,7 @@
 
               <div class="knx-ops-vo__section">
                 <div class="knx-ops-vo__section-title">Status History</div>
-                ${renderHistory(history)}
+                ${renderHistory(history, isPickup)}
               </div>
             </div>
           </div>

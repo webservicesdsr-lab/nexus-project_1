@@ -246,6 +246,8 @@ document.addEventListener('DOMContentLoaded', function () {
       var pickup = pickPickup(o);
       var delivery = pickDelivery(o);
 
+      var isPickup = String(o && o.fulfillment_type ? o.fulfillment_type : '').toLowerCase() === 'pickup';
+
       var st = normalizeStatus(o && o.status ? o.status : '');
       var stLabel = statusLabel(st);
       var stClass = statusChipClass(st);
@@ -260,6 +262,22 @@ document.addEventListener('DOMContentLoaded', function () {
       var ago = relTime(timeRaw);
 
       var viewUrl = buildViewUrl(id);
+
+      var addressesBlock = isPickup
+        ? '<div class="knx-aocard__pickup-chip" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;font-size:0.85rem;color:#166534;">' +
+            '<span aria-hidden="true">🛍️</span>' +
+            '<span><strong>Customer Pickup</strong> — The customer will pick up at the restaurant.</span>' +
+          '</div>'
+        : '<div class="knx-aocard__addresses">' +
+            '<div class="knx-aocard__addr">' +
+              '<div class="knx-aocard__k"><span class="knx-addr-icon" aria-hidden="true">📍</span> PICKUP</div>' +
+              '<div class="knx-aocard__v">' + escHtml(pickup || restaurant || '—') + '</div>' +
+            '</div>' +
+            '<div class="knx-aocard__addr">' +
+              '<div class="knx-aocard__k"><span class="knx-addr-icon" aria-hidden="true">📦</span> DELIVERY</div>' +
+              '<div class="knx-aocard__v">' + escHtml(delivery || '—') + '</div>' +
+            '</div>' +
+          '</div>';
 
       return (
         '<a class="knx-aocard" href="' + escHtml(viewUrl) + '" data-id="' + id + '" aria-label="View order ' + id + '">' +
@@ -282,16 +300,7 @@ document.addEventListener('DOMContentLoaded', function () {
             '</div>' +
           '</div>' +
 
-          '<div class="knx-aocard__addresses">' +
-            '<div class="knx-aocard__addr">' +
-              '<div class="knx-aocard__k"><span class="knx-addr-icon" aria-hidden="true">📍</span> PICKUP</div>' +
-              '<div class="knx-aocard__v">' + escHtml(pickup || restaurant || '—') + '</div>' +
-            '</div>' +
-            '<div class="knx-aocard__addr">' +
-              '<div class="knx-aocard__k"><span class="knx-addr-icon" aria-hidden="true">📦</span> DELIVERY</div>' +
-              '<div class="knx-aocard__v">' + escHtml(delivery || '—') + '</div>' +
-            '</div>' +
-          '</div>' +
+          addressesBlock +
 
           '' +
         '</a>'

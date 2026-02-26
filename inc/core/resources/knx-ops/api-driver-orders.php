@@ -539,7 +539,8 @@ function knx_v2_driver_orders_active(WP_REST_Request $request) {
             h.latitude AS pickup_lat_live,
             h.longitude AS pickup_lng_live,
             o.created_at,
-            o.updated_at
+            o.updated_at,
+            o.fulfillment_type
         FROM {$orders_table} o
         LEFT JOIN {$hubs_table} h ON h.id = o.hub_id
         WHERE {$sql_where}
@@ -792,7 +793,7 @@ function knx_v2_driver_order_ops_status(WP_REST_Request $request) {
     // Scope + ownership lock
     $order = $wpdb->get_row(
         $wpdb->prepare(
-            "SELECT id, status, payment_status, driver_id, city_id, hub_id
+            "SELECT id, status, payment_status, driver_id, city_id, hub_id, fulfillment_type
              FROM {$orders_table}
              WHERE id = %d
              LIMIT 1",
@@ -815,6 +816,12 @@ function knx_v2_driver_order_ops_status(WP_REST_Request $request) {
         return knx_driver_ops__resp(false, array('reason' => 'order_not_found'), 404);
     }
 
+    // Pickup double-jump: prepared → prepared + picked_up in one tap
+    // When fulfillment_type is 'pickup' and driver taps "Prepared", automatically
+    // also apply 'picked_up' so the flow skips the irrelevant transit step.
+    $order_fulfillment = strtolower(trim((string)($order['fulfillment_type'] ?? '')));
+    $is_pickup_double_jump = ($order_fulfillment === 'pickup' && $new_status === 'prepared');
+
     // Apply SSOT (payment gating + transition matrix + history)
     $res = knx_orders_apply_status_change_db_canon($order_id, $new_status, $driver_user_id, $now);
 
@@ -828,10 +835,21 @@ function knx_v2_driver_order_ops_status(WP_REST_Request $request) {
         ), $status_code);
     }
 
+    $final_status = (string)$res['status'];
+
+    // Double-jump: immediately apply picked_up after prepared for pickup orders
+    if ($is_pickup_double_jump) {
+        $res2 = knx_orders_apply_status_change_db_canon($order_id, 'picked_up', $driver_user_id, $now);
+        if (!is_wp_error($res2)) {
+            $final_status = (string)$res2['status'];
+        }
+    }
+
     return knx_driver_ops__resp(true, array(
         'order_id' => $order_id,
         'status_before' => (string)$res['from_status'],
-        'status_after'  => (string)$res['status'],
+        'status_after'  => $final_status,
+        'double_jump'   => $is_pickup_double_jump,
         'server_time' => $now,
     ));
 }

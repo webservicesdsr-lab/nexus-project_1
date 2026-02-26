@@ -128,14 +128,17 @@
       return labels[v] || v.replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
     }
 
-    function renderHistory(list) {
+    function renderHistory(list, isPickupOrder) {
       const arr = Array.isArray(list) ? list : [];
       if (!arr.length) return `<div class="knx-ops-vo__muted">No history.</div>`;
       // Hide financial/internal states (pending_payment, confirmed) from timeline
+      // For pickup orders, also hide picked_up (it's an auto double-jump, not a manual step)
       const rows = arr.filter(h => {
         const st = String(h?.status || '').trim().toLowerCase();
         const ts = String(h?.created_at || '').trim();
-        return ts !== '' && st !== 'pending_payment' && st !== 'confirmed';
+        if (ts === '' || st === 'pending_payment' || st === 'confirmed') return false;
+        if (isPickupOrder && st === 'picked_up') return false;
+        return true;
       }).map((h) => {
           const st = humanStatusLabel(h?.status);
           const at = esc(String(h?.created_at || '').trim());
@@ -208,7 +211,9 @@
 
       const dAddrRaw = String(pick(order, 'delivery.address', '') || '').trim(); const dAddr  = esc(dAddrRaw);
       const dSlot  = esc(String(pick(order, 'delivery.time_slot', '') || ''));
-      const dMethod = esc(String(pick(order, 'delivery.method', '') || ''));
+      const dMethodRaw = String(pick(order, 'delivery.method', '') || '').trim();
+      const dMethod = esc(dMethodRaw);
+      const isPickup = dMethodRaw.toLowerCase() === 'pickup';
 
       const created = esc(String(pick(order, 'created_at', '') || ''));
       const status = esc(String(pick(order, 'status', '') || ''));
@@ -324,7 +329,10 @@
               <div class="knx-ops-vo__divider"></div>
 
               <div class="knx-ops-vo__meta">
-                <div class="knx-ops-vo__meta-row"><span>Delivery method:</span><strong>${dMethod || '<span class="knx-ops-vo__muted">—</span>'}</strong></div>
+                ${isPickup
+                  ? `<div class="knx-ops-vo__meta-row"><span>Fulfillment:</span><strong>🛍️ Customer Pickup</strong></div>`
+                  : `<div class="knx-ops-vo__meta-row"><span>Delivery method:</span><strong>${dMethod || '<span class="knx-ops-vo__muted">—</span>'}</strong></div>`
+                }
                 ${dSlot ? `<div class="knx-ops-vo__meta-row"><span>Time slot:</span><strong>${dSlot}</strong></div>` : ``}
                 <div class="knx-ops-vo__meta-row"><span>Created:</span><strong>${created || '<span class="knx-ops-vo__muted">—</span>'}</strong></div>
               </div>
@@ -351,15 +359,20 @@
               <div class="knx-ops-vo__section-title">Order tracking</div>
 
               <div class="knx-ops-vo__map">
-                ${
-                  mapEmbed
-                    ? `<iframe class="knx-ops-vo__map-iframe" src="${esc(mapEmbed)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>`
-                    : `<div class="knx-ops-vo__map-empty">No map available.</div>`
-                }
-                ${
-                  mapExternal
-                    ? `<a class="knx-ops-vo__map-link" href="${esc(mapExternal)}" target="_blank" rel="noopener">Open in Google Maps</a>`
-                    : ``
+                ${isPickup
+                  ? `<div class="knx-ops-vo__pickup-banner" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:32px 20px;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;text-align:center;">
+                      <div style="font-size:2.5rem;">🛍️</div>
+                      <div style="font-size:1.1rem;font-weight:700;color:#166534;">Customer Pickup Order</div>
+                      <div style="font-size:0.95rem;color:#15803d;">The customer will pick up this order directly at the restaurant. No delivery needed.</div>
+                    </div>`
+                  : `${mapEmbed
+                      ? `<iframe class="knx-ops-vo__map-iframe" src="${esc(mapEmbed)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>`
+                      : `<div class="knx-ops-vo__map-empty">No map available.</div>`
+                    }
+                    ${mapExternal
+                      ? `<a class="knx-ops-vo__map-link" href="${esc(mapExternal)}" target="_blank" rel="noopener">Open in Google Maps</a>`
+                      : ``
+                    }`
                 }
               </div>
 
@@ -367,7 +380,7 @@
 
               <div class="knx-ops-vo__section">
                 <div class="knx-ops-vo__section-title">Status History</div>
-                ${renderHistory(history)}
+                ${renderHistory(history, isPickup)}
               </div>
             </div>
           </div>
@@ -376,10 +389,19 @@
     }
 
     /* ── Action buttons & status change modal ── */
-    function getNextStatuses(currentStatus) {
+    function getNextStatuses(currentStatus, pickupOrder) {
+      pickupOrder = pickupOrder === true;
       const s = String(currentStatus || '').toLowerCase();
       // Driver-allowed transitions (sequential only, no skipping states)
-      const map = {
+      // For pickup orders: after prepared the backend auto-applies picked_up (double-jump),
+      // so the driver's next visible step from prepared is completed.
+      const map = pickupOrder ? {
+        'confirmed': ['accepted_by_driver'],
+        'accepted_by_driver': ['accepted_by_hub'],
+        'accepted_by_hub': ['preparing'],
+        'preparing': ['prepared'],
+        'picked_up': ['completed'],
+      } : {
         'confirmed': ['accepted_by_driver'],
         'accepted_by_driver': ['accepted_by_hub'],
         'accepted_by_hub': ['preparing'],
@@ -410,7 +432,8 @@
 
     function renderActionButtons(order) {
       const currentStatus = String(order?.status || '').toLowerCase();
-      const nextStatuses = getNextStatuses(currentStatus);
+      const orderIsPickup = String(pick(order, 'delivery.method', '') || '').toLowerCase() === 'pickup';
+      const nextStatuses = getNextStatuses(currentStatus, orderIsPickup);
 
       const actionsContainer = document.getElementById('knxViewOrderActions');
       if (!actionsContainer) return;
@@ -458,7 +481,8 @@
 
     function openStatusModal(order) {
       const currentStatus = String(order?.status || '').toLowerCase();
-      const nextStatuses = getNextStatuses(currentStatus);
+      const orderIsPickup = String(pick(order, 'delivery.method', '') || '').toLowerCase() === 'pickup';
+      const nextStatuses = getNextStatuses(currentStatus, orderIsPickup);
 
       if (!nextStatuses.length) {
         toast('No status changes available', 'info');
@@ -478,11 +502,11 @@
                 Current: <strong>${esc(getLabelForStatus(currentStatus))}</strong>
               </div>
               <div class="knx-ops-modal__status-list">
-                ${nextStatuses.map(st => `
-                  <button type="button" class="knx-ops-modal__status-btn" data-status="${esc(st)}">
-                    ${esc(getLabelForStatus(st))}
-                  </button>
-                `).join('')}
+                ${nextStatuses.map(st => {
+                  // For pickup orders, label 'prepared' as 'Ready for Pickup' (backend double-jumps to picked_up automatically)
+                  const btnLabel = (orderIsPickup && st === 'prepared') ? 'Ready for Pickup' : getLabelForStatus(st);
+                  return `<button type="button" class="knx-ops-modal__status-btn" data-status="${esc(st)}">${esc(btnLabel)}</button>`;
+                }).join('')}
               </div>
             </div>
           </div>
@@ -527,7 +551,7 @@
           } catch (err) {
             toast(err.message || 'Failed to update status', 'error');
             btn.disabled = false;
-            btn.textContent = getLabelForStatus(newStatus);
+            btn.textContent = (orderIsPickup && newStatus === 'prepared') ? 'Ready for Pickup' : getLabelForStatus(newStatus);
           }
         });
       });

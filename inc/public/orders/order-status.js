@@ -153,9 +153,16 @@
 
     // ── Timeline ──
     // Filter out hidden steps (e.g. 'confirmed' is internal, not shown to customer)
+    // Additionally: for pickup orders we hide the generic 'prepared' ("Ready") step
+    // because we prefer showing the explicit 'ready_for_pickup' label to the customer.
     var visibleTimeline = [];
     for (var t = 0; t < timeline.length; t++) {
-      if (!timeline[t].hidden) visibleTimeline.push(timeline[t]);
+      var step = timeline[t];
+      if (!step) continue;
+      var st = String(step.status || '').toLowerCase();
+      // Hide 'prepared' on customer-facing timeline for pickup orders to avoid duplication
+      if (isPickup && st === 'prepared') continue;
+      if (!step.hidden) visibleTimeline.push(step);
     }
 
     html += '<div class="knx-os__timeline">';

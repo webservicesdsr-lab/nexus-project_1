@@ -241,6 +241,8 @@ document.addEventListener('DOMContentLoaded', function () {
       var pickup = (o && (o.pickup_address_text || o.pickup_address || o.pickup || o.pickup_address_line)) ? String(o.pickup_address_text || o.pickup_address || o.pickup || o.pickup_address_line) : '';
       var delivery = (o && (o.delivery_address_text || o.delivery_address || o.delivery || o.dropoff_address)) ? String(o.delivery_address_text || o.delivery_address || o.delivery || o.dropoff_address) : '';
 
+      var isPickup = String(o && o.fulfillment_type ? o.fulfillment_type : '').toLowerCase() === 'pickup';
+
       var totalVal = (o && (o.total_amount || o.total || o.amount)) ? (o.total_amount || o.total || o.amount) : null;
       var tipVal = (o && (o.tip_amount || o.tip)) ? (o.tip_amount || o.tip) : null;
 
@@ -248,20 +250,18 @@ document.addEventListener('DOMContentLoaded', function () {
       var tip = money(tipVal);
 
       var distance = '';
-      if (o && (o.distance_miles || o.distance || o.distance_mi)) {
+      if (!isPickup && o && (o.distance_miles || o.distance || o.distance_mi)) {
         var d = o.distance_miles || o.distance || o.distance_mi;
         var n = parseFloat(d);
         if (isFinite(n)) distance = (Math.round(n * 10) / 10) + ' mi';
       }
 
-      return (
-        '<div class="knx-order-card" data-order-id="' + id + '" data-id="' + id + '">' +
-          '<div class="knx-order-header-inline">' +
-            '<span class="knx-restaurant-name">' + escHtml(restaurant || '—') + '</span>' +
-            '<span class="knx-order-id">#' + String(id) + '</span>' +
-          '</div>' +
-
-          '<div class="knx-address-block">' +
+      var addressBlock = isPickup
+        ? '<div class="knx-pickup-chip" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;font-size:0.9rem;color:#166534;">' +
+            '<span aria-hidden="true">🛍️</span>' +
+            '<span><strong>Customer Pickup</strong> — The customer will pick up at the restaurant. No delivery needed.</span>' +
+          '</div>'
+        : '<div class="knx-address-block">' +
             '<div class="knx-address-row">' +
               '<div class="knx-address-header"><span class="knx-addr-icon" aria-hidden="true">📍</span><span class="knx-address-label">PICKUP</span></div>' +
               '<div class="knx-address-text">' + escHtml(pickup || '—') + '</div>' +
@@ -270,19 +270,28 @@ document.addEventListener('DOMContentLoaded', function () {
               '<div class="knx-address-header"><span class="knx-addr-icon" aria-hidden="true">📦</span><span class="knx-address-label">DELIVERY</span></div>' +
               '<div class="knx-address-text">' + escHtml(delivery || '—') + '</div>' +
             '</div>' +
+          '</div>';
+
+      return (
+        '<div class="knx-order-card" data-order-id="' + id + '" data-id="' + id + '">' +
+          '<div class="knx-order-header-inline">' +
+            '<span class="knx-restaurant-name">' + escHtml(restaurant || '—') + '</span>' +
+            '<span class="knx-order-id">#' + String(id) + '</span>' +
           '</div>' +
+
+          addressBlock +
 
           '<div class="knx-money-distance" style="margin-top:12px;">' +
             '<div class="knx-money-group">' +
               '<div class="knx-money-item"><div class="label">Total</div><div class="amount">' + escHtml(total) + '</div></div>' +
               '<div class="knx-money-item"><div class="label">Tips</div><div class="amount">' + escHtml(tip) + '</div></div>' +
             '</div>' +
-            '<div class="knx-distance">' + escHtml(distance || '') + '</div>' +
+            (distance ? '<div class="knx-distance">' + escHtml(distance) + '</div>' : '') +
           '</div>' +
 
           '<div class="knx-order-actions">' +
             '<button type="button" class="knx-btn knx-order-accept" data-id="' + id + '">Accept</button>' +
-            '<button type="button" class="knx-btn-secondary knx-order-view" data-id="' + id + '">See Map</button>' +
+            (isPickup ? '' : '<button type="button" class="knx-btn-secondary knx-order-view" data-id="' + id + '">See Map</button>') +
           '</div>' +
         '</div>'
       );
