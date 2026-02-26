@@ -1,7 +1,7 @@
 // File: inc/modules/hub-categories/hub-categories-script.js
 /**
  * ==========================================================
- * Kingdom Nexus — Hub Categories Script (CRUD Responsive) v1.1
+ * Kingdom Nexus — Hub Categories Script (CRUD Responsive) v1.2
  * - Desktop: table
  * - Mobile: cards
  * - Unified Add/Edit modal
@@ -11,7 +11,6 @@
  */
 (function () {
   function qs(sel, root) { return (root || document).querySelector(sel); }
-  function qsa(sel, root) { return Array.from((root || document).querySelectorAll(sel)); }
 
   function toast(msg, type) {
     try {
@@ -61,16 +60,6 @@
     return (s === "inactive") ? "inactive" : "active";
   }
 
-  function removeFromUI(id) {
-    const key = String(id);
-
-    const row = document.querySelector(`tr[data-cat-id="${key}"]`);
-    if (row) row.remove();
-
-    const card = document.querySelector(`.knx-citycard[data-cat-id="${key}"]`);
-    if (card) card.remove();
-  }
-
   function setBusy(el, busy) {
     if (!el) return;
     if (busy) el.classList.add("is-busy");
@@ -91,26 +80,26 @@
         <div class="knx-citymeta">ID: ${esc(id)}</div>
       </td>
 
-      <td>
+      <td class="knx-status-cell">
         <span class="knx-status knx-status--${status}">
           ${status === "active" ? "Active" : "Inactive"}
         </span>
       </td>
 
-      <td>
+      <td class="knx-col-center">
         <label class="knx-switch" title="Active/Inactive">
           <input type="checkbox" class="knx-cat-toggle" ${status === "active" ? "checked" : ""}>
           <span class="knx-slider"></span>
         </label>
       </td>
 
-      <td class="knx-center">
+      <td class="knx-col-center">
         <button type="button" class="knx-iconbtn knx-cat-edit" title="Edit Category">
           <i class="fas fa-pen"></i>
         </button>
       </td>
 
-      <td class="knx-center">
+      <td class="knx-col-center">
         <button type="button" class="knx-iconbtn knx-iconbtn--danger knx-cat-delete" title="Delete Category">
           <i class="fas fa-trash"></i>
         </button>
@@ -181,14 +170,12 @@
     const search = qs("#knxHubCatsSearch", root);
     const addBtn = qs("#knxAddHubCategoryBtn", root);
 
-    // Unified modal (add/edit)
     const modal      = qs("#knxHubCatModal");
     const modalTitle = qs("#knxHubCatModalTitle");
     const form       = qs("#knxHubCatForm");
     const cancelBtn  = qs("#knxHubCatCancel");
     const saveBtn    = qs("#knxHubCatSave");
 
-    // Delete modal
     const delModal    = qs("#knxHubCatDeleteModal");
     const delNameEl   = qs("#knxHubCatDeleteName");
     const delCancel   = qs("#knxHubCatDeleteCancel");
@@ -233,6 +220,7 @@
 
     function openDeleteModal(cat) {
       if (!delModal) return;
+
       pendingDelete.id = Number(cat?.id || 0);
       pendingDelete.name = String(cat?.name || "");
 
@@ -257,9 +245,7 @@
       if (!modalEl) return;
       modalEl.addEventListener("click", (e) => {
         const t = e.target;
-        if (t && t.getAttribute && t.getAttribute("data-knx-close") === "1") {
-          closeFn();
-        }
+        if (t && t.getAttribute && t.getAttribute("data-knx-close") === "1") closeFn();
       });
     }
 
@@ -276,6 +262,7 @@
       const { ok, json } = await getJson(apiGet);
       if (!ok || !json || json.success === false) {
         toast((json && (json.message || json.error)) || "Failed to load categories", "error");
+
         tbody.innerHTML = `
           <tr><td colspan="5">
             <div class="knx-error-state">
@@ -284,6 +271,7 @@
             </div>
           </td></tr>
         `;
+
         cards.innerHTML = `
           <div class="knx-error-state">
             <i class="fas fa-exclamation-triangle"></i>
@@ -299,11 +287,8 @@
 
     function render() {
       const f = String(search?.value || "").trim().toLowerCase();
-      const list = !f
-        ? categories
-        : categories.filter(c => String(c?.name || "").toLowerCase().includes(f));
+      const list = !f ? categories : categories.filter(c => String(c?.name || "").toLowerCase().includes(f));
 
-      // Table
       tbody.innerHTML = "";
       if (!list.length) {
         tbody.innerHTML = `<tr><td colspan="5" class="knx-center">No categories found.</td></tr>`;
@@ -311,7 +296,6 @@
         list.forEach(cat => tbody.appendChild(renderRow(cat)));
       }
 
-      // Cards
       cards.innerHTML = "";
       if (!list.length) {
         cards.innerHTML = `
@@ -330,16 +314,11 @@
       }
     }
 
-    // Search
     if (search) search.addEventListener("input", render);
-
-    // Open add modal
     if (addBtn) addBtn.addEventListener("click", () => openModal("add"));
-
-    // Cancel add/edit modal
     if (cancelBtn) cancelBtn.addEventListener("click", closeModal);
+    if (delCancel) delCancel.addEventListener("click", closeDeleteModal);
 
-    // Submit add/edit
     if (form) {
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -365,11 +344,7 @@
             return;
           }
 
-          const { ok, json } = await postJson(apiUpdate, {
-            id,
-            name,
-            knx_nonce: nonceUpdate
-          });
+          const { ok, json } = await postJson(apiUpdate, { id, name, knx_nonce: nonceUpdate });
 
           if (!ok || !json || json.success === false) {
             toast((json && (json.message || json.error)) || "Update failed", "error");
@@ -378,8 +353,6 @@
           }
 
           toast("Category updated.", "success");
-
-          // Update local list
           categories = categories.map(c => (Number(c?.id) === id ? { ...c, name } : c));
           closeModal();
           render();
@@ -393,10 +366,7 @@
           return;
         }
 
-        const { ok, json } = await postJson(apiAdd, {
-          name,
-          knx_nonce: nonceAdd
-        });
+        const { ok, json } = await postJson(apiAdd, { name, knx_nonce: nonceAdd });
 
         if (!ok || !json || json.success === false) {
           const msg =
@@ -411,7 +381,6 @@
         toast("Category added.", "success");
         closeModal();
 
-        // Prefer server-returned category (fast), else reload
         const newCat = json?.category || null;
         if (newCat && newCat.id) {
           categories = [newCat, ...categories];
@@ -422,28 +391,15 @@
       });
     }
 
-    // Delete modal cancel
-    if (delCancel) delCancel.addEventListener("click", closeDeleteModal);
-
-    // Delete modal confirm
     if (delConfirm) {
       delConfirm.addEventListener("click", async () => {
         const id = Number(pendingDelete?.id || 0);
-        if (!id) {
-          toast("Missing category id.", "error");
-          return;
-        }
-        if (!apiDelete) {
-          toast("Delete API not configured.", "error");
-          return;
-        }
+        if (!id) return toast("Missing category id.", "error");
+        if (!apiDelete) return toast("Delete API not configured.", "error");
 
         delConfirm.disabled = true;
 
-        const { ok, json } = await postJson(apiDelete, {
-          id,
-          knx_nonce: nonceDelete
-        });
+        const { ok, json } = await postJson(apiDelete, { id, knx_nonce: nonceDelete });
 
         if (!ok || !json || json.success === false) {
           toast((json && (json.message || json.error)) || "Delete failed", "error");
@@ -453,18 +409,12 @@
 
         toast("Category deleted.", "success");
 
-        // Remove from local + UI
         categories = categories.filter(c => Number(c?.id) !== id);
-        removeFromUI(id);
-
         closeDeleteModal();
-
-        // Ensure UI stays consistent if last element removed
         render();
       });
     }
 
-    // Delegated actions (table + cards)
     root.addEventListener("click", (e) => {
       const t = e.target;
       if (!t) return;
@@ -472,27 +422,16 @@
       const row = t.closest("tr[data-cat-id]");
       const card = t.closest(".knx-citycard[data-cat-id]");
       const host = row || card;
-
       if (!host) return;
 
       const id = Number(host.getAttribute("data-cat-id") || 0);
       const cat = categories.find(c => Number(c?.id) === id);
       if (!cat) return;
 
-      // Edit
-      if (t.closest(".knx-cat-edit")) {
-        openModal("edit", cat);
-        return;
-      }
-
-      // Delete
-      if (t.closest(".knx-cat-delete")) {
-        openDeleteModal(cat);
-        return;
-      }
+      if (t.closest(".knx-cat-edit")) return openModal("edit", cat);
+      if (t.closest(".knx-cat-delete")) return openDeleteModal(cat);
     });
 
-    // Delegated toggle (change event)
     root.addEventListener("change", async (e) => {
       const t = e.target;
       if (!t || !t.classList || !t.classList.contains("knx-cat-toggle")) return;
@@ -507,31 +446,23 @@
       if (!current) return;
 
       const desired = t.checked ? "active" : "inactive";
-
       setBusy(host, true);
 
-      const { ok, json } = await postJson(apiToggle, {
-        id,
-        status: desired,
-        knx_nonce: nonceToggle
-      });
+      const { ok, json } = await postJson(apiToggle, { id, status: desired, knx_nonce: nonceToggle });
 
       setBusy(host, false);
 
       if (!ok || !json || json.success === false) {
-        // revert
         t.checked = !t.checked;
         toast((json && (json.message || json.error)) || "Toggle failed", "error");
         return;
       }
 
-      // Update local list + badges
       categories = categories.map(c => (Number(c?.id) === id ? { ...c, status: desired } : c));
       render();
       toast("Category status updated.", "success");
     });
 
-    // Start
     load();
   }
 

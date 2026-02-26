@@ -352,32 +352,103 @@
 }
 
 /* =========================================
-   Mobile: Table -> Cards
+   Mobile: Table -> Cards (replicate /hubs card layout)
+   - Top: identity left, status pill top-right
+   - Meta: phone / city under identity
+   - Actions: Edit (left) and Toggle (right) on bottom row
 ========================================= */
 
 @media (max-width: 768px){
   #knx-drivers-admin .knx-drivers-table thead{ display:none; }
 
+  /* Card wrapper (per-row) */
   #knx-drivers-admin .knx-drivers-table tr{
     display: block;
+    position: relative;
     border: 1px solid rgba(11,18,32,0.06);
     border-radius: 14px;
     box-shadow: var(--knx-shadow-sm);
     background: var(--knx-card);
-    padding: 12px 12px;
+    padding: 14px;
     margin-bottom: 12px;
+    overflow: visible;
   }
 
+  /* Make table cells stack vertically by default */
   #knx-drivers-admin .knx-drivers-table td{
     display: block;
     padding: 6px 0;
     border: 0;
   }
 
-  #knx-drivers-admin .knx-col-center{
-    text-align: left;
-    width: auto;
+  /* Identity area (name + meta) */
+  #knx-drivers-admin .knx-drivers-table td:first-child{
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
   }
+
+  #knx-drivers-admin .knx-driver__who{ margin: 0; }
+
+  /* Status pill: top-right of the card (replicates hubs) */
+  #knx-drivers-admin .knx-drivers-table td:nth-child(4){
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Phone and city (meta) appear below identity */
+  #knx-drivers-admin .knx-drivers-table td:nth-child(2),
+  #knx-drivers-admin .knx-drivers-table td:nth-child(3){
+    margin-top: 8px;
+    color: var(--knx-muted);
+    font-size: 0.95rem;
+  }
+
+  /* Actions row: two equal columns (edit left, toggle right) */
+  #knx-drivers-admin .knx-drivers-table td:nth-child(5),
+  #knx-drivers-admin .knx-drivers-table td:nth-child(6){
+    display: inline-flex;
+    width: calc(50% - 6px);
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    vertical-align: middle;
+  }
+
+  /* Align left (edit) and right (toggle) */
+  #knx-drivers-admin .knx-drivers-table td:nth-child(5){ justify-content: flex-start; }
+  #knx-drivers-admin .knx-drivers-table td:nth-child(6){ justify-content: flex-end; }
+
+  /* Ensure edit button looks like hubs' edit link */
+  #knx-drivers-admin .knx-drivers-table td:nth-child(5) .knx-icon-btn,
+  #knx-drivers-admin .knx-drivers-table td:nth-child(5) .knx-edit-link{
+    background: rgba(11,18,32,0.03);
+    border: 1px solid rgba(11,18,32,0.04);
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--knx-green);
+  }
+
+  /* Tidy icon buttons */
+  #knx-drivers-admin .knx-drivers-table td:nth-child(5) .knx-icon-btn,
+  #knx-drivers-admin .knx-drivers-table td:nth-child(6) .knx-icon-btn{
+    padding: 8px 10px;
+    height: 40px;
+    min-width: 40px;
+    border-radius: 12px;
+  }
+
+  /* Make sure columns don't overlap the status pill */
+  #knx-drivers-admin .knx-drivers-table td:first-child{ padding-right: 120px; }
+  #knx-drivers-admin .knx-drivers-table td:nth-child(2){ padding-right: 12px; }
 }
 
 /* ==========================================================
@@ -574,6 +645,19 @@
   background: rgba(11,18,32,0.03);
   color: #0b1220;
   box-shadow: 0 10px 22px rgba(11,18,32,0.06);
+}
+
+/* Force Save button inside driver modal to use module green (modal sits outside root) */
+#knxDriverModal .knx-drv-save,
+.knx-drv-modal #knxDriverModal .knx-drv-save,
+.knx-drv-modal .knx-drv-save{
+  background: #0b793a !important;
+  color: #fff !important;
+  box-shadow: 0 12px 26px rgba(11,121,58,0.18) !important;
+}
+#knxDriverModal .knx-drv-save:hover,
+.knx-drv-modal .knx-drv-save:hover{
+  background: #096631 !important;
 }
 
 .knx-drv-modal .knx-btn-secondary:hover{

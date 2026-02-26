@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) exit;
 
 /**
  * ==========================================================
- * Kingdom Nexus — Hub Categories (CRUD Responsive UI) v1.1
+ * Kingdom Nexus — Hub Categories (CRUD Responsive UI) v1.2
  * Shortcode: [knx_hub_categories]
  *
  * Matches API v1.1:
@@ -30,7 +30,6 @@ add_shortcode('knx_hub_categories', function () {
     if (!$session || !in_array($role, ['super_admin', 'manager'], true)) {
         $login = site_url('/login');
 
-        // If redirect is possible, do it; otherwise render a safe fallback UI.
         if (!headers_sent()) {
             wp_safe_redirect($login);
             exit;
@@ -72,7 +71,7 @@ add_shortcode('knx_hub_categories', function () {
         <link rel="stylesheet" href="<?php echo esc_url($css_url); ?>">
     <?php endif; ?>
 
-    <div class="knx-hubcats-signed"
+    <div class="knx-hubcats-signed knx-admin-page"
          data-role="<?php echo esc_attr($role); ?>"
          data-api-get="<?php echo esc_url($api_get); ?>"
          data-api-add="<?php echo esc_url($api_add); ?>"
@@ -84,35 +83,35 @@ add_shortcode('knx_hub_categories', function () {
          data-nonce-update="<?php echo esc_attr($nonce_update); ?>"
          data-nonce-delete="<?php echo esc_attr($nonce_delete); ?>">
 
-        <div class="knx-cities-header">
-            <div class="knx-cities-title">
+        <div class="knx-hubcats-header">
+            <div class="knx-hubcats-title">
                 <i class="fas fa-tags"></i>
                 <h2>Hub Categories</h2>
-                <span class="knx-badge-sealed">CRUD v1.1</span>
+                <!-- chip removed for consistency -->
             </div>
 
-            <div class="knx-cities-controls">
+            <div class="knx-hubcats-controls">
                 <div class="knx-search">
                     <i class="fas fa-search"></i>
                     <input id="knxHubCatsSearch" type="text" placeholder="Search categories..." autocomplete="off">
                 </div>
 
-                <button id="knxAddHubCategoryBtn" class="knx-btn knx-btn--primary" type="button">
+                <button id="knxAddHubCategoryBtn" class="knx-add-btn" type="button">
                     <i class="fas fa-plus"></i> Add Category
                 </button>
             </div>
         </div>
 
         <!-- Desktop table -->
-        <div class="knx-cities-tablewrap" id="knxHubCatsTableWrap">
-            <table class="knx-cities-table">
+        <div class="knx-hubcats-tablewrap" id="knxHubCatsTableWrap">
+            <table class="knx-hubcats-table" aria-label="Hub Categories Table">
                 <thead>
                     <tr>
                         <th>Category</th>
                         <th>Status</th>
-                        <th>Toggle</th>
-                        <th>Edit</th>
-                        <th>Delete</th>
+                        <th class="knx-col-center">Toggle</th>
+                        <th class="knx-col-center">Edit</th>
+                        <th class="knx-col-center">Delete</th>
                     </tr>
                 </thead>
                 <tbody id="knxHubCatsTbody">
@@ -125,10 +124,9 @@ add_shortcode('knx_hub_categories', function () {
             </table>
         </div>
 
-        <!-- Mobile cards -->
+        <!-- Mobile cards (KEEP existing classes so your mobile CSS stays stable) -->
         <div class="knx-cities-cards" id="knxHubCatsCards"></div>
 
-        <!-- JS-off fallback -->
         <noscript>
             <div class="knx-error-state">
                 <i class="fas fa-exclamation-triangle"></i>

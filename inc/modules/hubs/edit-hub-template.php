@@ -111,348 +111,6 @@ add_shortcode('knx_edit_hub', function () {
       .knx-top-navbar,
       .knx-navbar,
       .site-header { display: none !important; }
-
-      /* Action bar */
-      .knx-actionbar{
-        display:flex;gap:10px;justify-content:flex-end;align-items:center;
-        margin:8px 0 18px;flex-wrap:wrap;
-      }
-      .knx-actionbar .knx-btn{
-        display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;
-        border:1px solid #e7e7e7;background:#fff;text-decoration:none;font-weight:600;line-height:1;
-        transition:transform .06s ease, box-shadow .12s ease, background .12s ease, color .12s ease;
-        min-width: 120px;
-        justify-content: center;
-      }
-      .knx-actionbar .knx-btn:hover{
-        transform:translateY(-2px);box-shadow:0 6px 22px rgba(0,0,0,.08);
-      }
-      /* Secondary/neutral action style (Back, Edit Items) */
-      .knx-actionbar .knx-btn.knx-btn-secondary{
-        background: #ffffff;
-        color: #0b1220;
-        border-color: #d1d5db;
-      }
-      .knx-actionbar .knx-btn.knx-btn-secondary:hover{
-        background:#f3f4f6;
-      }
-      /* Primary action (Preview)
-         keep an explicit primary selector so templates can use .primary */
-      .knx-actionbar .knx-btn.primary{
-        background:#0b793a;color:#fff;border-color:#0b793a;
-      }
-      .knx-actionbar .knx-btn i{ font-size:14px; margin-right:6px; }
-      .knx-actionbar .knx-btn:focus{ outline: 3px solid rgba(11,121,58,0.14); outline-offset: 2px; }
-      /* Back button sits at the left; other actions stay right */
-      .knx-actionbar .knx-btn-back {
-        order: -1;
-        margin-right: auto;
-        justify-content: flex-start;
-        min-width: 90px;
-      }
-      @media (max-width: 720px){ .knx-actionbar{ justify-content:flex-start; } }
-
-      /* Minimal height for map if CSS not loaded yet */
-      .knx-map { min-height: 420px; }
-
-      /* Polygon button styles */
-      #startDrawing:not(:disabled) {
-        background: #0b793a !important;
-        color: white !important;
-        cursor: pointer;
-      }
-      #startDrawing:not(:disabled):hover {
-        background: #095a2b !important;
-      }
-
-      #completePolygon:not(:disabled) {
-        background: #10b981 !important;
-        color: white !important;
-        cursor: pointer;
-      }
-      #completePolygon:not(:disabled):hover {
-        background: #059669 !important;
-      }
-
-      #clearPolygon:not(:disabled) {
-        background: #ef4444 !important;
-        color: white !important;
-        cursor: pointer;
-      }
-      #clearPolygon:not(:disabled):hover {
-        background: #dc2626 !important;
-      }
-
-      /* Slug Management */
-      .knx-slug-input-wrapper {
-        display: flex;
-        gap: 12px;
-        align-items: center;
-      }
-      .knx-slug-input-wrapper input {
-        flex: 1;
-      }
-      .knx-btn-secondary {
-        background: #f3f4f6;
-        color: #374151;
-        border: 1px solid #d1d5db;
-        font-size: 14px;
-        padding: 8px 16px;
-      }
-      .knx-btn-secondary:hover {
-        background: #e5e7eb;
-        color: #111827;
-      }
-      #slugPreview {
-        color: #059669;
-        font-weight: 600;
-      }
-      .knx-form-actions {
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
-      }
-      
-      /* Delete Hub Card */
-      .knx-danger-card {
-        background: #fef2f2;
-        border: 1px solid #fecaca;
-        margin-top: 32px;
-      }
-      .knx-danger-card h2 {
-        color: #dc2626;
-        margin-bottom: 16px;
-      }
-      .knx-danger-content {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 24px;
-      }
-      .knx-danger-info {
-        flex: 1;
-      }
-      .knx-danger-info p {
-        margin: 0 0 12px 0;
-        color: #374151;
-        line-height: 1.6;
-      }
-      .knx-danger-info ul {
-        margin: 0 0 12px 0;
-        padding-left: 20px;
-        color: #6b7280;
-      }
-      .knx-danger-info li {
-        margin-bottom: 4px;
-      }
-      .knx-btn-danger {
-        background: #dc2626;
-        color: white;
-        border: 1px solid #dc2626;
-        white-space: nowrap;
-        min-width: 200px;
-      }
-      .knx-btn-danger:hover {
-        background: #b91c1c;
-        border-color: #b91c1c;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 16px rgba(220, 38, 38, 0.2);
-      }
-      
-      /* Collapse styles for Temporary Closure only */
-      .knx-collapse-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        cursor: pointer;
-        padding: 16px 0;
-        border-bottom: 1px solid #e5e7eb;
-        margin-bottom: 0;
-      }
-      .knx-collapse-header h2 {
-        margin: 0;
-        font-size: 22px;
-      }
-      .knx-collapse-desc {
-        margin: 4px 0 0 0;
-        color: #6b7280;
-        font-size: 14px;
-      }
-      .toggle-arrow {
-        transition: transform 0.2s ease;
-        color: #6b7280;
-      }
-      .knx-collapse-header.active .toggle-arrow {
-        transform: rotate(180deg);
-      }
-      .knx-collapse-body {
-        max-height: 0;
-        overflow: hidden;
-        transition: max-height 0.3s ease;
-        padding-top: 0;
-      }
-      .knx-collapse-body.open {
-        max-height: 2000px;
-        padding-top: 24px;
-      }
-      
-      /* Delete Confirmation Modal */
-      .knx-delete-modal {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.75);
-        z-index: 10000;
-        justify-content: center;
-        align-items: center;
-        backdrop-filter: blur(4px);
-      }
-      .knx-delete-modal.show {
-        display: flex;
-      }
-      .knx-delete-modal-content {
-        background: white;
-        border-radius: 16px;
-        padding: 32px;
-        max-width: 520px;
-        width: 90%;
-        max-height: 80vh;
-        overflow-y: auto;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-        animation: modalSlideIn 0.3s ease;
-      }
-      @keyframes modalSlideIn {
-        from {
-          opacity: 0;
-          transform: translateY(-20px) scale(0.95);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0) scale(1);
-        }
-      }
-      .knx-delete-modal h3 {
-        margin: 0 0 16px 0;
-        color: #dc2626;
-        font-size: 24px;
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-      }
-      .knx-delete-modal-body {
-        margin-bottom: 24px;
-      }
-      .knx-delete-warning {
-        background: #fef2f2;
-        border: 1px solid #fecaca;
-        border-radius: 12px;
-        padding: 20px;
-        margin: 16px 0;
-      }
-      .knx-delete-warning h4 {
-        margin: 0 0 12px 0;
-        color: #dc2626;
-        font-weight: 600;
-      }
-      .knx-delete-warning ul {
-        margin: 12px 0;
-        padding-left: 20px;
-        color: #6b7280;
-      }
-      .knx-delete-warning li {
-        margin-bottom: 6px;
-      }
-      .knx-confirmation-input {
-        margin: 20px 0;
-      }
-      .knx-confirmation-input label {
-        display: block;
-        margin-bottom: 8px;
-        font-weight: 600;
-        color: #374151;
-      }
-      .knx-confirmation-input input {
-        width: 100%;
-        padding: 12px;
-        border: 2px solid #e5e7eb;
-        border-radius: 8px;
-        font-size: 16px;
-        transition: border-color 0.2s ease;
-      }
-      .knx-confirmation-input input:focus {
-        outline: none;
-        border-color: #dc2626;
-      }
-      .knx-confirmation-input .knx-target-text {
-        font-family: monospace;
-        background: #f3f4f6;
-        padding: 8px 12px;
-        border-radius: 6px;
-        margin: 8px 0;
-        font-weight: 600;
-        color: #374151;
-      }
-      .knx-delete-modal-actions {
-        display: flex;
-        gap: 12px;
-        justify-content: flex-end;
-      }
-      .knx-modal-btn {
-        padding: 12px 24px;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 16px;
-        border: none;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        min-width: 120px;
-      }
-      .knx-modal-btn-cancel {
-        background: #f3f4f6;
-        color: #374151;
-      }
-      .knx-modal-btn-cancel:hover {
-        background: #e5e7eb;
-      }
-      .knx-modal-btn-delete {
-        background: #dc2626;
-        color: white;
-      }
-      .knx-modal-btn-delete:hover:not(:disabled) {
-        background: #b91c1c;
-      }
-      .knx-modal-btn-delete:disabled {
-        background: #f87171;
-        cursor: not-allowed;
-      }
-      
-      @media (max-width: 768px) {
-        .knx-delete-modal-content {
-          padding: 24px;
-          margin: 20px;
-        }
-        .knx-delete-modal-actions {
-          flex-direction: column;
-        }
-        .knx-danger-content {
-          flex-direction: column;
-          align-items: stretch;
-        }
-        .knx-slug-input-wrapper {
-          flex-direction: column;
-          align-items: stretch;
-        }
-        .knx-form-actions {
-          justify-content: stretch;
-        }
-        .knx-form-actions button {
-          flex: 1;
-        }
-      }
     </style>
 
     <div class="knx-edit-hub-wrapper"
@@ -481,12 +139,15 @@ add_shortcode('knx_edit_hub', function () {
         <a class="knx-btn knx-btn-secondary knx-btn-back" href="<?php echo $back_url; ?>" aria-label="Back to Hubs">
           <i class="fas fa-arrow-left"></i> Back to Hubs
         </a>
-      </div>
+       </div>
 
-      <!-- =========================
-           Identity
-      ========================== -->
-      <div class="knx-card" id="identityBlock">
+       <div class="knx-edit-layout">
+         <div class="knx-edit-main">
+
+       <!-- =========================
+         Identity
+       ========================== -->
+       <div class="knx-card" id="identityBlock">
         <h2>Identity</h2>
 
         <div class="knx-form-group">
@@ -574,26 +235,11 @@ add_shortcode('knx_edit_hub', function () {
         </div>
       </div>
 
-      <!-- =========================
-           Logo
-      ========================== -->
-      <div class="knx-card" id="logoBlock">
-        <h2>Hub Logo</h2>
-        <div class="knx-logo-preview">
-          <img id="hubLogoPreview"
-               src="<?php echo esc_url($hub->logo_url ?: KNX_URL . 'assets/img/default-logo.jpg'); ?>"
-               alt="Hub Logo"
-               style="max-width:150px;border-radius:8px;">
-        </div>
-        <div class="knx-logo-actions">
-          <input type="file" id="hubLogoInput" accept="image/*">
-          <button id="uploadLogoBtn" class="knx-btn">Upload</button>
-        </div>
-      </div>
+      <!-- Logo remains wrapped and will be placed into the side column further below -->
 
-      <!-- =========================
-           Settings
-      ========================== -->
+       <!-- =========================
+         Settings
+       ========================== -->
       <div class="knx-card" id="settingsBlock">
         <h2>Hub Settings</h2>
 
@@ -688,11 +334,11 @@ add_shortcode('knx_edit_hub', function () {
             Save Settings
           </button>
         </div>
-      </div>
+       </div>
 
-      <!-- =========================
-           Location & Delivery (v5.0 CANONICAL)
-      ========================== -->
+       <!-- =========================
+         Location & Delivery (v5.0 CANONICAL)
+       ========================== -->
       <div class="knx-card" id="locationBlock">
         <?php 
         // Make $hub available to the included file
@@ -701,9 +347,122 @@ add_shortcode('knx_edit_hub', function () {
         ?>
       </div>
 
-      <!-- =========================
-           Working Hours
-      ========================== -->
+        </div> <!-- /.knx-edit-main -->
+        <div class="knx-edit-side">
+
+          <!-- =========================
+               Logo
+          ========================== -->
+          <div class="knx-card" id="logoBlock">
+            <h2>Hub Logo</h2>
+            <div class="knx-logo-preview">
+              <img id="hubLogoPreview"
+                   src="<?php echo esc_url($hub->logo_url ?: KNX_URL . 'assets/img/default-logo.jpg'); ?>"
+                   alt="Hub Logo"
+                   style="max-width:150px;border-radius:8px;">
+            </div>
+            <div class="knx-logo-actions">
+              <input type="file" id="hubLogoInput" accept="image/*">
+              <button id="uploadLogoBtn" class="knx-btn">Upload</button>
+            </div>
+          </div>
+
+          <!-- =========================
+               Temporary Closure (Optimized)
+          ========================== -->
+          <div class="knx-card" id="closureBlock">
+            <div class="knx-collapse-header" onclick="this.classList.toggle('active'); document.getElementById('closureBody').classList.toggle('open');">
+              <div>
+                <h2>Temporary Closure</h2>
+                <p class="knx-collapse-desc">Set this hub as closed (temporary or indefinite) and optionally schedule a reopening.</p>
+              </div>
+              <span class="toggle-arrow">▼</span>
+            </div>
+            <?php
+            $is_closed = !empty($hub->closure_start);
+            $closure_type = ($is_closed && !empty($hub->closure_end)) ? 'temporary' : ($is_closed ? 'indefinite' : '');
+            $reopen_date = $hub->closure_end ?? '';
+            $reopen_time = $hub->closure_end_time ?? '';
+            ?>
+            <div id="closureBody" class="knx-collapse-body">
+              <div class="knx-field">
+                <label>Status</label>
+                <label class="knx-switch">
+                  <input type="checkbox" id="closureToggle" <?php checked($is_closed, true); ?>>
+                  <span class="slider"></span>
+                </label>
+                <span id="closureStatusText" style="margin-left:12px;color:#dc2626;font-weight:600;">
+                  <?php echo $is_closed ? ($closure_type === 'temporary' ? 'Temporarily Closed' : 'Indefinitely Closed') : 'Open'; ?>
+                </span>
+              </div>
+              <div class="knx-field">
+                <label>Closure Type</label>
+                <select id="closureType" <?php echo !$is_closed ? 'disabled' : ''; ?>>
+                  <option value="">— Select —</option>
+                  <option value="temporary" <?php selected($closure_type, 'temporary'); ?>>Temporary</option>
+                  <option value="indefinite" <?php selected($closure_type, 'indefinite'); ?>>Indefinite</option>
+                </select>
+              </div>
+              <div class="knx-field">
+                <label>Note (optional)</label>
+                <textarea id="closureReason" placeholder="Add internal note..." <?php echo !$is_closed ? 'disabled' : ''; ?>><?php echo esc_textarea($hub->closure_reason ?? ''); ?></textarea>
+              </div>
+              <div class="knx-field" id="reopenWrapper" style="<?php echo ($closure_type === 'temporary') ? '' : 'display:none;'; ?>">
+                <label>Reopen Date & Time</label>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                  <input type="date" id="reopenDate" value="<?php echo $reopen_date ? esc_attr($reopen_date) : ''; ?>" <?php echo ($closure_type === 'temporary' && $is_closed) ? '' : 'disabled'; ?>>
+                  <select id="reopenHour" style="min-width:60px;" <?php echo ($closure_type === 'temporary' && $is_closed) ? '' : 'disabled'; ?>>
+                    <option value="">HH</option>
+                    <?php foreach (["01","02","03","04","05","06","07","08","09","10","11","12"] as $h): ?>
+                      <option value="<?php echo $h; ?>" <?php echo (!empty($reopen_time) && substr($reopen_time,0,2) == $h) ? 'selected' : ''; ?>><?php echo $h; ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                  <span>:</span>
+                  <select id="reopenMinute" style="min-width:60px;" <?php echo ($closure_type === 'temporary' && $is_closed) ? '' : 'disabled'; ?>>
+                    <option value="">MM</option>
+                    <?php foreach (["00","15","30","45"] as $m): ?>
+                      <option value="<?php echo $m; ?>" <?php echo (!empty($reopen_time) && substr($reopen_time,3,2) == $m) ? 'selected' : ''; ?>><?php echo $m; ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                  <select id="reopenAMPM" style="min-width:60px;" <?php echo ($closure_type === 'temporary' && $is_closed) ? '' : 'disabled'; ?>>
+                    <option value="AM" <?php echo (!empty($reopen_time) && intval(substr($reopen_time,0,2)) < 12) ? 'selected' : ''; ?>>AM</option>
+                    <option value="PM" <?php echo (!empty($reopen_time) && intval(substr($reopen_time,0,2)) >= 12) ? 'selected' : ''; ?>>PM</option>
+                  </select>
+                </div>
+                <small class="knx-help-text">If set, hub will automatically reopen at this date/time.</small>
+              </div>
+              <div class="knx-save-row">
+                <button id="saveClosureBtn" class="knx-btn" data-hub-id="<?php echo esc_attr($hub_id); ?>" data-nonce="<?php echo esc_attr($nonce); ?>">
+                  Save Closure
+                </button>
+              </div>
+            </div>
+
+          <!-- =========================
+               Delete Hub
+          ========================== -->
+          <div class="knx-card knx-danger-card" id="deleteHubBlock">
+            <h2>⚠️ Delete Hub</h2>
+            <div class="knx-danger-content">
+              <div class="knx-danger-info">
+                <p><strong>Permanent deletion of this hub and all associated data:</strong></p>
+                <ul>
+                  <li>All hub items and categories</li>
+                  <li>All item modifiers and addons</li>
+                  <li>All order history and analytics</li>
+                  <li>Hub settings and configurations</li>
+                </ul>
+                <p><strong>This action cannot be reversed!</strong></p>
+              </div>
+              <button id="deleteHubBtn" class="knx-btn knx-btn-danger" data-hub-id="<?php echo esc_attr($hub_id); ?>" data-hub-name="<?php echo esc_attr($hub->name ?? 'Unknown Hub'); ?>">
+                <i class="fas fa-trash"></i> Delete Hub Permanently
+              </button>
+            </div>
+          </div>
+
+        </div> <!-- /.knx-edit-side -->
+      </div> <!-- /.knx-edit-layout -->
+
       <div class="knx-card" id="hoursBlock">
         <h2>Working Hours</h2>
 
@@ -965,80 +724,8 @@ add_shortcode('knx_edit_hub', function () {
         </div>
       </div>
 
-
-
-      <!-- =========================
-           Temporary Closure (Optimized)
-      ========================== -->
-      <div class="knx-card" id="closureBlock">
-        <div class="knx-collapse-header" onclick="this.classList.toggle('active'); document.getElementById('closureBody').classList.toggle('open');">
-          <div>
-            <h2>Temporary Closure</h2>
-            <p class="knx-collapse-desc">Set this hub as closed (temporary or indefinite) and optionally schedule a reopening.</p>
-          </div>
-          <span class="toggle-arrow">▼</span>
-        </div>
-        <?php
-        $is_closed = !empty($hub->closure_start);
-        $closure_type = ($is_closed && !empty($hub->closure_end)) ? 'temporary' : ($is_closed ? 'indefinite' : '');
-        $reopen_date = $hub->closure_end ?? '';
-        $reopen_time = $hub->closure_end_time ?? '';
-        ?>
-        <div id="closureBody" class="knx-collapse-body">
-          <div class="knx-field">
-            <label>Status</label>
-            <label class="knx-switch">
-              <input type="checkbox" id="closureToggle" <?php checked($is_closed, true); ?>>
-              <span class="slider"></span>
-            </label>
-            <span id="closureStatusText" style="margin-left:12px;color:#dc2626;font-weight:600;">
-              <?php echo $is_closed ? ($closure_type === 'temporary' ? 'Temporarily Closed' : 'Indefinitely Closed') : 'Open'; ?>
-            </span>
-          </div>
-          <div class="knx-field">
-            <label>Closure Type</label>
-            <select id="closureType" <?php echo !$is_closed ? 'disabled' : ''; ?>>
-              <option value="">— Select —</option>
-              <option value="temporary" <?php selected($closure_type, 'temporary'); ?>>Temporary</option>
-              <option value="indefinite" <?php selected($closure_type, 'indefinite'); ?>>Indefinite</option>
-            </select>
-          </div>
-          <div class="knx-field">
-            <label>Note (optional)</label>
-            <textarea id="closureReason" placeholder="Add internal note..." <?php echo !$is_closed ? 'disabled' : ''; ?>><?php echo esc_textarea($hub->closure_reason ?? ''); ?></textarea>
-          </div>
-          <div class="knx-field" id="reopenWrapper" style="<?php echo ($closure_type === 'temporary') ? '' : 'display:none;'; ?>">
-            <label>Reopen Date & Time</label>
-            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-              <input type="date" id="reopenDate" value="<?php echo $reopen_date ? esc_attr($reopen_date) : ''; ?>" <?php echo ($closure_type === 'temporary' && $is_closed) ? '' : 'disabled'; ?>>
-              <select id="reopenHour" style="min-width:60px;" <?php echo ($closure_type === 'temporary' && $is_closed) ? '' : 'disabled'; ?>>
-                <option value="">HH</option>
-                <?php foreach (["01","02","03","04","05","06","07","08","09","10","11","12"] as $h): ?>
-                  <option value="<?php echo $h; ?>" <?php echo (!empty($reopen_time) && substr($reopen_time,0,2) == $h) ? 'selected' : ''; ?>><?php echo $h; ?></option>
-                <?php endforeach; ?>
-              </select>
-              <span>:</span>
-              <select id="reopenMinute" style="min-width:60px;" <?php echo ($closure_type === 'temporary' && $is_closed) ? '' : 'disabled'; ?>>
-                <option value="">MM</option>
-                <?php foreach (["00","15","30","45"] as $m): ?>
-                  <option value="<?php echo $m; ?>" <?php echo (!empty($reopen_time) && substr($reopen_time,3,2) == $m) ? 'selected' : ''; ?>><?php echo $m; ?></option>
-                <?php endforeach; ?>
-              </select>
-              <select id="reopenAMPM" style="min-width:60px;" <?php echo ($closure_type === 'temporary' && $is_closed) ? '' : 'disabled'; ?>>
-                <option value="AM" <?php echo (!empty($reopen_time) && intval(substr($reopen_time,0,2)) < 12) ? 'selected' : ''; ?>>AM</option>
-                <option value="PM" <?php echo (!empty($reopen_time) && intval(substr($reopen_time,0,2)) >= 12) ? 'selected' : ''; ?>>PM</option>
-              </select>
-            </div>
-            <small class="knx-help-text">If set, hub will automatically reopen at this date/time.</small>
-          </div>
-          <div class="knx-save-row">
-            <button id="saveClosureBtn" class="knx-btn" data-hub-id="<?php echo esc_attr($hub_id); ?>" data-nonce="<?php echo esc_attr($nonce); ?>">
-              Save Closure
-            </button>
-          </div>
-        </div>
-        <script>
-        document.addEventListener('DOMContentLoaded', function() {
+      <script>
+      document.addEventListener('DOMContentLoaded', function() {
           const closureToggle = document.getElementById('closureToggle');
           const closureType = document.getElementById('closureType');
           const closureReason = document.getElementById('closureReason');
@@ -1085,30 +772,8 @@ add_shortcode('knx_edit_hub', function () {
           closureType.addEventListener('change', updateClosureUI);
           updateClosureUI();
         });
-        </script>
-      </div>
+      </script>
 
-      <!-- =========================
-           Delete Hub
-      ========================== -->
-      <div class="knx-card knx-danger-card" id="deleteHubBlock">
-        <h2>⚠️ Delete Hub</h2>
-        <div class="knx-danger-content">
-          <div class="knx-danger-info">
-            <p><strong>Permanent deletion of this hub and all associated data:</strong></p>
-            <ul>
-              <li>All hub items and categories</li>
-              <li>All item modifiers and addons</li>
-              <li>All order history and analytics</li>
-              <li>Hub settings and configurations</li>
-            </ul>
-            <p><strong>This action cannot be reversed!</strong></p>
-          </div>
-          <button id="deleteHubBtn" class="knx-btn knx-btn-danger" data-hub-id="<?php echo esc_attr($hub_id); ?>" data-hub-name="<?php echo esc_attr($hub->name ?? 'Unknown Hub'); ?>">
-            <i class="fas fa-trash"></i> Delete Hub Permanently
-          </button>
-        </div>
-      </div>
 
     </div> <!-- /.knx-edit-hub-wrapper -->
 

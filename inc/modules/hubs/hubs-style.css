@@ -351,6 +351,30 @@
   }
 }
 
+/* Mobile: move featured badge out of the name flow so it doesn't overlap */
+@media (max-width: 768px) {
+  .knx-hub-card { position: relative; }
+
+  /* remove inline space next to name */
+  .knx-hub-card .knx-badge--featured { margin-left: 0; }
+
+  /* place badge on the right edge, vertically centered between
+     the top status pill and the bottom toggle; slightly smaller */
+  .knx-hub-card .knx-badge--featured {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    font-size: 14px;
+  }
+}
+
 /* ===================
    MODAL + CONFIRM
 =================== */
@@ -422,6 +446,19 @@
   gap:10px;
   justify-content:flex-end;
   margin-top:12px;
+}
+
+/* Align Add Hub modal form buttons to the right */
+#knxAddHubForm button {
+  float: right;
+  margin-left: 8px;
+  margin-top: 10px;
+}
+
+#knxAddHubForm::after{
+  content: "";
+  display: block;
+  clear: both;
 }
 
 /* ===================

@@ -1,9 +1,9 @@
 /* File: inc/modules/hub-categories/hub-categories-style.css */
 /* ==========================================================
-   KNX Hub Categories — CRUD Responsive UI v1.1 (Cities-style)
-   - Theme-safe (Hello Elementor hover bleed blocked)
-   - Desktop: table | Mobile: cards
-   - Unified Add/Edit modal + simple Delete modal
+   KNX Hub Categories — CRUD Responsive UI v1.2
+   GOAL:
+   ✅ Desktop: consistent with /hubs + /customers + /cities (card wrapper + uppercase table headers)
+   ✅ Mobile: keep your existing mobile cards UX (do not redesign)
 ========================================================== */
 
 .knx-hubcats-signed{
@@ -12,16 +12,27 @@
   --knx-bg: #ffffff;
   --knx-soft: #f6f7f8;
   --knx-border: #e2e5e8;
-  --knx-text: #111827;
+  --knx-text: #0b1220;
   --knx-muted: #6b7280;
-  --knx-danger: #b33a3a;
-  --knx-danger-bg: #f6eaea;
-  --knx-success-bg: #e5f7eb;
+  --knx-danger: #7A1010;
+  --knx-danger-bg: #FFF6F6;
+  --knx-success-bg: #F0FCF4;
 
-  padding: 5%;
-  margin-left: 154px;
+  /* DESKTOP CONSISTENCY (fix pushed right) */
+  max-width: 1100px;
+  margin: 48px auto;
+  padding: 28px;
+  background: var(--knx-bg);
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(11,18,32,0.06);
   color: var(--knx-text);
-  /* font removed to inherit theme typography */
+}
+
+@media (min-width: 901px) {
+  body.knx-has-corporate-sidebar .knx-hubcats-signed{
+    margin-left: auto;
+    margin-right: auto;
+  }
 }
 
 .knx-hubcats-signed,
@@ -29,6 +40,9 @@
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
+
+/* Hide public navbar on admin pages */
+.knx-admin-page .knx-nav { display: none !important; }
 
 /* Kill theme link styling inside module */
 .knx-hubcats-signed a{
@@ -45,9 +59,6 @@
 }
 
 /* Prevent theme button hover palettes from bleeding in */
-.knx-hubcats-signed button{
-  /* font removed to inherit theme typography */
-}
 .knx-hubcats-signed button:hover,
 .knx-hubcats-signed button:focus,
 .knx-hubcats-signed button:active{
@@ -58,65 +69,53 @@
 }
 
 /* ==========================================================
-   Header (Cities-style)
+   Header (consistent)
 ========================================================== */
 
-.knx-cities-header{
+.knx-hubcats-header{
   display:flex;
   align-items:center;
   justify-content:space-between;
   gap: 14px;
   flex-wrap: wrap;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
 }
 
-.knx-cities-title{
+.knx-hubcats-title{
   display:flex;
   align-items:center;
   gap:10px;
 }
 
-.knx-cities-title i{
+.knx-hubcats-title i{
   color: var(--knx-green);
-  font-size: 1.25rem;
+  font-size: 1.15rem;
 }
 
-.knx-cities-title h2{
+.knx-hubcats-title h2{
   margin:0;
-  font-size: 1.4rem;
-  font-weight: 800;
-  color: var(--knx-green);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--knx-text);
 }
 
-.knx-badge-sealed{
-  font-size: .75rem;
-  font-weight: 800;
-  background: #eef6f1;
-  color: var(--knx-green);
-  border: 1px solid #dbece2;
-  padding: 3px 10px;
-  border-radius: 999px;
-}
-
-/* ==========================================================
-   Controls
-========================================================== */
-
-.knx-cities-controls{
+/* Controls */
+.knx-hubcats-controls{
   display:flex;
   align-items:center;
   gap:12px;
   flex-wrap: wrap;
 }
 
+/* Search (desktop consistent with hubs/customers) */
 .knx-search{
   display:flex;
   align-items:center;
   gap:8px;
-  background: var(--knx-soft);
-  border-radius: 10px;
-  padding: 8px 12px;
-  border: 1px solid var(--knx-border);
+  background: transparent;
+  border-radius: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(11,18,32,0.06);
 }
 
 .knx-search i{ color: var(--knx-green); }
@@ -131,15 +130,32 @@
 }
 
 /* ==========================================================
-   Buttons (NO hover shifts)
+   Buttons (consistent)
 ========================================================== */
+
+.knx-add-btn{
+  background: var(--knx-green);
+  color:#fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items:center;
+  gap: 8px;
+  box-shadow: 0 6px 18px rgba(11,121,58,0.09);
+}
+
+.knx-add-btn:hover{ background: var(--knx-green-dark); }
 
 .knx-btn{
   border: 0;
   border-radius: 10px;
   padding: 10px 14px;
   cursor: pointer;
-  font-weight: 800;
+  font-weight: 700;
   display:inline-flex;
   align-items:center;
   justify-content:center;
@@ -151,36 +167,39 @@
 .knx-btn--primary{
   background: var(--knx-green);
   color:#fff;
+  box-shadow: 0 6px 18px rgba(11,121,58,0.09);
 }
 .knx-btn--primary:hover,
 .knx-btn--primary:focus,
 .knx-btn--primary:active{
-  background: var(--knx-green) !important;
+  background: var(--knx-green-dark) !important;
   color:#fff !important;
 }
 
 .knx-btn--ghost{
-  background: #f2f2f2;
-  color:#333;
+  background: transparent;
+  color: var(--knx-muted);
+  border: 1px solid rgba(11,18,32,0.04);
 }
 .knx-btn--ghost:hover,
 .knx-btn--ghost:focus,
 .knx-btn--ghost:active{
-  background: #f2f2f2 !important;
-  color:#333 !important;
+  background: transparent !important;
+  color: var(--knx-muted) !important;
+  border-color: rgba(11,18,32,0.04) !important;
 }
 
 .knx-btn--danger{
   background: var(--knx-danger-bg);
   color: var(--knx-danger);
-  border: 1px solid #efcaca;
+  border: 1px solid rgba(122,16,16,0.12);
 }
 .knx-btn--danger:hover,
 .knx-btn--danger:focus,
 .knx-btn--danger:active{
   background: var(--knx-danger-bg) !important;
   color: var(--knx-danger) !important;
-  border-color: #efcaca !important;
+  border-color: rgba(122,16,16,0.12) !important;
 }
 
 .knx-btn--sm{
@@ -190,40 +209,46 @@
 }
 
 /* ==========================================================
-   Table (Desktop)
+   Table (desktop consistent)
 ========================================================== */
 
-.knx-cities-tablewrap{ width:100%; }
+.knx-hubcats-tablewrap{ width:100%; }
 
-.knx-cities-table{
+.knx-hubcats-table{
   width:100%;
   border-collapse: collapse;
   background: var(--knx-bg);
 }
 
-.knx-cities-table th,
-.knx-cities-table td{
+.knx-hubcats-table th,
+.knx-hubcats-table td{
   text-align:left;
-  padding: 12px 12px;
-  border-bottom: 1px solid var(--knx-border);
+  padding: 14px 12px;
+  border-bottom: 1px solid rgba(11,18,32,0.04);
   font-size: .95rem;
   vertical-align: middle;
 }
 
-.knx-cities-table th{
-  background: #f7f9fa;
-  font-weight: 800;
-  color:#333;
+.knx-hubcats-table th{
+  background: transparent;
+  font-weight: 700;
+  color: var(--knx-muted);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: .02em;
 }
 
-/* Remove row hover highlight */
-.knx-cities-table tbody tr:hover{ background: transparent !important; }
+.knx-hubcats-table tbody tr:hover{
+  background: rgba(11,18,32,0.02);
+}
+
+.knx-col-center{ text-align:center; width: 80px; }
 
 .knx-center{ text-align:center; }
 
 .knx-citycell .knx-cityname{
-  font-weight: 900;
-  color:#111;
+  font-weight: 800;
+  color: var(--knx-text);
 }
 
 .knx-citycell .knx-citymeta{
@@ -235,22 +260,15 @@
 /* Status labels */
 .knx-status{
   display:inline-block;
-  font-weight: 900;
-  padding: 4px 10px;
-  border-radius: 8px;
-  font-size: .85rem;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 13px;
   text-transform: capitalize;
 }
 
-.knx-status--active{
-  background: var(--knx-success-bg);
-  color: var(--knx-green);
-}
-
-.knx-status--inactive{
-  background: var(--knx-danger-bg);
-  color: var(--knx-danger);
-}
+.knx-status--active{ background: var(--knx-success-bg); color: #0B6623; }
+.knx-status--inactive{ background: var(--knx-danger-bg); color: var(--knx-danger); }
 
 /* Icon buttons */
 .knx-iconbtn{
@@ -287,30 +305,26 @@
 .knx-switch{
   position: relative;
   display:inline-block;
-  width: 44px;
-  height: 24px;
+  width: 46px;
+  height: 26px;
 }
 
-.knx-switch input{
-  opacity:0;
-  width:0;
-  height:0;
-}
+.knx-switch input{ opacity:0; width:0; height:0; }
 
 .knx-slider{
   position:absolute;
   cursor:pointer;
-  top:0; left:0; right:0; bottom:0;
+  inset:0;
   background:#ccc;
   transition:.3s;
-  border-radius: 24px;
+  border-radius: 999px;
 }
 
 .knx-slider:before{
   position:absolute;
   content:"";
-  height: 18px;
-  width: 18px;
+  height: 20px;
+  width: 20px;
   left:3px;
   bottom:3px;
   background:#fff;
@@ -322,13 +336,11 @@
 .knx-switch input:checked + .knx-slider:before{ transform: translateX(20px); }
 
 /* Busy */
-.is-busy{
-  opacity: .6;
-  pointer-events: none;
-}
+.is-busy{ opacity: .6; pointer-events: none; }
 
 /* ==========================================================
-   Cards (Mobile)
+   MOBILE (keep your existing behavior)
+   NOTE: your cards are rendered into #knxHubCatsCards with class .knx-cities-cards
 ========================================================== */
 
 .knx-cities-cards{
@@ -386,10 +398,7 @@
   flex-wrap: wrap;
 }
 
-/* ==========================================================
-   Empty / Error / Loading
-========================================================== */
-
+/* Empty / Error / Loading */
 .knx-loading{
   text-align:center;
   padding: 18px 10px;
@@ -438,21 +447,15 @@
   color: #991b1b;
 }
 
-/* ==========================================================
-   Modals (Cities-style, scoped)
-========================================================== */
-
+/* Modals (scoped) */
 .knx-modal{
   display:none;
   position: fixed;
   inset:0;
   z-index: 9999;
-  /* font removed to inherit theme typography */
 }
 
-.knx-modal.active{
-  display:block;
-}
+.knx-modal.active{ display:block; }
 
 .knx-modal-backdrop{
   position:absolute;
@@ -471,24 +474,39 @@
   box-shadow: 0 12px 40px rgba(0,0,0,.22);
 }
 
-/* Hard reset modal buttons to avoid theme skinning */
-.knx-modal-box button{
-  -webkit-appearance: none;
-  appearance: none;
-  font: inherit;
-  letter-spacing: normal;
-  text-transform: none;
-  text-decoration: none !important;
-  box-shadow: none !important;
-  filter: none !important;
-  transform: none !important;
-  outline: none;
-}
-
 .knx-modal-box h3{
   margin:0 0 6px 0;
   color: var(--knx-text);
   font-weight: 900;
+}
+
+/* Ensure modal action primary buttons keep the module green (Save button) */
+/* Use an ID-specific, high-specificity rule so it wins against other module styles */
+#knxHubCatModal .knx-modal-actions .knx-btn--primary,
+#knxHubCatDeleteModal .knx-modal-actions .knx-btn--primary{
+  /* Use literal colors because CSS variables are scoped inside the module container */
+  background: #0b793a !important; /* knx-green */
+  color: #fff !important;
+  box-shadow: 0 6px 18px rgba(11,121,58,0.09) !important;
+}
+#knxHubCatModal .knx-modal-actions .knx-btn--primary:hover,
+#knxHubCatModal .knx-modal-actions .knx-btn--primary:focus,
+#knxHubCatDeleteModal .knx-modal-actions .knx-btn--primary:hover,
+#knxHubCatDeleteModal .knx-modal-actions .knx-btn--primary:focus{
+  background: #096631 !important; /* knx-green-dark */
+  color: #fff !important;
+}
+
+/* Delete modal: force danger (red) on confirm button */
+#knxHubCatDeleteModal .knx-modal-actions .knx-btn--danger{
+  background: #7A1010 !important; /* knx-danger */
+  color: #fff !important;
+  border-color: rgba(122,16,16,0.12) !important;
+}
+#knxHubCatDeleteModal .knx-modal-actions .knx-btn--danger:hover,
+#knxHubCatDeleteModal .knx-modal-actions .knx-btn--danger:focus{
+  background: #5c0c0c !important;
+  color: #fff !important;
 }
 
 .knx-modal-sub{
@@ -498,9 +516,7 @@
   line-height: 1.35;
 }
 
-.knx-modal-sub--danger{
-  color: #7f1d1d;
-}
+.knx-modal-sub--danger{ color: #7f1d1d; }
 
 .knx-field span{
   display:block;
@@ -512,7 +528,7 @@
 .knx-field input{
   width:100%;
   padding: 11px 12px;
-  border: 1px solid var(--knx-border);
+  border: 1px solid rgba(11,18,32,0.06);
   border-radius: 12px;
   font-size: 1rem;
   outline: none;
@@ -521,7 +537,7 @@
 }
 
 .knx-field input:focus{
-  border-color: #bfe3cf;
+  border-color: rgba(11,121,58,.25);
   box-shadow: 0 0 0 3px rgba(11,121,58,.10);
 }
 
@@ -532,14 +548,12 @@
   margin-top: 16px;
 }
 
-/* ==========================================================
-   Responsive: Desktop table | Mobile cards
-========================================================== */
-
+/* Responsive: keep mobile cards behavior and remove “pushed right” */
 @media (max-width: 768px){
   .knx-hubcats-signed{
-    margin-left: 58px;
-    padding: 2%;
+    margin: 18px;
+    padding: 18px;
+    max-width: none;
   }
 
   .knx-search input{ width: 160px; }
@@ -547,5 +561,5 @@
   #knxHubCatsTableWrap{ display:none; }
   .knx-cities-cards{ display:grid; }
 
-  .knx-btn--primary{ width:100%; }
+  .knx-add-btn{ width: 100%; justify-content: center; }
 }

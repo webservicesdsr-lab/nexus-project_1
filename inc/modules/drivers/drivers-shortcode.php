@@ -189,16 +189,16 @@ add_shortcode('knx_drivers_admin', function () {
                     </div>
                 </div>
 
-                <div class="knx-drv-modal__actions">
-                    <button type="button" class="knx-btn-secondary knx-drv-cancel">Cancel</button>
-                    <button type="submit" class="knx-btn knx-drv-save">Save</button>
+                <div class="knx-drv-modal__actions knx-drv-secondary-actions">
+                    <button type="button" class="knx-icon-btn danger knx-drv-reset" title="Reset password" hidden>Reset Password</button>
+                    <button type="button" class="knx-icon-btn danger knx-drv-delete" title="Soft delete" hidden>Delete Driver</button>
                 </div>
 
                 <div class="knx-drv-divider"></div>
 
-                <div class="knx-drv-modal__actions knx-drv-secondary-actions">
-                    <button type="button" class="knx-icon-btn danger knx-drv-reset" title="Reset password" hidden>Reset Password</button>
-                    <button type="button" class="knx-icon-btn danger knx-drv-delete" title="Soft delete" hidden>Delete</button>
+                <div class="knx-drv-modal__actions">
+                    <button type="button" class="knx-btn-secondary knx-drv-cancel">Cancel</button>
+                    <button type="submit" class="knx-btn knx-drv-save">Save</button>
                 </div>
 
                 <!-- Inline confirmation panel (Reset/Delete) -->

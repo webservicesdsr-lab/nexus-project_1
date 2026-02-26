@@ -366,7 +366,17 @@ if (!function_exists('knx_is_nav_item_active')) {
 if (!function_exists('knx_get_navigation_layout')) {
     function knx_get_navigation_layout($context) {
         $slug = $context['current_slug'];
-        
+        // Special case: show navbar on edit-hub while keeping admin sidebar.
+        // This ensures the top navbar is present on the edit-hub page.
+        if ($slug === 'edit-hub' && !empty($context['is_admin'])) {
+            return [
+                'render_navbar' => true,
+                'render_sidebar' => true,
+                'navbar_area' => 'public',
+                'sidebar_area' => 'admin',
+            ];
+        }
+
         // Admin pages: sidebar only
         $admin_slugs = [
             'dashboard', 'knx-dashboard', 'hubs', 'edit-hub', 'edit-item-categories',
