@@ -148,6 +148,19 @@ if (!function_exists('knx_api_create_payment_intent')) {
 
         $amount_cents = (int) round($total * 100);
 
+        // RETRY FIX: If payment_status is 'failed' from a previous attempt,
+        // reset it to 'pending' so the status endpoint doesn't return stale
+        // 'failed' while we're actively retrying with a new/reused PI.
+        if ($payment_status === 'failed') {
+            $wpdb->update(
+                $orders_table,
+                ['payment_status' => 'pending', 'updated_at' => current_time('mysql')],
+                ['id' => $order_id],
+                ['%s', '%s'],
+                ['%d']
+            );
+        }
+
         // If an existing intent_created payment exists, retrieve PI and reuse.
         $existing = $wpdb->get_row($wpdb->prepare(
             "SELECT id, provider_intent_id, amount, currency, status

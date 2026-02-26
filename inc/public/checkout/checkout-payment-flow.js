@@ -379,10 +379,21 @@
     if (paymentFinalized) return;
 
     stopPollingTimer();
-    clearPending();
+
+    // IMPORTANT: Do NOT clearPending() here.
+    // The order_id must survive so that retry can reuse it
+    // (skipping createOrder + fetchQuoteSnapshot entirely).
+    // We only clear the stale intent_id so create-intent
+    // generates a fresh PaymentIntent on retry.
+    try {
+      var pending = getPending();
+      if (pending && pending.order_id) {
+        savePending('', pending.order_id); // keep order_id, wipe intent_id
+      }
+    } catch (e) {}
 
     setStatus('error', msg || 'Payment failed or canceled.');
-    enableBtn('Retry');
+    enableBtnWithCooldown('Retry');
     inFlight = false;
   }
 
@@ -602,14 +613,24 @@
   // ----------------------------
   // C) Create PaymentIntent for the created order
   // ----------------------------
-  async function createIntent() {
+  async function createIntent(existingOrderId) {
     var intentUrl = cfg.createIntentUrl;
     if (!intentUrl) {
       setStatus('error', 'Create intent endpoint missing.');
       return null;
     }
 
-    var order = await createOrder();
+    var order = null;
+
+    // If we already have an order_id (retry after card decline), skip
+    // createOrder entirely — the order + snapshot are already in the DB.
+    // This avoids hitting the cart (which is already 'converted').
+    if (existingOrderId) {
+      order = { order_id: existingOrderId };
+    } else {
+      order = await createOrder();
+    }
+
     if (!order || !order.order_id) return null;
 
     var res, raw, data;
@@ -692,8 +713,10 @@
 
     if (result.error) {
       var errMsg = result.error.message || 'Payment failed.';
-      setStatus('error', errMsg);
+      setStatus('error', errMsg + ' Please enter a different card.');
       runtime.setError(errMsg);
+      // Clear the card element so the user can type a fresh card number
+      try { if (runtime.card && typeof runtime.card.clear === 'function') runtime.card.clear(); } catch (e) {}
       return null;
     }
 
@@ -858,7 +881,7 @@
 
           // Failure states
           if (st === 'failed' || st === 'canceled' || st === 'cancelled') {
-            finalizeFailed(info.message || 'Payment failed or canceled.');
+            finalizeFailed('Payment failed or canceled. You can retry with a different card.');
             return false;
           }
 
@@ -909,6 +932,24 @@
   // ----------------------------
   // F) Main flow
   // ----------------------------
+  var RETRY_COOLDOWN_MS = 3000; // 3s anti-double-tap cooldown
+
+  function enableBtnWithCooldown(text) {
+    // Show the label immediately but keep button disabled for RETRY_COOLDOWN_MS
+    // to prevent accidental double-taps that could cause duplicate charges.
+    if (!btn) return;
+    var textSpan = btn.querySelector('.knx-place-order-text');
+    if (textSpan) textSpan.textContent = String(text || 'Retry');
+    btn.style.opacity = '0.6';
+    btn.style.cursor = 'not-allowed';
+    btn.disabled = true;
+
+    setTimeout(function () {
+      if (paymentFinalized) return;
+      enableBtn(text);
+    }, RETRY_COOLDOWN_MS);
+  }
+
   async function handlePlaceOrder() {
     if (paymentFinalized) return;
     if (inFlight) return;
@@ -922,11 +963,22 @@
     disableBtn('Processing…');
     runtime.clearError();
 
-    setStatus('info', 'Creating payment intent…');
-    var intentData = await createIntent();
+    // -------------------------------------------------------
+    // RETRY OPTIMIZATION: If a previous attempt created an
+    // order but the card was declined, reuse the existing
+    // order_id. This skips createOrder() + fetchQuoteSnapshot()
+    // entirely, avoiding the "No active cart found" error
+    // (the cart is already 'converted' from the first attempt).
+    // The create-intent endpoint handles PI reuse natively.
+    // -------------------------------------------------------
+    var pending = getPending();
+    var retryOrderId = (pending && pending.order_id) ? pending.order_id : null;
+
+    setStatus('info', retryOrderId ? 'Retrying payment…' : 'Creating payment intent…');
+    var intentData = await createIntent(retryOrderId);
     if (!intentData) {
       if (!paymentFinalized) {
-        enableBtn('Place Order');
+        enableBtnWithCooldown('Retry');
         inFlight = false;
       }
       return;
@@ -941,8 +993,9 @@
     setStatus('info', 'Confirming payment…');
     var paymentIntent = await confirmPayment(client_secret);
     if (!paymentIntent) {
-      clearPending();
-      enableBtn('Retry');
+      // DON'T clearPending() — keep the order_id so retry can reuse it!
+      // savePending was already called above with latest intent data.
+      enableBtnWithCooldown('Retry');
       inFlight = false;
       return;
     }
@@ -1000,7 +1053,17 @@
     if (paymentFinalized) return;
 
     var pending = getPending();
-    if (!pending || !pending.intent_id) return;
+    if (!pending) return;
+
+    // If we only have order_id (intent_id was wiped after failure),
+    // go straight to retry mode — no need to poll or fetch status.
+    if (!pending.intent_id && pending.order_id) {
+      setStatus('error', 'Previous payment failed. You can retry with a different card.');
+      enableBtnWithCooldown('Retry');
+      return;
+    }
+
+    if (!pending.intent_id) return;
 
     setStatus('info', 'Resuming payment confirmation…');
     disableBtn('Resuming…');
@@ -1016,12 +1079,25 @@
 
       if (raw && typeof raw === 'object') {
         var info = extractStatusInfo(raw);
+
+        // Payment succeeded — finalize immediately
         if (info && (info.status === 'succeeded' || info.status === 'paid' || info.status === 'confirmed')) {
           finalizePaid(pending.order_id, info.redirect_url || '');
           return;
         }
+
+        // Payment failed — go straight to retry mode.
+        // Do NOT start polling (it would just re-detect failure and loop).
+        // Preserve the order_id so retry skips createOrder.
+        if (info && (info.status === 'failed' || info.status === 'canceled' || info.status === 'cancelled')) {
+          setStatus('error', info.message || 'Previous payment failed. You can retry with a different card.');
+          enableBtnWithCooldown('Retry');
+          inFlight = false;
+          return;
+        }
       }
 
+      // Still pending/processing — resume polling
       startPolling(pending.intent_id, pending.order_id);
     });
   }

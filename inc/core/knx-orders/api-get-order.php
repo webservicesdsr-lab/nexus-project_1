@@ -148,6 +148,21 @@ function knx_api_get_order(WP_REST_Request $req) {
         }
     }
 
+    // ===================================================
+    // VISIBILITY GATE: Hide pending_payment from customers/guests.
+    // Orders in pending_payment are internal (awaiting Stripe webhook).
+    // The customer must never see them in their history or status page.
+    // Return 404 (not 403) to prevent order existence leak.
+    // ===================================================
+    if ((string) $order->status === 'pending_payment') {
+        if ($role === 'customer' || ($role !== 'super_admin' && $role !== 'manager')) {
+            return new WP_REST_Response([
+                'success' => false,
+                'error'   => 'order-not-found',
+            ], 404);
+        }
+    }
+
     // Fetch status history
     $status_history = $wpdb->get_results($wpdb->prepare(
         "SELECT status, changed_by, created_at 

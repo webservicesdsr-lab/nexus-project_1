@@ -149,6 +149,13 @@ function knx_api_list_orders(WP_REST_Request $req) {
         $where_values[] = $session->token;
     }
 
+    // Hide pending_payment orders from customer/guest views.
+    // These orders are internal (awaiting Stripe confirmation) and
+    // must never clutter the customer's order history.
+    if ($role === 'customer' || ($role !== 'super_admin' && $role !== 'manager')) {
+        $where_clauses[] = "o.status != 'pending_payment'";
+    }
+
     // Apply optional filters
     if ($status !== null) {
         $where_clauses[] = 'o.status = %s';

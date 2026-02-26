@@ -494,6 +494,51 @@ if (!function_exists('knx_api_payment_webhook')) {
 
             $wpdb->query('COMMIT');
 
+            // ===================================================
+            // CART CLEANUP (deferred from order creation)
+            // Now that payment is confirmed, safely delete cart
+            // items. The cart row stays as 'converted' for audit.
+            // ===================================================
+            if ($event->type === 'payment_intent.succeeded') {
+                try {
+                    $cart_items_table = $wpdb->prefix . 'knx_cart_items';
+                    $carts_table      = $wpdb->prefix . 'knx_carts';
+
+                    // Find the cart that was converted for this order
+                    $order_session = isset($order->session_token) ? (string) $order->session_token : '';
+                    $order_hub_id  = isset($order->hub_id) ? (int) $order->hub_id : 0;
+
+                    if ($order_session !== '' && $order_hub_id > 0) {
+                        $cart_row = $wpdb->get_row($wpdb->prepare(
+                            "SELECT id FROM {$carts_table}
+                             WHERE session_token = %s
+                               AND hub_id = %d
+                               AND status = 'converted'
+                             ORDER BY updated_at DESC
+                             LIMIT 1",
+                            $order_session,
+                            $order_hub_id
+                        ));
+
+                        if ($cart_row) {
+                            $wpdb->delete(
+                                $cart_items_table,
+                                ['cart_id' => (int) $cart_row->id],
+                                ['%d']
+                            );
+                        }
+                    }
+                } catch (\Throwable $cleanup_err) {
+                    // Non-fatal: cart items will be cleaned up by cron eventually
+                    if (function_exists('knx_stripe_authority_log')) {
+                        knx_stripe_authority_log('warn', 'webhook_cart_cleanup_failed', 'Cart item cleanup failed (non-fatal)', [
+                            'order_id' => (int) $order->id,
+                            'msg'      => substr($cleanup_err->getMessage(), 0, 120),
+                        ]);
+                    }
+                }
+            }
+
             if (function_exists('knx_stripe_authority_log')) {
                 knx_stripe_authority_log('info', 'webhook_processed', 'Webhook processed', [
                     'event_id'   => (string) $event->id,

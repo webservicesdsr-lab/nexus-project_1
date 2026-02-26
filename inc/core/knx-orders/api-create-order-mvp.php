@@ -774,13 +774,12 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
         $wpdb->query('COMMIT');
 
         // ===================================================
-        // CART CLEANUP: Clear cart items to prevent Safari/iOS issues
+        // CART CLEANUP: Deferred to webhook success handler.
+        // Cart items are preserved here so that if the card is
+        // declined, the frontend can retry without losing data.
+        // The webhook (payment_intent.succeeded) cleans up items
+        // and the frontend clears localStorage on finalizePaid().
         // ===================================================
-        $wpdb->delete(
-            $table_cart_items,
-            ['cart_id' => $cart_id],
-            ['%d']
-        );
 
         return new WP_REST_Response([
             'success'      => true,
