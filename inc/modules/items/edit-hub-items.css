@@ -154,24 +154,13 @@ body {
   box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
 }
 
-/* SEARCH BAR */
-.knx-search-form {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.knx-search-form input {
-  padding: 8px 10px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-  font-size: 14px;
-}
-
-/* GRID ITEMS — 2 columns on desktop/tablet, 1 on mobile */
+/* GRID ITEMS */
 .knx-item-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 18px;
+  /* auto-fill: keeps fixed column slots so cards don't over-stretch;
+     1 item = stays left; 2+ fill available columns up to max-width per card */
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
 }
 .knx-item-card {
   background: #fff;
@@ -181,18 +170,87 @@ body {
   transition: transform .2s;
   border: 1px solid #eee;
   position: relative;
+  /* Cap width so cards don't become too wide when only a few exist */
+  max-width: 340px;
 }
-.knx-item-card:hover { transform: translateY(-3px); }
-.knx-item-card img {
+/* Single-item grid: align card to the left instead of centering */
+.knx-item-grid--single {
+  grid-template-columns: minmax(220px, 340px);
+  justify-content: start;
+}
+
+/* ITEM CARD STRUCTURE */
+.knx-item-card__img-wrap {
+  position: relative;
   width: 100%;
-  height: 160px;
+  padding-top: 56%; /* 16:9-ish, less tall than before */
+  overflow: hidden;
+}
+.knx-item-card__img-wrap img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   background: #f2f2f2;
   transition: filter .3s;
 }
 
+/* Price pill — floats between image and body like /menu */
+.knx-item-card__body {
+  position: relative;
+  padding: 28px 14px 0;
+  text-align: center;
+}
+.knx-item-price-pill {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translate(-50%, -50%);
+  background: #f97316;
+  color: #fff;
+  padding: 6px 18px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 0.88rem;
+  white-space: nowrap;
+  box-shadow: 0 4px 10px rgba(249,115,22,.35);
+  z-index: 2;
+}
+
+/* Item name + single-line description */
+.knx-item-info {
+  padding: 0 0 10px;
+}
+.knx-item-info h4 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.knx-item-info p {
+  font-size: 12px;
+  color: #555;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Footer: actions only (price chip is above) */
+.knx-item-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px 14px;
+  background: #fafafa;
+  border-top: 1px solid #eee;
+}
+
 /* Inactive item overlay */
-.knx-item-card.inactive img {
+.knx-item-card.inactive .knx-item-card__img-wrap img {
   filter: grayscale(100%) brightness(0.65);
 }
 .knx-item-card.inactive::after {
@@ -215,31 +273,6 @@ body {
     font-size: 1.4rem;
     letter-spacing: 2px;
   }
-}
-.knx-item-info {
-  padding: 14px;
-}
-.knx-item-info h4 {
-  margin: 0 0 5px;
-  font-size: 16px;
-  font-weight: 600;
-}
-.knx-item-info p {
-  font-size: 13px;
-  color: #555;
-  margin: 0;
-}
-.knx-item-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 14px;
-  background: #fafafa;
-  border-top: 1px solid #eee;
-}
-.knx-item-footer .price {
-  color: #0B793A;
-  font-weight: 700;
 }
 .knx-actions {
   display: flex;
@@ -402,6 +435,11 @@ body {
   .knx-with-sidebar { padding: 20px 16px 60px; }
 }
 
+/* Tablet landscape (≤900px): drop to 2 columns */
+@media (max-width: 900px) {
+  .knx-item-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
 /* Tablet portrait (≤768px): wrap buttons into 2-per-row */
 @media (max-width: 768px) {
   .knx-with-sidebar { padding: 16px 14px 60px; }
@@ -416,10 +454,9 @@ body {
   }
 }
 
-/* Mobile (≤480px): single column grid, buttons stack full-width */
+/* Mobile (≤480px): keep 2-col grid, buttons stack full-width */
 @media (max-width: 480px) {
   .knx-with-sidebar { padding: 12px 10px 60px; }
-  .knx-item-grid { grid-template-columns: 1fr; }
   .knx-hubs-buttons > * {
     flex: 1 1 100%;
   }

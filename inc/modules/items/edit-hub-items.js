@@ -148,6 +148,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const container = document.createElement("div");
       container.className = "knx-item-grid";
+      // Flag single-item grids so CSS can align them left instead of centered
+      if (grouped[catId].length === 1) {
+        container.classList.add("knx-item-grid--single");
+      }
 
       grouped[catId].forEach((item) => {
         const card = document.createElement("div");
@@ -156,18 +160,22 @@ document.addEventListener("DOMContentLoaded", () => {
           card.classList.add("inactive");
         }
         card.innerHTML = `
-          <img src="${item.image_url || "https://via.placeholder.com/400x200?text=No+Image"}" alt="${item.name}">
-          <div class="knx-item-info">
-            <h4>${item.name}</h4>
-            <p>${item.description ? item.description.substring(0, 60) + "..." : ""}</p>
+          <div class="knx-item-card__img-wrap">
+            <img src="${item.image_url || "https://via.placeholder.com/400x200?text=No+Image"}" alt="${item.name}">
           </div>
-          <div class="knx-item-footer">
-            <span class="price">$${parseFloat(item.price).toFixed(2)}</span>
-            <div class="knx-actions">
-              <button class="knx-action-icon move-up" data-id="${item.id}" title="Move Up"><i class="fas fa-chevron-up"></i></button>
-              <button class="knx-action-icon move-down" data-id="${item.id}" title="Move Down"><i class="fas fa-chevron-down"></i></button>
-              <a href="/edit-item?hub_id=${hubId}&item_id=${item.id}" class="knx-action-icon" title="Edit"><i class="fas fa-pen"></i></a>
-              <button class="knx-action-icon delete" data-id="${item.id}" title="Delete"><i class="fas fa-trash"></i></button>
+          <div class="knx-item-card__body">
+            <span class="knx-item-price-pill">$${parseFloat(item.price).toFixed(2)}</span>
+            <div class="knx-item-info">
+              <h4>${item.name}</h4>
+              <p>${item.description ? item.description.substring(0, 80) : ""}</p>
+            </div>
+            <div class="knx-item-footer">
+              <div class="knx-actions">
+                <button class="knx-action-icon move-up" data-id="${item.id}" title="Move Up"><i class="fas fa-chevron-up"></i></button>
+                <button class="knx-action-icon move-down" data-id="${item.id}" title="Move Down"><i class="fas fa-chevron-down"></i></button>
+                <a href="/edit-item?hub_id=${hubId}&item_id=${item.id}" class="knx-action-icon" title="Edit"><i class="fas fa-pen"></i></a>
+                <button class="knx-action-icon delete" data-id="${item.id}" title="Delete"><i class="fas fa-trash"></i></button>
+              </div>
             </div>
           </div>
         `;
