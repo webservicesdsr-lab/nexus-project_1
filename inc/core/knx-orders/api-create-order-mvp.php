@@ -317,6 +317,10 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
 
     $snapshot = (isset($body['snapshot']) && is_array($body['snapshot'])) ? $body['snapshot'] : null;
 
+    // Optional fields from client
+    $comment = isset($body['comment']) ? sanitize_textarea_field($body['comment']) : null;
+    $delivery_time = isset($body['delivery_time']) ? trim((string) $body['delivery_time']) : 'asap';
+
     if ($snapshot === null) {
         return new WP_REST_Response([
             'success' => false,
@@ -417,6 +421,61 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
                 'reason'  => 'DELIVERY_SNAPSHOT_MISMATCH',
                 'message' => 'Delivery snapshot does not match quoted fee. Please re-quote your order.',
             ], 409);
+        }
+    }
+
+    // --------------------------------------------------
+    // Derive delivery metrics for persistence (P0)
+    // --------------------------------------------------
+    $delivery_distance_val = null;
+    $delivery_duration_minutes_val = null;
+    $estimated_delivery_at = null;
+
+    if ($fulfillment_type === 'delivery' && is_array($delivery_snapshot_v46)) {
+        // Distance (km)
+        $delivery_distance_val = isset($delivery_snapshot_v46['distance']['km'])
+            ? (float) $delivery_snapshot_v46['distance']['km']
+            : null;
+
+        // ETA minutes
+        $delivery_duration_minutes_val = isset($delivery_snapshot_v46['distance']['eta_minutes'])
+            ? (int) $delivery_snapshot_v46['distance']['eta_minutes']
+            : null;
+
+        // Default estimated_delivery_at = now + eta_minutes (if provided)
+        if (is_int($delivery_duration_minutes_val) && $delivery_duration_minutes_val > 0) {
+            try {
+                $dt = new DateTime(current_time('mysql'));
+                $dt->modify('+' . $delivery_duration_minutes_val . ' minutes');
+                $estimated_delivery_at = $dt->format('Y-m-d H:i:s');
+            } catch (Exception $e) {
+                $estimated_delivery_at = null;
+            }
+        }
+
+        // If frontend provided an explicit delivery_time (not 'asap'), try to parse and prefer it
+        if (!empty($delivery_time) && strtolower($delivery_time) !== 'asap') {
+            try {
+                // Accept either full ISO or HH:MM for same-day
+                $parsed = null;
+                if (preg_match('/^\d{2}:\d{2}$/', $delivery_time)) {
+                    // Today's date + provided time (server timezone)
+                    $today = (new DateTime())->format('Y-m-d');
+                    $parsed = new DateTime($today . ' ' . $delivery_time);
+                } else {
+                    $parsed = new DateTime($delivery_time);
+                }
+
+                if ($parsed) {
+                    // Only accept future times (>= now)
+                    $now_dt = new DateTime(current_time('mysql'));
+                    if ($parsed >= $now_dt) {
+                        $estimated_delivery_at = $parsed->format('Y-m-d H:i:s');
+                    }
+                }
+            } catch (Exception $e) {
+                // ignore parse errors and keep previous ETA if present
+            }
         }
     }
 
@@ -643,6 +702,14 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
             'delivery_address_id' => $delivery_address_id,
             'delivery_lat'        => $delivery_lat,
             'delivery_lng'        => $delivery_lng,
+
+            // Persisted delivery metrics (P0)
+            'delivery_distance'           => $delivery_distance_val,
+            'delivery_duration_minutes'   => $delivery_duration_minutes_val,
+            'estimated_delivery_at'       => $estimated_delivery_at,
+
+            // Customer comment / note (if provided)
+            'notes'                      => ($comment !== null && $comment !== '') ? $comment : null,
 
             'subtotal'         => $subtotal,
             'tax_rate'         => $tax_rate,

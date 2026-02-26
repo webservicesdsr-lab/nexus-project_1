@@ -418,14 +418,16 @@
       coupon_code: couponEl ? String(couponEl.value || '').trim() : ''
     };
 
-    // Fulfillment: use root selected address if available
+    // Fulfillment: read explicit toggle state from root dataset (SSOT)
     try {
       var rootEl = document.getElementById((cfg.ui && cfg.ui.rootId) ? cfg.ui.rootId : 'knx-checkout');
-      var selectedAddressId = rootEl ? parseInt(rootEl.getAttribute('data-selected-address-id') || '0', 10) : 0;
-      var fulfillment = (selectedAddressId && selectedAddressId > 0) ? 'delivery' : 'pickup';
+      var fulfillment = (rootEl && rootEl.getAttribute('data-fulfillment')) || 'delivery';
       payload.fulfillment_type = fulfillment;
-      if (fulfillment === 'delivery' && selectedAddressId > 0) {
-        payload.address_id = selectedAddressId;
+      if (fulfillment === 'delivery') {
+        var selectedAddressId = rootEl ? parseInt(rootEl.getAttribute('data-selected-address-id') || '0', 10) : 0;
+        if (selectedAddressId > 0) {
+          payload.address_id = selectedAddressId;
+        }
       }
     } catch (e) {}
 

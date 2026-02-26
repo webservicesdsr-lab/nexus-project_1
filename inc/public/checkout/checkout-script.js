@@ -174,14 +174,15 @@
 
       if (code) payload.coupon_code = code;
 
-      // Fulfillment: prefer explicit selected address id rendered in root dataset
+      // Fulfillment: read explicit toggle state from root dataset (SSOT)
       var rootEl = document.getElementById('knx-checkout');
-      var selectedAddressId = 0;
-      if (rootEl) selectedAddressId = parseInt(rootEl.getAttribute('data-selected-address-id') || '0', 10) || 0;
-      var fulfillment = (selectedAddressId && selectedAddressId > 0) ? 'delivery' : 'pickup';
+      var fulfillment = (rootEl && rootEl.getAttribute('data-fulfillment')) || 'delivery';
       payload.fulfillment_type = fulfillment;
-      if (fulfillment === 'delivery' && selectedAddressId > 0) {
-        payload.address_id = selectedAddressId;
+      if (fulfillment === 'delivery') {
+        var selectedAddressId = rootEl ? parseInt(rootEl.getAttribute('data-selected-address-id') || '0', 10) || 0 : 0;
+        if (selectedAddressId > 0) {
+          payload.address_id = selectedAddressId;
+        }
       }
 
       var res, data;
@@ -478,6 +479,70 @@
       );
 
       observer.observe(placeOrderBtn);
+    }
+
+    // ----------------------------
+    // Fulfillment Toggle (Pickup / Delivery)
+    // ----------------------------
+    var fulfillmentChips = root.querySelectorAll('.knx-fulfillment-chip');
+    var deliveryCardsWrap = document.getElementById('knxDeliveryCards');
+    var fulfillmentHint = document.getElementById('knxFulfillmentHint');
+    var heroBadgeText = document.getElementById('knxHeroBadgeText');
+
+    function setFulfillment(mode) {
+      var rootEl = document.getElementById('knx-checkout');
+      if (!rootEl) return;
+
+      rootEl.setAttribute('data-fulfillment', mode);
+
+      // Update chip active states
+      fulfillmentChips.forEach(function (chip) {
+        var val = chip.getAttribute('data-fulfillment-value');
+        if (val === mode) {
+          chip.classList.add('is-active');
+          chip.setAttribute('aria-checked', 'true');
+        } else {
+          chip.classList.remove('is-active');
+          chip.setAttribute('aria-checked', 'false');
+        }
+      });
+
+      // Show/hide delivery-specific cards
+      if (deliveryCardsWrap) {
+        if (mode === 'delivery') {
+          deliveryCardsWrap.removeAttribute('hidden');
+        } else {
+          deliveryCardsWrap.setAttribute('hidden', '');
+        }
+      }
+
+      // Update hint text
+      if (fulfillmentHint) {
+        fulfillmentHint.textContent = (mode === 'delivery')
+          ? 'Your order will be delivered to your address.'
+          : 'Pick up your order directly at the restaurant.';
+      }
+
+      // Update hero badge
+      if (heroBadgeText) {
+        heroBadgeText.textContent = (mode === 'delivery')
+          ? 'Delivering from'
+          : 'Pickup from';
+      }
+
+      // Re-fetch quote with new fulfillment type
+      fetchQuote();
+    }
+
+    if (fulfillmentChips && fulfillmentChips.length) {
+      fulfillmentChips.forEach(function (chip) {
+        chip.addEventListener('click', function () {
+          var val = chip.getAttribute('data-fulfillment-value');
+          if (val === 'delivery' || val === 'pickup') {
+            setFulfillment(val);
+          }
+        });
+      });
     }
   });
 })();

@@ -1588,3 +1588,60 @@
     transform: rotate(360deg);
   }
 }
+
+/* ==========================================================
+ * Fulfillment Toggle (Pickup / Delivery)
+ * ========================================================== */
+.knx-fulfillment-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.knx-fulfillment-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 2px solid rgba(0,0,0,0.10);
+  background: rgba(255,255,255,0.9);
+  font-weight: 900;
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.knx-fulfillment-chip:hover {
+  border-color: rgba(251,115,6,0.45);
+  background: rgba(251,115,6,0.04);
+}
+
+.knx-fulfillment-chip.is-active {
+  border-color: rgba(251,115,6,1);
+  background: rgba(251,115,6,1);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(251,115,6,0.20);
+}
+
+.knx-fulfillment-chip.is-active svg {
+  stroke: #fff;
+}
+
+.knx-fulfillment-chip svg {
+  flex-shrink: 0;
+  stroke: #6b7280;
+  transition: stroke 0.18s ease;
+}
+
+.knx-fulfillment-chip:hover svg {
+  stroke: #fb7306;
+}
+
+/* Delivery cards wrapper — hidden for pickup */
+#knxDeliveryCards[hidden] {
+  display: none;
+}

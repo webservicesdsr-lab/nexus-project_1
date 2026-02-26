@@ -271,6 +271,7 @@ function knx_render_checkout_page() {
     data-cart-id="<?php echo esc_attr($cart ? (int) $cart->id : 0); ?>"
     data-hub-id="<?php echo esc_attr($cart ? (int) $cart->hub_id : 0); ?>"
     data-selected-address-id="<?php echo esc_attr(isset($selected_address_id) ? (int) $selected_address_id : 0); ?>"
+    data-fulfillment="<?php echo esc_attr($selected_address_id > 0 ? 'delivery' : 'pickup'); ?>"
     data-quote-url="<?php echo esc_attr($quote_url); ?>"
     data-create-intent-url="<?php echo esc_attr($create_intent_url); ?>"
     data-payment-status-url="<?php echo esc_attr($payment_status_url); ?>"
@@ -290,7 +291,7 @@ function knx_render_checkout_page() {
                         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                         <polyline points="9 22 9 12 15 12 15 22"></polyline>
                     </svg>
-                    <span>Delivering from</span>
+                    <span id="knxHeroBadgeText">Ordering from</span>
                 </div>
                 
                 <h1 class="knx-co-hero__title"><?php echo esc_html($hub->name); ?></h1>
@@ -386,6 +387,48 @@ function knx_render_checkout_page() {
                 </div>
             </div>
 
+            <!-- FULFILLMENT TOGGLE (Pickup / Delivery) -->
+            <div class="knx-co-card knx-co-card--fulfillment">
+                <div class="knx-co-card__head">
+                    <h2>How do you want your order?</h2>
+                </div>
+                <div class="knx-co-card__body">
+                    <div class="knx-fulfillment-toggle" role="radiogroup" aria-label="Fulfillment type">
+                        <button type="button"
+                                class="knx-fulfillment-chip<?php echo ($selected_address_id > 0) ? ' is-active' : ''; ?>"
+                                data-fulfillment-value="delivery"
+                                role="radio"
+                                aria-checked="<?php echo ($selected_address_id > 0) ? 'true' : 'false'; ?>">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+                                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                            </svg>
+                            <span>Delivery</span>
+                        </button>
+                        <button type="button"
+                                class="knx-fulfillment-chip<?php echo ($selected_address_id <= 0) ? ' is-active' : ''; ?>"
+                                data-fulfillment-value="pickup"
+                                role="radio"
+                                aria-checked="<?php echo ($selected_address_id <= 0) ? 'true' : 'false'; ?>">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                                <line x1="3" y1="6" x2="21" y2="6"/>
+                                <path d="M16 10a4 4 0 0 1-8 0"/>
+                            </svg>
+                            <span>Pickup</span>
+                        </button>
+                    </div>
+                    <p class="knx-co-helptext" id="knxFulfillmentHint">
+                        <?php echo ($selected_address_id > 0)
+                            ? 'Your order will be delivered to your address.'
+                            : 'Pick up your order directly at the restaurant.'; ?>
+                    </p>
+                </div>
+            </div>
+
+            <!-- DELIVERY-ONLY CARDS (hidden when pickup) -->
+            <div id="knxDeliveryCards"<?php echo ($selected_address_id <= 0) ? ' hidden' : ''; ?>>
+
             <!-- DELIVERY ADDRESS CARD (Phase 4.2 Address Book Integration) -->
             <?php
             // Variables already resolved at top of function (A2.9.1)
@@ -448,6 +491,8 @@ function knx_render_checkout_page() {
                     </p>
                 </div>
             </div>
+
+            </div><!-- /#knxDeliveryCards -->
 
             <!-- PAYMENT METHOD (Stripe Card Element) -->
             <div class="knx-co-card knx-co-card--payment">
