@@ -77,13 +77,78 @@
   flex-shrink: 0;
 }
 
-.knx-nav__brand:hover {
-  opacity: 0.8;
+.knx-nav__brand:hover { opacity: 0.8; }
+
+/* ✅ Fixed "window" frame (this creates the auto-crop effect) */
+.knx-nav__logo-frame {
+  width: 160px;
+  height: 45px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 8px;
+  background: transparent;
+  flex: 0 0 auto;
 }
 
+/* ✅ The image fills the frame and gets cropped automatically */
+.knx-nav__logo-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;             /* <-- THIS IS THE CROP */
+  object-position: left center;  /* <-- matches your screenshot better */
+  border-radius: 8px;
+}
+
+/* Emoji/logo fallback */
 .knx-nav__logo {
   font-size: 1.75rem;
   line-height: 1;
+}
+
+.knx-nav__brand-text {
+  white-space: nowrap;
+}
+
+/* Optional: state classes (JS adds these) */
+.knx-nav__brand--has-logo .knx-nav__brand-text { display: none; } /* keep clean if you want */
+.knx-nav__brand--no-logo .knx-nav__brand-text { display: inline; }
+
+/* Tablet */
+@media (max-width: 768px) {
+  /* Existing rules... */
+
+  /* Keep logo frame a bit smaller */
+  .knx-nav__logo-frame {
+    width: 140px;
+    height: 42px;
+  }
+}
+
+/* Compact */
+@media (max-width: 700px) {
+  /* Existing rules... */
+
+  .knx-nav__logo-frame {
+    width: 120px;
+    height: 40px;
+    border-radius: 7px;
+  }
+  .knx-nav__logo-img { border-radius: 7px; }
+}
+
+/* Smallest */
+@media (max-width: 480px) {
+  /* Existing rules... */
+
+  .knx-nav__logo-frame {
+    width: 110px;
+    height: 36px;
+    border-radius: 6px;
+  }
+  .knx-nav__logo-img { border-radius: 6px; }
 }
 
 .knx-nav__brand-text {
