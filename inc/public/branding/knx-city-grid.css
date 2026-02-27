@@ -1,0 +1,181 @@
+/* File: inc/public/branding/knx-city-grid.css */
+
+/**
+ * ==========================================================
+ * KNX City Grid — SSOT CSS (v1.1)
+ * ----------------------------------------------------------
+ * Fixes:
+ * - Removes “ugly black frame” in Settings preview by ensuring
+ *   the preview wrapper is borderless (Settings CSS also enforces).
+ * ==========================================================
+ */
+
+.knx-city-grid-wrap{
+  /* Gradient */
+  --knx-city-grad-from: #FF7A00;
+  --knx-city-grad-to: #FFB100;
+  --knx-city-grad-angle: 90deg;
+
+  /* Card */
+  --knx-city-card-radius: 18px;
+  --knx-city-card-min-height: 180px;
+  --knx-city-card-padding-y: 26px;
+  --knx-city-card-padding-x: 22px;
+  --knx-city-card-shadow: 1;
+
+  /* Title */
+  --knx-city-title-font-size: 48px;
+  --knx-city-title-font-weight: 900;
+  --knx-city-title-line-height: 1.02;
+  --knx-city-title-letter-spacing: -0.5px;
+  --knx-city-title-fill: #FFFFFF;
+  --knx-city-title-stroke-color: #083B58;
+  --knx-city-title-stroke-width: 4px;
+
+  /* CTA */
+  --knx-city-cta-bg: #083B58;
+  --knx-city-cta-text: #FFFFFF;
+  --knx-city-cta-radius: 999px;
+  --knx-city-cta-border-color: #FFFFFF;
+  --knx-city-cta-border-width: 6px;
+  --knx-city-cta-padding-y: 14px;
+  --knx-city-cta-padding-x: 26px;
+  --knx-city-cta-font-size: 18px;
+  --knx-city-cta-font-weight: 800;
+  --knx-city-cta-dotted: 1;
+  --knx-city-cta-two-lines: 1;
+
+  /* Ensure wrapper never creates “frames” */
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+/* Card */
+.knx-city-banner-card{
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+
+  width: 100%;
+  min-height: var(--knx-city-card-min-height);
+  padding: var(--knx-city-card-padding-y) var(--knx-city-card-padding-x);
+  border-radius: var(--knx-city-card-radius);
+
+  background: linear-gradient(
+    var(--knx-city-grad-angle),
+    var(--knx-city-grad-from) 0%,
+    var(--knx-city-grad-to) 100%
+  );
+
+  text-decoration: none;
+  color: #fff;
+
+  overflow: hidden;
+  box-sizing: border-box;
+
+  box-shadow: none;
+}
+
+.knx-city-grid-wrap[data-preview="1"] .knx-city-banner-card{
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.knx-city-grid-wrap .knx-city-banner-card{
+  box-shadow: calc(var(--knx-city-card-shadow) * 1px) 10px 24px rgba(17,24,39,0.08);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.knx-city-grid-wrap .knx-city-banner-card:hover{
+  transform: translateY(-3px);
+  box-shadow: calc(var(--knx-city-card-shadow) * 1px) 18px 40px rgba(17,24,39,0.10);
+}
+
+.knx-city-banner-inner{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: 100%;
+}
+
+.knx-city-banner-title{
+  font-weight: var(--knx-city-title-font-weight);
+  font-size: var(--knx-city-title-font-size);
+  line-height: var(--knx-city-title-line-height);
+  letter-spacing: var(--knx-city-title-letter-spacing);
+  color: var(--knx-city-title-fill);
+
+  -webkit-text-stroke: var(--knx-city-title-stroke-width) var(--knx-city-title-stroke-color);
+  text-shadow:
+    -1px -1px 0 var(--knx-city-title-stroke-color),
+     1px -1px 0 var(--knx-city-title-stroke-color),
+    -1px  1px 0 var(--knx-city-title-stroke-color),
+     1px  1px 0 var(--knx-city-title-stroke-color);
+
+  padding: 0 10px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* CTA */
+.knx-city-banner-cta{
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  background: var(--knx-city-cta-bg);
+  color: var(--knx-city-cta-text);
+  border-radius: var(--knx-city-cta-radius);
+  border-color: var(--knx-city-cta-border-color);
+  border-width: var(--knx-city-cta-border-width);
+  border-style: solid;
+
+  padding: var(--knx-city-cta-padding-y) var(--knx-city-cta-padding-x);
+
+  font-size: var(--knx-city-cta-font-size);
+  font-weight: var(--knx-city-cta-font-weight);
+  line-height: 1.06;
+
+  box-shadow: 0 10px 22px rgba(11,22,30,0.10);
+}
+
+.knx-city-banner-cta[data-dotted="1"]{
+  border-style: dotted;
+}
+
+.knx-city-banner-cta[data-two-lines="0"]{
+  flex-direction: row;
+  white-space: nowrap;
+}
+
+.knx-city-banner-cta .knx-city-cta-line{
+  display: block;
+}
+
+/* Responsive (Option C) */
+@media (max-width: 640px){
+  .knx-city-banner-card{
+    min-height: calc(var(--knx-city-card-min-height) - 30px);
+    padding: calc(var(--knx-city-card-padding-y) - 10px) calc(var(--knx-city-card-padding-x) - 6px);
+  }
+
+  .knx-city-banner-title{
+    font-size: clamp(26px, calc(var(--knx-city-title-font-size) - 12px), var(--knx-city-title-font-size));
+
+    -webkit-text-stroke: clamp(0px, calc(var(--knx-city-title-stroke-width) - 2px), var(--knx-city-title-stroke-width))
+      var(--knx-city-title-stroke-color);
+  }
+
+  .knx-city-banner-cta{
+    font-size: clamp(14px, calc(var(--knx-city-cta-font-size) - 3px), var(--knx-city-cta-font-size));
+    padding: calc(var(--knx-city-cta-padding-y) - 4px) calc(var(--knx-city-cta-padding-x) - 6px);
+    border-width: clamp(0px, calc(var(--knx-city-cta-border-width) - 2px), var(--knx-city-cta-border-width));
+  }
+}

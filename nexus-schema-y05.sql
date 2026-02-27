@@ -1098,7 +1098,63 @@ CREATE TABLE `y05_knx_order_messages` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Per-order chat thread between driver and customer';
 
+-- =========================================================
+-- City Branding table
+-- =========================================================
+
+DROP TABLE IF EXISTS `y05_knx_city_branding`;
+
+CREATE TABLE `y05_knx_city_branding` (
+  `id` tinyint UNSIGNED NOT NULL DEFAULT 1,
+
+  /* Meta */
+  `schema_version` smallint UNSIGNED NOT NULL DEFAULT 2,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  /* Gradient */
+  `gradient_from` varchar(7) NOT NULL DEFAULT '#FF7A00',
+  `gradient_to`   varchar(7) NOT NULL DEFAULT '#FFB100',
+  `gradient_angle` smallint UNSIGNED NOT NULL DEFAULT 180,
+
+  /* Title */
+  `title_font_size` smallint UNSIGNED NOT NULL DEFAULT 20,
+  `title_fill_color` varchar(7) NOT NULL DEFAULT '#FFFFFF',
+  `title_stroke_color` varchar(7) NOT NULL DEFAULT '#083B58',
+  `title_stroke_width` tinyint UNSIGNED NOT NULL DEFAULT 0,
+  `title_font_weight` smallint UNSIGNED NOT NULL DEFAULT 800,
+  `title_line_height` decimal(4,2) NOT NULL DEFAULT 1.00,
+  `title_letter_spacing` decimal(5,2) NOT NULL DEFAULT 1.00,
+
+  /* CTA */
+  `cta_bg` varchar(7) NOT NULL DEFAULT '#083B58',
+  `cta_text_color` varchar(7) NOT NULL DEFAULT '#FFFFFF',
+  `cta_radius` smallint UNSIGNED NOT NULL DEFAULT 999,
+  `cta_border_color` varchar(7) NOT NULL DEFAULT '#FFFFFF',
+  `cta_border_width` tinyint UNSIGNED NOT NULL DEFAULT 2,
+  `cta_border_dotted` tinyint UNSIGNED NOT NULL DEFAULT 0,
+  `cta_two_lines` tinyint UNSIGNED NOT NULL DEFAULT 0,
+
+  /* Card */
+  `card_radius` smallint UNSIGNED NOT NULL DEFAULT 18,
+  `card_padding_y` smallint UNSIGNED NOT NULL DEFAULT 35,
+  `card_padding_x` smallint UNSIGNED NOT NULL DEFAULT 20,
+  `card_min_height` smallint UNSIGNED NOT NULL DEFAULT 240,
+  `card_shadow` tinyint UNSIGNED NOT NULL DEFAULT 1,
+
+  /* Future-proof */
+  `extras_json` longtext NULL,
+
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_singleton` (`id`),
+  KEY `idx_updated_at` (`updated_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/* Seed the singleton row (optional but recommended) */
+INSERT INTO `y05_knx_city_branding` (`id`) VALUES (1);
+
 /* =========================================================
    DONE
    ========================================================= */
+
 SET FOREIGN_KEY_CHECKS = 1;

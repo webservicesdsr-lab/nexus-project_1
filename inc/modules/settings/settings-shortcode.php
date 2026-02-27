@@ -4,13 +4,14 @@ if (!defined('ABSPATH')) exit;
 
 /**
  * ==========================================================
- * Kingdom Nexus — Settings (Branding) Shortcode (v3.4)
+ * Kingdom Nexus — Settings (Branding) Shortcode (v4.1)
  * Shortcode: [knx_settings]
  *
  * Includes:
  * - Site Logo upload (target=site_logo)
  * - Home Center Image upload (target=home_center)
  * - Home Headline text (target=home_copy)
+ * - City Grid Theme (GLOBAL SSOT DB) (target=city_grid_theme)
  * - Display Adjust modal (pan + zoom) for both images (view_json)
  *
  * Canon:
@@ -37,7 +38,7 @@ function knx_settings_shortcode() {
     $upload = wp_upload_dir();
 
     // ---- Current URLs ----
-    $current_logo       = get_option('knx_site_logo', '');
+    $current_logo        = get_option('knx_site_logo', '');
     $current_home_center = get_option('knx_home_center_image', '');
 
     // ---- Views ----
@@ -55,7 +56,6 @@ function knx_settings_shortcode() {
             $logo_view['y']     = isset($d['y']) ? floatval($d['y']) : 0;
         }
     }
-
     if (is_string($home_view_raw) && $home_view_raw) {
         $d = json_decode($home_view_raw, true);
         if (is_array($d)) {
@@ -122,11 +122,21 @@ function knx_settings_shortcode() {
 
     // ---- Assets (canonical names/paths) ----
     $ver = defined('KNX_VERSION') ? KNX_VERSION : time();
+
     $css_url = defined('KNX_URL') ? (KNX_URL . 'inc/modules/settings/brand-logo-style.css?v=' . rawurlencode($ver)) : '';
-    $js_url  = defined('KNX_URL') ? (KNX_URL . 'inc/modules/settings/brand-logo-upload.js?v=' . rawurlencode($ver)) : '';
+    $js_url  = defined('KNX_URL') ? (KNX_URL . 'inc/modules/settings/settings-upload.js?v=' . rawurlencode($ver)) : '';
+
+    // City grid SSOT CSS (shared)
+    $city_grid_css = defined('KNX_URL') ? (KNX_URL . 'inc/public/branding/knx-city-grid.css?v=' . rawurlencode($ver)) : '';
 
     $root = esc_url_raw(rest_url());
     $wp_nonce = wp_create_nonce('wp_rest');
+
+    // ---- Load global city grid theme from DB singleton (id=1) ----
+    $city_theme = [];
+    if (function_exists('knx_city_branding_db_get_theme')) {
+        $city_theme = knx_city_branding_db_get_theme();
+    }
 
     // Display frames (window sizes)
     $frame_nav  = ['w' => 160, 'h' => 45];
@@ -138,6 +148,10 @@ function knx_settings_shortcode() {
 
         <?php if ($css_url): ?>
             <link rel="stylesheet" href="<?php echo esc_url($css_url); ?>">
+        <?php endif; ?>
+
+        <?php if ($city_grid_css): ?>
+            <link rel="stylesheet" href="<?php echo esc_url($city_grid_css); ?>">
         <?php endif; ?>
 
         <!-- CARD: Site Logo -->
@@ -237,6 +251,145 @@ function knx_settings_shortcode() {
             </div>
         </div>
 
+        <!-- CARD: City Grid Theme (GLOBAL SSOT DB) -->
+        <div class="knx-settings-card">
+            <div class="knx-settings-head">
+                <h2>City Grid Theme</h2>
+                <p class="knx-settings-sub">Global theme for the Cities grid. Preview below is the same markup + CSS as Home.</p>
+            </div>
+
+            <div class="knx-settings-grid-theme">
+                <div class="knx-settings-grid-theme__preview">
+                    <div id="knxCityGridThemePreviewWrap" class="knx-city-grid-wrap" data-preview="1">
+                        <a class="knx-city-banner-card" href="javascript:void(0)" aria-label="Preview">
+                            <div class="knx-city-banner-inner">
+                                <div class="knx-city-banner-title">Kankakee County, IL</div>
+                                <div class="knx-city-banner-cta" data-two-lines="1" data-dotted="1">
+                                    <span class="knx-city-cta-line">Tap to</span>
+                                    <span class="knx-city-cta-line">EXPLORE HUBS</span>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="knx-settings-grid-theme__form">
+
+                    <label class="knx-settings-label">Gradient</label>
+                    <div class="knx-settings-row">
+                        <div class="knx-settings-field">
+                            <span class="knx-settings-mini">From</span>
+                            <input type="color" id="knxCityGridGradientFrom" value="#ff7a00">
+                        </div>
+                        <div class="knx-settings-field">
+                            <span class="knx-settings-mini">To</span>
+                            <input type="color" id="knxCityGridGradientTo" value="#ffb100">
+                        </div>
+                        <div class="knx-settings-field">
+                            <span class="knx-settings-mini">Angle</span>
+                            <input id="knxCityGridAngle" type="number" min="0" max="360" value="180">
+                        </div>
+                    </div>
+
+                    <label class="knx-settings-label">Title</label>
+                    <div class="knx-settings-row">
+                        <div class="knx-settings-field">
+                            <span class="knx-settings-mini">Font size</span>
+                            <input id="knxCityGridTitleFontSize" type="number" min="20" max="76" value="20">
+                        </div>
+                        <div class="knx-settings-field">
+                            <span class="knx-settings-mini">Fill</span>
+                            <input id="knxCityGridTitleFillColor" type="color" value="#ffffff">
+                        </div>
+                        <div class="knx-settings-field">
+                            <span class="knx-settings-mini">Stroke</span>
+                            <input id="knxCityGridTitleStrokeColor" type="color" value="#083b58">
+                        </div>
+                        <div class="knx-settings-field">
+                            <span class="knx-settings-mini">Stroke width</span>
+                            <input id="knxCityGridTitleStrokeWidth" type="number" min="0" max="14" value="0">
+                        </div>
+                    </div>
+
+                    <div class="knx-settings-row" style="margin-top:10px;">
+                        <div class="knx-settings-field">
+                            <span class="knx-settings-mini">Weight</span>
+                            <select id="knxCityGridTitleFontWeight">
+                                <option value="700">700</option>
+                                <option value="800" selected>800</option>
+                                <option value="900">900</option>
+                            </select>
+                        </div>
+                        <div class="knx-settings-field">
+                            <span class="knx-settings-mini">Line height</span>
+                            <input id="knxCityGridTitleLineHeight" type="number" step="0.01" value="1.00">
+                        </div>
+                        <div class="knx-settings-field">
+                            <span class="knx-settings-mini">Letter spacing</span>
+                            <input id="knxCityGridTitleLetterSpacing" type="number" step="0.1" value="1.0">
+                        </div>
+                    </div>
+
+                    <label class="knx-settings-label" style="margin-top:6px;">CTA</label>
+                    <div class="knx-settings-row">
+                        <div class="knx-settings-field">
+                            <span class="knx-settings-mini">BG</span>
+                            <input id="knxCityGridCtaBg" type="color" value="#083b58">
+                        </div>
+                        <div class="knx-settings-field">
+                            <span class="knx-settings-mini">Text</span>
+                            <input id="knxCityGridCtaTextColor" type="color" value="#ffffff">
+                        </div>
+                        <div class="knx-settings-field">
+                            <span class="knx-settings-mini">Radius</span>
+                            <input id="knxCityGridCtaRadius" type="number" min="0" max="999" value="999">
+                        </div>
+                        <div class="knx-settings-field">
+                            <span class="knx-settings-mini">Border width</span>
+                            <input id="knxCityGridCtaBorderWidth" type="number" min="0" max="16" value="2">
+                        </div>
+                    </div>
+
+                    <div class="knx-settings-row" style="margin-top:10px;align-items:center;gap:14px;">
+                        <label style="display:inline-flex;align-items:center;gap:8px;margin:0;">
+                            <input id="knxCityGridCtaBorderDotted" type="checkbox"> Dotted border
+                        </label>
+                        <label style="display:inline-flex;align-items:center;gap:8px;margin:0;">
+                            <input id="knxCityGridCtaTwoLines" type="checkbox"> Two-line CTA
+                        </label>
+                    </div>
+
+                    <label class="knx-settings-label" style="margin-top:6px;">Card</label>
+                    <div class="knx-settings-row">
+                        <div class="knx-settings-field">
+                            <span class="knx-settings-mini">Radius</span>
+                            <input id="knxCityGridCardRadius" type="number" min="0" max="64" value="18">
+                        </div>
+                        <div class="knx-settings-field">
+                            <span class="knx-settings-mini">Padding Y</span>
+                            <input id="knxCityGridCardPaddingY" type="number" min="0" max="90" value="35">
+                        </div>
+                        <div class="knx-settings-field">
+                            <span class="knx-settings-mini">Padding X</span>
+                            <input id="knxCityGridCardPaddingX" type="number" min="0" max="90" value="20">
+                        </div>
+                        <div class="knx-settings-field">
+                            <span class="knx-settings-mini">Min height</span>
+                            <input id="knxCityGridCardMinHeight" type="number" min="120" max="520" value="240">
+                        </div>
+                    </div>
+
+                    <div class="knx-settings-btnrow" style="margin-top:12px;">
+                        <button id="knxCityGridThemeSaveBtn" class="knx-btn-primary" type="button" data-target="city_grid_theme">
+                            Save City Grid Theme
+                        </button>
+                    </div>
+
+                    <p class="knx-settings-hint">This theme is global (SSOT). It applies to every Cities grid (Home, other pages).</p>
+                </div>
+            </div>
+        </div>
+
         <!-- DISPLAY ADJUST MODAL (pan + zoom) -->
         <div class="knx-modal" id="knxBrandingModal" aria-hidden="true" role="dialog" aria-modal="true">
             <div class="knx-modal__overlay" id="knxBrandingModalOverlay"></div>
@@ -296,7 +449,8 @@ function knx_settings_shortcode() {
                         view: <?php echo json_encode($home_view); ?>,
                         frame: <?php echo json_encode($frame_home); ?>
                     }
-                }
+                },
+                city_grid_theme: <?php echo json_encode($city_theme); ?>
             };
         </script>
 

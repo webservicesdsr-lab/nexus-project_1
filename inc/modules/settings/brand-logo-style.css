@@ -1,9 +1,13 @@
-/* File: inc/modules/settings/brand-logo-style.css */
-
 /**
- * Kingdom Nexus — Settings (Branding) Styles (v3.4)
- * - Full base styling + modal + cropper + headline editor
- * - Scoped to #knx-settings
+ * ==========================================================
+ * Kingdom Nexus — Settings (Branding) Styles — v4.1 (Nexus Shell)
+ * ----------------------------------------------------------
+ * Goals:
+ * - Make /settings intuitive (no “amontonado”)
+ * - Clear sections + consistent spacing
+ * - Preview area polished (NO ugly black frame)
+ * - Mobile-first, desktop 2-column when possible
+ * ==========================================================
  */
 
 #knx-settings.knx-settings-wrap{
@@ -12,108 +16,116 @@
   --knx-text: #0b1220;
   --knx-muted: #6b7280;
   --knx-border: rgba(11,18,32,0.10);
-  --knx-bg: #f6f7f9;
+  --knx-border-2: rgba(11,18,32,0.06);
   --knx-card: #ffffff;
-  --knx-shadow: 0 18px 44px rgba(11,18,32,0.10);
+  --knx-bg: #f6f7f9;
 
-  --knx-modal-overlay: rgba(0,0,0,0.0);
-  --knx-panel-shadow: 0 24px 80px rgba(11,18,32,0.22);
+  --knx-shadow: 0 18px 44px rgba(11,18,32,0.08);
+  --knx-shadow-sm: 0 10px 24px rgba(11,18,32,0.06);
 
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  --knx-radius: 18px;
+  --knx-radius-sm: 14px;
+
   color: var(--knx-text);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
 }
 
 #knx-settings{
-  padding: 18px;
-  display: grid;
-  gap: 16px;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 18px 14px 60px;
 }
 
+@media (min-width: 960px){
+  #knx-settings{
+    padding: 26px 18px 70px;
+  }
+}
+
+/* ----------------------------------------------------------
+   Cards
+   ---------------------------------------------------------- */
 #knx-settings .knx-settings-card{
   background: var(--knx-card);
-  border: 1px solid var(--knx-border);
-  border-radius: 16px;
-  box-shadow: var(--knx-shadow);
+  border: 1px solid var(--knx-border-2);
+  border-radius: var(--knx-radius);
+  box-shadow: var(--knx-shadow-sm);
   padding: 16px;
-  max-width: 880px;
-  margin: 0 auto;
-  width: 100%;
+  margin: 0 0 14px 0;
+}
+
+@media (min-width: 960px){
+  #knx-settings .knx-settings-card{
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+}
+
+#knx-settings .knx-settings-head{
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
 }
 
 #knx-settings .knx-settings-head h2{
   margin: 0;
   font-size: 18px;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.2px;
 }
 
 #knx-settings .knx-settings-sub{
-  margin: 6px 0 0 0;
+  margin: 0;
   color: var(--knx-muted);
   font-size: 13px;
   line-height: 1.35;
 }
 
 #knx-settings .knx-settings-error{
-  margin: 10px 0 0 0;
-  color: #b91c1c;
-  font-size: 13px;
-}
-
-#knx-settings .knx-settings-branding{
-  margin-top: 14px;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 14px;
-}
-
-#knx-settings .knx-settings-preview{
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--knx-bg);
-  border: 1px dashed var(--knx-border);
-  border-radius: 16px;
-  padding: 16px;
-}
-
-#knx-settings .knx-settings-preview img{
-  width: 210px;
-  height: auto;
-  border-radius: 14px;
-  border: 1px solid var(--knx-border);
-  background: #fff;
-}
-
-#knx-settings .knx-settings-preview--center img{
-  width: 240px;
-  height: auto;
-  max-width: 100%;
-}
-
-#knx-settings .knx-settings-actions{
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-#knx-settings .knx-settings-file{
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--knx-border);
-  background: #fff;
-  border-radius: 12px;
+  color: #b42318;
+  background: rgba(180,35,24,0.06);
+  border: 1px solid rgba(180,35,24,0.18);
   padding: 10px 12px;
-  cursor: pointer;
-  width: fit-content;
-  user-select: none;
+  border-radius: 14px;
 }
 
-#knx-settings .knx-settings-file input{ display: none; }
+/* ----------------------------------------------------------
+   Buttons
+   ---------------------------------------------------------- */
+#knx-settings .knx-btn-primary,
+#knx-settings .knx-btn-secondary,
+#knx-settings .knx-btn-ghost{
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform .14s ease, box-shadow .14s ease, background .14s ease, border-color .14s ease;
+  line-height: 1;
+}
 
-#knx-settings .knx-settings-file span{
-  font-size: 13px;
+#knx-settings .knx-btn-primary{
+  background: var(--knx-green);
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(11,121,58,0.18);
+}
+
+#knx-settings .knx-btn-primary:hover{ background: var(--knx-green-hover); transform: translateY(-1px); }
+#knx-settings .knx-btn-primary:disabled{ opacity: .6; cursor: not-allowed; transform:none; }
+
+#knx-settings .knx-btn-secondary{
+  background: #fff;
   color: var(--knx-text);
+  border: 1px solid var(--knx-border);
+  box-shadow: 0 10px 18px rgba(11,18,32,0.05);
+}
+
+#knx-settings .knx-btn-secondary:hover{ transform: translateY(-1px); }
+
+#knx-settings .knx-btn-ghost{
+  background: transparent;
+  color: var(--knx-text);
+  border: 1px solid var(--knx-border-2);
 }
 
 #knx-settings .knx-settings-btnrow{
@@ -122,71 +134,82 @@
   flex-wrap: wrap;
 }
 
-#knx-settings .knx-btn-primary{
-  appearance: none;
-  border: 0;
-  border-radius: 12px;
-  padding: 11px 14px;
-  background: var(--knx-green);
-  color: #fff;
-  font-weight: 800;
-  font-size: 13px;
-  cursor: pointer;
-  width: fit-content;
-}
-
-#knx-settings .knx-btn-primary:hover{ background: var(--knx-green-hover); }
-#knx-settings .knx-btn-primary:disabled{ opacity: 0.65; cursor: not-allowed; }
-
-#knx-settings .knx-btn-secondary{
-  appearance: none;
-  border: 1px solid var(--knx-border);
-  border-radius: 12px;
-  padding: 11px 14px;
-  background: #fff;
-  color: var(--knx-text);
-  font-weight: 800;
-  font-size: 13px;
-  cursor: pointer;
-  width: fit-content;
-}
-
-#knx-settings .knx-btn-secondary:hover{ background: #f9fafb; }
-
-#knx-settings .knx-btn-ghost{
-  appearance: none;
-  border: 1px solid var(--knx-border);
-  border-radius: 12px;
-  padding: 10px 12px;
-  background: transparent;
-  color: var(--knx-text);
-  font-weight: 800;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-#knx-settings .knx-btn-ghost:hover{ background: #f9fafb; }
-
 #knx-settings .knx-settings-hint{
-  margin: 0;
+  margin: 10px 0 0 0;
   color: var(--knx-muted);
   font-size: 12px;
   line-height: 1.35;
 }
 
-/* Desktop */
-@media (min-width: 900px){
-  #knx-settings .knx-settings-card{ padding: 18px; }
-  #knx-settings .knx-settings-branding{
-    grid-template-columns: 320px 1fr;
-    align-items: start;
-  }
-  #knx-settings .knx-settings-preview{ justify-content: flex-start; }
+/* ----------------------------------------------------------
+   Upload layout
+   ---------------------------------------------------------- */
+#knx-settings .knx-settings-branding{
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  align-items: start;
 }
 
-/* Headline form */
+@media (min-width: 900px){
+  #knx-settings .knx-settings-branding{
+    grid-template-columns: 260px 1fr;
+    gap: 16px;
+  }
+}
+
+#knx-settings .knx-settings-preview{
+  border: 1px solid var(--knx-border-2);
+  background: var(--knx-bg);
+  border-radius: var(--knx-radius-sm);
+  padding: 10px;
+  display: grid;
+  place-items: center;
+  min-height: 140px;
+}
+
+#knx-settings .knx-settings-preview img{
+  width: 100%;
+  height: auto;
+  max-width: 240px;
+  border-radius: 12px;
+  display: block;
+}
+
+#knx-settings .knx-settings-preview--center img{
+  max-width: 360px;
+}
+
+#knx-settings .knx-settings-actions{
+  display: grid;
+  gap: 10px;
+}
+
+#knx-settings .knx-settings-file{
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px dashed rgba(11,18,32,0.22);
+  background: rgba(11,18,32,0.02);
+  border-radius: 14px;
+  padding: 10px 12px;
+  cursor: pointer;
+  width: fit-content;
+}
+
+#knx-settings .knx-settings-file input[type="file"]{
+  display: none;
+}
+
+#knx-settings .knx-settings-file span{
+  font-weight: 800;
+  font-size: 13px;
+}
+
+/* ----------------------------------------------------------
+   Home headline
+   ---------------------------------------------------------- */
 #knx-settings .knx-settings-form{
-  margin-top: 12px;
   display: grid;
   gap: 10px;
 }
@@ -194,27 +217,25 @@
 #knx-settings .knx-settings-label{
   font-size: 13px;
   font-weight: 900;
-  color: var(--knx-text);
+  letter-spacing: -0.2px;
+  margin-top: 2px;
 }
 
 #knx-settings .knx-settings-textarea{
   width: 100%;
-  box-sizing: border-box;
-  border: 1px solid var(--knx-border);
   border-radius: 14px;
+  border: 1px solid var(--knx-border);
   padding: 12px 12px;
+  outline: none;
   font-size: 14px;
   line-height: 1.35;
-  color: var(--knx-text);
   background: #fff;
   resize: vertical;
-  min-height: 98px;
 }
 
 #knx-settings .knx-settings-textarea:focus{
-  outline: none;
+  box-shadow: 0 0 0 4px rgba(11,121,58,0.12);
   border-color: rgba(11,121,58,0.35);
-  box-shadow: 0 0 0 3px rgba(11,121,58,0.12);
 }
 
 #knx-settings .knx-settings-meta{
@@ -226,19 +247,136 @@
 }
 
 #knx-settings .knx-settings-counter{
-  font-size: 12px;
   color: var(--knx-muted);
-  font-weight: 900;
+  font-size: 12px;
 }
 
-/* Modal */
-html.knx-modal-open{ overflow: hidden; }
+/* ----------------------------------------------------------
+   City Grid Theme — Make it NOT amontonado
+   ---------------------------------------------------------- */
+#knx-settings .knx-settings-grid-theme{
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1fr;
+  align-items: start;
+}
 
+@media (min-width: 980px){
+  #knx-settings .knx-settings-grid-theme{
+    grid-template-columns: 420px 1fr;
+    gap: 18px;
+  }
+}
+
+/* Preview box (remove “black frame” look) */
+#knx-settings .knx-settings-grid-theme__preview{
+  background: var(--knx-bg);
+  border: 1px solid var(--knx-border-2);
+  border-radius: var(--knx-radius);
+  padding: 14px;
+}
+
+/* IMPORTANT: this was the “black frame” culprit in many setups.
+   Force preview wrap to be clean and borderless. */
+#knx-settings .knx-settings-grid-theme__preview .knx-city-grid-wrap{
+  background: transparent;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  padding: 0;
+}
+
+/* Form panel */
+#knx-settings .knx-settings-grid-theme__form{
+  background: #fff;
+  border: 1px solid var(--knx-border-2);
+  border-radius: var(--knx-radius);
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+@media (min-width: 980px){
+  #knx-settings .knx-settings-grid-theme__form{
+    padding: 16px;
+  }
+}
+
+/* Rows + fields */
+#knx-settings .knx-settings-row{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: end;
+}
+
+@media (min-width: 560px){
+  #knx-settings .knx-settings-row{
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 980px){
+  #knx-settings .knx-settings-row{
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+#knx-settings .knx-settings-field{
+  display: grid;
+  gap: 6px;
+}
+
+#knx-settings .knx-settings-mini{
+  font-size: 12px;
+  color: var(--knx-muted);
+  font-weight: 800;
+}
+
+/* Inputs */
+#knx-settings input[type="number"],
+#knx-settings select{
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--knx-border);
+  padding: 10px 10px;
+  font-size: 13px;
+  background: #fff;
+  outline: none;
+}
+
+#knx-settings input[type="number"]:focus,
+#knx-settings select:focus{
+  box-shadow: 0 0 0 4px rgba(11,121,58,0.12);
+  border-color: rgba(11,121,58,0.35);
+}
+
+/* Color inputs should look intentional */
+#knx-settings input[type="color"]{
+  width: 100%;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid var(--knx-border);
+  background: #fff;
+  padding: 4px;
+  cursor: pointer;
+}
+
+/* Checkboxes (clean) */
+#knx-settings input[type="checkbox"]{
+  width: 16px;
+  height: 16px;
+  accent-color: var(--knx-green);
+}
+
+/* ----------------------------------------------------------
+   Modal — keep clean, not Windows 98
+   ---------------------------------------------------------- */
 #knx-settings .knx-modal{
   position: fixed;
   inset: 0;
-  z-index: 99999;
   display: none;
+  z-index: 9999;
 }
 
 #knx-settings .knx-modal.is-open{ display: block; }
@@ -246,127 +384,144 @@ html.knx-modal-open{ overflow: hidden; }
 #knx-settings .knx-modal__overlay{
   position: absolute;
   inset: 0;
-  background: var(--knx-modal-overlay);
+  background: rgba(2,6,23,0.55);
+  backdrop-filter: blur(6px);
 }
 
 #knx-settings .knx-modal__panel{
   position: relative;
-  width: min(920px, calc(100% - 28px));
-  margin: 6vh auto 0 auto;
+  width: min(760px, calc(100% - 20px));
+  margin: 7vh auto 0;
   background: #fff;
   border-radius: 18px;
-  border: 1px solid rgba(11,18,32,0.10);
-  box-shadow: var(--knx-panel-shadow);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 26px 70px rgba(2,6,23,0.38);
   overflow: hidden;
 }
 
 #knx-settings .knx-modal__head{
-  padding: 14px 16px;
-  border-bottom: 1px solid rgba(11,18,32,0.08);
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--knx-border-2);
 }
 
 #knx-settings .knx-modal__head h3{
   margin: 0;
   font-size: 16px;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.2px;
 }
 
 #knx-settings .knx-modal__head p{
   margin: 6px 0 0 0;
+  font-size: 12px;
   color: var(--knx-muted);
-  font-size: 12.5px;
-  line-height: 1.35;
 }
 
 #knx-settings .knx-modal__close{
-  appearance: none;
-  border: 1px solid rgba(11,18,32,0.10);
-  background: #fff;
   width: 38px;
   height: 38px;
   border-radius: 12px;
+  border: 1px solid var(--knx-border-2);
+  background: #fff;
   cursor: pointer;
   font-size: 22px;
   line-height: 1;
 }
 
-#knx-settings .knx-modal__close:hover{ background: #f9fafb; }
-#knx-settings .knx-modal__body{ padding: 16px; }
+#knx-settings .knx-modal__body{
+  padding: 14px 16px 16px;
+}
 
 /* Cropper */
 #knx-settings .knx-cropper{
   display: grid;
-  grid-template-columns: 1fr;
   gap: 14px;
 }
 
+@media (min-width: 860px){
+  #knx-settings .knx-cropper{
+    grid-template-columns: 1fr 260px;
+    align-items: start;
+  }
+}
+
 #knx-settings .knx-cropper__mask{
-  background: #fff;
+  background: var(--knx-bg);
+  border: 1px solid var(--knx-border-2);
   border-radius: 16px;
-  padding: 16px;
-  border: 1px solid rgba(11,18,32,0.10);
+  padding: 14px;
+  min-height: 220px;
+  display: grid;
+  place-items: center;
 }
 
 #knx-settings .knx-cropper__frame{
   position: relative;
-  margin: 0 auto;
-  border-radius: 12px;
   overflow: hidden;
-  background: transparent;
+  border-radius: 14px;
+  background: #fff;
   border: 1px solid rgba(11,18,32,0.10);
-  box-shadow: 0 10px 28px rgba(0,0,0,0.12);
-  cursor: grab;
+  box-shadow: 0 12px 26px rgba(11,18,32,0.08);
 
+  /* controlled by JS */
   --knx-logo-scale: 1;
   --knx-logo-x: 0px;
   --knx-logo-y: 0px;
 }
 
-#knx-settings .knx-cropper__frame.is-dragging{ cursor: grabbing; }
+#knx-settings .knx-cropper__frame.is-dragging{
+  cursor: grabbing;
+}
 
 #knx-settings .knx-cropper__frame img{
   position: absolute;
   left: 50%;
   top: 50%;
-  height: 100%;
-  width: auto;
-  max-width: none;
   transform:
     translate(-50%, -50%)
     translate(var(--knx-logo-x), var(--knx-logo-y))
     scale(var(--knx-logo-scale));
-  transform-origin: center;
   user-select: none;
   pointer-events: none;
+  width: auto;
+  height: auto;
+  min-width: 100%;
+  min-height: 100%;
 }
 
 #knx-settings .knx-cropper__controls{
+  background: #fff;
+  border: 1px solid var(--knx-border-2);
+  border-radius: 16px;
+  padding: 12px;
   display: grid;
   gap: 10px;
-  border: 1px solid rgba(11,18,32,0.10);
-  border-radius: 14px;
-  padding: 12px;
-  background: #fff;
 }
 
-#knx-settings .knx-control{ display: grid; gap: 8px; }
-#knx-settings .knx-control span{ font-size: 12px; color: var(--knx-muted); }
-#knx-settings .knx-control input[type="range"]{ width: 100%; }
+#knx-settings .knx-control{
+  display: grid;
+  gap: 8px;
+}
+
+#knx-settings .knx-control span{
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--knx-muted);
+}
+
+#knx-settings input[type="range"]{
+  width: 100%;
+}
 
 #knx-settings .knx-control__row{
   display: flex;
-  justify-content: space-between;
   gap: 10px;
+  justify-content: flex-end;
   flex-wrap: wrap;
 }
 
-@media (min-width: 920px){
-  #knx-settings .knx-cropper{
-    grid-template-columns: 1fr 360px;
-    align-items: start;
-  }
-}
+/* Prevent background scroll when modal open */
+html.knx-modal-open{ overflow: hidden; }

@@ -232,6 +232,7 @@ add_action('plugins_loaded', function() {
     knx_require('inc/core/resources/knx-cities/delete-city.php');
     knx_require('inc/core/resources/knx-cities/get-delivery-rates.php');
     knx_require('inc/core/resources/knx-cities/update-delivery-rates.php');
+    knx_require('inc/core/resources/knx-cities/api-city-branding.php');
 
     /* ======================================================
      * RESOURCES — MVP DELIVERY (PHASE 3)

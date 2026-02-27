@@ -2,22 +2,20 @@
 
 /**
  * ==========================================================
- * Kingdom Nexus — Settings Upload + Display Adjust (v3.3)
+ * Kingdom Nexus — Settings Upload + Display Adjust (v4.1)
  * ----------------------------------------------------------
  * Targets:
- * - site_logo      (file + optional view_json)
- * - home_center    (file + optional view_json)
- * - home_copy      (home_headline)
+ * - site_logo       (file + optional view_json)
+ * - home_center     (file + optional view_json)
+ * - home_copy       (home_headline)
+ * - city_grid_theme (theme_json)  -> SSOT DB singleton {prefix}knx_city_branding (id=1)
  *
  * Endpoint:
  * POST /wp-json/knx/v1/save-branding
  *
  * Notes:
  * - Uses existing IDs from settings-shortcode.php
- * - Assumes modal markup exists:
- *   #knxBrandingModal, #knxBrandingModalOverlay, #knxBrandingModalClose,
- *   #knxBrandingFrame, #knxBrandingFrameImg, #knxBrandingZoom,
- *   #knxBrandingReset, #knxBrandingApply
+ * - Uses shared SSOT CSS for city grid preview (knx-city-grid.css)
  * ==========================================================
  */
 
@@ -27,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const wpNonce = cfg.wp_nonce || '';
   const placeholder = cfg.placeholder || '';
   const targetsCfg = cfg.targets || {};
+  const themeCfg = cfg.city_grid_theme || {};
 
   const toast = (msg, type) => {
     if (typeof window.knxToast === 'function') return window.knxToast(msg, type);
@@ -34,6 +33,51 @@ document.addEventListener('DOMContentLoaded', () => {
     alert(msg);
   };
 
+  // ==========================================================
+  // Shared REST helper
+  // ==========================================================
+  async function postBranding(formData) {
+    const res = await fetch(`${root}knx/v1/save-branding`, {
+      method: 'POST',
+      headers: { 'X-WP-Nonce': wpNonce },
+      body: formData
+    });
+    const payload = await res.json().catch(() => ({}));
+    return { res, payload };
+  }
+
+  async function saveBranding({ target, file = null, view = null, homeHeadline = null, themeJson = null }) {
+    if (!root || !wpNonce) {
+      toast('❌ Missing settings config.', 'error');
+      return { ok: false };
+    }
+
+    const formData = new FormData();
+    formData.append('target', target);
+
+    if (target === 'home_copy') {
+      formData.append('home_headline', homeHeadline || '');
+    } else if (target === 'city_grid_theme') {
+      formData.append('theme_json', themeJson || '');
+    } else {
+      if (view) formData.append('view_json', JSON.stringify(view));
+      if (file) formData.append('file', file);
+    }
+
+    const { res, payload } = await postBranding(formData);
+
+    if (!res.ok || !payload || !payload.success) {
+      toast((payload && payload.message) ? payload.message : '❌ Save failed.', 'error');
+      return { ok: false, payload };
+    }
+
+    toast(payload.message || '✅ Saved', 'success');
+    return { ok: true, payload };
+  }
+
+  // ==========================================================
+  // Image upload + display adjust (pan/zoom)
+  // ==========================================================
   const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
 
   function validateFile(file) {
@@ -49,9 +93,18 @@ document.addEventListener('DOMContentLoaded', () => {
     return true;
   }
 
-  // =========================
-  // Shared modal + cropper
-  // =========================
+  function normalizeView(v) {
+    const out = {
+      scale: v && v.scale != null ? Number(v.scale) : 1,
+      x: v && v.x != null ? Number(v.x) : 0,
+      y: v && v.y != null ? Number(v.y) : 0
+    };
+    out.scale = Math.max(0.6, Math.min(2.6, out.scale));
+    out.x = Math.max(-520, Math.min(520, out.x));
+    out.y = Math.max(-320, Math.min(320, out.y));
+    return out;
+  }
+
   const modal = document.getElementById('knxBrandingModal');
   const modalOverlay = document.getElementById('knxBrandingModalOverlay');
   const modalClose = document.getElementById('knxBrandingModalClose');
@@ -65,43 +118,24 @@ document.addEventListener('DOMContentLoaded', () => {
   const state = {
     activeTarget: 'site_logo',
     views: {
-      site_logo: normalizeView(targetsCfg.site_logo?.view),
-      home_center: normalizeView(targetsCfg.home_center?.view)
+      site_logo: normalizeView(targetsCfg.site_logo && targetsCfg.site_logo.view),
+      home_center: normalizeView(targetsCfg.home_center && targetsCfg.home_center.view),
     },
     urls: {
-      site_logo: targetsCfg.site_logo?.url || '',
-      home_center: targetsCfg.home_center?.url || ''
+      site_logo: (targetsCfg.site_logo && targetsCfg.site_logo.url) || '',
+      home_center: (targetsCfg.home_center && targetsCfg.home_center.url) || '',
     },
     frames: {
-      site_logo: targetsCfg.site_logo?.frame || { w: 160, h: 45 },
-      home_center: targetsCfg.home_center?.frame || { w: 110, h: 110 }
+      site_logo: (targetsCfg.site_logo && targetsCfg.site_logo.frame) || { w: 160, h: 45 },
+      home_center: (targetsCfg.home_center && targetsCfg.home_center.frame) || { w: 420, h: 150 },
     }
   };
 
-  function normalizeView(v) {
-    const out = {
-      scale: v && v.scale != null ? Number(v.scale) : 1,
-      x: v && v.x != null ? Number(v.x) : 0,
-      y: v && v.y != null ? Number(v.y) : 0
-    };
-    out.scale = Math.max(0.6, Math.min(2.6, out.scale));
-    out.x = Math.max(-520, Math.min(520, out.x));
-    out.y = Math.max(-320, Math.min(320, out.y));
-    return out;
-  }
-
-  function clampActiveView() {
-    const v = state.views[state.activeTarget] || { scale: 1, x: 0, y: 0 };
-    v.scale = Math.max(0.6, Math.min(2.6, Number(v.scale)));
-    v.x = Math.max(-520, Math.min(520, Number(v.x)));
-    v.y = Math.max(-320, Math.min(320, Number(v.y)));
-    state.views[state.activeTarget] = v;
-    return v;
-  }
-
   function applyViewToFrame() {
     if (!frame) return;
-    const v = clampActiveView();
+    const v = normalizeView(state.views[state.activeTarget]);
+    state.views[state.activeTarget] = v;
+
     frame.style.setProperty('--knx-logo-scale', String(v.scale));
     frame.style.setProperty('--knx-logo-x', `${v.x}px`);
     frame.style.setProperty('--knx-logo-y', `${v.y}px`);
@@ -153,7 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ptX = (e.touches && e.touches[0]) ? e.touches[0].clientX : e.clientX;
     const ptY = (e.touches && e.touches[0]) ? e.touches[0].clientY : e.clientY;
 
-    const v = clampActiveView();
+    const v = normalizeView(state.views[state.activeTarget]);
     startX = ptX;
     startY = ptY;
     baseX = v.x;
@@ -172,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const dx = ptX - startX;
     const dy = ptY - startY;
 
-    const v = clampActiveView();
+    const v = normalizeView(state.views[state.activeTarget]);
     v.x = baseX + dx;
     v.y = baseY + dy;
     state.views[state.activeTarget] = v;
@@ -198,7 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (zoomEl) {
     zoomEl.addEventListener('input', () => {
-      const v = clampActiveView();
+      const v = normalizeView(state.views[state.activeTarget]);
       v.scale = Number(zoomEl.value);
       state.views[state.activeTarget] = v;
       applyViewToFrame();
@@ -214,34 +248,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (applyBtn) {
     applyBtn.addEventListener('click', async () => {
-      const ok = await saveBranding({
-        target: state.activeTarget,
-        file: null,
-        view: state.views[state.activeTarget],
-        homeHeadline: null
-      });
+      const target = state.activeTarget;
+      const view = normalizeView(state.views[target]);
+
+      const btnText = applyBtn.textContent;
+      applyBtn.disabled = true;
+      applyBtn.textContent = 'Saving...';
+
+      const { ok, payload } = await saveBranding({ target, view });
+      if (ok && payload && payload.data && payload.data.view) {
+        state.views[target] = normalizeView(payload.data.view);
+      }
+      applyBtn.disabled = false;
+      applyBtn.textContent = btnText || 'Apply';
+
       if (ok) closeModal();
     });
   }
-
-  // =========================
-  // Upload wiring
-  // =========================
-  wireImageTarget({
-    target: 'site_logo',
-    fileInputId: 'knxBrandingFileInput',
-    previewId: 'knxBrandingPreview',
-    uploadBtnId: 'knxBrandingSaveBtn',
-    adjustBtnId: 'knxBrandingAdjustBtn'
-  });
-
-  wireImageTarget({
-    target: 'home_center',
-    fileInputId: 'knxHomeCenterFileInput',
-    previewId: 'knxHomeCenterPreview',
-    uploadBtnId: 'knxHomeCenterSaveBtn',
-    adjustBtnId: 'knxHomeCenterAdjustBtn'
-  });
 
   function wireImageTarget({ target, fileInputId, previewId, uploadBtnId, adjustBtnId }) {
     const fileInput = document.getElementById(fileInputId);
@@ -249,9 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const uploadBtn = document.getElementById(uploadBtnId);
     const adjustBtn = document.getElementById(adjustBtnId);
 
-    if (adjustBtn) {
-      adjustBtn.addEventListener('click', () => openModal(target));
-    }
+    if (adjustBtn) adjustBtn.addEventListener('click', () => openModal(target));
 
     if (fileInput) {
       fileInput.addEventListener('change', (e) => {
@@ -274,29 +295,53 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!file) return toast('Please select an image first.', 'error');
         if (!validateFile(file)) return;
 
-        const ok = await saveBranding({
+        const old = uploadBtn.textContent;
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = 'Uploading...';
+
+        const { ok, payload } = await saveBranding({
           target,
           file,
-          view: state.views[target],
-          homeHeadline: null
+          view: normalizeView(state.views[target])
         });
 
-        if (ok) {
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = old || 'Upload';
+
+        if (ok && payload && payload.data && payload.data.url) {
+          state.urls[target] = payload.data.url;
+          if (previewImg) previewImg.src = payload.data.url;
           fileInput.value = '';
         }
       });
     }
   }
 
-  // =========================
-  // Home headline save
-  // =========================
+  wireImageTarget({
+    target: 'site_logo',
+    fileInputId: 'knxBrandingFileInput',
+    previewId: 'knxBrandingPreview',
+    uploadBtnId: 'knxBrandingSaveBtn',
+    adjustBtnId: 'knxBrandingAdjustBtn'
+  });
+
+  wireImageTarget({
+    target: 'home_center',
+    fileInputId: 'knxHomeCenterFileInput',
+    previewId: 'knxHomeCenterPreview',
+    uploadBtnId: 'knxHomeCenterSaveBtn',
+    adjustBtnId: 'knxHomeCenterAdjustBtn'
+  });
+
+  // ==========================================================
+  // Home headline save + counter
+  // ==========================================================
   const headlineInput = document.getElementById('knxHomeHeadlineInput');
   const headlineSaveBtn = document.getElementById('knxHomeHeadlineSaveBtn');
   const headlineCount = document.getElementById('knxHomeHeadlineCount');
   const headlineMaxEl = document.getElementById('knxHomeHeadlineMax');
-
   const headlineMax = (cfg.home_headline && cfg.home_headline.max) ? parseInt(cfg.home_headline.max, 10) : 160;
+
   if (headlineMaxEl) headlineMaxEl.textContent = String(headlineMax);
 
   function updateHeadlineCount() {
@@ -309,7 +354,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (headlineSaveBtn) {
     headlineSaveBtn.addEventListener('click', async () => {
       if (!headlineInput) return;
-
       let value = (headlineInput.value || '').trim();
       if (!value) return toast('Please enter a headline.', 'error');
 
@@ -319,107 +363,216 @@ document.addEventListener('DOMContentLoaded', () => {
         updateHeadlineCount();
       }
 
-      const ok = await saveBranding({
-        target: 'home_copy',
-        file: null,
-        view: null,
-        homeHeadline: value
-      });
+      const old = headlineSaveBtn.textContent;
+      headlineSaveBtn.disabled = true;
+      headlineSaveBtn.textContent = 'Saving...';
 
-      if (ok) toast('✅ Home headline saved', 'success');
+      await saveBranding({ target: 'home_copy', homeHeadline: value });
+
+      headlineSaveBtn.disabled = false;
+      headlineSaveBtn.textContent = old || 'Save text';
     });
   }
 
-  // =========================
-  // REST save helper
-  // =========================
-  async function saveBranding({ target, file, view, homeHeadline }) {
-    if (!root || !wpNonce) {
-      toast('❌ Missing settings config.', 'error');
-      return false;
-    }
+  // ==========================================================
+  // City Grid Theme (GLOBAL SSOT DB) — preview SSOT
+  // ==========================================================
+  const previewWrap = document.getElementById('knxCityGridThemePreviewWrap');
+  const citySaveBtn = document.getElementById('knxCityGridThemeSaveBtn');
 
-    const formData = new FormData();
-    formData.append('target', target);
+  const inpGradFrom = document.getElementById('knxCityGridGradientFrom');
+  const inpGradTo = document.getElementById('knxCityGridGradientTo');
+  const inpAngle = document.getElementById('knxCityGridAngle');
 
-    if (target === 'home_copy') {
-      formData.append('home_headline', homeHeadline || '');
-    } else {
-      if (view) formData.append('view_json', JSON.stringify(normalizeView(view)));
-      if (file) formData.append('file', file);
-    }
+  const inpTitleSize = document.getElementById('knxCityGridTitleFontSize');
+  const inpTitleFill = document.getElementById('knxCityGridTitleFillColor');
+  const inpTitleStrokeColor = document.getElementById('knxCityGridTitleStrokeColor');
+  const inpTitleStrokeWidth = document.getElementById('knxCityGridTitleStrokeWidth');
+  const inpTitleWeight = document.getElementById('knxCityGridTitleFontWeight');
+  const inpTitleLineHeight = document.getElementById('knxCityGridTitleLineHeight');
+  const inpTitleLetterSpacing = document.getElementById('knxCityGridTitleLetterSpacing');
 
-    // Best-effort UI lock
-    const btns = [];
-    if (target === 'home_copy' && headlineSaveBtn) btns.push(headlineSaveBtn);
-    if (target === 'site_logo') {
-      const b = document.getElementById('knxBrandingSaveBtn'); if (b) btns.push(b);
-      const a = document.getElementById('knxBrandingAdjustBtn'); if (a) btns.push(a);
-    }
-    if (target === 'home_center') {
-      const b = document.getElementById('knxHomeCenterSaveBtn'); if (b) btns.push(b);
-      const a = document.getElementById('knxHomeCenterAdjustBtn'); if (a) btns.push(a);
-    }
-    if (applyBtn && (target === 'site_logo' || target === 'home_center')) btns.push(applyBtn);
+  const inpCtaBg = document.getElementById('knxCityGridCtaBg');
+  const inpCtaText = document.getElementById('knxCityGridCtaTextColor');
+  const inpCtaRadius = document.getElementById('knxCityGridCtaRadius');
+  const inpCtaBorderWidth = document.getElementById('knxCityGridCtaBorderWidth');
+  const inpCtaDotted = document.getElementById('knxCityGridCtaBorderDotted');
+  const inpCtaTwoLines = document.getElementById('knxCityGridCtaTwoLines');
 
-    const oldText = new Map();
-    btns.forEach(b => { oldText.set(b, b.textContent); b.disabled = true; });
+  const inpCardRadius = document.getElementById('knxCityGridCardRadius');
+  const inpCardPaddingY = document.getElementById('knxCityGridCardPaddingY');
+  const inpCardPaddingX = document.getElementById('knxCityGridCardPaddingX');
+  const inpCardMinHeight = document.getElementById('knxCityGridCardMinHeight');
 
-    if (applyBtn && btns.includes(applyBtn)) applyBtn.textContent = 'Saving...';
+  function setVar(el, k, v) {
+    if (!el) return;
+    el.style.setProperty(k, String(v));
+  }
 
-    try {
-      const res = await fetch(`${root}knx/v1/save-branding`, {
-        method: 'POST',
-        headers: { 'X-WP-Nonce': wpNonce },
-        body: formData
-      });
+  function boolTo01(v) { return v ? '1' : '0'; }
 
-      const payload = await res.json().catch(() => ({}));
-      if (!payload || !payload.success) {
-        toast((payload && payload.message) ? payload.message : '❌ Save failed.', 'error');
-        return false;
-      }
+  function applyThemeToPreview(theme) {
+    if (!previewWrap) return;
+    if (!theme) return;
 
-      // Update previews if URL returned
-      const url = payload.data && payload.data.url ? payload.data.url : '';
-      if (url && (target === 'site_logo' || target === 'home_center')) {
-        state.urls[target] = url;
-        if (target === 'site_logo') {
-          const p = document.getElementById('knxBrandingPreview');
-          if (p) p.src = url;
-        } else {
-          const p = document.getElementById('knxHomeCenterPreview');
-          if (p) p.src = url;
-        }
-      }
+    setVar(previewWrap, '--knx-city-grad-from', theme.gradient.from);
+    setVar(previewWrap, '--knx-city-grad-to', theme.gradient.to);
+    setVar(previewWrap, '--knx-city-grad-angle', theme.gradient.angle + 'deg');
 
-      // Persist view in JS state if returned/applied
-      if (payload.data && payload.data.view && (target === 'site_logo' || target === 'home_center')) {
-        state.views[target] = normalizeView(payload.data.view);
-      } else if (view && (target === 'site_logo' || target === 'home_center')) {
-        state.views[target] = normalizeView(view);
-      }
+    setVar(previewWrap, '--knx-city-card-radius', theme.card.radius + 'px');
+    setVar(previewWrap, '--knx-city-card-min-height', theme.card.minHeight + 'px');
+    setVar(previewWrap, '--knx-city-card-padding-y', theme.card.paddingY + 'px');
+    setVar(previewWrap, '--knx-city-card-padding-x', theme.card.paddingX + 'px');
+    setVar(previewWrap, '--knx-city-card-shadow', theme.card.shadow ? '1' : '0');
 
-      if (target === 'home_copy') {
-        toast(payload.message || '✅ Saved', 'success');
+    setVar(previewWrap, '--knx-city-title-font-size', theme.title.fontSize + 'px');
+    setVar(previewWrap, '--knx-city-title-fill', theme.title.fill);
+    setVar(previewWrap, '--knx-city-title-font-weight', theme.title.fontWeight);
+    setVar(previewWrap, '--knx-city-title-line-height', theme.title.lineHeight);
+    setVar(previewWrap, '--knx-city-title-letter-spacing', theme.title.letterSpacing + 'px');
+    setVar(previewWrap, '--knx-city-title-stroke-color', theme.title.strokeColor);
+    setVar(previewWrap, '--knx-city-title-stroke-width', theme.title.strokeWidth + 'px');
+
+    setVar(previewWrap, '--knx-city-cta-bg', theme.cta.bg);
+    setVar(previewWrap, '--knx-city-cta-text', theme.cta.textColor);
+    setVar(previewWrap, '--knx-city-cta-radius', theme.cta.radius + 'px');
+    setVar(previewWrap, '--knx-city-cta-border-color', theme.cta.borderColor);
+    setVar(previewWrap, '--knx-city-cta-border-width', theme.cta.borderWidth + 'px');
+    setVar(previewWrap, '--knx-city-cta-padding-y', theme.cta.paddingY + 'px');
+    setVar(previewWrap, '--knx-city-cta-padding-x', theme.cta.paddingX + 'px');
+    setVar(previewWrap, '--knx-city-cta-font-size', theme.cta.fontSize + 'px');
+    setVar(previewWrap, '--knx-city-cta-font-weight', theme.cta.fontWeight);
+    setVar(previewWrap, '--knx-city-cta-dotted', boolTo01(theme.cta.borderDotted));
+    setVar(previewWrap, '--knx-city-cta-two-lines', boolTo01(theme.cta.twoLines));
+
+    const ctaEl = previewWrap.querySelector('.knx-city-banner-cta');
+    if (ctaEl) {
+      ctaEl.setAttribute('data-dotted', theme.cta.borderDotted ? '1' : '0');
+      ctaEl.setAttribute('data-two-lines', theme.cta.twoLines ? '1' : '0');
+
+      if (theme.cta.twoLines) {
+        ctaEl.innerHTML = `<span class="knx-city-cta-line">Tap to</span><span class="knx-city-cta-line">EXPLORE HUBS</span>`;
       } else {
-        toast(payload.message || '✅ Saved successfully', 'success');
+        ctaEl.textContent = theme.cta.text || 'Tap to EXPLORE HUBS';
       }
-
-      return true;
-
-    } catch (e) {
-      console.error('[KNX-SETTINGS] saveBranding error:', e);
-      toast('❌ Unexpected error while saving.', 'error');
-      return false;
-
-    } finally {
-      btns.forEach(b => {
-        b.disabled = false;
-        const t = oldText.get(b);
-        if (t != null) b.textContent = t;
-      });
-      if (applyBtn) applyBtn.textContent = 'Apply';
     }
+  }
+
+  function buildThemeFromInputs() {
+    return {
+      gradient: {
+        from: inpGradFrom ? inpGradFrom.value : '#FF7A00',
+        to: inpGradTo ? inpGradTo.value : '#FFB100',
+        angle: inpAngle ? Number(inpAngle.value || 180) : 180,
+      },
+      card: {
+        radius: inpCardRadius ? Number(inpCardRadius.value || 18) : 18,
+        minHeight: inpCardMinHeight ? Number(inpCardMinHeight.value || 240) : 240,
+        paddingY: inpCardPaddingY ? Number(inpCardPaddingY.value || 35) : 35,
+        paddingX: inpCardPaddingX ? Number(inpCardPaddingX.value || 20) : 20,
+        shadow: true
+      },
+      title: {
+        fontFamily: 'system',
+        fontWeight: inpTitleWeight ? Number(inpTitleWeight.value || 800) : 800,
+        fontSize: inpTitleSize ? Number(inpTitleSize.value || 20) : 20,
+        lineHeight: inpTitleLineHeight ? Number(inpTitleLineHeight.value || 1.00) : 1.00,
+        letterSpacing: inpTitleLetterSpacing ? Number(inpTitleLetterSpacing.value || 1.00) : 1.00,
+        fill: inpTitleFill ? inpTitleFill.value : '#FFFFFF',
+        strokeColor: inpTitleStrokeColor ? inpTitleStrokeColor.value : '#083B58',
+        strokeWidth: inpTitleStrokeWidth ? Number(inpTitleStrokeWidth.value || 0) : 0
+      },
+      cta: {
+        text: 'Tap to EXPLORE HUBS',
+        twoLines: !!(inpCtaTwoLines && inpCtaTwoLines.checked),
+        bg: inpCtaBg ? inpCtaBg.value : '#083B58',
+        textColor: inpCtaText ? inpCtaText.value : '#FFFFFF',
+        radius: inpCtaRadius ? Number(inpCtaRadius.value || 999) : 999,
+        borderDotted: !!(inpCtaDotted && inpCtaDotted.checked),
+        borderColor: '#FFFFFF',
+        borderWidth: inpCtaBorderWidth ? Number(inpCtaBorderWidth.value || 2) : 2,
+        paddingY: 14,
+        paddingX: 26,
+        fontSize: 18,
+        fontWeight: 800
+      }
+    };
+  }
+
+  function initThemeInputsFromCfg() {
+    const t = themeCfg || {};
+    try {
+      if (t.gradient) {
+        if (inpGradFrom && t.gradient.from) inpGradFrom.value = t.gradient.from;
+        if (inpGradTo && t.gradient.to) inpGradTo.value = t.gradient.to;
+        if (inpAngle && typeof t.gradient.angle !== 'undefined') inpAngle.value = t.gradient.angle;
+      }
+      if (t.title) {
+        if (inpTitleSize && typeof t.title.fontSize !== 'undefined') inpTitleSize.value = t.title.fontSize;
+        if (inpTitleFill && t.title.fill) inpTitleFill.value = t.title.fill;
+        if (inpTitleStrokeColor && t.title.strokeColor) inpTitleStrokeColor.value = t.title.strokeColor;
+        if (inpTitleStrokeWidth && typeof t.title.strokeWidth !== 'undefined') inpTitleStrokeWidth.value = t.title.strokeWidth;
+        if (inpTitleWeight && typeof t.title.fontWeight !== 'undefined') inpTitleWeight.value = t.title.fontWeight;
+        if (inpTitleLineHeight && typeof t.title.lineHeight !== 'undefined') inpTitleLineHeight.value = t.title.lineHeight;
+        if (inpTitleLetterSpacing && typeof t.title.letterSpacing !== 'undefined') inpTitleLetterSpacing.value = t.title.letterSpacing;
+      }
+      if (t.cta) {
+        if (inpCtaBg && t.cta.bg) inpCtaBg.value = t.cta.bg;
+        if (inpCtaText && t.cta.textColor) inpCtaText.value = t.cta.textColor;
+        if (inpCtaRadius && typeof t.cta.radius !== 'undefined') inpCtaRadius.value = t.cta.radius;
+        if (inpCtaBorderWidth && typeof t.cta.borderWidth !== 'undefined') inpCtaBorderWidth.value = t.cta.borderWidth;
+        if (inpCtaDotted && typeof t.cta.borderDotted !== 'undefined') inpCtaDotted.checked = !!t.cta.borderDotted;
+        if (inpCtaTwoLines && typeof t.cta.twoLines !== 'undefined') inpCtaTwoLines.checked = !!t.cta.twoLines;
+      }
+      if (t.card) {
+        if (inpCardRadius && typeof t.card.radius !== 'undefined') inpCardRadius.value = t.card.radius;
+        if (inpCardPaddingY && typeof t.card.paddingY !== 'undefined') inpCardPaddingY.value = t.card.paddingY;
+        if (inpCardPaddingX && typeof t.card.paddingX !== 'undefined') inpCardPaddingX.value = t.card.paddingX;
+        if (inpCardMinHeight && typeof t.card.minHeight !== 'undefined') inpCardMinHeight.value = t.card.minHeight;
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  function refreshPreviewFromInputs() {
+    const theme = buildThemeFromInputs();
+    applyThemeToPreview(theme);
+  }
+
+  initThemeInputsFromCfg();
+  refreshPreviewFromInputs();
+
+  const watch = [
+    inpGradFrom, inpGradTo, inpAngle,
+    inpTitleSize, inpTitleFill, inpTitleStrokeColor, inpTitleStrokeWidth, inpTitleWeight, inpTitleLineHeight, inpTitleLetterSpacing,
+    inpCtaBg, inpCtaText, inpCtaRadius, inpCtaBorderWidth, inpCtaDotted, inpCtaTwoLines,
+    inpCardRadius, inpCardPaddingY, inpCardPaddingX, inpCardMinHeight
+  ];
+
+  watch.forEach(el => {
+    if (!el) return;
+    const evt = (el.type === 'checkbox' || el.tagName === 'SELECT') ? 'change' : 'input';
+    el.addEventListener(evt, refreshPreviewFromInputs);
+    if (evt !== 'input') el.addEventListener('input', refreshPreviewFromInputs);
+  });
+
+  if (citySaveBtn) {
+    citySaveBtn.addEventListener('click', async () => {
+      const theme = buildThemeFromInputs();
+      const old = citySaveBtn.textContent;
+      citySaveBtn.disabled = true;
+      citySaveBtn.textContent = 'Saving...';
+
+      const { ok, payload } = await saveBranding({
+        target: 'city_grid_theme',
+        themeJson: JSON.stringify(theme)
+      });
+
+      citySaveBtn.disabled = false;
+      citySaveBtn.textContent = old || 'Save City Grid Theme';
+
+      if (ok) {
+        try { localStorage.setItem('knx_city_grid_theme', JSON.stringify(payload.data.theme || theme)); } catch (e) {}
+      }
+    });
   }
 });
