@@ -1,13 +1,9 @@
-/* File: inc/modules/settings/settings-style.css */
+/* File: inc/modules/settings/brand-logo-style.css */
 
 /**
- * ==========================================================
- * Kingdom Nexus — Settings (Site Branding) Styles (v1.0)
- * ----------------------------------------------------------
+ * Kingdom Nexus — Settings (Branding) Styles (v3.4)
+ * - Full base styling + modal + cropper + headline editor
  * - Scoped to #knx-settings
- * - Mobile-first
- * - Nexus Shell-ish card + buttons
- * ==========================================================
  */
 
 #knx-settings.knx-settings-wrap{
@@ -20,12 +16,17 @@
   --knx-card: #ffffff;
   --knx-shadow: 0 18px 44px rgba(11,18,32,0.10);
 
+  --knx-modal-overlay: rgba(0,0,0,0.0);
+  --knx-panel-shadow: 0 24px 80px rgba(11,18,32,0.22);
+
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   color: var(--knx-text);
 }
 
 #knx-settings{
   padding: 18px;
+  display: grid;
+  gap: 16px;
 }
 
 #knx-settings .knx-settings-card{
@@ -36,6 +37,7 @@
   padding: 16px;
   max-width: 880px;
   margin: 0 auto;
+  width: 100%;
 }
 
 #knx-settings .knx-settings-head h2{
@@ -82,6 +84,12 @@
   background: #fff;
 }
 
+#knx-settings .knx-settings-preview--center img{
+  width: 240px;
+  height: auto;
+  max-width: 100%;
+}
+
 #knx-settings .knx-settings-actions{
   display: flex;
   flex-direction: column;
@@ -101,13 +109,17 @@
   user-select: none;
 }
 
-#knx-settings .knx-settings-file input{
-  display: none;
-}
+#knx-settings .knx-settings-file input{ display: none; }
 
 #knx-settings .knx-settings-file span{
   font-size: 13px;
   color: var(--knx-text);
+}
+
+#knx-settings .knx-settings-btnrow{
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 #knx-settings .knx-btn-primary{
@@ -117,20 +129,43 @@
   padding: 11px 14px;
   background: var(--knx-green);
   color: #fff;
-  font-weight: 700;
+  font-weight: 800;
   font-size: 13px;
   cursor: pointer;
   width: fit-content;
 }
 
-#knx-settings .knx-btn-primary:hover{
-  background: var(--knx-green-hover);
+#knx-settings .knx-btn-primary:hover{ background: var(--knx-green-hover); }
+#knx-settings .knx-btn-primary:disabled{ opacity: 0.65; cursor: not-allowed; }
+
+#knx-settings .knx-btn-secondary{
+  appearance: none;
+  border: 1px solid var(--knx-border);
+  border-radius: 12px;
+  padding: 11px 14px;
+  background: #fff;
+  color: var(--knx-text);
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+  width: fit-content;
 }
 
-#knx-settings .knx-btn-primary:disabled{
-  opacity: 0.65;
-  cursor: not-allowed;
+#knx-settings .knx-btn-secondary:hover{ background: #f9fafb; }
+
+#knx-settings .knx-btn-ghost{
+  appearance: none;
+  border: 1px solid var(--knx-border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: transparent;
+  color: var(--knx-text);
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
 }
+
+#knx-settings .knx-btn-ghost:hover{ background: #f9fafb; }
 
 #knx-settings .knx-settings-hint{
   margin: 0;
@@ -141,14 +176,197 @@
 
 /* Desktop */
 @media (min-width: 900px){
-  #knx-settings .knx-settings-card{
-    padding: 18px;
-  }
+  #knx-settings .knx-settings-card{ padding: 18px; }
   #knx-settings .knx-settings-branding{
     grid-template-columns: 320px 1fr;
     align-items: start;
   }
-  #knx-settings .knx-settings-preview{
-    justify-content: flex-start;
+  #knx-settings .knx-settings-preview{ justify-content: flex-start; }
+}
+
+/* Headline form */
+#knx-settings .knx-settings-form{
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+#knx-settings .knx-settings-label{
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--knx-text);
+}
+
+#knx-settings .knx-settings-textarea{
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--knx-border);
+  border-radius: 14px;
+  padding: 12px 12px;
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--knx-text);
+  background: #fff;
+  resize: vertical;
+  min-height: 98px;
+}
+
+#knx-settings .knx-settings-textarea:focus{
+  outline: none;
+  border-color: rgba(11,121,58,0.35);
+  box-shadow: 0 0 0 3px rgba(11,121,58,0.12);
+}
+
+#knx-settings .knx-settings-meta{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+#knx-settings .knx-settings-counter{
+  font-size: 12px;
+  color: var(--knx-muted);
+  font-weight: 900;
+}
+
+/* Modal */
+html.knx-modal-open{ overflow: hidden; }
+
+#knx-settings .knx-modal{
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: none;
+}
+
+#knx-settings .knx-modal.is-open{ display: block; }
+
+#knx-settings .knx-modal__overlay{
+  position: absolute;
+  inset: 0;
+  background: var(--knx-modal-overlay);
+}
+
+#knx-settings .knx-modal__panel{
+  position: relative;
+  width: min(920px, calc(100% - 28px));
+  margin: 6vh auto 0 auto;
+  background: #fff;
+  border-radius: 18px;
+  border: 1px solid rgba(11,18,32,0.10);
+  box-shadow: var(--knx-panel-shadow);
+  overflow: hidden;
+}
+
+#knx-settings .knx-modal__head{
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(11,18,32,0.08);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#knx-settings .knx-modal__head h3{
+  margin: 0;
+  font-size: 16px;
+  letter-spacing: -0.02em;
+}
+
+#knx-settings .knx-modal__head p{
+  margin: 6px 0 0 0;
+  color: var(--knx-muted);
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+
+#knx-settings .knx-modal__close{
+  appearance: none;
+  border: 1px solid rgba(11,18,32,0.10);
+  background: #fff;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 22px;
+  line-height: 1;
+}
+
+#knx-settings .knx-modal__close:hover{ background: #f9fafb; }
+#knx-settings .knx-modal__body{ padding: 16px; }
+
+/* Cropper */
+#knx-settings .knx-cropper{
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+#knx-settings .knx-cropper__mask{
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px;
+  border: 1px solid rgba(11,18,32,0.10);
+}
+
+#knx-settings .knx-cropper__frame{
+  position: relative;
+  margin: 0 auto;
+  border-radius: 12px;
+  overflow: hidden;
+  background: transparent;
+  border: 1px solid rgba(11,18,32,0.10);
+  box-shadow: 0 10px 28px rgba(0,0,0,0.12);
+  cursor: grab;
+
+  --knx-logo-scale: 1;
+  --knx-logo-x: 0px;
+  --knx-logo-y: 0px;
+}
+
+#knx-settings .knx-cropper__frame.is-dragging{ cursor: grabbing; }
+
+#knx-settings .knx-cropper__frame img{
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  height: 100%;
+  width: auto;
+  max-width: none;
+  transform:
+    translate(-50%, -50%)
+    translate(var(--knx-logo-x), var(--knx-logo-y))
+    scale(var(--knx-logo-scale));
+  transform-origin: center;
+  user-select: none;
+  pointer-events: none;
+}
+
+#knx-settings .knx-cropper__controls{
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(11,18,32,0.10);
+  border-radius: 14px;
+  padding: 12px;
+  background: #fff;
+}
+
+#knx-settings .knx-control{ display: grid; gap: 8px; }
+#knx-settings .knx-control span{ font-size: 12px; color: var(--knx-muted); }
+#knx-settings .knx-control input[type="range"]{ width: 100%; }
+
+#knx-settings .knx-control__row{
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+@media (min-width: 920px){
+  #knx-settings .knx-cropper{
+    grid-template-columns: 1fr 360px;
+    align-items: start;
   }
 }

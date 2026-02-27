@@ -1,3 +1,29 @@
+/* Review Cart button */
+.knx-cart-drawer__review {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 999px;
+  border: 1.5px solid #fb7306;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 600;
+  background: #fff7ed;
+  color: #fb7306;
+  cursor: pointer;
+  margin-bottom: 6px;
+  transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 2px 8px rgba(251, 115, 6, 0.10);
+}
+.knx-cart-drawer__review:hover {
+  background: #fb7306;
+  color: #fff;
+  border-color: #fb7306;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(251, 115, 6, 0.18);
+}
 /**
  * ==========================================================
  * Kingdom Nexus - Cart Drawer Style (Production)

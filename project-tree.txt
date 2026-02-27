@@ -3,7 +3,6 @@
 ├── .gitignore
 ├── .vscode
 │   └── settings.json
-├── AUDIT-PICKUP-ADDRESS-SOURCE.md
 ├── NEXUS.md
 ├── ORDERS-RESET.SQL
 ├── READ-THIS-BEFORE-MAKING-ANY-CHANGE.md
@@ -47,8 +46,6 @@
 │   │   └── users-roles
 │   │       └── users-roles-identity-territory.md
 │   └── upload-hub-items-template.README.md
-├── driver-ops-dashboard_foundations.md
-├── driver-user-flow-implementation.md
 ├── inc
 │   ├── .DS_Store
 │   ├── core
@@ -60,6 +57,7 @@
 │   │   │   ├── api-create-order-mvp.php
 │   │   │   ├── api-get-order.php
 │   │   │   ├── api-list-orders.php
+│   │   │   ├── api-order-messages.php
 │   │   │   ├── api-quote-totals.php
 │   │   │   └── api-update-order-status.php
 │   │   ├── pages-installer.php
@@ -103,6 +101,7 @@
 │   │   │   │   ├── api-hub-location.php
 │   │   │   │   ├── api-hubs-core.php
 │   │   │   │   ├── api-hubs.php
+│   │   │   │   ├── api-time-slots.php
 │   │   │   │   ├── api-toggle-featured.php
 │   │   │   │   ├── api-update-closure.php
 │   │   │   │   ├── api-update-hub-slug.php
@@ -128,7 +127,9 @@
 │   │   │   │   └── api-location-search.php
 │   │   │   ├── knx-ops
 │   │   │   │   ├── .DS_Store
+│   │   │   │   ├── api-all-orders.php
 │   │   │   │   ├── api-assign-driver.php
+│   │   │   │   ├── api-dashboard.php
 │   │   │   │   ├── api-driver-active-orders.php
 │   │   │   │   ├── api-driver-available-orders.php
 │   │   │   │   ├── api-driver-orders.php
@@ -145,8 +146,11 @@
 │   │   │   │   ├── api-payment-webhook.php
 │   │   │   │   └── stripe-authority.php
 │   │   │   ├── knx-profile
+│   │   │   │   ├── api-change-password.php
 │   │   │   │   ├── api-get-profile.php
 │   │   │   │   └── api-update-profile.php
+│   │   │   ├── knx-settings
+│   │   │   │   └── api-brand-logo-upload.php
 │   │   │   └── knx-system
 │   │   │       ├── api-hours-extension.php
 │   │   │       └── api-settings.php
@@ -195,7 +199,6 @@
 │   │   ├── cart
 │   │   │   ├── cart-drawer.css
 │   │   │   └── cart-drawer.js
-│   │   ├── compat
 │   │   ├── core
 │   │   │   ├── knx-toast.css
 │   │   │   └── knx-toast.js
@@ -208,6 +211,7 @@
 │   │   │   ├── customers-shortcode.php
 │   │   │   └── customers-style.css
 │   │   ├── drivers
+│   │   │   ├── active-orders
 │   │   │   ├── drivers-script.js
 │   │   │   ├── drivers-shortcode.php
 │   │   │   └── drivers-style.css
@@ -269,6 +273,14 @@
 │   │   │   └── navbar-style.css
 │   │   ├── ops
 │   │   │   ├── .DS_Store
+│   │   │   ├── all-orders
+│   │   │   │   ├── all-orders-script.js
+│   │   │   │   ├── all-orders-shortcode.php
+│   │   │   │   └── all-orders-style.css
+│   │   │   ├── dashboard
+│   │   │   │   ├── dashboard-script.js
+│   │   │   │   ├── dashboard-shortcode.php
+│   │   │   │   └── dashboard-style.css
 │   │   │   ├── driver-active-orders
 │   │   │   │   ├── driver-active-orders-script.js
 │   │   │   │   ├── driver-active-orders-shortcode.php
@@ -294,6 +306,11 @@
 │   │   │   │   ├── driver-quick-menu-script.js
 │   │   │   │   ├── driver-quick-menu-shortcode.php
 │   │   │   │   └── driver-quick-menu-style.css
+│   │   │   ├── driver-view-order
+│   │   │   │   ├── driver-view-order-actions.css
+│   │   │   │   ├── driver-view-order-script.js
+│   │   │   │   ├── driver-view-order-shortcode.php
+│   │   │   │   └── driver-view-order-style.css
 │   │   │   ├── live-orders
 │   │   │   │   ├── live-orders-script.js
 │   │   │   │   ├── live-orders-shortcode.php
@@ -305,11 +322,15 @@
 │   │   │       ├── view-order-script.js
 │   │   │       ├── view-order-shortcode.php
 │   │   │       └── view-order-style.css
-│   │   ├── payments
-│   │   │   ├── payments-api.php
-│   │   │   ├── payments-helpers.php
-│   │   │   └── payments-service.php
-│   │   └── profile
+│   │   ├── profile
+│   │   └── settings
+│   │       ├── .DS_Store
+│   │       ├── brand-logo-style.css
+│   │       ├── brand-logo-upload.js
+│   │       ├── settings-shortcode.php
+│   │       ├── settings-upload.js
+│   │       ├── settings.css
+│   │       └── settings.js
 │   ├── public
 │   │   ├── .DS_Store
 │   │   ├── addresses
@@ -343,18 +364,28 @@
 │   │   │   ├── corporate-sidebar-script.js
 │   │   │   ├── corporate-sidebar-style.css
 │   │   │   ├── corporate-sidebar.php
+│   │   │   ├── customer-sidebar.css
+│   │   │   ├── customer-sidebar.js
+│   │   │   ├── customer-sidebar.php
 │   │   │   ├── navbar.php
 │   │   │   ├── navigation-script.js
 │   │   │   └── navigation-style.css
 │   │   ├── orders
 │   │   │   ├── .DS_Store
+│   │   │   ├── my-orders-shortcode.php
+│   │   │   ├── my-orders.css
+│   │   │   ├── my-orders.js
 │   │   │   ├── order-status-shortcode.php
 │   │   │   ├── order-status.css
 │   │   │   └── order-status.js
-│   │   └── profile
-│   │       ├── profile-script.js
-│   │       ├── profile-shortcode.php
-│   │       └── profile-style.css
+│   │   ├── profile
+│   │   │   ├── profile-script.js
+│   │   │   ├── profile-shortcode.php
+│   │   │   └── profile-style.css
+│   │   └── support
+│   │       ├── contact-script.js
+│   │       ├── contact-shortcode.php
+│   │       └── contact-style.css
 │   └── shortcodes
 │       └── cities-grid-shortcode.php
 ├── kingdom-nexus.php
@@ -363,4 +394,4 @@
 ├── nexus-schema-y05.sql
 └── project-tree.txt
 
-81 directories, 283 files
+86 directories, 309 files

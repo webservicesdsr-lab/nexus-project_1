@@ -1,41 +1,42 @@
+// File: inc/public/home/home.js
+
 /**
- * Kingdom Nexus - Home Page Script (v3.1)
- * - Autocomplete con Nominatim (US/CA/MX)
- * - Redirección a /explore-hubs/?location=...
- * - Sin alerts nativos; mensajes en #knx-geolocation-status
+ * Kingdom Nexus - Home Page Script (v4.0)
+ * - Autocomplete (Nominatim US/CA/MX)
+ * - Redirect to /explore-hubs/?location=...
+ * - No native alerts; messages in #knx-geolocation-status
+ *
+ * IMPORTANT:
+ * - Keeps compatibility with existing IDs.
+ * - Does NOT implement geolocation detect here (handled by knx-location-detector.js).
  */
 
 document.addEventListener("DOMContentLoaded", () => {
-  const input       = document.getElementById("knx-address-input");
-  const searchBtn   = document.getElementById("knx-search-btn");
-  const statusDiv   = document.getElementById("knx-geolocation-status");
-  const dropdown    = document.getElementById("knx-autocomplete-dropdown");
+  const input     = document.getElementById("knx-address-input");
+  const searchBtn = document.getElementById("knx-search-btn");
+  const statusDiv = document.getElementById("knx-geolocation-status");
+  const dropdown  = document.getElementById("knx-autocomplete-dropdown");
+
+  if (!input || !searchBtn || !dropdown) return;
 
   let debounceTimer = null;
-  let isLoading     = false;
+  let isLoading = false;
 
   // ========= Utils =========
   const showStatus = (msg, type = "info", autohide = true) => {
     if (!statusDiv) return;
     statusDiv.textContent = msg;
-    statusDiv.className   = `knx-status-message knx-status-${type}`;
+    statusDiv.className = `knx-status-message knx-status-${type}`;
     statusDiv.style.display = "block";
-    if (autohide) setTimeout(() => statusDiv.style.display = "none", 4000);
-  };
-
-  const hideStatus = () => {
-    if (!statusDiv) return;
-    statusDiv.style.display = "none";
+    if (autohide) setTimeout(() => (statusDiv.style.display = "none"), 4000);
   };
 
   const ensureDropdown = () => {
-    if (!dropdown) return null;
     dropdown.style.display = "block";
     return dropdown;
   };
 
   const removeDropdown = () => {
-    if (!dropdown) return;
     dropdown.innerHTML = "";
     dropdown.style.display = "none";
   };
@@ -48,10 +49,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const redirectToExplore = (locationStr) => {
     const base = (window.knxHome && knxHome.exploreUrl) ? knxHome.exploreUrl : "/explore-hubs/";
-    const url  = new URL(base, window.location.origin);
+    const url = new URL(base, window.location.origin);
     url.searchParams.set("location", locationStr);
 
-    // opcional: guardar ubicación “actual”
     try { localStorage.setItem("knx_location", locationStr); } catch {}
     if (window.knxNavbar?.setLocation) {
       try { window.knxNavbar.setLocation(locationStr); } catch {}
@@ -67,7 +67,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const m = s.match(re);
     if (!m) return null;
     let [, street, city, state, zip] = m;
-    street = street.replace(/\.+$/,"");
+    street = street.replace(/\.+$/, "");
     return { street, city, state, zip: zip || "" };
   };
 
@@ -118,19 +118,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const formatOSMDisplay = (item) => {
     const a = item.address || {};
-    // Para explorar por ciudad/estado → "City, ST" si aplica
     const city = a.city || a.town || a.village || a.county || "";
-    const st   = (a.state && stateAbbr[a.state]) ? stateAbbr[a.state] : (a.state || "");
+    const st = (a.state && stateAbbr[a.state]) ? stateAbbr[a.state] : (a.state || "");
     const parts = [];
     if (city) parts.push(city);
-    if (st)   parts.push(st);
+    if (st) parts.push(st);
     return parts.join(", ");
   };
 
   const renderSuggestions = (results) => {
     const dd = ensureDropdown();
-    if (!dd) return;
-
     dd.innerHTML = results.map(r => {
       const label = formatOSMDisplay(r) || (r.display_name || "").split(",").slice(0,2).join(", ");
       return `
@@ -154,16 +151,19 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const showLoading = () => {
-    const dd = ensureDropdown(); if (!dd) return;
+    const dd = ensureDropdown();
     dd.innerHTML = `
       <div class="knx-autocomplete-item" style="justify-content:center;color:#999;">
-        <i class="fas fa-spinner fa-spin"></i>
+        <span style="display:inline-flex;align-items:center;gap:8px;">
+          <i class="fas fa-spinner fa-spin"></i>
+          <span>Searching...</span>
+        </span>
       </div>
     `;
   };
 
   const showNoResults = () => {
-    const dd = ensureDropdown(); if (!dd) return;
+    const dd = ensureDropdown();
     dd.innerHTML = `<div class="knx-autocomplete-item knx-no-results">No locations found</div>`;
   };
 
@@ -200,25 +200,20 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   // ========= Events =========
-  input.addEventListener("input", (e) => {
-    fetchSuggestions(e.target.value);
-  });
+  input.addEventListener("input", (e) => fetchSuggestions(e.target.value));
 
   input.addEventListener("focus", () => {
     const v = input.value.trim();
     if (v.length >= 2) fetchSuggestions(v);
   });
 
-  input.addEventListener("blur", () => {
-    setTimeout(() => removeDropdown(), 150);
-  });
+  input.addEventListener("blur", () => setTimeout(removeDropdown, 150));
 
   document.addEventListener("click", (e) => {
-    if (!dropdown) return;
     if (!dropdown.contains(e.target) && e.target !== input) removeDropdown();
   });
 
-  input.addEventListener("keypress", (e) => {
+  input.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
       const v = input.value.trim();

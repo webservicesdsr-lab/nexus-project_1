@@ -1,23 +1,15 @@
-// File: inc/modules/settings/settings-upload.js
+// File: inc/modules/settings/brand-logo-upload.js
 
 /**
  * ==========================================================
- * Kingdom Nexus — Settings Upload + Display Adjust (v3.3)
+ * Kingdom Nexus — Branding Settings JS (v3.4)
  * ----------------------------------------------------------
- * Targets:
- * - site_logo      (file + optional view_json)
- * - home_center    (file + optional view_json)
- * - home_copy      (home_headline)
- *
- * Endpoint:
- * POST /wp-json/knx/v1/save-branding
- *
- * Notes:
- * - Uses existing IDs from settings-shortcode.php
- * - Assumes modal markup exists:
- *   #knxBrandingModal, #knxBrandingModalOverlay, #knxBrandingModalClose,
- *   #knxBrandingFrame, #knxBrandingFrameImg, #knxBrandingZoom,
- *   #knxBrandingReset, #knxBrandingApply
+ * - Handles:
+ *   - site_logo upload + view adjust
+ *   - home_center upload + view adjust
+ *   - home_copy headline save
+ * - Endpoint:
+ *   POST /wp-json/knx/v1/save-branding
  * ==========================================================
  */
 
@@ -34,6 +26,47 @@ document.addEventListener('DOMContentLoaded', () => {
     alert(msg);
   };
 
+  if (!root || !wpNonce) {
+    console.warn('[KNX-SETTINGS] Missing root/wp_nonce config.');
+  }
+
+  // -----------------------------
+  // Home headline editor
+  // -----------------------------
+  const headlineInput = document.getElementById('knxHomeHeadlineInput');
+  const headlineSaveBtn = document.getElementById('knxHomeHeadlineSaveBtn');
+  const headlineCount = document.getElementById('knxHomeHeadlineCount');
+  const headlineMaxEl = document.getElementById('knxHomeHeadlineMax');
+
+  const headlineMax = (cfg.home_headline && cfg.home_headline.max) ? parseInt(cfg.home_headline.max, 10) : 160;
+  if (headlineMaxEl) headlineMaxEl.textContent = String(headlineMax);
+
+  function updateHeadlineCount() {
+    if (!headlineInput || !headlineCount) return;
+    headlineCount.textContent = String((headlineInput.value || '').length);
+  }
+  updateHeadlineCount();
+  if (headlineInput) headlineInput.addEventListener('input', updateHeadlineCount);
+
+  if (headlineSaveBtn) {
+    headlineSaveBtn.addEventListener('click', async () => {
+      if (!headlineInput) return;
+      let value = (headlineInput.value || '').trim();
+      if (!value) return toast('Please enter a headline.', 'error');
+      if (value.length > headlineMax) {
+        value = value.slice(0, headlineMax);
+        headlineInput.value = value;
+        updateHeadlineCount();
+      }
+
+      const ok = await saveBranding({ target: 'home_copy', homeHeadline: value });
+      if (ok) toast('✅ Home headline saved', 'success');
+    });
+  }
+
+  // -----------------------------
+  // Image targets (upload + view)
+  // -----------------------------
   const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
 
   function validateFile(file) {
@@ -49,13 +82,11 @@ document.addEventListener('DOMContentLoaded', () => {
     return true;
   }
 
-  // =========================
-  // Shared modal + cropper
-  // =========================
   const modal = document.getElementById('knxBrandingModal');
   const modalOverlay = document.getElementById('knxBrandingModalOverlay');
   const modalClose = document.getElementById('knxBrandingModalClose');
 
+  const modalTitle = document.getElementById('knxBrandingModalTitle');
   const frame = document.getElementById('knxBrandingFrame');
   const frameImg = document.getElementById('knxBrandingFrameImg');
   const zoomEl = document.getElementById('knxBrandingZoom');
@@ -65,16 +96,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const state = {
     activeTarget: 'site_logo',
     views: {
-      site_logo: normalizeView(targetsCfg.site_logo?.view),
-      home_center: normalizeView(targetsCfg.home_center?.view)
+      site_logo: normalizeView(targetsCfg.site_logo && targetsCfg.site_logo.view),
+      home_center: normalizeView(targetsCfg.home_center && targetsCfg.home_center.view)
     },
     urls: {
-      site_logo: targetsCfg.site_logo?.url || '',
-      home_center: targetsCfg.home_center?.url || ''
+      site_logo: (targetsCfg.site_logo && targetsCfg.site_logo.url) ? targetsCfg.site_logo.url : '',
+      home_center: (targetsCfg.home_center && targetsCfg.home_center.url) ? targetsCfg.home_center.url : ''
     },
     frames: {
-      site_logo: targetsCfg.site_logo?.frame || { w: 160, h: 45 },
-      home_center: targetsCfg.home_center?.frame || { w: 110, h: 110 }
+      site_logo: (targetsCfg.site_logo && targetsCfg.site_logo.frame) ? targetsCfg.site_logo.frame : { w: 160, h: 45 },
+      home_center: (targetsCfg.home_center && targetsCfg.home_center.frame) ? targetsCfg.home_center.frame : { w: 420, h: 150 }
     }
   };
 
@@ -90,18 +121,11 @@ document.addEventListener('DOMContentLoaded', () => {
     return out;
   }
 
-  function clampActiveView() {
-    const v = state.views[state.activeTarget] || { scale: 1, x: 0, y: 0 };
-    v.scale = Math.max(0.6, Math.min(2.6, Number(v.scale)));
-    v.x = Math.max(-520, Math.min(520, Number(v.x)));
-    v.y = Math.max(-320, Math.min(320, Number(v.y)));
-    state.views[state.activeTarget] = v;
-    return v;
-  }
-
   function applyViewToFrame() {
     if (!frame) return;
-    const v = clampActiveView();
+    const v = normalizeView(state.views[state.activeTarget] || {});
+    state.views[state.activeTarget] = v;
+
     frame.style.setProperty('--knx-logo-scale', String(v.scale));
     frame.style.setProperty('--knx-logo-x', `${v.x}px`);
     frame.style.setProperty('--knx-logo-y', `${v.y}px`);
@@ -117,12 +141,15 @@ document.addEventListener('DOMContentLoaded', () => {
     frame.style.width = `${f.w}px`;
     frame.style.height = `${f.h}px`;
 
+    if (modalTitle) {
+      modalTitle.textContent = (target === 'home_center') ? 'Adjust Home Center Image' : 'Adjust Site Logo';
+    }
+
     const srcFromDom = (target === 'home_center')
       ? (document.getElementById('knxHomeCenterPreview')?.src || '')
       : (document.getElementById('knxBrandingPreview')?.src || '');
 
     frameImg.src = srcFromDom || state.urls[target] || placeholder;
-
     applyViewToFrame();
 
     modal.setAttribute('aria-hidden', 'false');
@@ -153,7 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ptX = (e.touches && e.touches[0]) ? e.touches[0].clientX : e.clientX;
     const ptY = (e.touches && e.touches[0]) ? e.touches[0].clientY : e.clientY;
 
-    const v = clampActiveView();
+    const v = normalizeView(state.views[state.activeTarget] || {});
     startX = ptX;
     startY = ptY;
     baseX = v.x;
@@ -172,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const dx = ptX - startX;
     const dy = ptY - startY;
 
-    const v = clampActiveView();
+    const v = normalizeView(state.views[state.activeTarget] || {});
     v.x = baseX + dx;
     v.y = baseY + dy;
     state.views[state.activeTarget] = v;
@@ -198,7 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (zoomEl) {
     zoomEl.addEventListener('input', () => {
-      const v = clampActiveView();
+      const v = normalizeView(state.views[state.activeTarget] || {});
       v.scale = Number(zoomEl.value);
       state.views[state.activeTarget] = v;
       applyViewToFrame();
@@ -216,17 +243,12 @@ document.addEventListener('DOMContentLoaded', () => {
     applyBtn.addEventListener('click', async () => {
       const ok = await saveBranding({
         target: state.activeTarget,
-        file: null,
-        view: state.views[state.activeTarget],
-        homeHeadline: null
+        view: state.views[state.activeTarget]
       });
       if (ok) closeModal();
     });
   }
 
-  // =========================
-  // Upload wiring
-  // =========================
   wireImageTarget({
     target: 'site_logo',
     fileInputId: 'knxBrandingFileInput',
@@ -249,9 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const uploadBtn = document.getElementById(uploadBtnId);
     const adjustBtn = document.getElementById(adjustBtnId);
 
-    if (adjustBtn) {
-      adjustBtn.addEventListener('click', () => openModal(target));
-    }
+    if (adjustBtn) adjustBtn.addEventListener('click', () => openModal(target));
 
     if (fileInput) {
       fileInput.addEventListener('change', (e) => {
@@ -277,62 +297,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const ok = await saveBranding({
           target,
           file,
-          view: state.views[target],
-          homeHeadline: null
+          view: state.views[target]
         });
 
-        if (ok) {
-          fileInput.value = '';
-        }
+        if (ok) fileInput.value = '';
       });
     }
   }
 
-  // =========================
-  // Home headline save
-  // =========================
-  const headlineInput = document.getElementById('knxHomeHeadlineInput');
-  const headlineSaveBtn = document.getElementById('knxHomeHeadlineSaveBtn');
-  const headlineCount = document.getElementById('knxHomeHeadlineCount');
-  const headlineMaxEl = document.getElementById('knxHomeHeadlineMax');
-
-  const headlineMax = (cfg.home_headline && cfg.home_headline.max) ? parseInt(cfg.home_headline.max, 10) : 160;
-  if (headlineMaxEl) headlineMaxEl.textContent = String(headlineMax);
-
-  function updateHeadlineCount() {
-    if (!headlineInput || !headlineCount) return;
-    headlineCount.textContent = String((headlineInput.value || '').length);
-  }
-  updateHeadlineCount();
-  if (headlineInput) headlineInput.addEventListener('input', updateHeadlineCount);
-
-  if (headlineSaveBtn) {
-    headlineSaveBtn.addEventListener('click', async () => {
-      if (!headlineInput) return;
-
-      let value = (headlineInput.value || '').trim();
-      if (!value) return toast('Please enter a headline.', 'error');
-
-      if (value.length > headlineMax) {
-        value = value.slice(0, headlineMax);
-        headlineInput.value = value;
-        updateHeadlineCount();
-      }
-
-      const ok = await saveBranding({
-        target: 'home_copy',
-        file: null,
-        view: null,
-        homeHeadline: value
-      });
-
-      if (ok) toast('✅ Home headline saved', 'success');
-    });
-  }
-
-  // =========================
-  // REST save helper
-  // =========================
+  // -----------------------------
+  // REST helper
+  // -----------------------------
   async function saveBranding({ target, file, view, homeHeadline }) {
     if (!root || !wpNonce) {
       toast('❌ Missing settings config.', 'error');
@@ -349,24 +324,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (file) formData.append('file', file);
     }
 
-    // Best-effort UI lock
-    const btns = [];
-    if (target === 'home_copy' && headlineSaveBtn) btns.push(headlineSaveBtn);
-    if (target === 'site_logo') {
-      const b = document.getElementById('knxBrandingSaveBtn'); if (b) btns.push(b);
-      const a = document.getElementById('knxBrandingAdjustBtn'); if (a) btns.push(a);
-    }
-    if (target === 'home_center') {
-      const b = document.getElementById('knxHomeCenterSaveBtn'); if (b) btns.push(b);
-      const a = document.getElementById('knxHomeCenterAdjustBtn'); if (a) btns.push(a);
-    }
-    if (applyBtn && (target === 'site_logo' || target === 'home_center')) btns.push(applyBtn);
-
-    const oldText = new Map();
-    btns.forEach(b => { oldText.set(b, b.textContent); b.disabled = true; });
-
-    if (applyBtn && btns.includes(applyBtn)) applyBtn.textContent = 'Saving...';
-
     try {
       const res = await fetch(`${root}knx/v1/save-branding`, {
         method: 'POST',
@@ -380,7 +337,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return false;
       }
 
-      // Update previews if URL returned
       const url = payload.data && payload.data.url ? payload.data.url : '';
       if (url && (target === 'site_logo' || target === 'home_center')) {
         state.urls[target] = url;
@@ -393,33 +349,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      // Persist view in JS state if returned/applied
       if (payload.data && payload.data.view && (target === 'site_logo' || target === 'home_center')) {
         state.views[target] = normalizeView(payload.data.view);
-      } else if (view && (target === 'site_logo' || target === 'home_center')) {
-        state.views[target] = normalizeView(view);
       }
 
-      if (target === 'home_copy') {
-        toast(payload.message || '✅ Saved', 'success');
-      } else {
-        toast(payload.message || '✅ Saved successfully', 'success');
-      }
-
+      toast(payload.message || '✅ Saved successfully', 'success');
       return true;
 
     } catch (e) {
       console.error('[KNX-SETTINGS] saveBranding error:', e);
       toast('❌ Unexpected error while saving.', 'error');
       return false;
-
-    } finally {
-      btns.forEach(b => {
-        b.disabled = false;
-        const t = oldText.get(b);
-        if (t != null) b.textContent = t;
-      });
-      if (applyBtn) applyBtn.textContent = 'Apply';
     }
   }
 });

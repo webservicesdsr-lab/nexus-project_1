@@ -1,154 +1,255 @@
-/* Kingdom Nexus - Home Page (v3.1 clean) */
+/* File: inc/public/home/home.css */
 
-body {
+/**
+ * Kingdom Nexus — Home (v4.2)
+ * - FIX: Removes checkerboard background so transparent PNGs render clean (no diagonal lines)
+ * - Keeps pan/zoom view behavior via CSS vars:
+ *   --knx-home-center-scale, --knx-home-center-x, --knx-home-center-y
+ */
+
+#knx-home.knx-home{
+  --knx-orange: #fb7306;
+  --knx-green: #225638;
+  --knx-text: #111827;
+  --knx-muted: #6b7280;
+  --knx-border: rgba(17,24,39,0.10);
+  --knx-shadow: 0 10px 24px rgba(17,24,39,0.08);
+  --knx-radius: 18px;
+  --knx-max: 980px;
+
   background: #fff;
-  /* font removed to inherit theme typography */
-  margin: 0;
-  padding: 0;
-  color: #fb7306;
+  color: var(--knx-text);
 }
 
-/* ========= Hero ========= */
-.knx-hero {
-  text-align: center;
-  padding: 60px 20px;
-  max-width: 1200px;
+#knx-home .knx-home__inner{
+  max-width: var(--knx-max);
   margin: 0 auto;
-}
-.knx-hero h2 {
-  max-width: 650px;
-  margin: 0 auto 20px;
-  font-size: 24px;
-  font-weight: 600;
-  line-height: 1.4;
-  color: #225638;
-}
-.knx-hero p {
-  color: #444;
-  margin-bottom: 25px;
+  padding: 28px 16px 48px;
+  text-align: center;
 }
 
-/* ========= Search Box ========= */
-.knx-searchbox {
+/* Center art */
+#knx-home .knx-home__center-art{
   display: flex;
+  align-items: center;
   justify-content: center;
-  align-items: flex-start;
-  margin-bottom: 25px;
-  flex-wrap: wrap;
-  gap: 10px;
+  padding: 18px 0 6px;
+  min-height: 108px;
 }
-.knx-search-wrapper {
+
+/* Frame for center image (allows pan/zoom view like settings) */
+#knx-home .knx-home__center-frame{
+  width: 96px;
+  height: 96px;
+  border-radius: 18px;
+  overflow: hidden;
+  position: relative;
+
+  /* View variables (set inline from PHP) */
+  --knx-home-center-scale: 1;
+  --knx-home-center-x: 0px;
+  --knx-home-center-y: 0px;
+
+  /* ✅ FIX: no checkerboard/background pattern (keep true transparency) */
+  background: transparent;
+
+  /* keep subtle depth, but no forced background */
+  box-shadow: 0 12px 30px rgba(17,24,39,0.10);
+}
+
+/* Image uses "fit height first" then pan/zoom via transform */
+#knx-home .knx-home__center-img{
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  height: 100%;
+  width: auto;
+  max-width: none;
+  display: block;
+
+  transform:
+    translate(-50%, -50%)
+    translate(var(--knx-home-center-x), var(--knx-home-center-y))
+    scale(var(--knx-home-center-scale));
+  transform-origin: center;
+}
+
+#knx-home .knx-home__default-icon{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Copy */
+#knx-home .knx-home__copy{
+  padding: 8px 0 18px;
+}
+
+#knx-home .knx-home__title{
+  margin: 0 auto;
+  max-width: 720px;
+  font-size: 28px;
+  line-height: 1.18;
+  letter-spacing: -0.02em;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+#knx-home .knx-home__sub{
+  margin: 18px 0 0 0;
+  font-size: 16px;
+  color: #9ca3af;
+}
+
+/* Search */
+#knx-home .knx-home__search{
+  max-width: 720px;
+  margin: 0 auto;
+  padding-top: 10px;
+}
+
+#knx-home .knx-home__input-row{
+  display: grid;
+  grid-template-columns: 1fr 62px;
+  gap: 10px;
+  align-items: stretch;
+}
+
+#knx-home .knx-home__input-wrap{
+  width: 100%;
+}
+
+/* IMPORTANT: keep .knx-search-wrapper for dropdown positioning */
+#knx-home .knx-search-wrapper{
   position: relative;
   width: 100%;
-  max-width: 400px;
 }
-.knx-search-wrapper input {
-  padding: 12px;
-  font-size: 15px;
-  border: 1px solid #C8BBAA;
-  border-radius: 6px;
+
+#knx-home .knx-home__input{
   width: 100%;
-  background: #fff;
   box-sizing: border-box;
-}
-.knx-search-wrapper input:focus {
+  padding: 16px 16px;
+  height: 56px;
+  font-size: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--knx-border);
+  background: #fff;
+  box-shadow: var(--knx-shadow);
   outline: none;
-  border-color: #225638;
-  box-shadow: 0 0 0 2px rgba(34, 86, 56, 0.1);
 }
 
-/* Search Button (fix: faltaba selector) */
-#knx-search-btn {
-  padding: 12px 24px;
-  background: #fb7306;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  font-size: 15px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background 0.3s;
-  white-space: nowrap;
-}
-#knx-search-btn:hover {
-  background: #18462c;
+#knx-home .knx-home__input:focus{
+  border-color: rgba(34,86,56,0.35);
+  box-shadow: 0 0 0 3px rgba(34,86,56,0.12), var(--knx-shadow);
 }
 
-/* Detect Location Button */
-.knx-detect-btn {
-  padding: 12px 24px;
-  background: #fb7306;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  font-size: 15px;
-  font-weight: bold;
+/* Locate button (pin icon on the right) */
+#knx-home .knx-home__locate-btn{
+  height: 56px;
+  width: 62px;
+  border-radius: 12px;
+  border: 1px solid var(--knx-border);
+  background: #fff;
+  box-shadow: var(--knx-shadow);
   cursor: pointer;
-  transition: all 0.3s;
-  white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(11, 121, 58, 0.3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
-.knx-detect-btn:hover {
-  background: linear-gradient(135deg, #095a2b 0%, #074521 100%);
-  box-shadow: 0 4px 12px rgba(11, 121, 58, 0.4);
+
+#knx-home .knx-home__locate-btn:hover{
   transform: translateY(-1px);
 }
-.knx-detect-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 1px 4px rgba(11, 121, 58, 0.3);
+
+#knx-home .knx-home__locate-icon{
+  font-size: 18px;
+  line-height: 1;
 }
 
-/* ========= Autocomplete ========= */
-.knx-autocomplete-dropdown {
+/* Search main CTA */
+#knx-home #knx-search-btn.knx-home__search-btn{
+  margin-top: 16px;
+  width: min(520px, 100%);
+  height: 62px;
+  border: none;
+  border-radius: 14px;
+  background: var(--knx-orange);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 14px 30px rgba(251,115,6,0.24);
+}
+
+#knx-home #knx-search-btn.knx-home__search-btn:hover{
+  filter: brightness(0.98);
+  transform: translateY(-1px);
+}
+
+#knx-home #knx-search-btn.knx-home__search-btn:active{
+  transform: translateY(0);
+}
+
+/* Status message */
+#knx-home .knx-status-message{
+  margin: 14px auto 0;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  max-width: 680px;
+  display: none;
+  text-align: center;
+}
+
+/* Status types */
+#knx-home .knx-status-info    { background:#e3f2fd; color:#1565c0; border:1px solid #90caf9; }
+#knx-home .knx-status-loading { background:#fff3e0; color:#e65100; border:1px solid #ffb74d; }
+#knx-home .knx-status-success { background:#e8f5e9; color:#2e7d32; border:1px solid #81c784; }
+#knx-home .knx-status-error   { background:#ffebee; color:#c62828; border:1px solid #ef5350; }
+
+/* Autocomplete */
+#knx-home .knx-autocomplete-dropdown{
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   left: 0;
   right: 0;
   background: white;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-  max-height: 300px;
+  border: 1px solid rgba(17,24,39,0.10);
+  border-radius: 14px;
+  box-shadow: 0 18px 44px rgba(17,24,39,0.10);
+  max-height: 280px;
   overflow-y: auto;
   z-index: 1000;
   display: none;
-  will-change: contents;
-  animation: fadeIn 0.15s ease-out;
+  animation: knxFadeIn 0.15s ease-out;
 }
-.knx-autocomplete-item {
+
+#knx-home .knx-autocomplete-item{
   padding: 12px 14px;
   cursor: pointer;
-  transition: background 0.15s ease;
-  border-bottom: 1px solid #f3f4f6;
+  transition: background 0.12s ease;
+  border-bottom: 1px solid rgba(17,24,39,0.06);
   display: flex;
   gap: 10px;
   align-items: center;
 }
-.knx-autocomplete-item:last-child {
-  border-bottom: none;
-  border-radius: 0 0 8px 8px;
-}
-.knx-autocomplete-item:hover {
-  background: #f8fafc;
-}
-.knx-autocomplete-item.knx-no-results {
+
+#knx-home .knx-autocomplete-item:hover{ background: #f8fafc; }
+#knx-home .knx-autocomplete-item:last-child{ border-bottom: none; }
+
+#knx-home .knx-autocomplete-item.knx-no-results{
   color: #999;
   cursor: default;
   justify-content: center;
 }
-.knx-autocomplete-item.knx-no-results:hover {
-  background: white;
-}
-.knx-autocomplete-icon {
-  flex-shrink: 0;
-  font-size: 16px;
-}
-.knx-autocomplete-text {
-  flex: 1;
-  min-width: 0;
-}
-.knx-autocomplete-main {
-  font-weight: 500;
+
+#knx-home .knx-autocomplete-item.knx-no-results:hover{ background: white; }
+
+#knx-home .knx-autocomplete-icon{ flex-shrink: 0; font-size: 16px; }
+#knx-home .knx-autocomplete-text{ flex: 1; min-width: 0; }
+
+#knx-home .knx-autocomplete-main{
+  font-weight: 600;
   color: #111;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -156,174 +257,45 @@ body {
   font-size: 14px;
 }
 
-/* ========= Status ========= */
-.knx-status-message {
-  margin: 15px auto;
-  padding: 12px 20px;
-  border-radius: 6px;
-  font-size: 14px;
-  max-width: 500px;
-  display: none;
-  text-align: center;
-}
-.knx-status-info {
-  background: #e3f2fd;
-  color: #1565c0;
-  border: 1px solid #90caf9;
-}
-.knx-status-loading {
-  background: #fff3e0;
-  color: #e65100;
-  border: 1px solid #ffb74d;
-}
-.knx-status-success {
-  background: #e8f5e9;
-  color: #2e7d32;
-  border: 1px solid #81c784;
-}
-.knx-status-error {
-  background: #ffebee;
-  color: #c62828;
-  border: 1px solid #ef5350;
-}
+/* Cities section */
+#knx-home .knx-home__cities{ margin-top: 36px; }
 
-/* ========= Cities Section ========= */
-.knx-cities-section {
-  margin-top: 50px;
-  max-width: 1000px;
-  margin-left: auto;
-  margin-right: auto;
-}
-.knx-cities-title {
+#knx-home .knx-cities-title{
   font-size: 20px;
-  font-weight: 600;
-  color: #225638;
-  margin-bottom: 20px;
+  font-weight: 800;
+  color: var(--knx-green);
+  margin: 0 0 18px 0;
   text-align: center;
 }
 
-/* Grid contenedor */
-.knx-cities-grid {
+#knx-home .knx-cities-grid{
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
-  padding: 0 20px;
+  padding: 0 6px;
 }
 
-/* Card tipo enlace (todo clicable) */
-.knx-city-card {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  min-height: 80px;
-  padding: 20px 24px;
-  text-decoration: none;
-  color: #1f2937;
-  background: #fff;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  transition: all 0.25s ease;
-  overflow: hidden;
-}
-.knx-city-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0;
-  width: 4px; height: 100%;
-  background: linear-gradient(180deg, #0b793a 0%, #095a2b 100%);
-  opacity: 0;
-  transition: opacity 0.25s ease;
-}
-.knx-city-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 18px rgba(11,121,58,0.12);
-  border-color: #0b793a;
-}
-.knx-city-card:hover::before { opacity: 1; }
-
-.knx-city-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #0b793a 0%, #095a2b 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(11, 121, 58, 0.2);
-}
-.knx-city-icon i { color: #fff; font-size: 22px; }
-
-.knx-city-info { flex: 1; min-width: 0; }
-.knx-city-name {
-  font-size: 16px;
-  font-weight: 700;
-  color: #1f2937;
-  margin: 0 0 6px 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.knx-city-meta {
-  font-size: 13px;
-  color: #6b7280;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.knx-hub-count {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: #f0fdf4;
-  color: #0b793a;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  border: 1px solid #bbf7d0;
+#knx-home .knx-city-card{
+  border-radius: 16px;
+  border: 1px solid rgba(17,24,39,0.08);
+  box-shadow: 0 10px 24px rgba(17,24,39,0.06);
 }
 
-/* Empty */
-.knx-cities-empty {
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: 60px 20px;
-  background: white;
-  border-radius: 12px;
-  border: 2px dashed #e5e7eb;
-}
-.knx-cities-empty i {
-  font-size: 64px;
-  color: #d1d5db;
-  margin-bottom: 20px;
-  display: block;
-}
-.knx-cities-empty h3 {
-  font-size: 20px;
-  font-weight: 700;
-  color: #1f2937;
-  margin: 0 0 8px 0;
-}
-.knx-cities-empty p {
-  font-size: 15px;
-  color: #6b7280;
-  margin: 0;
+#knx-home .knx-city-card:hover{
+  box-shadow: 0 18px 40px rgba(11,121,58,0.12);
 }
 
 /* Responsive */
-@media (max-width: 700px) {
-  .knx-hero { padding: 40px 15px; }
-  .knx-hero h2 { font-size: 20px; }
-  .knx-hero p  { font-size: 14px; }
-  .knx-searchbox { flex-direction: column; align-items: stretch; }
-  .knx-search-wrapper { max-width: 100%; }
-  #knx-search-btn { width: 100%; }
+@media (max-width: 700px){
+  #knx-home .knx-home__inner{ padding-top: 18px; }
+  #knx-home .knx-home__title{ font-size: 26px; }
+}
+
+@media (max-width: 420px){
+  #knx-home .knx-home__title{ font-size: 24px; }
+  #knx-home .knx-home__input-row{ grid-template-columns: 1fr 56px; }
+  #knx-home .knx-home__locate-btn{ width: 56px; }
 }
 
 /* Animations */
-@keyframes fadeIn {
-  from { opacity: 0; } to { opacity: 1; }
-}
+@keyframes knxFadeIn { from { opacity: 0; } to { opacity: 1; } }

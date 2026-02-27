@@ -315,6 +315,36 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     totalEl.textContent = "$" + subtotal.toFixed(2);
+
+    // Render footer actions (Review Cart + Checkout)
+    let footer = document.querySelector('.knx-cart-drawer__footer');
+    if (!footer) {
+      footer = document.createElement('div');
+      footer.className = 'knx-cart-drawer__footer';
+      drawer.appendChild(footer);
+    }
+    // Limpia el contenido previo
+    footer.innerHTML = '';
+
+    // Total row (ya existe visualmente, pero lo agregamos aquí para asegurar consistencia)
+    const totalRow = document.createElement('div');
+    totalRow.className = 'knx-cart-drawer__total';
+    totalRow.innerHTML = `<span>Total</span><strong>${totalEl.textContent}</strong>`;
+    footer.appendChild(totalRow);
+
+    // Botón Review Cart
+    const reviewBtn = document.createElement('a');
+    reviewBtn.href = '/cart';
+    reviewBtn.className = 'knx-cart-drawer__review';
+    reviewBtn.textContent = 'Review Cart';
+    footer.appendChild(reviewBtn);
+
+    // Botón Checkout
+    const checkoutBtn = document.createElement('a');
+    checkoutBtn.href = '/checkout';
+    checkoutBtn.className = 'knx-cart-drawer__checkout';
+    checkoutBtn.textContent = 'Checkout';
+    footer.appendChild(checkoutBtn);
   }
 
   function findItemIndex(cart, key) {

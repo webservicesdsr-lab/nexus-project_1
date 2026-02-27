@@ -1,28 +1,31 @@
 <?php
+// File: inc/public/home/home-shortcode.php
 /**
- * Kingdom Nexus - Home shortcode (landing page)
- * - Renderiza buscador + ciudades (server-side)
- * - Autocomplete por Nominatim en JS
- * - Cards redirigen a /explore-hubs/?location=City%2C%20State
+ * Kingdom Nexus - Home shortcode (landing page) v4.1
+ * - Mobile-first layout (matches app-style screenshot)
+ * - Autocomplete via Nominatim (JS)
+ * - Redirects to /explore-hubs/?location=City%2C%20State
+ *
+ * Canon updates:
+ * - NO wp_enqueue (assets injected via echo like navbar)
+ * - CSS scoped to #knx-home (no global body styling)
+ * - Keeps ALL existing IDs used by JS + detector:
+ *   #knx-address-input, #knx-search-btn, #knx-autocomplete-dropdown,
+ *   #knx-geolocation-status, #knx-detect-location
+ *
+ * v4.1:
+ * - Renders Home Center Image if available (knx_home_center_image)
+ * - Applies saved display view (pan + zoom) via knx_home_center_image_view
+ * - If no image (or image fails), shows a hardcoded RED delivery icon (global)
  */
 if (!defined('ABSPATH')) exit;
 
 function knx_home_shortcode() {
-    // Enqueue estilos/scripts de Home
-    wp_enqueue_style('knx-home', KNX_URL . 'inc/public/home/home.css', [], KNX_VERSION);
-    wp_enqueue_script('knx-home', KNX_URL . 'inc/public/home/home.js', [], KNX_VERSION, true);
 
-    // (Opcional) Módulos de localización si los usas en otras partes
-    wp_enqueue_style('knx-location-modal', KNX_URL . 'inc/modules/home/knx-location-modal.css', [], KNX_VERSION);
-    wp_enqueue_script('knx-location-detector', KNX_URL . 'inc/modules/home/knx-location-detector.js', [], KNX_VERSION, true);
+    // ---- Pass explore URL to JS (no wp_localize) ----
+    $explore_url = home_url('/explore-hubs/');
 
-    // Pasamos la URL base de explore y (si quieres usarlo) endpoint de búsqueda
-    wp_localize_script('knx-home', 'knxHome', [
-        'exploreUrl' => home_url('/explore-hubs/'),
-        // 'restUrl' => rest_url('knx/v1/location-search'), // si lo usas después
-    ]);
-
-    // (Opcional) saludo por sesión
+    // ---- Optional greeting by session ----
     $first_name = '';
     if (isset($_SESSION['knx_user_id'])) {
         global $wpdb;
@@ -33,42 +36,141 @@ function knx_home_shortcode() {
         }
     }
 
+    // ---- Home Center Image + View (pan/zoom) ----
+    $center_img = get_option('knx_home_center_image', '');
+
+    $view_raw = get_option('knx_home_center_image_view', '');
+    $view = ['scale' => 1, 'x' => 0, 'y' => 0];
+
+    if (is_string($view_raw) && $view_raw) {
+        $d = json_decode($view_raw, true);
+        if (is_array($d)) {
+            $view['scale'] = isset($d['scale']) ? floatval($d['scale']) : 1;
+            $view['x']     = isset($d['x']) ? floatval($d['x']) : 0;
+            $view['y']     = isset($d['y']) ? floatval($d['y']) : 0;
+        }
+    }
+
+    // Clamp view to safe ranges
+    $view['scale'] = max(0.6, min(2.6, $view['scale']));
+    $view['x']     = max(-320, min(320, $view['x']));
+    $view['y']     = max(-200, min(200, $view['y']));
+
+    $center_style = sprintf(
+        '--knx-home-center-scale:%s;--knx-home-center-x:%spx;--knx-home-center-y:%spx;',
+        esc_attr($view['scale']),
+        esc_attr($view['x']),
+        esc_attr($view['y'])
+    );
+
+    // ---- Inject Home assets (echo, not enqueue) ----
+    echo '<link rel="stylesheet" href="' . esc_url(KNX_URL . 'inc/public/home/home.css?v=' . KNX_VERSION) . '">';
+    echo '<script src="' . esc_url(KNX_URL . 'inc/public/home/home.js?v=' . KNX_VERSION) . '" defer></script>';
+
+    // Keep your location modules if you rely on them for the detect button
+    echo '<link rel="stylesheet" href="' . esc_url(KNX_URL . 'inc/modules/home/knx-location-modal.css?v=' . KNX_VERSION) . '">';
+    echo '<script src="' . esc_url(KNX_URL . 'inc/modules/home/knx-location-detector.js?v=' . KNX_VERSION) . '" defer></script>';
+
     ob_start();
 ?>
-<div class="knx-hero">
-    <h2>
-        <?php if ($first_name): ?>
-            Welcome back, <?php echo $first_name; ?>! 🎉<br>
-        <?php endif; ?>
-        Every order you place with us makes a meaningful contribution to supporting the Center of Hope Food Pantry in Kankakee.
-    </h2>
-    <p>Enter your address to explore hubs near you</p>
+<section class="knx-home" id="knx-home">
 
-    <div class="knx-searchbox">
-        <div class="knx-search-wrapper">
-            <input 
-                type="text" 
-                id="knx-address-input"
-                placeholder="Enter your city or address"
-                autocomplete="off"
-            />
-            <div id="knx-autocomplete-dropdown" class="knx-autocomplete-dropdown"></div>
+    <div class="knx-home__inner">
+
+        <!-- Center Icon / Image -->
+        <div class="knx-home__center-art">
+
+            <?php if (!empty($center_img)): ?>
+                <!-- Frame ensures consistent size; image display uses saved pan/zoom view -->
+                <div class="knx-home__center-frame" id="knxHomeCenterFrame" style="<?php echo esc_attr($center_style); ?>">
+                    <img class="knx-home__center-img"
+                         id="knxHomeCenterImg"
+                         src="<?php echo esc_url($center_img); ?>"
+                         alt="Home Center Image"
+                         loading="eager"
+                         decoding="async"
+                         onerror="this.style.display='none';document.getElementById('knxHomeDefaultIcon').style.display='flex';">
+                </div>
+            <?php endif; ?>
+
+            <!-- Hardcoded global fallback (RED delivery icon) -->
+            <div class="knx-home__default-icon" id="knxHomeDefaultIcon" style="<?php echo !empty($center_img) ? 'display:none;' : 'display:flex;'; ?>">
+                <!-- Inline SVG: Delivery bag + wheels (RED) -->
+                <svg width="92" height="92" viewBox="0 0 64 64" aria-hidden="true">
+                    <g fill="none" stroke="none">
+                        <!-- Bag body -->
+                        <path d="M18 22c0-6 4-10 10-10h8c6 0 10 4 10 10v22c0 4-3 7-7 7H25c-4 0-7-3-7-7V22z"
+                              fill="#e11d48"/>
+                        <!-- Handle -->
+                        <path d="M26 22c0-3 2-5 5-5h2c3 0 5 2 5 5"
+                              fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+                        <!-- Side strap -->
+                        <path d="M22 30h20" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.9"/>
+                        <!-- Wheels -->
+                        <circle cx="24" cy="52" r="3.2" fill="#111827" opacity="0.92"/>
+                        <circle cx="40" cy="52" r="3.2" fill="#111827" opacity="0.92"/>
+                        <!-- Base -->
+                        <path d="M22 48h20" stroke="#111827" stroke-width="3" stroke-linecap="round" opacity="0.9"/>
+                    </g>
+                </svg>
+            </div>
+
         </div>
 
-        <button type="button" id="knx-search-btn">Find Restaurants</button>
+        <!-- Headline -->
+        <div class="knx-home__copy">
+            <h2 class="knx-home__title">
+                <?php if ($first_name): ?>
+                    Welcome back, <?php echo $first_name; ?>!<br>
+                <?php endif; ?>
+                A percentage of every order placed helps to support non-profits organizations that take care of those who need it in your community
+            </h2>
 
-        <button type="button" id="knx-detect-location" class="knx-detect-btn">
-            📍Detect My Location
-        </button>
+            <p class="knx-home__sub">Enter your street or address</p>
+        </div>
+
+        <!-- Search -->
+        <div class="knx-home__search">
+
+            <div class="knx-home__input-row">
+                <div class="knx-search-wrapper knx-home__input-wrap">
+                    <input
+                        type="text"
+                        id="knx-address-input"
+                        class="knx-home__input"
+                        placeholder="Enter your street or address"
+                        autocomplete="off"
+                    />
+                    <div id="knx-autocomplete-dropdown" class="knx-autocomplete-dropdown"></div>
+                </div>
+
+                <!-- Detect location button (keeps ID for knx-location-detector.js) -->
+                <button type="button" id="knx-detect-location" class="knx-home__locate-btn" aria-label="Detect my location">
+                    <span class="knx-home__locate-icon">📍</span>
+                </button>
+            </div>
+
+            <button type="button" id="knx-search-btn" class="knx-home__search-btn">
+                Search
+            </button>
+
+            <div id="knx-geolocation-status" class="knx-status-message" aria-live="polite"></div>
+        </div>
+
+        <!-- Cities / Cards (kept for now, banner-per-city will move to /edit-city later) -->
+        <div class="knx-cities-section knx-home__cities">
+            <h3 class="knx-cities-title">Cities</h3>
+            <?php echo do_shortcode('[knx_cities_grid]'); ?>
+        </div>
+
     </div>
 
-    <div id="knx-geolocation-status" class="knx-status-message" aria-live="polite"></div>
+    <script>
+        window.knxHome = window.knxHome || {};
+        window.knxHome.exploreUrl = <?php echo json_encode($explore_url); ?>;
+    </script>
 
-    <div class="knx-cities-section">
-        <h3 class="knx-cities-title">Cities</h3>
-        <?php echo do_shortcode('[knx_cities_grid]'); ?>
-    </div>
-</div>
+</section>
 <?php
 
     // Server-side: render corporate sidebar on home only for super_admin
