@@ -244,6 +244,9 @@ function knx_render_checkout_page() {
             cartId: <?php echo wp_json_encode($cart ? (int) $cart->id : 0); ?>,
             hubId: <?php echo wp_json_encode($cart ? (int) $cart->hub_id : 0); ?>,
 
+            // Time slots
+            timeSlotsUrl: <?php echo wp_json_encode(esc_url_raw(rest_url('knx/v1/hubs/' . ($cart ? (int) $cart->hub_id : 0) . '/time-slots'))); ?>,
+
             // Stable UI IDs (A2 contract)
             ui: {
                 rootId: "knx-checkout",
@@ -482,12 +485,28 @@ function knx_render_checkout_page() {
                     <h2>Delivery time</h2>
                 </div>
                 <div class="knx-co-card__body">
+                    <?php
+                    // Server-side time slot rendering (no ASAP — first available slot is default).
+                    // Buffer = 30 min prep + travel ETA (0 here; JS refreshes via ?eta_minutes= after quote).
+                    $time_slots = [];
+                    if ($cart && !empty($cart->hub_id) && function_exists('knx_hours_generate_time_slots')) {
+                        $time_slots = knx_hours_generate_time_slots((int) $cart->hub_id, 0);
+                    }
+                    ?>
                     <select class="knx-co-select" id="knxDeliveryTime">
-                        <option value="asap">As soon as possible</option>
-                        <!-- Future slots injected here -->
+                        <?php if (!empty($time_slots)): ?>
+                            <?php foreach ($time_slots as $i => $ts): ?>
+                                <option value="<?php echo esc_attr($ts['value']); ?>"
+                                        <?php echo $i === 0 ? 'selected' : ''; ?>>
+                                    <?php echo esc_html($ts['label']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <option value="" disabled selected>No slots available right now</option>
+                        <?php endif; ?>
                     </select>
                     <p class="knx-co-helptext">
-                        Delivery times are estimates and may vary based on demand.
+                        ~30 min prep + delivery travel time. Slots update automatically.
                     </p>
                 </div>
             </div>

@@ -134,6 +134,7 @@ add_action('plugins_loaded', function() {
     knx_require('inc/core/resources/knx-hubs/api-update-closure.php');
     knx_require('inc/core/resources/knx-hubs/api-delete-hub.php');
     knx_require('inc/core/resources/knx-hubs/api-update-settings.php');
+    knx_require('inc/core/resources/knx-hubs/api-time-slots.php');
     // Branding API (upload + register branding images)
     knx_require('inc/core/resources/knx-settings/api-brand-logo-upload.php');
 

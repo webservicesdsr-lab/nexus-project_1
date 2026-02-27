@@ -443,3 +443,138 @@ function knx_hours_filter_open_hubs($hub_ids) {
     
     return $open_hub_ids;
 }
+
+/**
+ * Generate available time-slot options for today (same-day only).
+ *
+ * Rules:
+ * - Only today's hub operating hours (no next-day scheduling).
+ * - Earliest slot = now + max(PREP_MINUTES, PREP_MINUTES + $eta_minutes), rounded to :00/:30.
+ *   PREP_MINUTES = 30 (hardcoded default — prep time before driver picks up).
+ *   $eta_minutes = travel time from the distance calculator (0 for pickup).
+ * - Each slot is a 30-min window label: "2:00 PM – 2:30 PM".
+ * - Last slot must end ≥ 15 min before the interval's close time (cutoff).
+ * - Uses hub timezone exclusively (same as availability engine).
+ * - Returns [] if the hub is closed / closing soon / no valid intervals.
+ *
+ * @param int $hub_id     Hub ID
+ * @param int $eta_minutes Travel ETA in minutes from distance calculator (0 = pickup / unknown)
+ * @return array [ ['value'=>'14:00','label'=>'2:00 PM – 2:30 PM'], … ]
+ */
+function knx_hours_generate_time_slots($hub_id, $eta_minutes = 0) {
+    global $wpdb;
+
+    $hub_id = (int) $hub_id;
+    if ($hub_id <= 0) return [];
+
+    $table = $wpdb->prefix . 'knx_hubs';
+    $hub   = $wpdb->get_row($wpdb->prepare(
+        "SELECT timezone,
+                hours_monday, hours_tuesday, hours_wednesday,
+                hours_thursday, hours_friday, hours_saturday, hours_sunday,
+                closure_until, closure_reason, status
+         FROM {$table}
+         WHERE id = %d LIMIT 1",
+        $hub_id
+    ));
+
+    if (!$hub || empty($hub->status) || $hub->status !== 'active') return [];
+
+    // Hub timezone — fail closed if missing/invalid
+    $tz_name = !empty($hub->timezone) ? trim($hub->timezone) : '';
+    if ($tz_name === '') return [];
+    try {
+        $tz = new DateTimeZone($tz_name);
+    } catch (Exception $e) {
+        return [];
+    }
+
+    $now = new DateTime('now', $tz);
+
+    // Skip if temporarily closed
+    $closure_until_raw = !empty($hub->closure_until) ? trim((string) $hub->closure_until) : '';
+    $closure_reason    = !empty($hub->closure_reason) ? trim((string) $hub->closure_reason) : '';
+    if ($closure_reason !== '' && $closure_until_raw === '') return []; // indefinite
+    if ($closure_until_raw !== '') {
+        try {
+            $cu_dt = new DateTime($closure_until_raw, $tz);
+            if ($now <= $cu_dt) return [];
+        } catch (Exception $e) {
+            return [];
+        }
+    }
+
+    // Get today's intervals
+    $day = strtolower($now->format('l'));
+    $intervals = knx_hours_get_intervals($hub, $day);
+    if (empty($intervals)) return [];
+
+    // Earliest slot = now + prep_minutes + travel_minutes, rounded up to next :00 or :30.
+    // prep_minutes: 30 min (hardcoded — time for kitchen to prepare before driver pickup).
+    // eta_minutes: delivery travel time from distance calculator (0 for pickup).
+    $prep_minutes  = 30;
+    $travel        = max(0, (int) $eta_minutes);
+    $buffer        = $prep_minutes + $travel;
+
+    $earliest = clone $now;
+    $earliest->modify("+{$buffer} minutes");
+    $min = (int) $earliest->format('i');
+    if ($min === 0 || $min === 30) {
+        // already on a clean boundary — no adjustment needed
+    } elseif ($min < 30) {
+        $earliest->setTime((int) $earliest->format('H'), 30);
+    } else {
+        $earliest->modify('+1 hour');
+        $earliest->setTime((int) $earliest->format('H'), 0);
+    }
+
+    $slot_duration = 30; // minutes
+    $cutoff        = 15; // minutes before close
+    $slots         = [];
+
+    $today_str = $now->format('Y-m-d');
+
+    foreach ($intervals as $intv) {
+        $open  = $intv['open'];
+        $close = $intv['close'];
+
+        // Reject overnight
+        if ($close <= $open) continue;
+
+        try {
+            $open_dt  = new DateTime($today_str . ' ' . $open, $tz);
+            $close_dt = new DateTime($today_str . ' ' . $close, $tz);
+        } catch (Exception $e) {
+            continue;
+        }
+
+        // Last order cutoff
+        $last_slot_end = clone $close_dt;
+        $last_slot_end->modify("-{$cutoff} minutes");
+
+        // Walk through 30-min slots within this interval
+        $cursor = clone $open_dt;
+
+        // Advance cursor to the earliest allowed slot if needed
+        if ($cursor < $earliest) {
+            $cursor = clone $earliest;
+        }
+
+        while (true) {
+            $slot_end = clone $cursor;
+            $slot_end->modify("+{$slot_duration} minutes");
+
+            // Slot end must be within the last-order cutoff
+            if ($slot_end > $last_slot_end) break;
+
+            $slots[] = [
+                'value' => $cursor->format('H:i'),
+                'label' => $cursor->format('g:i A') . ' – ' . $slot_end->format('g:i A'),
+            ];
+
+            $cursor = $slot_end;
+        }
+    }
+
+    return $slots;
+}

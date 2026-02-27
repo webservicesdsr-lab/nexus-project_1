@@ -453,29 +453,55 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
             }
         }
 
-        // If frontend provided an explicit delivery_time (not 'asap'), try to parse and prefer it
-        if (!empty($delivery_time) && strtolower($delivery_time) !== 'asap') {
+        // Delivery time is always an explicit HH:MM slot (no ASAP fallback).
+        // Validate it exists in today's generated slots for this hub.
+        if (!empty($delivery_time) && preg_match('/^\d{2}:\d{2}$/', $delivery_time)) {
             try {
-                // Accept either full ISO or HH:MM for same-day
-                $parsed = null;
-                if (preg_match('/^\d{2}:\d{2}$/', $delivery_time)) {
-                    // Today's date + provided time (server timezone)
-                    $today = (new DateTime())->format('Y-m-d');
-                    $parsed = new DateTime($today . ' ' . $delivery_time);
+                $eta_from_snap = isset($delivery_snapshot_v46['distance']['eta_minutes'])
+                    ? (int) $delivery_snapshot_v46['distance']['eta_minutes']
+                    : 0;
+
+                $slot_valid = false;
+                if (function_exists('knx_hours_generate_time_slots')) {
+                    $valid_slots = knx_hours_generate_time_slots($hub_id, $eta_from_snap);
+                    foreach ($valid_slots as $vs) {
+                        if ($vs['value'] === $delivery_time) {
+                            $slot_valid = true;
+                            break;
+                        }
+                    }
                 } else {
-                    $parsed = new DateTime($delivery_time);
+                    // Hours engine missing — accept any future HH:MM (backwards compat)
+                    $slot_valid = true;
                 }
 
-                if ($parsed) {
-                    // Only accept future times (>= now)
-                    $now_dt = new DateTime(current_time('mysql'));
-                    if ($parsed >= $now_dt) {
-                        $estimated_delivery_at = $parsed->format('Y-m-d H:i:s');
-                    }
+                if (!$slot_valid) {
+                    return new WP_REST_Response([
+                        'success' => false,
+                        'reason'  => 'INVALID_TIME_SLOT',
+                        'message' => 'The selected delivery time is no longer available. Please choose another slot.',
+                    ], 409);
                 }
+
+                // Slot is valid — set estimated_delivery_at to the chosen slot time
+                $today  = (new DateTime())->format('Y-m-d');
+                $parsed = new DateTime($today . ' ' . $delivery_time);
+                $estimated_delivery_at = $parsed->format('Y-m-d H:i:s');
+
             } catch (Exception $e) {
-                // ignore parse errors and keep previous ETA if present
+                return new WP_REST_Response([
+                    'success' => false,
+                    'reason'  => 'INVALID_TIME_SLOT',
+                    'message' => 'Could not parse the selected delivery time.',
+                ], 409);
             }
+        } else {
+            // No valid HH:MM slot provided — reject
+            return new WP_REST_Response([
+                'success' => false,
+                'reason'  => 'TIME_SLOT_REQUIRED',
+                'message' => 'Please select a delivery time slot before placing your order.',
+            ], 409);
         }
     }
 
@@ -578,6 +604,7 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
         'is_snapshot_locked' => true,
         'is_cart_detached'   => true,
         'finalized_at'       => $now,
+        'time_slot'          => $delivery_time, // always HH:MM — validated above
     ];
 
     if ($fulfillment_type === 'delivery') {
