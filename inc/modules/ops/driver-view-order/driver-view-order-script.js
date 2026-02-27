@@ -861,11 +861,213 @@
 
         renderOrder(order);
         renderActionButtons(order);
+
+        // Init chat panel after order is rendered
+        const terminalSt = ['completed', 'cancelled'];
+        const stCheck = String((order.status || '')).toLowerCase();
+        initDriverChat(terminalSt.includes(stCheck));
       } catch (e) {
         setState('');
         renderError('Network error', 'Check connection or session.');
         toast('Network error', 'error');
       }
+    }
+
+    // ══════════════════════════════════════════════════════
+    // DRIVER CHAT — Driver ↔ Customer
+    // ══════════════════════════════════════════════════════
+
+    const MSG_POLL_MS = 10000;
+    let msgPollTimer = null;
+    let chatInitialized = false;
+    let chatIsTerminal = false;
+
+    function buildMsgApiBase() {
+      // apiUrl: https://example.com/wp-json/knx/v2/driver/orders
+      // target: https://example.com/wp-json/knx/v1/orders/
+      return apiUrl.replace(/\/knx\/v2\/driver\/orders.*$/, '/knx/v1/orders/');
+    }
+
+    function initDriverChat(isTerminal) {
+      chatIsTerminal = isTerminal;
+
+      if (chatInitialized) {
+        if (isTerminal) {
+          const inp = document.getElementById('knxDriverChatInput');
+          const btn = document.getElementById('knxDriverChatSend');
+          if (inp) { inp.disabled = true; inp.placeholder = 'Order is closed.'; }
+          if (btn) btn.disabled = true;
+          stopDriverMsgPolling();
+        }
+        return;
+      }
+
+      chatInitialized = true;
+
+      const rightPanel = contentEl.querySelector('.knx-ops-vo__right .knx-ops-vo__panel');
+      if (!rightPanel) return;
+
+      const panel = document.createElement('div');
+      panel.id = 'knxDriverChatPanel';
+      panel.className = 'knx-ops-vo__panel knx-ops-vo__chat';
+      panel.innerHTML = `
+        <div class="knx-ops-vo__chat-header">
+          <span class="knx-ops-vo__chat-icon">💬</span>
+          <span class="knx-ops-vo__chat-title">Chat with customer</span>
+        </div>
+        <div id="knxDriverChatMessages" class="knx-ops-vo__chat-messages"></div>
+        <div class="knx-ops-vo__chat-footer">
+          <textarea
+            id="knxDriverChatInput"
+            class="knx-ops-vo__chat-input"
+            rows="1"
+            maxlength="1000"
+            ${isTerminal ? 'disabled placeholder="Order is closed."' : 'placeholder="Type a message\u2026"'}
+          ></textarea>
+          <button id="knxDriverChatSend" class="knx-ops-vo__chat-send" ${isTerminal ? 'disabled' : ''} aria-label="Send">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+          </button>
+        </div>
+      `;
+
+      rightPanel.insertAdjacentElement('afterend', panel);
+
+      const input = document.getElementById('knxDriverChatInput');
+      if (input) {
+        input.addEventListener('input', () => {
+          input.style.height = 'auto';
+          input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+        });
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendDriverMessage(); }
+        });
+      }
+
+      const sendBtn = document.getElementById('knxDriverChatSend');
+      if (sendBtn) sendBtn.addEventListener('click', sendDriverMessage);
+
+      fetchDriverMessages();
+      if (!isTerminal) startDriverMsgPolling();
+    }
+
+    function fetchDriverMessages() {
+      if (!orderId) return;
+      const base = buildMsgApiBase().replace(/\/+$/, '') + '/';
+      const url = base + orderId + '/messages';
+      const headers = {};
+      if (restNonce) headers['X-WP-Nonce'] = restNonce;
+
+      fetch(url, { credentials: 'same-origin', headers })
+        .then(r => r.json().catch(() => null))
+        .then(data => {
+          if (!data || !data.success) return;
+          renderDriverMessages(data.messages || []);
+          if (data.unread_count > 0) markDriverMessagesRead();
+        })
+        .catch(() => {});
+    }
+
+    function renderDriverMessages(messages) {
+      const el = document.getElementById('knxDriverChatMessages');
+      if (!el) return;
+
+      if (!messages.length) {
+        el.innerHTML = '<div class="knx-ops-vo__chat-empty">No messages yet.</div>';
+        return;
+      }
+
+      const rows = messages.map(m => {
+        const role = String(m.sender_role || '');
+
+        if (role === 'system') {
+          return `<div class="knx-ops-vo__chat-msg knx-ops-vo__chat-msg--system"><span>${esc(m.body)}</span></div>`;
+        }
+
+        const isMine = role === 'driver';
+        const cls = `knx-ops-vo__chat-msg ${isMine ? 'knx-ops-vo__chat-msg--mine' : 'knx-ops-vo__chat-msg--theirs'}`;
+        const label = isMine ? 'You' : '\u{1F464} Customer';
+        const time = m.created_at ? formatMsgTime(m.created_at) : '';
+
+        return `
+          <div class="${cls}">
+            <div class="knx-ops-vo__chat-bubble">
+              <div class="knx-ops-vo__chat-meta">${esc(label)}${time ? ' · ' + esc(time) : ''}</div>
+              <div class="knx-ops-vo__chat-text">${esc(m.body)}</div>
+            </div>
+          </div>`;
+      }).join('');
+
+      const prevHeight = el.scrollHeight;
+      const wasAtBottom = el.scrollTop + el.clientHeight >= prevHeight - 10;
+      el.innerHTML = rows;
+      if (wasAtBottom) el.scrollTop = el.scrollHeight;
+    }
+
+    function sendDriverMessage() {
+      const input = document.getElementById('knxDriverChatInput');
+      const sendBtn = document.getElementById('knxDriverChatSend');
+      if (!input) return;
+
+      const body = input.value.trim();
+      if (!body || chatIsTerminal) return;
+
+      input.disabled = true;
+      if (sendBtn) sendBtn.disabled = true;
+
+      const base = buildMsgApiBase().replace(/\/+$/, '') + '/';
+      const url = base + orderId + '/messages';
+      const headers = { 'Content-Type': 'application/json' };
+      if (restNonce) headers['X-WP-Nonce'] = restNonce;
+
+      fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers,
+        body: JSON.stringify({ body }),
+      })
+        .then(r => r.json().catch(() => null))
+        .then(data => {
+          if (data && data.success) {
+            input.value = '';
+            input.style.height = 'auto';
+            fetchDriverMessages();
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          input.disabled = chatIsTerminal;
+          if (sendBtn) sendBtn.disabled = chatIsTerminal;
+          if (!chatIsTerminal) input.focus();
+        });
+    }
+
+    function markDriverMessagesRead() {
+      if (!orderId) return;
+      const base = buildMsgApiBase().replace(/\/+$/, '') + '/';
+      const url = base + orderId + '/messages/read';
+      const headers = {};
+      if (restNonce) headers['X-WP-Nonce'] = restNonce;
+      fetch(url, { method: 'POST', credentials: 'same-origin', headers }).catch(() => {});
+    }
+
+    function startDriverMsgPolling() {
+      stopDriverMsgPolling();
+      msgPollTimer = setInterval(() => {
+        if (document.hidden) return;
+        fetchDriverMessages();
+      }, MSG_POLL_MS);
+    }
+
+    function stopDriverMsgPolling() {
+      if (msgPollTimer) { clearInterval(msgPollTimer); msgPollTimer = null; }
+    }
+
+    function formatMsgTime(dateStr) {
+      if (!dateStr) return '';
+      try {
+        const d = new Date(String(dateStr).replace(' ', 'T'));
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      } catch (e) { return ''; }
     }
 
     fetchOrder();

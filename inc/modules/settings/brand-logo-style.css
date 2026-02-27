@@ -1,0 +1,154 @@
+/* File: inc/modules/settings/settings-style.css */
+
+/**
+ * ==========================================================
+ * Kingdom Nexus — Settings (Site Branding) Styles (v1.0)
+ * ----------------------------------------------------------
+ * - Scoped to #knx-settings
+ * - Mobile-first
+ * - Nexus Shell-ish card + buttons
+ * ==========================================================
+ */
+
+#knx-settings.knx-settings-wrap{
+  --knx-green: #0b793a;
+  --knx-green-hover: #096c33;
+  --knx-text: #0b1220;
+  --knx-muted: #6b7280;
+  --knx-border: rgba(11,18,32,0.10);
+  --knx-bg: #f6f7f9;
+  --knx-card: #ffffff;
+  --knx-shadow: 0 18px 44px rgba(11,18,32,0.10);
+
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  color: var(--knx-text);
+}
+
+#knx-settings{
+  padding: 18px;
+}
+
+#knx-settings .knx-settings-card{
+  background: var(--knx-card);
+  border: 1px solid var(--knx-border);
+  border-radius: 16px;
+  box-shadow: var(--knx-shadow);
+  padding: 16px;
+  max-width: 880px;
+  margin: 0 auto;
+}
+
+#knx-settings .knx-settings-head h2{
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+
+#knx-settings .knx-settings-sub{
+  margin: 6px 0 0 0;
+  color: var(--knx-muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+#knx-settings .knx-settings-error{
+  margin: 10px 0 0 0;
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+#knx-settings .knx-settings-branding{
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+#knx-settings .knx-settings-preview{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--knx-bg);
+  border: 1px dashed var(--knx-border);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+#knx-settings .knx-settings-preview img{
+  width: 210px;
+  height: auto;
+  border-radius: 14px;
+  border: 1px solid var(--knx-border);
+  background: #fff;
+}
+
+#knx-settings .knx-settings-actions{
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#knx-settings .knx-settings-file{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--knx-border);
+  background: #fff;
+  border-radius: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  width: fit-content;
+  user-select: none;
+}
+
+#knx-settings .knx-settings-file input{
+  display: none;
+}
+
+#knx-settings .knx-settings-file span{
+  font-size: 13px;
+  color: var(--knx-text);
+}
+
+#knx-settings .knx-btn-primary{
+  appearance: none;
+  border: 0;
+  border-radius: 12px;
+  padding: 11px 14px;
+  background: var(--knx-green);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  width: fit-content;
+}
+
+#knx-settings .knx-btn-primary:hover{
+  background: var(--knx-green-hover);
+}
+
+#knx-settings .knx-btn-primary:disabled{
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+#knx-settings .knx-settings-hint{
+  margin: 0;
+  color: var(--knx-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+/* Desktop */
+@media (min-width: 900px){
+  #knx-settings .knx-settings-card{
+    padding: 18px;
+  }
+  #knx-settings .knx-settings-branding{
+    grid-template-columns: 320px 1fr;
+    align-items: start;
+  }
+  #knx-settings .knx-settings-preview{
+    justify-content: flex-start;
+  }
+}

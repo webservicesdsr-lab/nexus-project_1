@@ -1,69 +1,117 @@
 <?php
-/**
- * KNX — Settings shortcode (site branding)
- * Shortcode: [knx_settings]
- *
- * Allows administrators to set the site logo (stores URL in option 'knx_site_logo').
- */
-
+// File: inc/modules/settings/settings-shortcode.php
 if (!defined('ABSPATH')) exit;
 
+/**
+ * ==========================================================
+ * Kingdom Nexus — Settings (Site Branding) Shortcode (v1.0)
+ * Shortcode: [knx_settings]
+ *
+ * Canon:
+ * - No wp_enqueue
+ * - Self-contained assets via echo
+ * - Fail-closed auth (super_admin)
+ * - Uses REST endpoint /knx/v1/save-branding
+ * ==========================================================
+ */
+
 function knx_settings_shortcode() {
-    // Enqueue assets (use KNX_URL + KNX_VERSION)
-    wp_enqueue_style('knx-settings', KNX_URL . 'inc/modules/settings/settings.css', [], KNX_VERSION);
-    wp_enqueue_script('knx-settings', KNX_URL . 'inc/modules/settings/settings.js', ['jquery'], KNX_VERSION, true);
 
-    // WP media required for media frame
-    wp_enqueue_media();
+    // ---- Auth guard (fail-closed) ----
+    $ok = function_exists('knx_require_role') ? knx_require_role('super_admin') : false;
+    if (!$ok) {
+        return '<div class="knx-settings-wrap" id="knx-settings">
+            <div class="knx-settings-card">
+                <h2>Settings</h2>
+                <p class="knx-settings-error">Access denied. Only super_admin may change branding.</p>
+            </div>
+        </div>';
+    }
 
-    // Localize some values (if needed for AJAX later)
-    wp_localize_script('knx-settings', 'knxSettings', [
-        'nonce' => wp_create_nonce('knx_settings_save_nonce'),
-    ]);
+    $upload      = wp_upload_dir();
+    $current_logo = get_option('knx_site_logo', '');
 
-    $message = '';
-    // Handle POST save (only admins)
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['knx_settings_save'])) {
-        if (! isset($_POST['knx_settings_nonce']) || ! wp_verify_nonce($_POST['knx_settings_nonce'], 'knx_settings_save')) {
-            $message = '<div class="knx-settings-error">Invalid request (nonce).</div>';
-        } elseif (! current_user_can('manage_options')) {
-            $message = '<div class="knx-settings-error">Permission denied.</div>';
-        } else {
-            $logo = isset($_POST['knx_site_logo']) ? esc_url_raw(trim((string) $_POST['knx_site_logo'])) : '';
-            update_option('knx_site_logo', $logo);
-            $message = '<div class="knx-settings-success">Settings saved.</div>';
+    // ---- Auto-heal broken stored URLs (disk missing) ----
+    if ($current_logo && !empty($upload['baseurl']) && !empty($upload['basedir'])) {
+        $relative  = str_replace(trailingslashit($upload['baseurl']), '', $current_logo);
+        $disk_path = trailingslashit($upload['basedir']) . ltrim($relative, '/');
+        if (!file_exists($disk_path)) {
+            delete_option('knx_site_logo');
+            delete_option('knx_site_logo_id');
+            $current_logo = '';
         }
     }
 
-    $current_logo = get_option('knx_site_logo', '');
+    // ---- Safe placeholder (no 404) ----
+    $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="160" height="120" viewBox="0 0 160 120">
+      <rect x="0" y="0" width="160" height="120" rx="14" fill="#f3f4f6"/>
+      <rect x="18" y="18" width="124" height="84" rx="12" fill="#ffffff" stroke="#e5e7eb"/>
+      <path d="M46 78l16-18 14 16 12-12 26 30H46z" fill="#e5e7eb"/>
+      <circle cx="64" cy="52" r="8" fill="#e5e7eb"/>
+      <text x="80" y="108" text-anchor="middle" font-size="10" fill="#9ca3af" font-family="Arial, sans-serif">NO LOGO</text>
+    </svg>';
+    $placeholder = 'data:image/svg+xml;base64,' . base64_encode($svg);
+
+    // ---- Assets ----
+    $ver = defined('KNX_VERSION') ? KNX_VERSION : time();
+    $css_url = defined('KNX_URL') ? (KNX_URL . 'inc/modules/settings/brand-logo-style.css?v=' . rawurlencode($ver)) : '';
+    $js_url  = defined('KNX_URL') ? (KNX_URL . 'inc/modules/settings/brand-logo-upload.js?v=' . rawurlencode($ver)) : '';
+
+    $root = esc_url_raw(rest_url()); // ends with /wp-json/
+    $wp_nonce = wp_create_nonce('wp_rest');
 
     ob_start();
-    echo '<div class="knx-settings-wrap">';
-    echo $message;
+    ?>
+    <div class="knx-settings-wrap" id="knx-settings">
 
-    if (! current_user_can('manage_options')) {
-        echo '<p class="knx-settings-note">You must be an administrator to change branding settings. Please <a href="' . esc_url(wp_login_url()) . '">log in</a>.</p>';
-    }
+        <?php if ($css_url): ?>
+            <link rel="stylesheet" href="<?php echo esc_url($css_url); ?>">
+        <?php endif; ?>
 
-    echo '<form method="post" class="knx-settings-form" action="' . esc_url( $_SERVER['REQUEST_URI'] ) . '">';
-    wp_nonce_field('knx_settings_save', 'knx_settings_nonce');
-    echo '<input type="hidden" name="knx_settings_save" value="1" />';
+        <div class="knx-settings-card">
+            <div class="knx-settings-head">
+                <h2>Site Branding</h2>
+                <p class="knx-settings-sub">Upload a logo for the platform. This will be used across the Nexus Shell UI.</p>
+            </div>
 
-    echo '<div class="knx-settings-field">';
-    echo '<label for="knx_site_logo">Site logo</label>';
-    if ($current_logo) {
-        echo '<div class="knx-settings-logo-preview"><img src="' . esc_url($current_logo) . '" alt="Logo preview"></div>';
-    }
-    echo '<div class="knx-settings-controls">';
-    echo '<input type="text" id="knx_site_logo" name="knx_site_logo" value="' . esc_attr($current_logo) . '" placeholder="Logo URL or choose from Media Library" />';
-    echo '<button type="button" class="knx-btn knx-upload-logo">Choose / Upload</button>';
-    echo '<button type="submit" class="knx-btn knx-save-settings">Save</button>';
-    echo '</div>'; // controls
-    echo '</div>'; // field
+            <div class="knx-settings-branding">
+                <div class="knx-settings-preview">
+                    <img
+                        id="knxBrandingPreview"
+                        src="<?php echo esc_url($current_logo ?: $placeholder); ?>"
+                        alt="Site Logo"
+                        onerror="this.onerror=null;this.src='<?php echo esc_js($placeholder); ?>';"
+                    >
+                </div>
 
-    echo '</form>';
-    echo '</div>';
+                <div class="knx-settings-actions">
+                    <label class="knx-settings-file">
+                        <input type="file" id="knxBrandingFileInput" accept="image/jpeg,image/png,image/webp">
+                        <span>Select image</span>
+                    </label>
 
+                    <button id="knxBrandingSaveBtn" class="knx-btn-primary" type="button">
+                        Upload
+                    </button>
+
+                    <p class="knx-settings-hint">JPG, PNG, WEBP. Max 5MB. Will be cropped to 590×400.</p>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            window.knx_settings = {
+                root: <?php echo json_encode($root); ?>,
+                wp_nonce: <?php echo json_encode($wp_nonce); ?>
+            };
+        </script>
+
+        <?php if ($js_url): ?>
+            <script src="<?php echo esc_url($js_url); ?>" defer></script>
+        <?php endif; ?>
+
+    </div>
+    <?php
     return ob_get_clean();
 }
 

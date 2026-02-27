@@ -1078,6 +1078,27 @@ CREATE TABLE `y05_knx_email_verifications` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 /* =========================================================
+   ORDER MESSAGES (Driver ↔ Customer chat per order)
+   ========================================================= */
+DROP TABLE IF EXISTS `y05_knx_order_messages`;
+CREATE TABLE `y05_knx_order_messages` (
+  `id`             bigint UNSIGNED NOT NULL AUTO_INCREMENT,
+  `order_id`       bigint UNSIGNED NOT NULL,
+  `sender_user_id` bigint UNSIGNED DEFAULT NULL,
+  `sender_role`    enum('driver','customer','system') NOT NULL DEFAULT 'system',
+  `body`           text NOT NULL,
+  `read_at`        datetime DEFAULT NULL,
+  `created_at`     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_order_id` (`order_id`),
+  KEY `idx_created_at` (`created_at`),
+  KEY `idx_read_at` (`read_at`),
+  CONSTRAINT `fk_order_messages_order` FOREIGN KEY (`order_id`) REFERENCES `y05_knx_orders` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_order_messages_sender` FOREIGN KEY (`sender_user_id`) REFERENCES `y05_knx_users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Per-order chat thread between driver and customer';
+
+/* =========================================================
    DONE
    ========================================================= */
 SET FOREIGN_KEY_CHECKS = 1;

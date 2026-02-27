@@ -5,6 +5,7 @@
  * - Fetches GET /knx/v1/orders/{id}
  * - Renders: timeline, restaurant, items, totals, delivery
  * - Auto-polls every 15s (pauses when tab hidden or terminal)
+ * - Driver ↔ Customer chat panel (polls every 10s)
  * - Nexus Shell UX
  * ==========================================================
  */
@@ -12,6 +13,7 @@
   'use strict';
 
   var POLL_MS = 15000;
+  var MSG_POLL_MS = 10000;
   var TERMINAL_STATUSES = ['completed', 'cancelled'];
 
   var root = document.getElementById('knx-order-status');
@@ -25,7 +27,10 @@
   var homeUrl = root.dataset.homeUrl || '/';
 
   var pollTimer = null;
+  var msgPollTimer = null;
   var lastStatus = null;
+  var msgPanelRendered = false;
+  var isTerminalOrder = false;
 
   function esc(s) {
     return String(s == null ? '' : s)
@@ -314,6 +319,178 @@
 
     contentEl.innerHTML = html;
     lastStatus = status;
+
+    // Init or refresh the chat panel after order is rendered
+    isTerminalOrder = isTerminal;
+    if (!msgPanelRendered) {
+      renderChatPanel(isTerminal);
+      msgPanelRendered = true;
+    } else {
+      // Update read-only state if order just became terminal
+      var chatInput = document.getElementById('knxChatInput');
+      var chatSend  = document.getElementById('knxChatSend');
+      if (isTerminal) {
+        if (chatInput) { chatInput.disabled = true; chatInput.placeholder = 'Order is closed.'; }
+        if (chatSend)  chatSend.disabled = true;
+        stopMsgPolling();
+      }
+    }
+  }
+
+  // ══════════════════════════════════════════════════════
+  // CHAT PANEL — Driver ↔ Customer
+  // ══════════════════════════════════════════════════════
+
+  function renderChatPanel(isTerminal) {
+    var wrap = document.getElementById('knxChatWrap');
+    if (wrap) return; // already in DOM
+
+    var panel = document.createElement('div');
+    panel.id = 'knxChatWrap';
+    panel.className = 'knx-os__chat';
+    panel.innerHTML =
+      '<div class="knx-os__chat-header">' +
+        '<span class="knx-os__chat-icon">💬</span>' +
+        '<span class="knx-os__chat-title">Chat with your driver</span>' +
+      '</div>' +
+      '<div id="knxChatMessages" class="knx-os__chat-messages"></div>' +
+      '<div class="knx-os__chat-footer">' +
+        '<textarea id="knxChatInput" class="knx-os__chat-input"' +
+          (isTerminal ? ' disabled placeholder="Order is closed."' : ' placeholder="Type a message…"') +
+          ' rows="1" maxlength="1000"></textarea>' +
+        '<button id="knxChatSend" class="knx-os__chat-send"' + (isTerminal ? ' disabled' : '') + ' aria-label="Send">' +
+          '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>' +
+        '</button>' +
+      '</div>';
+
+    // Append below the order content shell
+    var shell = document.querySelector('.knx-os__shell');
+    if (shell) shell.appendChild(panel);
+
+    // Auto-resize textarea
+    var input = document.getElementById('knxChatInput');
+    if (input) {
+      input.addEventListener('input', function () {
+        input.style.height = 'auto';
+        input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+      });
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); }
+      });
+    }
+
+    var sendBtn = document.getElementById('knxChatSend');
+    if (sendBtn) sendBtn.addEventListener('click', sendChatMessage);
+
+    // Initial fetch
+    fetchMessages();
+    if (!isTerminal) startMsgPolling();
+  }
+
+  function fetchMessages() {
+    if (!orderId) return;
+    var url = apiBase + orderId + '/messages';
+    fetch(url, { method: 'GET', credentials: 'include' })
+      .then(function (r) { return r.json().catch(function () { return null; }); })
+      .then(function (data) {
+        if (!data || !data.success) return;
+        renderMessages(data.messages || [], data.my_role || 'customer');
+        // Mark messages from driver as read
+        if (data.unread_count > 0) markMessagesRead();
+      })
+      .catch(function () {});
+  }
+
+  function renderMessages(messages, myRole) {
+    var el = document.getElementById('knxChatMessages');
+    if (!el) return;
+
+    if (!messages.length) {
+      el.innerHTML = '<div class="knx-os__chat-empty">No messages yet.</div>';
+      return;
+    }
+
+    var html = '';
+    for (var i = 0; i < messages.length; i++) {
+      var m = messages[i];
+      var role = String(m.sender_role || '');
+
+      if (role === 'system') {
+        html += '<div class="knx-os__chat-msg knx-os__chat-msg--system">' +
+                  '<span>' + esc(m.body) + '</span>' +
+                '</div>';
+        continue;
+      }
+
+      var isMine = (role === myRole);
+      var cls = 'knx-os__chat-msg ' + (isMine ? 'knx-os__chat-msg--mine' : 'knx-os__chat-msg--theirs');
+      var label = isMine ? 'You' : (role === 'driver' ? '🚗 Driver' : '👤 Customer');
+      var time = m.created_at ? formatTime(m.created_at) : '';
+
+      html += '<div class="' + cls + '">' +
+                '<div class="knx-os__chat-bubble">' +
+                  '<div class="knx-os__chat-meta">' + esc(label) + (time ? ' · ' + esc(time) : '') + '</div>' +
+                  '<div class="knx-os__chat-text">' + esc(m.body) + '</div>' +
+                '</div>' +
+              '</div>';
+    }
+
+    var prevHeight = el.scrollHeight;
+    var wasAtBottom = el.scrollTop + el.clientHeight >= prevHeight - 10;
+    el.innerHTML = html;
+    if (wasAtBottom) el.scrollTop = el.scrollHeight;
+  }
+
+  function sendChatMessage() {
+    var input = document.getElementById('knxChatInput');
+    var sendBtn = document.getElementById('knxChatSend');
+    if (!input) return;
+
+    var body = input.value.trim();
+    if (!body || isTerminalOrder) return;
+
+    input.disabled = true;
+    if (sendBtn) sendBtn.disabled = true;
+
+    var url = apiBase + orderId + '/messages';
+    fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body: body }),
+    })
+      .then(function (r) { return r.json().catch(function () { return null; }); })
+      .then(function (data) {
+        if (data && data.success) {
+          input.value = '';
+          input.style.height = 'auto';
+          fetchMessages();
+        }
+      })
+      .catch(function () {})
+      .finally(function () {
+        input.disabled = isTerminalOrder;
+        if (sendBtn) sendBtn.disabled = isTerminalOrder;
+        if (!isTerminalOrder) input.focus();
+      });
+  }
+
+  function markMessagesRead() {
+    if (!orderId) return;
+    var url = apiBase + orderId + '/messages/read';
+    fetch(url, { method: 'POST', credentials: 'include' }).catch(function () {});
+  }
+
+  function startMsgPolling() {
+    stopMsgPolling();
+    msgPollTimer = setInterval(function () {
+      if (document.hidden) return;
+      fetchMessages();
+    }, MSG_POLL_MS);
+  }
+
+  function stopMsgPolling() {
+    if (msgPollTimer) { clearInterval(msgPollTimer); msgPollTimer = null; }
   }
 
   function fetchOrder() {
@@ -365,7 +542,7 @@
   }
 
   document.addEventListener('visibilitychange', function () {
-    if (!document.hidden && orderId) fetchOrder();
+    if (!document.hidden && orderId) { fetchOrder(); fetchMessages(); }
   });
 
   // Init

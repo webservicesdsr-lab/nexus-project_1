@@ -134,6 +134,8 @@ add_action('plugins_loaded', function() {
     knx_require('inc/core/resources/knx-hubs/api-update-closure.php');
     knx_require('inc/core/resources/knx-hubs/api-delete-hub.php');
     knx_require('inc/core/resources/knx-hubs/api-update-settings.php');
+    // Branding API (upload + register branding images)
+    knx_require('inc/core/resources/knx-settings/api-brand-logo-upload.php');
 
     /* ======================================================
      * RESOURCES — KNX CART
@@ -165,6 +167,7 @@ add_action('plugins_loaded', function() {
     knx_require('inc/core/knx-orders/api-get-order.php');
     knx_require('inc/core/knx-orders/api-list-orders.php');
     knx_require('inc/core/knx-orders/api-update-order-status.php');
+    knx_require('inc/core/knx-orders/api-order-messages.php');   // Driver ↔ Customer chat
 
     /* ======================================================
      * RESOURCES — KNX PAYMENTS (A1.0-A1.3)

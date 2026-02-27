@@ -1,9 +1,7 @@
 .knx-settings-wrap { max-width: 720px; margin: 20px auto; padding: 18px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-.knx-settings-field { margin-bottom: 14px; }
-.knx-settings-field label { display:block; margin-bottom:6px; font-weight:600; }
-.knx-settings-controls { display:flex; gap:8px; align-items:center; }
-.knx-settings-controls input[type="text"] { flex:1; padding:8px 10px; border:1px solid #ddd; border-radius:6px; }
-.knx-btn { padding:8px 12px; background:#f97316; color:#fff; border: none; border-radius:6px; cursor:pointer; }
-.knx-settings-logo-preview img { max-height:80px; display:block; margin-bottom:8px; }
-.knx-settings-success { color: #047857; margin-bottom:8px; }
-.knx-settings-error { color: #b91c1c; margin-bottom:8px; }
+.knx-settings-logo-preview { margin-bottom: 16px; }
+.knx-settings-logo-preview img { max-height: 120px; display: block; }
+.knx-btn { padding: 8px 12px; background: #f97316; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.knx-btn:hover { background: #ea6c0a; }
+.knx-settings-success { color: #047857; margin-bottom: 8px; padding: 8px; background: #ecfdf5; border-radius: 4px; }
+.knx-settings-error   { color: #b91c1c; margin-bottom: 8px; padding: 8px; background: #fef2f2; border-radius: 4px; }
