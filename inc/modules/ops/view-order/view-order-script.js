@@ -1,9 +1,14 @@
-// inc/modules/ops/view-order/view-order-script.js
+// File: inc/modules/ops/view-order/view-order-script.js
 /**
  * KNX OPS — View Order Script (Read-only)
  * - Fetches /knx/v1/ops/view-order?order_id=...
  * - Renders 1:1 layout (left details, right map + history).
  * - Exposes SSOT to addons via window.KNX_VIEW_ORDER = { order }.
+ *
+ * Add-on (safe):
+ * - Read-only chat panel (Driver ↔ Customer) inside OPS view-order.
+ * - Polling ONLY when order is non-terminal. One-time fetch when terminal.
+ * - Fail-soft: if API denies OPS (401/403/404), panel quietly stays hidden.
  */
 
 (function () {
@@ -29,6 +34,8 @@
         return 0;
       }
     })();
+
+    const TERMINAL_STATUSES = ['completed', 'cancelled'];
 
     function toast(msg, type) {
       if (typeof window.knxToast === 'function') return window.knxToast(msg, type || 'info');
@@ -286,6 +293,150 @@
       return cleaned;
     }
 
+    // ==========================================================
+    // OPS CHAT (read-only) — Driver ↔ Customer
+    // - Option B: show chat always, poll only if order active.
+    // - Fail-soft: if API denies access, panel stays hidden.
+    // ==========================================================
+
+    const OPS_CHAT_POLL_MS = 12000;
+    let opsChatTimer = null;
+    let opsChatReady = false;
+    let opsChatAllowed = true; // becomes false after first denied response
+    let opsChatIsTerminal = false;
+
+    function buildOpsMessagesBase() {
+      // messages live at: /wp-json/knx/v1/orders/{id}/messages
+      try {
+        const u = new URL(apiUrl, window.location.origin);
+        return u.origin + '/wp-json/knx/v1/orders/';
+      } catch (e) {
+        return '/wp-json/knx/v1/orders/';
+      }
+    }
+
+    function ensureOpsChatPanel() {
+      if (document.getElementById('knxOpsChatPanel')) return;
+
+      const rightCol = contentEl.querySelector('.knx-ops-vo__right');
+      if (!rightCol) return;
+
+      const panel = document.createElement('div');
+      panel.id = 'knxOpsChatPanel';
+      panel.className = 'knx-ops-vo__panel knx-ops-vo__chat';
+      panel.innerHTML = `
+        <div class="knx-ops-vo__chat-header">
+          <span class="knx-ops-vo__chat-icon">💬</span>
+          <span class="knx-ops-vo__chat-title">Driver ↔ Customer chat</span>
+        </div>
+        <div id="knxOpsChatMessages" class="knx-ops-vo__chat-messages"></div>
+        <div class="knx-ops-vo__chat-footer" style="justify-content:center;">
+          <div class="knx-ops-vo__muted" style="font-size:12px;">OPS is read-only for this chat.</div>
+        </div>
+      `;
+
+      // Place it after the tracking panel (clean + predictable)
+      rightCol.appendChild(panel);
+    }
+
+    function renderOpsChatMessages(messages) {
+      const el = document.getElementById('knxOpsChatMessages');
+      if (!el) return;
+
+      if (!Array.isArray(messages) || messages.length === 0) {
+        el.innerHTML = '<div class="knx-ops-vo__chat-empty">No messages yet.</div>';
+        return;
+      }
+
+      const rows = messages.map(function (m) {
+        const role = String(m && m.sender_role ? m.sender_role : '');
+
+        if (role === 'system') {
+          return `<div class="knx-ops-vo__chat-msg knx-ops-vo__chat-msg--system"><span>${esc(m.body)}</span></div>`;
+        }
+
+        const isDriver = role === 'driver';
+        const cls = `knx-ops-vo__chat-msg ${isDriver ? 'knx-ops-vo__chat-msg--mine' : 'knx-ops-vo__chat-msg--theirs'}`;
+        const label = isDriver ? '🚗 Driver' : '👤 Customer';
+
+        let time = '';
+        try {
+          const raw = String(m && m.created_at ? m.created_at : '').trim();
+          if (raw) {
+            const d = new Date(raw.replace(' ', 'T'));
+            time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          }
+        } catch (e) {}
+
+        return `
+          <div class="${cls}">
+            <div class="knx-ops-vo__chat-bubble">
+              <div class="knx-ops-vo__chat-meta">${esc(label)}${time ? ' · ' + esc(time) : ''}</div>
+              <div class="knx-ops-vo__chat-text">${esc(m.body)}</div>
+            </div>
+          </div>`;
+      }).join('');
+
+      const prevHeight = el.scrollHeight;
+      const wasAtBottom = el.scrollTop + el.clientHeight >= prevHeight - 10;
+
+      el.innerHTML = rows;
+
+      if (wasAtBottom) el.scrollTop = el.scrollHeight;
+    }
+
+    function fetchOpsChatOnce() {
+      if (!orderId || !opsChatAllowed) return;
+      ensureOpsChatPanel();
+
+      const base = buildOpsMessagesBase().replace(/\/+$/, '') + '/';
+      const url = base + orderId + '/messages';
+
+      const headers = {};
+      if (restNonce) headers['X-WP-Nonce'] = restNonce;
+
+      fetch(url, { credentials: 'same-origin', headers })
+        .then(function (r) {
+          // If OPS is not allowed by backend (likely), hide panel and stop forever.
+          if (r.status === 401 || r.status === 403 || r.status === 404) {
+            opsChatAllowed = false;
+            const p = document.getElementById('knxOpsChatPanel');
+            if (p) p.remove();
+            stopOpsChatPolling();
+            return null;
+          }
+          return r.json().catch(function () { return null; });
+        })
+        .then(function (data) {
+          if (!data || !data.success) return;
+          opsChatReady = true;
+          renderOpsChatMessages(Array.isArray(data.messages) ? data.messages : []);
+        })
+        .catch(function () {});
+    }
+
+    function startOpsChatPollingIfNeeded() {
+      stopOpsChatPolling();
+      if (!opsChatAllowed) return;
+      if (opsChatIsTerminal) return; // Option B: no polling when terminal
+
+      opsChatTimer = setInterval(function () {
+        if (document.hidden) return;
+        fetchOpsChatOnce();
+      }, OPS_CHAT_POLL_MS);
+    }
+
+    function stopOpsChatPolling() {
+      if (opsChatTimer) {
+        clearInterval(opsChatTimer);
+        opsChatTimer = null;
+      }
+    }
+
+    // ==========================================================
+    // Render order shell
+    // ==========================================================
+
     function renderOrder(order) {
       const rName  = esc(String(pick(order, 'restaurant.name', '') || ''));
       const rPhoneRaw = String(pick(order, 'restaurant.phone', '') || '').trim();
@@ -310,7 +461,8 @@
       const isPickup = dMethodRaw.toLowerCase() === 'pickup';
 
       const created = esc(String(pick(order, 'created_at', '') || ''));
-      const status = esc(String(pick(order, 'status', '') || ''));
+      const statusRaw = String(pick(order, 'status', '') || '');
+      const status = esc(statusRaw);
       const statusNice = humanStatusLabel(status);
 
       const subtotal = (function () {
@@ -344,9 +496,14 @@
       const hasCustomer = (cName !== '' || cPhone !== '' || cEmail !== '' || dAddr !== '');
 
       const rHasCoords = (rLat !== null && rLng !== null);
-      const rNavWeb = rHasCoords ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(String(rLat) + ',' + String(rLng))}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rAddrRaw)}`;
+      const rNavWeb = rHasCoords
+        ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(String(rLat) + ',' + String(rLng))}`
+        : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rAddrRaw)}`;
+
       const dHasCoords = (lat !== null && lng !== null);
-      const dNavWeb = dHasCoords ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(String(lat) + ',' + String(lng))}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(dAddrRaw)}`;
+      const dNavWeb = dHasCoords
+        ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(String(lat) + ',' + String(lng))}`
+        : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(dAddrRaw)}`;
 
       contentEl.innerHTML = `
         <div class="knx-ops-vo__layout">
@@ -365,7 +522,14 @@
                   ${rLogo ? `<img class="knx-ops-vo__logo" src="${esc(rLogo)}" alt="" loading="lazy">` : ``}
                   <div class="knx-ops-vo__info-main">
                     <div class="knx-ops-vo__info-name">${rName || '<span class="knx-ops-vo__muted">Unknown</span>'}</div>
-                    <div class="knx-ops-vo__info-sub">${rAddr ? `${(rLat !== null && rLng !== null) ? `<a class="knx-ops-vo__link" href="${rNavWeb}" onclick="openNavigation(${JSON.stringify(rLat)}, ${JSON.stringify(rLng)}, ${JSON.stringify(rAddrRaw)}, event)" target="_blank" rel="noopener">${rAddr}</a>` : `<a class="knx-ops-vo__link" href="${rNavWeb}" onclick="openNavigation(null, null, ${JSON.stringify(rAddrRaw)}, event)" target="_blank" rel="noopener">${rAddr}</a>`}` : ''}</div>
+                    <div class="knx-ops-vo__info-sub">${
+                      rAddr
+                        ? `${(rLat !== null && rLng !== null)
+                            ? `<a class="knx-ops-vo__link" href="${rNavWeb}" onclick="openNavigation(${JSON.stringify(rLat)}, ${JSON.stringify(rLng)}, ${JSON.stringify(rAddrRaw)}, event)" target="_blank" rel="noopener">${rAddr}</a>`
+                            : `<a class="knx-ops-vo__link" href="${rNavWeb}" onclick="openNavigation(null, null, ${JSON.stringify(rAddrRaw)}, event)" target="_blank" rel="noopener">${rAddr}</a>`
+                          }`
+                        : ''
+                    }</div>
                     <div class="knx-ops-vo__info-links">
                       ${rPhone ? `<a class="knx-ops-vo__link" href="tel:${esc(rTel || rPhone)}" aria-label="Call restaurant">${rPhone}</a>` : ``}
                       ${rEmail ? `<a class="knx-ops-vo__link" href="mailto:${esc(rEmail)}" aria-label="Email restaurant">${rEmail}</a>` : ``}
@@ -392,7 +556,10 @@
                       </div>
                     ` : ``}
 
-                    ${dAddr ? `${(lat !== null && lng !== null) ? `<a class="knx-ops-vo__client-address knx-ops-vo__link" href="${dNavWeb}" onclick="openNavigation(${JSON.stringify(lat)}, ${JSON.stringify(lng)}, ${JSON.stringify(dAddrRaw)}, event)" target="_blank" rel="noopener">${dAddr}</a>` : `<a class="knx-ops-vo__client-address knx-ops-vo__link" href="${dNavWeb}" onclick="openNavigation(null, null, ${JSON.stringify(dAddrRaw)}, event)" target="_blank" rel="noopener">${dAddr}</a>`}` : ``}
+                    ${dAddr ? `${(lat !== null && lng !== null)
+                      ? `<a class="knx-ops-vo__client-address knx-ops-vo__link" href="${dNavWeb}" onclick="openNavigation(${JSON.stringify(lat)}, ${JSON.stringify(lng)}, ${JSON.stringify(dAddrRaw)}, event)" target="_blank" rel="noopener">${dAddr}</a>`
+                      : `<a class="knx-ops-vo__client-address knx-ops-vo__link" href="${dNavWeb}" onclick="openNavigation(null, null, ${JSON.stringify(dAddrRaw)}, event)" target="_blank" rel="noopener">${dAddr}</a>`
+                    }` : ``}
                   </div>
                 ` : `
                   <div class="knx-ops-vo__muted">Client info not available.</div>
@@ -542,12 +709,31 @@
         } catch (e) {}
 
         renderOrder(order);
+
+        // OPS chat lifecycle (Option B):
+        // - Always try to show it.
+        // - Poll only if non-terminal.
+        const stNow = String((order.status || '')).toLowerCase();
+        opsChatIsTerminal = TERMINAL_STATUSES.indexOf(stNow) !== -1;
+
+        // One-time fetch always
+        fetchOpsChatOnce();
+
+        // Poll only if active
+        startOpsChatPollingIfNeeded();
       } catch (e) {
         setState('');
         renderError('Network error', 'Check connection or session.');
         toast('Network error', 'error');
       }
     }
+
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) return;
+      // On return to tab, refresh both order and chat once (safe).
+      fetchOrder();
+      if (opsChatAllowed) fetchOpsChatOnce();
+    });
 
     fetchOrder();
   });

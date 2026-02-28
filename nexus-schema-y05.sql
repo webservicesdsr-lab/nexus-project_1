@@ -1081,22 +1081,47 @@ CREATE TABLE `y05_knx_email_verifications` (
    ORDER MESSAGES (Driver ↔ Customer chat per order)
    ========================================================= */
 DROP TABLE IF EXISTS `y05_knx_order_messages`;
+
 CREATE TABLE `y05_knx_order_messages` (
   `id`             bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `order_id`       bigint UNSIGNED NOT NULL,
+
+  /* Sender identity */
   `sender_user_id` bigint UNSIGNED DEFAULT NULL,
   `sender_role`    enum('driver','customer','system') NOT NULL DEFAULT 'system',
+
+  /* Message */
   `body`           text NOT NULL,
+
+  /* Read receipt (set when OTHER side reads) */
   `read_at`        datetime DEFAULT NULL,
+
+  /* Time */
   `created_at`     timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
   PRIMARY KEY (`id`),
-  KEY `idx_order_id` (`order_id`),
+
+  /* Hot-path indexes */
+  KEY `idx_order_id_id` (`order_id`, `id`),
+  KEY `idx_order_id_created_at` (`order_id`, `created_at`),
+  KEY `idx_order_id_read_at` (`order_id`, `read_at`),
+
+  /* Optional lookup */
   KEY `idx_created_at` (`created_at`),
-  KEY `idx_read_at` (`read_at`),
-  CONSTRAINT `fk_order_messages_order` FOREIGN KEY (`order_id`) REFERENCES `y05_knx_orders` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_order_messages_sender` FOREIGN KEY (`sender_user_id`) REFERENCES `y05_knx_users` (`id`) ON DELETE SET NULL
+
+  /* Integrity */
+  CONSTRAINT `fk_order_messages_order`
+    FOREIGN KEY (`order_id`) REFERENCES `y05_knx_orders` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+
+  CONSTRAINT `fk_order_messages_sender`
+    FOREIGN KEY (`sender_user_id`) REFERENCES `y05_knx_users` (`id`)
+    ON DELETE SET NULL
+    ON UPDATE CASCADE
+
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  COMMENT='Per-order chat thread between driver and customer';
+  COMMENT='Per-order chat thread (driver↔customer) + system seed; supports incremental polling (after_id) and unread checks.';
 
 -- =========================================================
 -- City Branding table

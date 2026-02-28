@@ -1,11 +1,11 @@
 <?php
-// inc/modules/ops/view-order/view-order-shortcode.php
+// File: inc/modules/ops/view-order/view-order-shortcode.php
 if (!defined('ABSPATH')) exit;
 
 /**
  * ==========================================================
- * KNX OPS — View Order Shortcode — CANON v1.3 (Dropdown Actions)
- * Shortcode: [knx_ops_view_order]
+ * KNX OPS — View Order Shortcode — CANON v1.4
+ * Shortcode: [knx_ops_view_order]  (alias: [knx-view-orders])
  *
  * Notes:
  * - Assets injected via link/script + inline addon (no wp_footer).
@@ -58,8 +58,8 @@ function knx_ops_view_order_shortcode() {
     $api_url  = esc_url(rest_url('knx/v1/ops/view-order'));
     $back_url = esc_url(site_url('/live-orders'));
 
-    $drivers_url       = esc_url(rest_url('knx/v1/ops/drivers'));
-    $assign_driver_url = esc_url(rest_url('knx/v1/ops/assign-driver'));
+    $drivers_url         = esc_url(rest_url('knx/v1/ops/drivers'));
+    $assign_driver_url   = esc_url(rest_url('knx/v1/ops/assign-driver'));
     $unassign_driver_url = esc_url(rest_url('knx/v1/ops/unassign-driver'));
 
     $ver = defined('KNX_VERSION') ? KNX_VERSION : (string)time();
