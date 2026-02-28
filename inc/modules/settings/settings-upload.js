@@ -475,7 +475,10 @@ document.addEventListener('DOMContentLoaded', () => {
       title: {
         fontFamily: 'system',
         fontWeight: inpTitleWeight ? Number(inpTitleWeight.value || 800) : 800,
-        fontSize: inpTitleSize ? Number(inpTitleSize.value || 20) : 20,
+        fontSize: (function(){
+          const v = inpTitleSize ? Number(inpTitleSize.value || 20) : 20;
+          return Math.max(12, Math.min(52, isNaN(v) ? 20 : v));
+        })(),
         lineHeight: inpTitleLineHeight ? Number(inpTitleLineHeight.value || 1.00) : 1.00,
         letterSpacing: inpTitleLetterSpacing ? Number(inpTitleLetterSpacing.value || 1.00) : 1.00,
         fill: inpTitleFill ? inpTitleFill.value : '#FFFFFF',

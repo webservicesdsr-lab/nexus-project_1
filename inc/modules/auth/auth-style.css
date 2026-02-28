@@ -10,6 +10,11 @@
   justify-content: center;
   background: var(--nxs-bg, inherit);
   position: relative;
+
+  /* Prevent mobile browsers from auto-adjusting text size which can
+     trigger viewport zoom on form focus (notably iOS Safari). */
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
 }
 
 .knx-auth-back {
@@ -64,6 +69,15 @@ label {
   color: var(--nxs-muted, inherit);
 }
 
+/* Ensure inputs in the auth card use at least 16px to avoid iOS Safari
+   auto-zooming when the user focuses form fields. This is intentionally
+   scoped to the auth card to avoid global visual changes. */
+.knx-auth-card input,
+.knx-auth-card textarea,
+.knx-auth-card select {
+  font-size: 16px;
+}
+
 input {
   width: 100%;
   padding: 12px 14px;
@@ -102,7 +116,7 @@ input {
   line-height: 20px;
   padding-right: 56px; /* reserve space for the toggle */
   box-sizing: border-box;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .knx-pass-toggle i {

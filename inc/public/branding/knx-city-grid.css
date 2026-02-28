@@ -139,7 +139,9 @@
 
   padding: var(--knx-city-cta-padding-y) var(--knx-city-cta-padding-x);
 
-  font-size: var(--knx-city-cta-font-size);
+    /* Reduce CTA text modestly by default so it isn't oversized on desktop.
+      Use 65% of the configured size but never below 12px for legibility. */
+    font-size: max(12px, calc(var(--knx-city-cta-font-size) * 0.65));
   font-weight: var(--knx-city-cta-font-weight);
   line-height: 1.06;
 
@@ -159,23 +161,82 @@
   display: block;
 }
 
-/* Responsive (Option C) */
-@media (max-width: 640px){
+/* Responsive breakpoints: mobile, tablet, desktop */
+
+/* Mobile: up to 480px */
+@media (max-width: 480px) {
   .knx-city-banner-card{
-    min-height: calc(var(--knx-city-card-min-height) - 30px);
-    padding: calc(var(--knx-city-card-padding-y) - 10px) calc(var(--knx-city-card-padding-x) - 6px);
+    min-height: calc(var(--knx-city-card-min-height) - 36px);
+    padding: calc(var(--knx-city-card-padding-y) - 12px) calc(var(--knx-city-card-padding-x) - 8px);
   }
 
   .knx-city-banner-title{
-    font-size: clamp(26px, calc(var(--knx-city-title-font-size) - 12px), var(--knx-city-title-font-size));
-
-    -webkit-text-stroke: clamp(0px, calc(var(--knx-city-title-stroke-width) - 2px), var(--knx-city-title-stroke-width))
-      var(--knx-city-title-stroke-color);
+    /* Slightly larger mobile title baseline so it isn't too small on narrow screens.
+       Keep the max tied to the configured size but prefer a modest reduction. */
+    font-size: clamp(14px, calc(var(--knx-city-title-font-size) - 8px), var(--knx-city-title-font-size));
+     /* On small viewports the stroke can bleed into glyph counters — remove the stroke
+       and simulate an outline using subtle text-shadow layers for better legibility. */
+     -webkit-text-stroke: 0px var(--knx-city-title-stroke-color);
+     text-shadow:
+      0.6px 0.6px 0 var(--knx-city-title-stroke-color),
+      -0.6px -0.6px 0 var(--knx-city-title-stroke-color),
+      0.6px -0.6px 0 var(--knx-city-title-stroke-color),
+      -0.6px 0.6px 0 var(--knx-city-title-stroke-color);
   }
 
   .knx-city-banner-cta{
-    font-size: clamp(14px, calc(var(--knx-city-cta-font-size) - 3px), var(--knx-city-cta-font-size));
-    padding: calc(var(--knx-city-cta-padding-y) - 4px) calc(var(--knx-city-cta-padding-x) - 6px);
-    border-width: clamp(0px, calc(var(--knx-city-cta-border-width) - 2px), var(--knx-city-cta-border-width));
+    /* Mobile: compact but a bit more legible than before */
+    font-size: max(12px, calc(var(--knx-city-cta-font-size) * 0.75));
+    padding: calc(var(--knx-city-cta-padding-y) * 0.80) calc(var(--knx-city-cta-padding-x) * 0.80);
+    border-width: calc(var(--knx-city-cta-border-width) * 0.80);
+  }
+}
+
+/* Tablet: 481px — 1024px */
+@media (min-width: 481px) and (max-width: 1024px) {
+  .knx-city-banner-card{
+    min-height: calc(var(--knx-city-card-min-height) - 24px);
+    padding: calc(var(--knx-city-card-padding-y) - 8px) calc(var(--knx-city-card-padding-x) - 6px);
+  }
+
+  .knx-city-banner-title{
+    /* Tablet: moderate reduction but keep titles comfortably readable */
+    font-size: clamp(16px, calc(var(--knx-city-title-font-size) - 10px), var(--knx-city-title-font-size));
+    /* Reduce stroke slightly on tablet to avoid heavy inner fills; keep a gentle outline
+       and slightly tighter shadow for depth. */
+    -webkit-text-stroke: clamp(0px, calc(var(--knx-city-title-stroke-width) - 1px), var(--knx-city-title-stroke-width));
+    text-shadow:
+      0.8px 0.8px 0 var(--knx-city-title-stroke-color),
+      -0.8px -0.8px 0 var(--knx-city-title-stroke-color),
+      0.8px -0.8px 0 var(--knx-city-title-stroke-color),
+      -0.8px 0.8px 0 var(--knx-city-title-stroke-color);
+  }
+
+  .knx-city-banner-cta{
+    /* Tablet: moderate reduction */
+    font-size: max(12px, calc(var(--knx-city-cta-font-size) * 0.78));
+    padding: calc(var(--knx-city-cta-padding-y) * 0.85) calc(var(--knx-city-cta-padding-x) * 0.85);
+    border-width: calc(var(--knx-city-cta-border-width) * 0.85);
+  }
+}
+
+/* Desktop: 1025px and up — ensure CTA isn't oversized on narrow desktops */
+@media (min-width: 1025px) {
+  .knx-city-banner-card{
+    /* keep defaults or slightly tighten for very wide layouts */
+    min-height: var(--knx-city-card-min-height);
+    padding: var(--knx-city-card-padding-y) var(--knx-city-card-padding-x);
+  }
+
+  .knx-city-banner-title{
+    font-size: var(--knx-city-title-font-size);
+    -webkit-text-stroke: var(--knx-city-title-stroke-width) var(--knx-city-title-stroke-color);
+  }
+
+  .knx-city-banner-cta{
+    /* Desktop: slightly reduce to avoid oversized appearance */
+    font-size: max(12px, calc(var(--knx-city-cta-font-size) * 0.50));
+    padding: calc(var(--knx-city-cta-padding-y) * 0.90) calc(var(--knx-city-cta-padding-x) * 0.90);
+    border-width: calc(var(--knx-city-cta-border-width) * 0.90);
   }
 }

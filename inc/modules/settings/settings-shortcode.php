@@ -295,7 +295,7 @@ function knx_settings_shortcode() {
                     <div class="knx-settings-row">
                         <div class="knx-settings-field">
                             <span class="knx-settings-mini">Font size</span>
-                            <input id="knxCityGridTitleFontSize" type="number" min="20" max="76" value="20">
+                            <input id="knxCityGridTitleFontSize" type="number" min="12" max="52" value="20">
                         </div>
                         <div class="knx-settings-field">
                             <span class="knx-settings-mini">Fill</span>

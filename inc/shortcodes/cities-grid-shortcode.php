@@ -90,7 +90,7 @@ function knx_city_grid_theme_get_global() {
     $theme['gradient']['to']    = $hex($row['gradient_to'] ?? null, $defaults['gradient']['to']);
     $theme['gradient']['angle'] = $int($row['gradient_angle'] ?? null, 0, 360, $defaults['gradient']['angle']);
 
-    $theme['title']['fontSize']      = $int($row['title_font_size'] ?? null, 20, 76, $defaults['title']['fontSize']);
+    $theme['title']['fontSize']      = $int($row['title_font_size'] ?? null, 12, 52, $defaults['title']['fontSize']);
     $theme['title']['fill']          = $hex($row['title_fill_color'] ?? null, $defaults['title']['fill']);
     $theme['title']['strokeColor']   = $hex($row['title_stroke_color'] ?? null, $defaults['title']['strokeColor']);
     $theme['title']['strokeWidth']   = $int($row['title_stroke_width'] ?? null, 0, 14, $defaults['title']['strokeWidth']);

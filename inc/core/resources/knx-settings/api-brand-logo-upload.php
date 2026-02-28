@@ -141,7 +141,7 @@ function knx_city_branding_db_get_theme() {
     $t['gradient']['to']    = $hex($row['gradient_to'] ?? null, $defaults['gradient']['to']);
     $t['gradient']['angle'] = $int($row['gradient_angle'] ?? null, 0, 360, $defaults['gradient']['angle']);
 
-    $t['title']['fontSize']      = $int($row['title_font_size'] ?? null, 20, 76, $defaults['title']['fontSize']);
+    $t['title']['fontSize']      = $int($row['title_font_size'] ?? null, 12, 52, $defaults['title']['fontSize']);
     $t['title']['fill']          = $hex($row['title_fill_color'] ?? null, $defaults['title']['fill']);
     $t['title']['strokeColor']   = $hex($row['title_stroke_color'] ?? null, $defaults['title']['strokeColor']);
     $t['title']['strokeWidth']   = $int($row['title_stroke_width'] ?? null, 0, 14, $defaults['title']['strokeWidth']);
@@ -245,7 +245,7 @@ function knx_city_branding_normalize_theme($decoded) {
 
     $norm['title']['fontFamily']    = isset($t['fontFamily']) ? sanitize_text_field($t['fontFamily']) : $defaults['title']['fontFamily'];
     $norm['title']['fontWeight']    = $int($t['fontWeight'] ?? null, 400, 950, $defaults['title']['fontWeight']);
-    $norm['title']['fontSize']      = $int($t['fontSize'] ?? null, 20, 76, $defaults['title']['fontSize']);
+    $norm['title']['fontSize']      = $int($t['fontSize'] ?? null, 12, 52, $defaults['title']['fontSize']);
     $norm['title']['lineHeight']    = $float($t['lineHeight'] ?? null, 0.8, 1.6, $defaults['title']['lineHeight']);
     $norm['title']['letterSpacing'] = $float($t['letterSpacing'] ?? null, -10.0, 10.0, $defaults['title']['letterSpacing']);
     $norm['title']['fill']          = $hex($t['fill'] ?? null, $defaults['title']['fill']);
