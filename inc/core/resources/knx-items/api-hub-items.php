@@ -143,11 +143,13 @@ function knx_api_add_hub_item(WP_REST_Request $r) {
         'description'  => $desc,
         'price'        => $price,
         'image_url'    => esc_url_raw($image_url),
-        'status'       => 'available',
+        'status'       => 'active',
         'sort_order'   => time(),
         'created_at'   => current_time('mysql'),
         'updated_at'   => current_time('mysql'),
     ], ['%d','%d','%s','%s','%f','%s','%s','%d','%s','%s']);
+
+    delete_transient("knx_menu_hub_{$hub_id}");
 
     return new WP_REST_Response([
         'success' => true,

@@ -140,6 +140,8 @@ function knx_api_update_item(WP_REST_Request $r) {
         return new WP_REST_Response(['success' => false, 'error' => 'db_update_failed'], 500);
     }
 
+    delete_transient("knx_menu_hub_{$hub_id}");
+
     return new WP_REST_Response([
         'success' => true,
         'message' => 'Item updated successfully',

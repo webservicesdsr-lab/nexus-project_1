@@ -204,34 +204,46 @@
    CATEGORY CHIPS
 ========================================================== */
 #olc-menu .knx-menu__categories {
-
-  max-width: 1260px;
-  margin: 0 auto;
-  margin-bottom: 20px;
   display: flex;
-  gap: 18px;
-
-}
-
-@media (max-width:900px) {
-    #olc-menu .knx-menu__categories {
-  margin: 0px 16px;
+  flex-wrap: nowrap;
+  gap: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  scrollbar-width: none;        /* Firefox */
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px 16px 12px;
   margin-bottom: 20px;
 }
+
+#olc-menu .knx-menu__categories::-webkit-scrollbar {
+  display: none;                /* Chrome / Safari */
+}
+
+@media (min-width: 900px) {
+  #olc-menu .knx-menu__categories {
+    padding: 4px 0 12px;
+    max-width: 1260px;
+    margin-left: auto;
+    margin-right: auto;
+  }
 }
 
 #olc-menu .knx-menu__category-chip {
   border: none;
-  padding: 12px 18px;
+  padding: 10px 18px;
   border-radius: 12px;
   background: #f3f4f6;
   font-size: 1rem;
   font-weight: 600;
   white-space: nowrap;
+  flex-shrink: 0;
   cursor: pointer;
   color: #4b5563;
-  transition: 0.15s;
-  justify-content: flex-start;
+  transition: background 0.15s, color 0.15s;
 }
 
 #olc-menu .knx-menu__category-chip.active {
