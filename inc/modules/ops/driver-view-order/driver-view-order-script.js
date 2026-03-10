@@ -1,17 +1,6 @@
-// File: inc/modules/ops/view-order/view-order-script.js
-/**
- * KNX OPS — View Order Script (Read-only)
- * - Fetches /knx/v1/ops/view-order?order_id=...
- * - Renders 1:1 layout (left details, right map + history).
- * - Exposes SSOT to addons via window.KNX_VIEW_ORDER = { order }.
- *
- * Add-on (safe):
- * - Read-only chat panel (Driver ↔ Customer) inside OPS view-order.
- * - Incremental polling + buffer (like order-status page).
- * - Polling ONLY when order is non-terminal. One-time fetch when terminal.
- * - Fail-soft: if API denies OPS (401/403/404), panel quietly stays hidden.
- */
-
+// File: inc/modules/ops/driver-view-order/driver-view-order-script.js
+// Adapted full view-order renderer for drivers — based on ops view-order script
+/* eslint-disable */
 (function () {
   'use strict';
 
@@ -19,8 +8,11 @@
     const app = document.getElementById('knxOpsViewOrderApp');
     if (!app) return;
 
-    const apiUrl = String(app.dataset.apiUrl || '').trim();
+    // Read data provided by shortcode
+    const apiUrl = String(app.dataset.apiUrl || '').replace(/\/+$/, '');
     const restNonce = String(app.dataset.nonce || '').trim();
+    const orderIdAttr = parseInt(app.dataset.orderId || '0', 10);
+    const backUrl = String(app.dataset.backUrl || '/driver-active-orders');
 
     const stateEl = document.getElementById('knxOpsVOState');
     const contentEl = document.getElementById('knxOpsVOContent');
@@ -28,15 +20,12 @@
 
     const orderId = (function () {
       try {
+        if (orderIdAttr && Number.isFinite(orderIdAttr) && orderIdAttr > 0) return orderIdAttr;
         const u = new URL(window.location.href);
         const p = parseInt(u.searchParams.get('order_id') || '0', 10);
         return (p && Number.isFinite(p) && p > 0) ? p : 0;
-      } catch (e) {
-        return 0;
-      }
+      } catch (e) { return 0; }
     })();
-
-    const TERMINAL_STATUSES = ['completed', 'cancelled'];
 
     function toast(msg, type) {
       if (typeof window.knxToast === 'function') return window.knxToast(msg, type || 'info');
@@ -50,14 +39,9 @@
       });
     }
 
-    function setState(msg) {
-      if (stateEl) stateEl.textContent = msg || '';
-    }
+    function setState(msg) { if (stateEl) stateEl.textContent = msg || ''; }
 
-    function money(n) {
-      const v = Number(n);
-      return (Number.isFinite(v) ? v : 0).toFixed(2);
-    }
+    function money(n) { const v = Number(n); return (Number.isFinite(v) ? v : 0).toFixed(2); }
 
     function safeHttpUrl(url) {
       const s = String(url || '').trim();
@@ -75,9 +59,7 @@
           cur = cur[parts[i]];
         }
         return (cur === null || cur === undefined) ? fallback : cur;
-      } catch (e) {
-        return fallback;
-      }
+      } catch (e) { return fallback; }
     }
 
     function normalizeItems(order) {
@@ -91,7 +73,6 @@
 
     function normalizeModifiers(mods) {
       if (!Array.isArray(mods) || !mods.length) return [];
-
       const out = [];
       mods.forEach((group) => {
         const gName = String(group?.group || group?.name || '').trim();
@@ -114,19 +95,13 @@
           rendered.push(`${esc(oName)}${deltaTxt}`);
         });
 
-        out.push({
-          group: esc(gName),
-          optionsHtml: rendered.length ? rendered.join(', ') : '',
-        });
+        out.push({ group: esc(gName), optionsHtml: rendered.length ? rendered.join(', ') : '' });
       });
-
       return out;
     }
 
     function renderItems(items) {
-      if (!Array.isArray(items) || !items.length) {
-        return '<div class="knx-ops-vo__muted">No items.</div>';
-      }
+      if (!Array.isArray(items) || !items.length) return '<div class="knx-ops-vo__muted">No items.</div>';
 
       const rows = items.map((it) => {
         const name = esc(String(it?.name_snapshot || it?.name || it?.title || 'Item'));
@@ -140,14 +115,12 @@
 
         const mods = normalizeModifiers(it?.modifiers);
         const modsHtml = mods.length
-          ? `<div class="knx-ops-vo__order-mods">${
-              mods.map(m => {
-                const left = m.group ? `<span class="knx-ops-vo__order-mod-g">${m.group}</span>` : '';
-                const right = m.optionsHtml ? `<span class="knx-ops-vo__order-mod-o">${m.optionsHtml}</span>` : '';
-                if (!left && !right) return '';
-                return `<div class="knx-ops-vo__order-mod">${left}${left && right ? ': ' : ''}${right}</div>`;
-              }).join('')
-            }</div>`
+          ? `<div class="knx-ops-vo__order-mod">${mods.map(m => {
+              const left = m.group ? `<span class="knx-ops-vo__order-mod-g">${m.group}</span>` : '';
+              const right = m.optionsHtml ? `<span class="knx-ops-vo__order-mod-o">${m.optionsHtml}</span>` : '';
+              if (!left && !right) return '';
+              return `<div class="knx-ops-vo__order-mod">${left}${left && right ? ': ' : ''}${right}</div>`;
+            }).join('')}</div>`
           : '';
 
         return `
@@ -171,6 +144,7 @@
     function humanStatusLabel(s) {
       const v = String(s || '').trim().toLowerCase();
       if (!v) return '—';
+      // Canonical labels (same across ALL modules)
       const labels = {
         'pending_payment': 'Pending Payment',
         'confirmed': 'Order Created',
@@ -191,6 +165,8 @@
       if (!arr.length) return `<div class="knx-ops-vo__muted">No history.</div>`;
 
       const rows = arr
+        // Hide financial/internal states (pending_payment, confirmed) from timeline
+        // For pickup orders, also hide picked_up (it's an auto double-jump, not a manual step)
         .filter(h => {
           const st = String(h?.status || '').trim().toLowerCase();
           const ts = String(h?.created_at || '').trim();
@@ -226,27 +202,31 @@
       return `https://www.google.com/maps?q=${q}&z=13&output=embed`;
     }
 
-    function platformIsIOS() {
-      try { return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream; } catch (e) { return false; }
+    function normalizePhoneForTel(phone) {
+      const p = String(phone || '').trim();
+      if (!p) return '';
+      const cleaned = p.replace(/[^\d+]/g, '');
+      return cleaned;
     }
 
-    function platformIsAndroid() {
-      try { return /Android/.test(navigator.userAgent); } catch (e) { return false; }
-    }
+    /* ── Navigation helpers (native map schemes) ── */
+    function platformIsIOS() { return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream; }
+    function platformIsAndroid() { return /Android/i.test(navigator.userAgent); }
 
     function buildWebNav(lat, lng, address) {
+      const la = (lat !== null && lat !== undefined) ? Number(lat) : NaN;
+      const ln = (lng !== null && lng !== undefined) ? Number(lng) : NaN;
       const a = String(address || '').trim();
-      if (lat !== null && lng !== null) {
-        return 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(String(lat) + ',' + String(lng));
+      if (Number.isFinite(la) && Number.isFinite(ln)) {
+        return 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(String(la) + ',' + String(ln));
       }
       if (a) return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(a);
       return 'https://www.google.com/maps';
     }
 
-    // Exposed globally for inline handlers in rendered HTML
+    // Must be global for inline onclick handlers in rendered HTML
     window.openNavigation = function openNavigation(lat, lng, address, ev) {
       try { if (ev && ev.preventDefault) ev.preventDefault(); } catch (e) {}
-
       const web = buildWebNav(lat, lng, address);
 
       if (platformIsIOS()) {
@@ -269,200 +249,6 @@
 
       window.location.href = web;
     };
-
-    function normalizePhoneForTel(phone) {
-      const p = String(phone || '').trim();
-      if (!p) return '';
-      return p.replace(/[^\d+]/g, '');
-    }
-
-    // ==========================================================
-    // OPS CHAT (read-only) — Driver ↔ Customer
-    // - Incremental polling + bounded buffer
-    // - Fail-soft on 401/403/404 (hide forever)
-    // ==========================================================
-
-    const OPS_CHAT_POLL_MS = 12000;
-
-    let opsChatTimer = null;
-    let opsChatAllowed = true;
-    let opsChatIsTerminal = false;
-
-    // Incremental state
-    let opsChatLoadedOnce = false;
-    let opsChatLastId = 0;
-    let opsChatServerLastId = 0;
-    let opsChatBuffer = [];
-    let opsChatBusy = false;
-
-    function buildOpsMessagesBase() {
-      try {
-        const u = new URL(apiUrl, window.location.origin);
-        return u.origin + '/wp-json/knx/v1/orders/';
-      } catch (e) {
-        return '/wp-json/knx/v1/orders/';
-      }
-    }
-
-    function ensureOpsChatPanel() {
-      if (document.getElementById('knxOpsChatPanel')) return;
-
-      const rightCol = contentEl.querySelector('.knx-ops-vo__right');
-      if (!rightCol) return;
-
-      const panel = document.createElement('div');
-      panel.id = 'knxOpsChatPanel';
-      panel.className = 'knx-ops-vo__panel knx-ops-vo__chat';
-      panel.innerHTML = `
-        <div class="knx-ops-vo__chat-header">
-          <span class="knx-ops-vo__chat-icon">💬</span>
-          <span class="knx-ops-vo__chat-title">Driver ↔ Customer chat</span>
-        </div>
-        <div id="knxOpsChatMessages" class="knx-ops-vo__chat-messages"></div>
-        <div class="knx-ops-vo__chat-footer" style="justify-content:center;">
-          <div class="knx-ops-vo__muted" style="font-size:12px;">OPS is read-only for this chat.</div>
-        </div>
-      `;
-
-      rightCol.appendChild(panel);
-    }
-
-    function renderOpsChatMessages(messages) {
-      const el = document.getElementById('knxOpsChatMessages');
-      if (!el) return;
-
-      if (!Array.isArray(messages) || messages.length === 0) {
-        el.innerHTML = '<div class="knx-ops-vo__chat-empty">No messages yet.</div>';
-        return;
-      }
-
-      const rows = messages.map(function (m) {
-        const role = String(m && m.sender_role ? m.sender_role : '');
-
-        if (role === 'system') {
-          return `<div class="knx-ops-vo__chat-msg knx-ops-vo__chat-msg--system"><span>${esc(m.body)}</span></div>`;
-        }
-
-        const isDriver = role === 'driver';
-        const cls = `knx-ops-vo__chat-msg ${isDriver ? 'knx-ops-vo__chat-msg--mine' : 'knx-ops-vo__chat-msg--theirs'}`;
-        const label = isDriver ? '🚗 Driver' : '👤 Customer';
-
-        let time = '';
-        try {
-          const raw = String(m && m.created_at ? m.created_at : '').trim();
-          if (raw) {
-            const d = new Date(raw.replace(' ', 'T'));
-            time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          }
-        } catch (e) {}
-
-        return `
-          <div class="${cls}">
-            <div class="knx-ops-vo__chat-bubble">
-              <div class="knx-ops-vo__chat-meta">${esc(label)}${time ? ' · ' + esc(time) : ''}</div>
-              <div class="knx-ops-vo__chat-text">${esc(m.body)}</div>
-            </div>
-          </div>`;
-      }).join('');
-
-      const prevHeight = el.scrollHeight;
-      const wasAtBottom = el.scrollTop + el.clientHeight >= prevHeight - 10;
-
-      el.innerHTML = rows;
-      if (wasAtBottom) el.scrollTop = el.scrollHeight;
-    }
-
-    function buildOpsMessagesUrl() {
-      const base = buildOpsMessagesBase().replace(/\/+$/, '') + '/';
-      const afterId = opsChatLoadedOnce ? opsChatLastId : 0;
-      const limit = 60;
-      const ts = Date.now();
-
-      return (
-        base +
-        orderId +
-        '/messages?after_id=' +
-        encodeURIComponent(String(afterId)) +
-        '&limit=' +
-        encodeURIComponent(String(limit)) +
-        '&_ts=' +
-        encodeURIComponent(String(ts))
-      );
-    }
-
-    function fetchOpsChatOnce() {
-      if (!orderId || !opsChatAllowed) return;
-      if (opsChatBusy) return;
-
-      ensureOpsChatPanel();
-      opsChatBusy = true;
-
-      const url = buildOpsMessagesUrl();
-      const headers = {};
-      if (restNonce) headers['X-WP-Nonce'] = restNonce;
-      headers['Cache-Control'] = 'no-cache';
-      headers['Pragma'] = 'no-cache';
-
-      fetch(url, { credentials: 'same-origin', headers, cache: 'no-store' })
-        .then(function (r) {
-          if (r.status === 401 || r.status === 403 || r.status === 404) {
-            opsChatAllowed = false;
-            const p = document.getElementById('knxOpsChatPanel');
-            if (p) p.remove();
-            stopOpsChatPolling();
-            return null;
-          }
-          return r.json().catch(function () { return null; });
-        })
-        .then(function (data) {
-          if (!data || !data.success) return;
-
-          const srv = parseInt(data.server_last_id || '0', 10);
-          if (Number.isFinite(srv) && srv >= 0) opsChatServerLastId = srv;
-
-          const incoming = Array.isArray(data.messages) ? data.messages : [];
-
-          if (!opsChatLoadedOnce) {
-            opsChatBuffer = incoming;
-            opsChatLoadedOnce = true;
-          } else if (incoming.length) {
-            opsChatBuffer = opsChatBuffer.concat(incoming);
-            if (opsChatBuffer.length > 120) {
-              opsChatBuffer = opsChatBuffer.slice(opsChatBuffer.length - 120);
-            }
-          }
-
-          if (opsChatServerLastId > opsChatLastId) opsChatLastId = opsChatServerLastId;
-
-          renderOpsChatMessages(opsChatBuffer);
-        })
-        .catch(function () {})
-        .finally(function () {
-          opsChatBusy = false;
-        });
-    }
-
-    function startOpsChatPollingIfNeeded() {
-      stopOpsChatPolling();
-      if (!opsChatAllowed) return;
-      if (opsChatIsTerminal) return;
-
-      opsChatTimer = setInterval(function () {
-        if (document.hidden) return;
-        fetchOpsChatOnce();
-      }, OPS_CHAT_POLL_MS);
-    }
-
-    function stopOpsChatPolling() {
-      if (opsChatTimer) {
-        clearInterval(opsChatTimer);
-        opsChatTimer = null;
-      }
-    }
-
-    // ==========================================================
-    // Render order shell
-    // ==========================================================
 
     function renderOrder(order) {
       const rName  = esc(String(pick(order, 'restaurant.name', '') || ''));
@@ -488,8 +274,8 @@
       const isPickup = dMethodRaw.toLowerCase() === 'pickup';
 
       const created = esc(String(pick(order, 'created_at', '') || ''));
-      const statusRaw = String(pick(order, 'status', '') || '');
-      const statusNice = humanStatusLabel(statusRaw);
+      const status = esc(String(pick(order, 'status', '') || ''));
+      const statusNice = humanStatusLabel(status);
 
       const subtotal = (function () {
         const raw = pick(order, 'raw.items.subtotal', null);
@@ -548,11 +334,13 @@
                   ${rLogo ? `<img class="knx-ops-vo__logo" src="${esc(rLogo)}" alt="" loading="lazy">` : ``}
                   <div class="knx-ops-vo__info-main">
                     <div class="knx-ops-vo__info-name">${rName || '<span class="knx-ops-vo__muted">Unknown</span>'}</div>
-                    <div class="knx-ops-vo__info-sub">${rAddr ? `${
-                      (rLat !== null && rLng !== null)
-                        ? `<a class="knx-ops-vo__link" href="${rNavWeb}" onclick="openNavigation(${JSON.stringify(rLat)}, ${JSON.stringify(rLng)}, ${JSON.stringify(rAddrRaw)}, event)" target="_blank" rel="noopener">${rAddr}</a>`
-                        : `<a class="knx-ops-vo__link" href="${rNavWeb}" onclick="openNavigation(null, null, ${JSON.stringify(rAddrRaw)}, event)" target="_blank" rel="noopener">${rAddr}</a>`
-                    }` : ''}</div>
+                    <div class="knx-ops-vo__info-sub">${
+                      rAddr
+                        ? (rLat !== null && rLng !== null)
+                          ? `<a class="knx-ops-vo__link" href="${rNavWeb}" onclick="openNavigation(${JSON.stringify(rLat)}, ${JSON.stringify(rLng)}, ${JSON.stringify(rAddrRaw)}, event)" target="_blank" rel="noopener">${rAddr}</a>`
+                          : `<a class="knx-ops-vo__link" href="${rNavWeb}" onclick="openNavigation(null, null, ${JSON.stringify(rAddrRaw)}, event)" target="_blank" rel="noopener">${rAddr}</a>`
+                        : ''
+                    }</div>
                     <div class="knx-ops-vo__info-links">
                       ${rPhone ? `<a class="knx-ops-vo__link" href="tel:${esc(rTel || rPhone)}" aria-label="Call restaurant">${rPhone}</a>` : ``}
                       ${rEmail ? `<a class="knx-ops-vo__link" href="mailto:${esc(rEmail)}" aria-label="Email restaurant">${rEmail}</a>` : ``}
@@ -674,12 +462,268 @@
       `;
     }
 
-    function extractOrder(json) {
-      if (!json || typeof json !== 'object') return null;
-      if (json.data && json.data.order) return json.data.order;
-      if (json.order) return json.order;
-      if (json.data && json.data.data && json.data.data.order) return json.data.data.order;
-      return null;
+    /* ── Action buttons & status change modal ── */
+    function getNextStatuses(currentStatus, pickupOrder) {
+      pickupOrder = pickupOrder === true;
+      const s = String(currentStatus || '').toLowerCase();
+
+      // Driver-allowed transitions (sequential only, no skipping states)
+      // For pickup orders: after prepared the backend auto-applies picked_up (double-jump),
+      // so the driver's next visible step from prepared is completed.
+      const map = pickupOrder ? {
+        'confirmed': ['accepted_by_driver'],
+        'accepted_by_driver': ['accepted_by_hub'],
+        'accepted_by_hub': ['preparing'],
+        'preparing': ['prepared'],
+        'picked_up': ['completed'],
+      } : {
+        'confirmed': ['accepted_by_driver'],
+        'accepted_by_driver': ['accepted_by_hub'],
+        'accepted_by_hub': ['preparing'],
+        'preparing': ['prepared'],
+        'prepared': ['picked_up'],
+        'picked_up': ['completed'],
+      };
+
+      return map[s] || [];
+    }
+
+    function getLabelForStatus(status) {
+      const s = String(status || '').toLowerCase();
+      // Canonical labels (same across ALL modules)
+      const labels = {
+        'pending_payment': 'Pending Payment',
+        'confirmed': 'Order Created',
+        'accepted_by_driver': 'Accepted by Driver',
+        'accepted_by_hub': 'Accepted by Restaurant',
+        'preparing': 'Preparing',
+        'prepared': 'Prepared',
+        'picked_up': 'Picked Up',
+        'completed': 'Completed',
+        'cancelled': 'Cancelled',
+        'order_created': 'Order Created',
+      };
+      return labels[s] || status.replace(/_/g, ' ').replace(/\b\w/g, m => m.toUpperCase());
+    }
+
+    function renderActionButtons(order) {
+      const currentStatus = String(order?.status || '').toLowerCase();
+      const orderIsPickup = String(pick(order, 'delivery.method', '') || '').toLowerCase() === 'pickup';
+      const nextStatuses = getNextStatuses(currentStatus, orderIsPickup);
+
+      const actionsContainer = document.getElementById('knxViewOrderActions');
+      if (!actionsContainer) return;
+
+      let html = '';
+
+      // Change Status button (only if next statuses exist)
+      if (nextStatuses.length > 0) {
+        html += `
+          <button type="button" class="knx-ops-vo__action-btn knx-ops-vo__action-btn--primary" id="knxBtnChangeStatus">
+            Change Status
+          </button>
+        `;
+      }
+
+      // Release button (only before picked_up)
+      const noReleaseStatuses = ['picked_up', 'completed', 'cancelled'];
+      if (!noReleaseStatuses.includes(currentStatus)) {
+        html += `
+          <button type="button" class="knx-ops-vo__action-btn knx-ops-vo__action-btn--danger" id="knxBtnRelease">
+            Release Order
+          </button>
+        `;
+      }
+
+      actionsContainer.innerHTML = html;
+
+      const btnChange = document.getElementById('knxBtnChangeStatus');
+      if (btnChange) btnChange.addEventListener('click', () => openStatusModal(order));
+
+      const btnRelease = document.getElementById('knxBtnRelease');
+      if (btnRelease) btnRelease.addEventListener('click', () => openReleaseModal(order.order_id));
+    }
+
+    function openStatusModal(order) {
+      const currentStatus = String(order?.status || '').toLowerCase();
+      const orderIsPickup = String(pick(order, 'delivery.method', '') || '').toLowerCase() === 'pickup';
+      const nextStatuses = getNextStatuses(currentStatus, orderIsPickup);
+
+      if (!nextStatuses.length) {
+        toast('No status changes available', 'info');
+        return;
+      }
+
+      const modalHTML = `
+        <div class="knx-ops-modal-overlay" id="knxStatusModalOverlay">
+          <div class="knx-ops-modal">
+            <div class="knx-ops-modal__header">
+              <h3 class="knx-ops-modal__title">Change Status</h3>
+              <button type="button" class="knx-ops-modal__close" id="knxModalClose" aria-label="Close">&times;</button>
+            </div>
+            <div class="knx-ops-modal__body">
+              <div class="knx-ops-modal__current">
+                Current: <strong>${esc(getLabelForStatus(currentStatus))}</strong>
+              </div>
+              <div class="knx-ops-modal__status-list">
+                ${nextStatuses.map(st => {
+                  const btnLabel = (orderIsPickup && st === 'prepared') ? 'Ready for Pickup' : getLabelForStatus(st);
+                  return `<button type="button" class="knx-ops-modal__status-btn" data-status="${esc(st)}">${esc(btnLabel)}</button>`;
+                }).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const existing = document.getElementById('knxStatusModalOverlay');
+      if (existing) existing.remove();
+
+      document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+      const overlay = document.getElementById('knxStatusModalOverlay');
+      const closeBtn = document.getElementById('knxModalClose');
+      const statusBtns = overlay.querySelectorAll('.knx-ops-modal__status-btn');
+
+      const closeModal = () => { if (overlay) overlay.remove(); };
+
+      closeBtn?.addEventListener('click', closeModal);
+      overlay?.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+
+      statusBtns.forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const newStatus = btn.dataset.status;
+          if (!newStatus) return;
+
+          btn.disabled = true;
+          btn.textContent = 'Processing...';
+
+          try {
+            await changeOrderStatus(order.order_id, newStatus);
+            closeModal();
+            toast('Status updated successfully', 'success');
+            fetchOrder();
+          } catch (err) {
+            toast(err.message || 'Failed to update status', 'error');
+            btn.disabled = false;
+            btn.textContent = (orderIsPickup && newStatus === 'prepared') ? 'Ready for Pickup' : getLabelForStatus(newStatus);
+          }
+        });
+      });
+    }
+
+    async function changeOrderStatus(orderId, newStatus) {
+      const url = apiUrl.replace(/\/+$/, '') + '/' + encodeURIComponent(String(orderId)) + '/ops-status';
+
+      const body = JSON.stringify({
+        status: newStatus,
+        knx_nonce: await getKnxNonce(),
+      });
+
+      const headers = { 'Content-Type': 'application/json' };
+      if (restNonce) headers['X-WP-Nonce'] = restNonce;
+
+      const res = await fetch(url, { method: 'POST', credentials: 'same-origin', headers, body });
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok || !json.success) {
+        const msg = (json && json.data && json.data.message) || (json && json.message) || 'Request failed';
+        throw new Error(msg);
+      }
+
+      return json.data;
+    }
+
+    function openReleaseModal(orderId) {
+      const modalHTML = `
+        <div class="knx-ops-modal-overlay" id="knxReleaseModalOverlay">
+          <div class="knx-ops-modal">
+            <div class="knx-ops-modal__header">
+              <h3 class="knx-ops-modal__title">Release Order</h3>
+              <button type="button" class="knx-ops-modal__close" id="knxReleaseModalClose" aria-label="Close">&times;</button>
+            </div>
+            <div class="knx-ops-modal__body">
+              <p style="margin:0 0 1.5rem;color:var(--text-secondary,#6b7280);">Are you sure you want to release this order? It will become available for other drivers.</p>
+              <div style="display:flex;gap:0.75rem;flex-direction:column;">
+                <button type="button" class="knx-ops-modal__status-btn" id="knxConfirmRelease" style="background:var(--danger,#ef4444);color:white;">
+                  Yes, Release Order
+                </button>
+                <button type="button" class="knx-ops-modal__status-btn" id="knxCancelRelease" style="background:var(--bg-secondary,#f3f4f6);color:var(--text,#111827);">
+                  No, Keep Order
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const existing = document.getElementById('knxReleaseModalOverlay');
+      if (existing) existing.remove();
+
+      document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+      const overlay = document.getElementById('knxReleaseModalOverlay');
+      const closeBtn = document.getElementById('knxReleaseModalClose');
+      const confirmBtn = document.getElementById('knxConfirmRelease');
+      const cancelBtn = document.getElementById('knxCancelRelease');
+
+      const closeModal = () => { if (overlay) overlay.remove(); };
+
+      closeBtn?.addEventListener('click', closeModal);
+      cancelBtn?.addEventListener('click', closeModal);
+      overlay?.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+
+      confirmBtn?.addEventListener('click', async () => {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Releasing...';
+        try {
+          await releaseOrder(orderId);
+          closeModal();
+        } catch (err) {
+          confirmBtn.disabled = false;
+          confirmBtn.textContent = 'Yes, Release Order';
+        }
+      });
+    }
+
+    async function releaseOrder(orderId) {
+      const url = apiUrl.replace(/\/+$/, '') + '/' + encodeURIComponent(String(orderId)) + '/release';
+      const body = JSON.stringify({ knx_nonce: await getKnxNonce() });
+
+      const headers = { 'Content-Type': 'application/json' };
+      if (restNonce) headers['X-WP-Nonce'] = restNonce;
+
+      setState('Releasing...');
+
+      try {
+        const res = await fetch(url, { method: 'POST', credentials: 'same-origin', headers, body });
+        const json = await res.json().catch(() => ({}));
+
+        if (!res.ok || !json.success) {
+          const msg = (json && json.data && json.data.message) || (json && json.message) || 'Request failed';
+          setState('');
+          toast(msg, 'error');
+          return;
+        }
+
+        setState('');
+        toast('Order released successfully', 'success');
+        setTimeout(() => { window.location.href = backUrl; }, 900);
+      } catch (e) {
+        setState('');
+        toast('Network error', 'error');
+      }
+    }
+
+    async function getKnxNonce() {
+      if (typeof window.knxNonce !== 'undefined') return window.knxNonce;
+      if (typeof window.wpApiSettings !== 'undefined' && window.wpApiSettings.nonce) return window.wpApiSettings.nonce;
+      try {
+        const res = await fetch(apiUrl.replace(/\/driver\/orders.*$/, '/nonce/knx'), { credentials: 'same-origin' });
+        const json = await res.json();
+        if (json && json.nonce) return json.nonce;
+      } catch (e) {}
+      return '';
     }
 
     function renderError(title, detail) {
@@ -694,14 +738,20 @@
     async function fetchOrder() {
       if (!apiUrl || !orderId) {
         setState('Missing order_id');
-        renderError('Missing order_id', 'Open this page with ?order_id=123');
+        renderError('Missing order_id', 'Open this page with ?order_id=123 or provide data-order-id');
         return;
       }
 
       setState('Loading…');
 
       try {
-        const url = apiUrl + '?order_id=' + encodeURIComponent(String(orderId));
+        let url = '';
+        if (apiUrl.indexOf('/knx/v2/driver/orders') !== -1 || /\/knx\/v2\/driver\/orders/.test(apiUrl)) {
+          url = apiUrl.replace(/\/+$/, '') + '/' + encodeURIComponent(String(orderId));
+        } else {
+          url = apiUrl + '?order_id=' + encodeURIComponent(String(orderId));
+        }
+
         const headers = {};
         if (restNonce) headers['X-WP-Nonce'] = restNonce;
 
@@ -716,7 +766,12 @@
           return;
         }
 
-        const order = extractOrder(json);
+        let order = null;
+        if (json && json.data && json.data.order) order = json.data.order;
+        else if (json && json.order) order = json.order;
+        else if (json && json.data && json.data.data && json.data.data.order) order = json.data.data.order;
+        else if (json && json.data) order = json.data;
+
         if (!order) {
           setState('');
           renderError('Bad response', 'The server returned an unexpected payload.');
@@ -733,15 +788,11 @@
         } catch (e) {}
 
         renderOrder(order);
+        renderActionButtons(order);
 
-        const stNow = String((order.status || '')).toLowerCase();
-        opsChatIsTerminal = TERMINAL_STATUSES.indexOf(stNow) !== -1;
-
-        // Always fetch once
-        fetchOpsChatOnce();
-
-        // Poll only if active
-        startOpsChatPollingIfNeeded();
+        const terminalSt = ['completed', 'cancelled'];
+        const stCheck = String((order.status || '')).toLowerCase();
+        initDriverChat(terminalSt.includes(stCheck));
       } catch (e) {
         setState('');
         renderError('Network error', 'Check connection or session.');
@@ -749,10 +800,293 @@
       }
     }
 
+    // ══════════════════════════════════════════════════════
+    // DRIVER CHAT — Driver ↔ Customer (Incremental + Live)
+    // Fixes:
+    // - Hard no-cache GET (cache: 'no-store' + cache-buster param)
+    // - Polling always calls incremental fetch (after_id cursor)
+    // - Immediate refresh on visibilitychange (no "wait 10s" feeling)
+    // - Stops polling when terminal
+    // ══════════════════════════════════════════════════════
+
+    const MSG_POLL_MS = 10000;
+    let msgPollTimer = null;
+    let chatInitialized = false;
+    let chatIsTerminal = false;
+
+    // Incremental state
+    let driverChatLoadedOnce = false;     // first load window (last N)
+    let driverChatLastId = 0;             // client cursor
+    let driverChatServerLastId = 0;       // server cursor
+    let driverChatBuffer = [];            // bounded UI buffer
+    let driverChatRendering = false;      // prevents overlapping render/fetch races
+
+    function buildMsgApiBase() {
+      // v2 driver orders -> v1 orders
+      return apiUrl.replace(/\/knx\/v2\/driver\/orders.*$/, '/knx/v1/orders/');
+    }
+
+    function buildDriverMessagesUrl() {
+      const base = buildMsgApiBase().replace(/\/+$/, '') + '/';
+      const afterId = driverChatLoadedOnce ? driverChatLastId : 0;
+      const limit = 60;
+
+      // cache-buster to defeat proxy/browser caching
+      const ts = Date.now();
+
+      return (
+        base +
+        orderId +
+        '/messages?after_id=' +
+        encodeURIComponent(String(afterId)) +
+        '&limit=' +
+        encodeURIComponent(String(limit)) +
+        '&_ts=' +
+        encodeURIComponent(String(ts))
+      );
+    }
+
+    function initDriverChat(isTerminal) {
+      chatIsTerminal = isTerminal === true;
+
+      if (chatInitialized) {
+        // If order became terminal after an update, lock input + stop polling
+        if (chatIsTerminal) {
+          const inp = document.getElementById('knxDriverChatInput');
+          const btn = document.getElementById('knxDriverChatSend');
+          if (inp) { inp.disabled = true; inp.placeholder = 'Order is closed.'; }
+          if (btn) btn.disabled = true;
+          stopDriverMsgPolling();
+        }
+        return;
+      }
+
+      chatInitialized = true;
+
+      const rightPanel = contentEl.querySelector('.knx-ops-vo__right .knx-ops-vo__panel');
+      if (!rightPanel) return;
+
+      const panel = document.createElement('div');
+      panel.id = 'knxDriverChatPanel';
+      panel.className = 'knx-ops-vo__panel knx-ops-vo__chat';
+      panel.innerHTML = `
+        <div class="knx-ops-vo__chat-header">
+          <span class="knx-ops-vo__chat-icon">💬</span>
+          <span class="knx-ops-vo__chat-title">Chat with customer</span>
+        </div>
+        <div id="knxDriverChatMessages" class="knx-ops-vo__chat-messages"></div>
+        <div class="knx-ops-vo__chat-footer">
+          <textarea
+            id="knxDriverChatInput"
+            class="knx-ops-vo__chat-input"
+            rows="1"
+            maxlength="1000"
+            ${chatIsTerminal ? 'disabled placeholder="Order is closed."' : 'placeholder="Type a message\u2026"'}
+          ></textarea>
+          <button id="knxDriverChatSend" class="knx-ops-vo__chat-send" ${chatIsTerminal ? 'disabled' : ''} aria-label="Send">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+          </button>
+        </div>
+      `;
+
+      rightPanel.insertAdjacentElement('afterend', panel);
+
+      const input = document.getElementById('knxDriverChatInput');
+      if (input) {
+        input.addEventListener('input', () => {
+          input.style.height = 'auto';
+          input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+        });
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendDriverMessage(); }
+        });
+      }
+
+      const sendBtn = document.getElementById('knxDriverChatSend');
+      if (sendBtn) sendBtn.addEventListener('click', sendDriverMessage);
+
+      // Reset incremental state (first load window)
+      driverChatLoadedOnce = false;
+      driverChatLastId = 0;
+      driverChatServerLastId = 0;
+      driverChatBuffer = [];
+      driverChatRendering = false;
+
+      // Initial fetch + start polling
+      fetchDriverMessages(true);
+      if (!chatIsTerminal) startDriverMsgPolling();
+    }
+
+    function fetchDriverMessages(isFirst) {
+      if (!orderId || chatIsTerminal) return;
+      if (driverChatRendering) return; // avoid overlapping requests
+
+      driverChatRendering = true;
+
+      const url = buildDriverMessagesUrl();
+      const headers = {};
+      if (restNonce) headers['X-WP-Nonce'] = restNonce;
+
+      // Extra no-cache hints (some proxies ignore fetch cache mode)
+      headers['Cache-Control'] = 'no-cache';
+      headers['Pragma'] = 'no-cache';
+
+      fetch(url, {
+        credentials: 'same-origin',
+        headers,
+        cache: 'no-store',
+      })
+        .then(r => r.json().catch(() => null))
+        .then(data => {
+          if (!data || !data.success) return;
+
+          const srv = parseInt(data.server_last_id || '0', 10);
+          if (Number.isFinite(srv) && srv >= 0) driverChatServerLastId = srv;
+
+          const incoming = Array.isArray(data.messages) ? data.messages : [];
+
+          if (!driverChatLoadedOnce) {
+            // First load: window of last N messages (already ordered ASC by API)
+            driverChatBuffer = incoming;
+            driverChatLoadedOnce = true;
+          } else if (incoming.length) {
+            // Incremental append
+            driverChatBuffer = driverChatBuffer.concat(incoming);
+            if (driverChatBuffer.length > 120) {
+              driverChatBuffer = driverChatBuffer.slice(driverChatBuffer.length - 120);
+            }
+          }
+
+          // Advance cursor using server_last_id (robust even if concurrency)
+          if (driverChatServerLastId > driverChatLastId) driverChatLastId = driverChatServerLastId;
+
+          renderDriverMessages(driverChatBuffer);
+
+          if (data.unread_count > 0) markDriverMessagesRead();
+        })
+        .catch(() => {})
+        .finally(() => {
+          driverChatRendering = false;
+        });
+    }
+
+    function renderDriverMessages(messages) {
+      const el = document.getElementById('knxDriverChatMessages');
+      if (!el) return;
+
+      if (!messages || !messages.length) {
+        el.innerHTML = '<div class="knx-ops-vo__chat-empty">No messages yet.</div>';
+        return;
+      }
+
+      const rows = messages.map(m => {
+        const role = String(m.sender_role || '');
+
+        if (role === 'system') {
+          return `<div class="knx-ops-vo__chat-msg knx-ops-vo__chat-msg--system"><span>${esc(m.body)}</span></div>`;
+        }
+
+        const isMine = role === 'driver';
+        const cls = `knx-ops-vo__chat-msg ${isMine ? 'knx-ops-vo__chat-msg--mine' : 'knx-ops-vo__chat-msg--theirs'}`;
+        const label = isMine ? 'You' : '\u{1F464} Customer';
+        const time = m.created_at ? formatMsgTime(m.created_at) : '';
+
+        return `
+          <div class="${cls}">
+            <div class="knx-ops-vo__chat-bubble">
+              <div class="knx-ops-vo__chat-meta">${esc(label)}${time ? ' · ' + esc(time) : ''}</div>
+              <div class="knx-ops-vo__chat-text">${esc(m.body)}</div>
+            </div>
+          </div>`;
+      }).join('');
+
+      const prevHeight = el.scrollHeight;
+      const wasAtBottom = el.scrollTop + el.clientHeight >= prevHeight - 10;
+
+      el.innerHTML = rows;
+
+      if (wasAtBottom) el.scrollTop = el.scrollHeight;
+    }
+
+    function sendDriverMessage() {
+      const input = document.getElementById('knxDriverChatInput');
+      const sendBtn = document.getElementById('knxDriverChatSend');
+      if (!input) return;
+
+      const body = input.value.trim();
+      if (!body || chatIsTerminal) return;
+
+      input.disabled = true;
+      if (sendBtn) sendBtn.disabled = true;
+
+      const base = buildMsgApiBase().replace(/\/+$/, '') + '/';
+      const url = base + orderId + '/messages';
+
+      const headers = { 'Content-Type': 'application/json' };
+      if (restNonce) headers['X-WP-Nonce'] = restNonce;
+
+      fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers,
+        body: JSON.stringify({ body }),
+      })
+        .then(r => r.json().catch(() => null))
+        .then(data => {
+          if (data && data.success) {
+            input.value = '';
+            input.style.height = 'auto';
+
+            // Fast refresh after send (incremental)
+            fetchDriverMessages(false);
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          input.disabled = chatIsTerminal;
+          if (sendBtn) sendBtn.disabled = chatIsTerminal;
+          if (!chatIsTerminal) input.focus();
+        });
+    }
+
+    function markDriverMessagesRead() {
+      if (!orderId) return;
+
+      const base = buildMsgApiBase().replace(/\/+$/, '') + '/';
+      const url = base + orderId + '/messages/read';
+
+      const headers = {};
+      if (restNonce) headers['X-WP-Nonce'] = restNonce;
+
+      fetch(url, { method: 'POST', credentials: 'same-origin', headers }).catch(() => {});
+    }
+
+    function startDriverMsgPolling() {
+      stopDriverMsgPolling();
+      msgPollTimer = setInterval(() => {
+        if (document.hidden) return;
+        fetchDriverMessages(false);
+      }, MSG_POLL_MS);
+    }
+
+    function stopDriverMsgPolling() {
+      if (msgPollTimer) { clearInterval(msgPollTimer); msgPollTimer = null; }
+    }
+
+    function formatMsgTime(dateStr) {
+      if (!dateStr) return '';
+      try {
+        const d = new Date(String(dateStr).replace(' ', 'T'));
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      } catch (e) { return ''; }
+    }
+
+    // Refresh chat immediately when returning to tab (no waiting for next interval)
     document.addEventListener('visibilitychange', function () {
       if (document.hidden) return;
-      fetchOrder();
-      if (opsChatAllowed) fetchOpsChatOnce();
+      if (!chatInitialized) return;
+      if (chatIsTerminal) return;
+      fetchDriverMessages(false);
     });
 
     fetchOrder();

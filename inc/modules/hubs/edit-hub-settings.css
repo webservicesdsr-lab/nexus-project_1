@@ -1,34 +1,41 @@
 /**
  * ==========================================================
- * Kingdom Nexus - Edit Hub Settings Styles (v1.0)
+ * Kingdom Nexus - Edit Hub Settings Styles (v2.0)
  * ----------------------------------------------------------
- * Consistent with other knx-card blocks (responsive grid)
+ * Refactor goals:
+ * ✅ Remove "card inside card" (settingsBlock is already .knx-card)
+ * ✅ Keep internal grid responsive
+ * ✅ Keep Choices.js styling
  * ==========================================================
  */
 
-#settingsBlock {
-  background: #fff;
-  border: 2px solid #c3b6ff;
-  border-radius: 8px;
-  padding: 25px;
-  margin-top: 20px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+/* ==========================================================
+   IMPORTANT:
+   #settingsBlock is already wrapped by .knx-card in the template.
+   Do NOT add extra padding/margins/shadows here.
+   ========================================================== */
+#settingsBlock{
+  /* Optional subtle accent to distinguish the section */
+  border-top: 3px solid #c3b6ff;
 }
 
-#settingsBlock h2 {
+/* Title inside settings block */
+#settingsBlock h2{
   font-size: 20px;
   font-weight: 600;
   color: #333;
   margin-bottom: 18px;
 }
 
-.knx-two-col {
+/* Grid layout */
+.knx-two-col{
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
 }
 
-.knx-field label {
+/* Fields */
+.knx-field label{
   display: block;
   font-weight: 600;
   color: #333;
@@ -36,7 +43,7 @@
 }
 
 .knx-field input,
-.knx-field select {
+.knx-field select{
   width: 100%;
   padding: 8px 10px;
   border: 1px solid #d5d8e0;
@@ -48,18 +55,19 @@
 }
 
 .knx-field input:focus,
-.knx-field select:focus {
+.knx-field select:focus{
   border-color: #5563ff;
   box-shadow: 0 0 0 2px rgba(85,99,255,0.15);
   outline: none;
 }
 
-.knx-save-row {
+/* Save row */
+.knx-save-row{
   text-align: right;
   margin-top: 20px;
 }
 
-#knxSaveSettingsBtn {
+#knxSaveSettingsBtn{
   background: #225638;
   color: #fff;
   border: none;
@@ -70,12 +78,15 @@
   transition: background 0.2s ease;
 }
 
-#knxSaveSettingsBtn:hover {
+#knxSaveSettingsBtn:hover{
   background: #18462c;
 }
 
-/* Choices.js integration */
-.choices__inner {
+/* ==========================================================
+   Choices.js integration
+   ========================================================== */
+
+.choices__inner{
   border: 1px solid #d5d8e0;
   border-radius: 6px;
   padding: 6px 10px;
@@ -83,17 +94,17 @@
   background-color: #fff;
 }
 
-.choices__list--dropdown {
+.choices__list--dropdown{
   border-color: #d5d8e0;
   border-radius: 6px;
   max-height: 220px;
   overflow-y: auto;
 }
 
-.choices__list--dropdown .choices__item {
+.choices__list--dropdown .choices__item{
   padding: 8px;
 }
 
-.choices__list--dropdown .choices__item--selectable.is-highlighted {
+.choices__list--dropdown .choices__item--selectable.is-highlighted{
   background: #f1f6ff;
 }

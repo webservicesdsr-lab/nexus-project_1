@@ -1,440 +1,29 @@
 /**
  * ==========================================================
- * Kingdom Nexus — Customers Style (v1.0 Cities/Hubs UX)
+ * Kingdom Nexus — Customers Style (v1.1 Hubs Desktop 1:1)
  * ----------------------------------------------------------
- * - Desktop: table
- * - Mobile: cards (no tables)
- * - Matches green style (#0b793a)
- * - Sidebar offset: desktop 154px, mobile 58px
+ * Goal: Desktop layout matches /hubs CRUD 1:1
+ * - Table header uppercase + muted
+ * - Wrapper card + shadow + max width
+ * - Buttons, pagination, modal consistent with hubs-style.css
+ * - Mobile: cards
  * ==========================================================
  */
 
 /* Hide public navbar on admin pages */
 .knx-admin-page .knx-nav { display: none !important; }
 
-.knx-customers-wrapper{
-  /* align with Hubs layout: small left gutter and roomy padding on desktop */
-  margin-left: 58px;
-  padding: 100px;
-  /* font removed to inherit theme typography */
-}
-
-/* When the canonical corporate sidebar is present (server-side body class),
-   avoid visual overlap by removing the extra wrapper margin on desktop. */
-@media (min-width: 901px) {
-  body.knx-has-corporate-sidebar .knx-customers-wrapper {
-    margin-left: 0;
-  }
-}
-
-/* Header */
-.knx-customers-header{
-  display:flex;
-  justify-content:space-between;
-  .knx-customers-header{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    margin-bottom:20px;
-    flex-wrap:wrap;
-    gap:10px;
-  }
-
-  .knx-customers-header h2{
-    font-size: 1.5rem;
-    font-weight: 700;
-    color:#111;
-    display:flex;
-    align-items:center;
-    gap:8px;
-    margin:0;
-  }
-
-  .knx-customers-controls{
-    display:flex;
-    flex-wrap:wrap;
-    justify-content:flex-end;
-    align-items:center;
-    gap:0.75rem;
-    margin-bottom:1.2rem;
-  }
-
-  .knx-search-form{
-    display:flex;
-    align-items:center;
-    gap:0.2rem;
-    flex: 1;
-    max-width: 320px;
-  }
-
-  .knx-search-form input{
-    width:100%;
-    padding:8px 12px;
-    border-radius:6px;
-    border:1px solid #ccc;
-    outline:none;
-    transition: border 0.2s ease;
-  }
-
-  .knx-search-form input:focus{
-    border-color:#0b793a;
-  }
-
-  .knx-search-form button{
-    background:#0b793a;
-    color:#fff;
-    border:none;
-    border-radius:6px;
-    padding:8px 10px;
-    cursor:pointer;
-    transition:background 0.3s;
-  }
-
-  .knx-search-form button:hover{ background:#096b33; }
-  background:#fff;
-  border:1px solid #e2e5e8;
-  border-radius:8px;
-  padding:9px 12px;
-  font-weight:600;
-  color:#333;
-}
-
-.knx-add-btn{
-  background:#0b793a;
-  color:#fff;
-  border:none;
-  border-radius:8px;
-  padding:8px 16px;
-  cursor:pointer;
-  font-weight:600;
-  display:flex;
-  align-items:center;
-  gap:0.4rem;
-  transition: all .3s ease;
-  font-size:0.95rem;
-}
-
-.knx-add-btn:hover{ background:#096b33; transform: translateY(-1px); }
-
-/* TABLE (desktop) */
-.knx-customers-table{
-  width:100%;
-  border-collapse:collapse;
-}
-
-.knx-customers-table th,
-.knx-customers-table td{
-  text-align:left;
-  padding:12px;
-  border-bottom:1px solid #eee;
-  font-size:15px;
-}
-
-.knx-customers-table th{
-  background:#f5f6f7;
-  color:#333;
-  font-weight:600;
-}
-
-.knx-customers-table tr:hover td{
-  background:#fafafa;
-}
-
-.knx-col-center{
-  text-align:center;
-  width:80px;
-}
-
-/* Edit button */
-.knx-edit-link{
-  border:none;
-  background:transparent;
-  cursor:pointer;
-  color:#0b793a;
-  font-size:1rem;
-}
-
-.knx-edit-link:hover{ opacity:.8; }
-
-/* Status pills (same names as Cities) */
-.status-active{
-  background:#e5f7eb;
-  color:#0b793a;
-  font-weight:700;
-  padding:3px 10px;
-  border-radius:6px;
-  font-size:.85rem;
-  display:inline-block;
-}
-
-.status-inactive{
-  background:#f6eaea;
-  color:#b33a3a;
-  font-weight:700;
-  padding:3px 10px;
-  border-radius:6px;
-  font-size:.85rem;
-  display:inline-block;
-}
-
-/* Toggle switch (same as Cities) */
-.knx-switch{
-  position:relative;
-  display:inline-block;
-  width:42px;
-  height:22px;
-}
-
-.knx-switch input{
-  opacity:0;
-  width:0;
-  height:0;
-}
-
-.knx-slider{
-  position:absolute;
-  cursor:pointer;
-  top:0;
-  left:0;
-  right:0;
-  bottom:0;
-  background-color:#ccc;
-  transition:.3s;
-  border-radius:22px;
-}
-
-.knx-slider:before{
-  position:absolute;
-  content:"";
-  height:16px;
-  width:16px;
-  left:3px;
-  bottom:3px;
-  background-color:#fff;
-  transition:.3s;
-  border-radius:50%;
-}
-
-.knx-switch input:checked + .knx-slider{
-  background-color:#0b793a;
-}
-
-.knx-switch input:checked + .knx-slider:before{
-  transform: translateX(20px);
-}
-
-/* Cards (mobile) */
-.knx-customers-cards{
-  display:none;
-  gap:12px;
-}
-
-.knx-customer-card{
-  background:#fff;
-  border:1px solid #e2e5e8;
-  border-radius:14px;
-  padding:14px;
-  box-shadow: 0 6px 16px rgba(0,0,0,.06);
-}
-
-.knx-customer-card__top{
-  display:flex;
-  justify-content:space-between;
-  align-items:flex-start;
-  gap:10px;
-  margin-bottom:10px;
-}
-
-.knx-customer-card__title{
-  font-weight:800;
-  color:#0b793a;
-  font-size:1.05rem;
-}
-
-.knx-customer-card__meta{
-  display:grid;
-  gap:6px;
-  color:#333;
-  font-size:.95rem;
-  margin-bottom:12px;
-}
-
-.knx-customer-card__actions{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:10px;
-}
-
-.knx-customer-card__actions .knx-edit-link{
-  background:#f6f7f8;
-  border:1px solid #e2e5e8;
-  border-radius:10px;
-  padding:8px 10px;
-  font-weight:700;
-  display:flex;
-  align-items:center;
-  gap:8px;
-}
-
-/* Empty */
-.knx-empty{
-  text-align:center;
-  padding:18px;
-  color:#666;
-  background:#fff;
-  border:1px dashed #e2e5e8;
-  border-radius:12px;
-}
-
-/* Modal (same pattern as Cities) */
-.knx-modal{
-  display:none;
-  position:fixed;
-  z-index:1000;
-  left:0;
-  top:0;
-  width:100%;
-  height:100%;
-  background: rgba(0,0,0,.45);
-  justify-content:center;
-  align-items:center;
-}
-
-.knx-modal.active{ display:flex; }
-
-.knx-modal-content{
-  background:#fff;
-  padding:25px 30px;
-  border-radius:14px;
-  width:360px;
-  max-width:92vw;
-  box-shadow:0 6px 20px rgba(0,0,0,.15);
-  text-align:center;
-}
-
-.knx-modal-content h3{
-  margin-bottom:15px;
-  color:#0b793a;
-  font-weight:800;
-}
-
-#knxCustomerForm input,
-#knxCustomerForm select{
-  width:100%;
-  padding:10px 12px;
-  border:1px solid #ccc;
-  border-radius:10px;
-  margin-bottom:10px;
-  font-size:.95rem;
-  outline:none;
-}
-
-.knx-hint{
-  display:block;
-  text-align:left;
-  margin:-4px 0 10px;
-  font-size:.82rem;
-  color:#666;
-}
-
-.knx-btn,
-.knx-btn-secondary{
-  border:none;
-  border-radius:10px;
-  padding:10px 14px;
-  cursor:pointer;
-  font-weight:800;
-  font-size:.95rem;
-  transition: background .2s ease;
-  width:100%;
-  margin-top:6px;
-}
-
-.knx-btn{
-  background:#0b793a;
-  color:#fff;
-}
-
-.knx-btn:hover{ background:#096631; }
-
-.knx-btn-secondary{
-  background:#f2f2f2;
-  color:#333;
-}
-
-.knx-btn-secondary:hover{ background:#e4e4e4; }
-
-/* Pagination (same as Cities) */
-.knx-pagination{
-  text-align:center;
-  margin-top:20px;
-}
-
-.knx-pagination a{
-  display:inline-block;
-  padding:6px 10px;
-  margin:0 4px;
-  background:#f6f7f8;
-  border-radius:6px;
-  color:#333;
-  font-weight:700;
-  text-decoration:none;
-  border:1px solid #e2e5e8;
-}
-
-.knx-pagination a.active,
-.knx-pagination a:hover{
-  background:#0b793a;
-  color:#fff;
-  border-color:#0b793a;
-}
-
-.knx-pagination a.disabled{
-  opacity:.45;
-  pointer-events:none;
-}
-
-/* Responsive: switch to cards */
-@media (max-width: 768px){
-  .knx-customers-header{
-    flex-direction:column;
-    align-items:flex-start;
-    gap:12px;
-  }
-  .knx-search-form input{ width: 200px; }
-}
-
-@media (max-width: 768px){
-  .knx-customers-wrapper{
-    margin-left:58px;
-    padding:20px;
-  }
-
-  .knx-add-btn{
-    width:100%;
-    justify-content:center;
-  }
-
-  /* Hide table, show cards */
-  .knx-customers-table{ display:none; }
-  .knx-customers-cards{
-    display:grid;
-    grid-template-columns: 1fr;
-    margin-top: 8px;
-  }
-}
-
-/* Serious / Auth-like overrides (match Hubs card UI on desktop) */
 :root{
   --nxs-primary: #0b793a;
   --nxs-card: #ffffff;
   --nxs-bg: #f6f7f9;
   --nxs-text: #0b1220;
   --nxs-muted: #6b7280;
+  --nxs-border: rgba(11,18,32,0.06);
 }
 
-.knx-customers-wrapper {
+/* Wrapper: same as hubs (serious overrides) */
+.knx-customers-wrapper{
   max-width: 1100px;
   margin: 48px auto;
   padding: 28px;
@@ -444,65 +33,452 @@
   color: var(--nxs-text);
 }
 
-.knx-customers-header h2 { font-size: 1.25rem; color: var(--nxs-text); margin:0; }
-.knx-search-form input[type="text"] { padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(11,18,32,0.06); background: transparent; color: var(--nxs-text); }
-.knx-search-form button { background: transparent; color: var(--nxs-primary); border: 1px solid rgba(11,18,32,0.04); border-radius: 8px; }
-.knx-add-btn { background: var(--nxs-primary); color: var(--nxs-card); border-radius: 10px; padding: 10px 16px; font-weight:700; box-shadow: 0 6px 18px rgba(11,121,58,0.09); }
-
-.knx-customers-table th, .knx-customers-table td { padding: 14px 12px; border-bottom: 1px solid rgba(11,18,32,0.04); }
-.knx-customers-table th { color: var(--nxs-muted); font-weight:700; font-size:13px; text-transform:uppercase; }
-.knx-customers-table tr:hover td { background: rgba(11,18,32,0.02); }
-
-.status-active, .status-inactive { display:inline-block; padding:6px 10px; border-radius:999px; font-weight:600; font-size:13px; }
-.status-active { background:#F0FCF4; color:#0B6623; }
-.status-inactive { background:#FFF6F6; color:#7A1010; }
-
-.knx-switch { width:46px; height:26px; }
-
-.knx-modal { background: rgba(11,18,32,0.45); z-index:99999; }
-.knx-modal-content { background:var(--nxs-card); padding:20px 22px; box-shadow: 0 12px 30px rgba(11,18,32,0.08); }
-.knx-modal-content h3 { color: var(--nxs-text); text-align:left; margin-bottom:0.6rem; }
-.knx-modal-content form input { padding:12px 14px; border-radius:10px; border:1px solid rgba(11,18,32,0.06); background:transparent; color:var(--nxs-text); }
-.knx-btn { border-radius:10px; padding:10px 12px; font-weight:700; }
-.knx-btn-secondary { background:transparent; color:var(--nxs-muted); border:1px solid rgba(11,18,32,0.04); font-weight:700; }
-
-.knx-pagination a { color: var(--nxs-muted); background:transparent; border:1px solid rgba(11,18,32,0.04); border-radius:8px; padding:8px 12px; font-weight:600; }
-.knx-pagination a:hover { background: rgba(11,18,32,0.03); transform: translateY(-1px); }
-.knx-pagination a.active { background: var(--nxs-primary); color: var(--nxs-card); border-color: var(--nxs-primary); }
-
-/* Mobile tweaks to keep serious tone */
-@media (max-width: 768px) {
-  .knx-customers-wrapper { padding: 18px; margin: 18px; }
-  .knx-modal-content { width: 92%; }
-  .knx-customers-table tr { background: var(--nxs-card); border:1px solid rgba(11,18,32,0.04); box-shadow: 0 6px 18px rgba(11,18,32,0.03); }
+/* If your layout uses sidebars elsewhere, keep safe behavior */
+@media (min-width: 901px) {
+  body.knx-has-corporate-sidebar .knx-customers-wrapper { margin-left: auto; }
 }
 
-/* Accessibility focus outlines */
-.knx-add-btn:focus, .knx-search-form button:focus, .knx-btn:focus, .knx-btn-secondary:focus { outline: 3px solid rgba(11,121,58,0.14); outline-offset: 2px; }
+/* ===================
+   HEADER & CONTROLS (match hubs)
+=================== */
+.knx-customers-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
 
-/* Hub-like thumbnail & badge parity (for customer avatars) */
-.knx-hub-thumb, .knx-customer-thumb {
-  width: 46px;
-  height: 46px;
+.knx-customers-header h2{
+  font-size: 1.25rem;
+  color: var(--nxs-text);
+  margin: 0;
+  font-weight: 700;
+}
+
+.knx-customers-controls{
+  display:flex;
+  flex-wrap: wrap;
+  justify-content:flex-end;
+  align-items:center;
+  gap: 0.75rem;
+  margin-bottom: 1.2rem;
+}
+
+.knx-search-form{
+  display:flex;
+  align-items:center;
+  gap: 0.2rem;
+  flex: 1;
+  max-width: 320px;
+}
+
+.knx-search-form input{
+  width: 100%;
+  padding: 10px 12px;
   border-radius: 8px;
-  object-fit: cover;
-  border: 1px solid rgba(11,18,32,0.06);
-  background: #f4f5f6;
-  display: inline-block;
+  border: 1px solid var(--nxs-border);
+  background: transparent;
+  color: var(--nxs-text);
+  outline: none;
+  transition: border 0.2s ease;
 }
 
-.knx-hub-name, .knx-customer-name { font-weight: 700; color: var(--nxs-text); }
-.knx-hub-name-wrap, .knx-customer-name-wrap { display:flex; flex-direction:column; }
+.knx-search-form input:focus{
+  border-color: rgba(11,121,58,0.35);
+}
 
-.knx-badge--featured { display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:999px; background: linear-gradient(180deg, rgba(255,250,230,1), rgba(255,245,220,1)); color:#DAA520; border:1px solid rgba(218,165,32,0.08); margin-left:6px; }
+.knx-search-form button{
+  background: transparent;
+  color: var(--nxs-primary);
+  border: 1px solid rgba(11,18,32,0.04);
+  border-radius: 8px;
+  padding: 10px 10px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
 
-/* Confirm modal tweaks */
-.knx-confirm-content { max-width: 460px; padding:20px 22px; text-align: left; }
-.knx-confirm-message { color: var(--nxs-muted); margin: 8px 0 0; line-height:1.4; }
-.knx-confirm-actions .knx-btn { background: #b30000; border-radius: 10px; }
-.knx-confirm-actions .knx-btn:hover { background: #990000; }
-.knx-confirm-actions .knx-btn-secondary { background: transparent; border:1px solid rgba(11,18,32,0.04); }
+.knx-search-form button:hover{
+  background: rgba(11,18,32,0.03);
+}
 
-@media (max-width: 420px) {
-  .knx-confirm-content { width: 92%; padding: 16px; }
+.knx-status-filter{
+  background: transparent;
+  border: 1px solid rgba(11,18,32,0.04);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-weight: 600;
+  color: var(--nxs-text);
+}
+
+.knx-add-btn{
+  background: var(--nxs-primary);
+  color: var(--nxs-card);
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display:flex;
+  align-items:center;
+  gap: 0.4rem;
+  box-shadow: 0 6px 18px rgba(11,121,58,0.09);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.knx-add-btn:hover{
+  background: #096b33;
+  transform: translateY(-1px);
+}
+
+/* ===================
+   TABLE (DESKTOP) — match hubs
+=================== */
+.knx-customers-table{
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.knx-customers-table th,
+.knx-customers-table td{
+  padding: 14px 12px;
+  border-bottom: 1px solid rgba(11,18,32,0.04);
+  text-align: left;
+}
+
+.knx-customers-table th{
+  color: var(--nxs-muted);
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.knx-customers-table tr:hover td{
+  background: rgba(11,18,32,0.02);
+}
+
+.knx-col-center{
+  text-align:center;
+  width: 80px;
+}
+
+/* Status pills — match hubs */
+.status-active,
+.status-inactive{
+  display:inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.status-active{
+  background:#F0FCF4;
+  color:#0B6623;
+}
+
+.status-inactive{
+  background:#FFF6F6;
+  color:#7A1010;
+}
+
+/* Edit icon — match hubs */
+.knx-edit-link{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:none;
+  background: transparent;
+  cursor:pointer;
+  color: var(--nxs-primary);
+  font-size: 16px;
+  transition: color 0.2s ease, transform 0.1s ease;
+}
+
+.knx-edit-link:hover{
+  color:#065429;
+  transform: scale(1.08);
+}
+
+/* Toggle switch — match hubs sizing */
+.knx-switch{
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 26px;
+}
+
+.knx-switch input{
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.knx-slider{
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: #ccc;
+  border-radius: 999px;
+  transition: .3s;
+}
+
+.knx-slider:before{
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  border-radius: 50%;
+  transition: .3s;
+}
+
+.knx-switch input:checked + .knx-slider{
+  background-color: var(--nxs-primary);
+}
+
+.knx-switch input:checked + .knx-slider:before{
+  transform: translateX(20px);
+}
+
+/* ===================
+   PAGINATION — match hubs
+=================== */
+.knx-pagination{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap: 0.4rem;
+  margin-top: 1.5rem;
+  padding: 0.5rem 0;
+}
+
+.knx-pagination a{
+  color: var(--nxs-muted);
+  background: transparent;
+  border: 1px solid rgba(11,18,32,0.04);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.knx-pagination a:hover{
+  background: rgba(11,18,32,0.03);
+  transform: translateY(-1px);
+}
+
+.knx-pagination a.active{
+  background: var(--nxs-primary);
+  color: var(--nxs-card);
+  border-color: var(--nxs-primary);
+  cursor: default;
+}
+
+.knx-pagination a.disabled{
+  opacity: .45;
+  pointer-events: none;
+}
+
+/* ===================
+   MOBILE CARDS
+=================== */
+.knx-customers-cards{
+  display: none;
+  gap: 12px;
+}
+
+.knx-customer-card{
+  background: var(--nxs-card);
+  border: 1px solid rgba(11,18,32,0.04);
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 6px 18px rgba(11,18,32,0.03);
+}
+
+.knx-customer-card__top{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.knx-customer-card__title{
+  font-weight: 800;
+  color: var(--nxs-text);
+  font-size: 1.05rem;
+}
+
+.knx-customer-card__meta{
+  display:grid;
+  gap: 6px;
+  color: var(--nxs-text);
+  font-size: .95rem;
+  margin-bottom: 12px;
+}
+
+.knx-customer-card__actions{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap: 10px;
+}
+
+.knx-customer-card__actions .knx-edit-link{
+  background: rgba(11,18,32,0.03);
+  border: 1px solid rgba(11,18,32,0.04);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-weight: 700;
+  display:flex;
+  align-items:center;
+  gap: 8px;
+}
+
+/* Empty */
+.knx-empty{
+  text-align:center;
+  padding: 18px;
+  color: var(--nxs-muted);
+  background: var(--nxs-card);
+  border: 1px dashed rgba(11,18,32,0.10);
+  border-radius: 12px;
+}
+
+/* ===================
+   MODAL — match hubs (serious)
+=================== */
+.knx-modal{
+  display:none;
+  position:fixed;
+  z-index: 99999;
+  left:0;
+  top:0;
+  width:100%;
+  height:100%;
+  background: rgba(11,18,32,0.45);
+  justify-content:center;
+  align-items:center;
+}
+
+.knx-modal.active{ display:flex; }
+
+.knx-modal-content{
+  background: var(--nxs-card);
+  padding: 20px 22px;
+  width: 420px;
+  max-width: 92%;
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(11,18,32,0.08);
+  text-align: left;
+}
+
+.knx-modal-content h3{
+  color: var(--nxs-text);
+  text-align: left;
+  margin: 0 0 0.6rem;
+  font-weight: 800;
+}
+
+#knxCustomerForm input,
+#knxCustomerForm select{
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(11,18,32,0.06);
+  background: transparent;
+  color: var(--nxs-text);
+  margin-bottom: 10px;
+  font-size: 14px;
+  outline: none;
+}
+
+#knxCustomerForm input:focus,
+#knxCustomerForm select:focus{
+  border-color: rgba(11,121,58,0.35);
+  outline: 3px solid rgba(11,121,58,0.14);
+  outline-offset: 2px;
+}
+
+.knx-hint{
+  display:block;
+  margin: -4px 0 10px;
+  font-size: .82rem;
+  color: var(--nxs-muted);
+}
+
+.knx-btn,
+.knx-btn-secondary{
+  border:none;
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor:pointer;
+  font-weight: 700;
+  font-size: .95rem;
+  transition: background .2s ease;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.knx-btn{
+  background: var(--nxs-primary);
+  color: var(--nxs-card);
+}
+
+.knx-btn:hover{ background:#096c33; }
+
+.knx-btn-secondary{
+  background: transparent;
+  color: var(--nxs-muted);
+  border: 1px solid rgba(11,18,32,0.04);
+}
+
+.knx-btn-secondary:hover{
+  background: rgba(11,18,32,0.03);
+}
+
+/* ===================
+   RESPONSIVE: switch to cards
+=================== */
+@media (max-width: 768px){
+  .knx-customers-wrapper{
+    padding: 18px;
+    margin: 18px;
+  }
+
+  .knx-customers-header{
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .knx-add-btn{
+    width: 100%;
+    justify-content: center;
+  }
+
+  .knx-customers-table{ display:none; }
+  .knx-customers-cards{
+    display:grid;
+    grid-template-columns: 1fr;
+    margin-top: 8px;
+  }
+
+  .knx-modal-content{ width: 92%; }
+}
+
+/* Accessibility focus outlines (match hubs) */
+.knx-add-btn:focus,
+.knx-search-form button:focus,
+.knx-btn:focus,
+.knx-btn-secondary:focus{
+  outline: 3px solid rgba(11,121,58,0.14);
+  outline-offset: 2px;
 }

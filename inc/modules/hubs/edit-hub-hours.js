@@ -1,9 +1,11 @@
 /**
- * Kingdom Nexus — Edit Hub Hours JS (v11.0)
- *  - UI 12h (HH / MM / AM/PM)
- *  - Guarda en 24h para el engine
- *  - Sunday bloqueado
- *  - 2nd shift sólo si la casilla está activa
+ * Kingdom Nexus — Edit Hub Hours JS (v12.0)
+ * ----------------------------------------------------------
+ * UI behavior:
+ * ✅ Adds/removes .knx-second-enabled to control mobile spacing
+ * ✅ Keeps existing save logic intact
+ * ✅ Sunday locked
+ * ✅ 2nd shift enabled only when checkbox is active
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -32,6 +34,10 @@ document.addEventListener('DOMContentLoaded', () => {
     return `${hStr}:${mm}`;
   }
 
+  function setSecondEnabledClass(row, enabled) {
+    row.classList.toggle('knx-second-enabled', !!enabled);
+  }
+
   function toggleDayRow(row, enabled) {
     const dayCheck    = row.querySelector('.day-check');
     const secondCheck = row.querySelector('.second-check');
@@ -47,15 +53,17 @@ document.addEventListener('DOMContentLoaded', () => {
       secondCheck.disabled = !enabled;
     }
 
-    // Si desactivamos el día, también apagamos 2nd shift visualmente
+    // If disabling day, also disable 2nd shift UI
     if (!enabled) {
       secondRange.forEach(sr => sr.classList.add('disabled'));
+      setSecondEnabledClass(row, false);
     } else {
-      // estado depende de la casilla 2nd
       if (secondCheck && secondCheck.checked) {
         secondRange.forEach(sr => sr.classList.remove('disabled'));
+        setSecondEnabledClass(row, true);
       } else {
         secondRange.forEach(sr => sr.classList.add('disabled'));
+        setSecondEnabledClass(row, false);
       }
     }
 
@@ -63,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function toggleSecondRow(row, enabled) {
-    const selects     = row.querySelectorAll(
+    const selects = row.querySelectorAll(
       '.open2, .open2m, .open2ampm, .close2, .close2m, .close2ampm'
     );
     const secondRange = row.querySelectorAll('.second-range');
@@ -76,10 +84,13 @@ document.addEventListener('DOMContentLoaded', () => {
     secondRange.forEach(sr => {
       sr.classList.toggle('disabled', !enabled);
     });
+
+    // KEY: control mobile spacing
+    setSecondEnabledClass(row, enabled);
   }
 
   // ==========================
-  // Inicializar filas
+  // Init rows
   // ==========================
   const rows = container.querySelectorAll('.knx-hours-row');
 
@@ -91,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const secondRange = row.querySelectorAll('.second-range');
     const selects     = row.querySelectorAll('.time-select');
 
-    // Sunday: completamente bloqueado
+    // Sunday locked
     if (isSunday) {
       if (dayCheck) {
         dayCheck.checked = false;
@@ -106,23 +117,23 @@ document.addEventListener('DOMContentLoaded', () => {
         secondCheck.disabled = true;
       }
       secondRange.forEach(sr => sr.classList.add('disabled'));
+      setSecondEnabledClass(row, false);
       return;
     }
 
-    // Estado inicial normal
     const isOpenToday   = dayCheck ? dayCheck.checked : false;
     const hasSecondOpen = secondCheck ? secondCheck.checked : false;
 
     toggleDayRow(row, isOpenToday);
     toggleSecondRow(row, isOpenToday && hasSecondOpen);
 
-    // Eventos
+    // Events
     if (dayCheck) {
       dayCheck.addEventListener('change', () => {
         const enabled = dayCheck.checked;
         toggleDayRow(row, enabled);
 
-        // Si se desactiva el día -> desactivar 2nd
+        // If day off -> turn off 2nd
         if (!enabled && secondCheck) {
           secondCheck.checked = false;
           toggleSecondRow(row, false);
@@ -139,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ==========================
-  // Guardar horas
+  // Save hours
   // ==========================
   saveBtn.addEventListener('click', async () => {
     const hubId = saveBtn.dataset.hubId;
@@ -157,12 +168,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     let invalid = false;
+
     rows.forEach(row => {
       const day = row.dataset.day;
-      if (!day || day === 'sunday') {
-        // Sunday se ignora: siempre cerrado desde el editor
-        return;
-      }
+      if (!day || day === 'sunday') return;
 
       const dayCheck    = row.querySelector('.day-check');
       const secondCheck = row.querySelector('.second-check');
@@ -181,54 +190,40 @@ document.addEventListener('DOMContentLoaded', () => {
       const close2m    = row.querySelector('.close2m')?.value || '';
       const close2ampm = row.querySelector('.close2ampm')?.value || '';
 
-      const isOpenToday   = dayCheck ? dayCheck.checked : false;
-      const hasSecond     = secondCheck ? secondCheck.checked : false;
-      const intervals     = [];
+      const isOpenToday = dayCheck ? dayCheck.checked : false;
+      const hasSecond   = secondCheck ? secondCheck.checked : false;
 
-      // Primer turno
+      const intervals = [];
+
       if (isOpenToday) {
-        if (!(open1 && open1m && open1ampm && close1 && close1m && close1ampm)) {
-          invalid = true;
-        }
+        if (!(open1 && open1m && open1ampm && close1 && close1m && close1ampm)) invalid = true;
         const open24  = to24Hour(open1, open1m, open1ampm);
         const close24 = to24Hour(close1, close1m, close1ampm);
-        if (open24 && close24) {
-          intervals.push({ open: open24, close: close24 });
-        }
+        if (open24 && close24) intervals.push({ open: open24, close: close24 });
       }
 
-      // Segundo turno
       if (isOpenToday && hasSecond) {
-        if (!(open2 && open2m && open2ampm && close2 && close2m && close2ampm)) {
-          invalid = true;
-        }
+        if (!(open2 && open2m && open2ampm && close2 && close2m && close2ampm)) invalid = true;
         const open24  = to24Hour(open2, open2m, open2ampm);
         const close24 = to24Hour(close2, close2m, close2ampm);
-        if (open24 && close24) {
-          intervals.push({ open: open24, close: close24 });
-        }
+        if (open24 && close24) intervals.push({ open: open24, close: close24 });
       }
 
       payload.hours[day] = intervals;
     });
-
-    // Eliminado: captura de cierre temporal para este endpoint
 
     if (invalid) {
       knxToast('Invalid hub hours or closure info', 'error');
       return;
     }
 
-    // Enviar al endpoint existente (knx/v1/save-hours)
     try {
       saveBtn.disabled = true;
       saveBtn.textContent = 'Saving...';
 
       const res = await fetch(`${knx_api.root}knx/v1/save-hours`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 

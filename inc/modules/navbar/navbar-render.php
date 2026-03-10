@@ -43,7 +43,7 @@ add_action('wp_body_open', function () {
       <div class="knx-nav__inner">
         <!-- Logo -->
         <a href="<?php echo esc_url(site_url('/')); ?>" class="knx-nav__brand">
-          <span class="knx-nav__logo">馃崈</span>
+          <span class="knx-nav__logo">🍃</span>
           <span class="knx-nav__brand-text">Kingdom Nexus</span>
         </a>
 
@@ -102,11 +102,11 @@ add_action('wp_body_open', function () {
     <aside class="knx-cart-drawer" id="knxCartDrawer" role="dialog" aria-modal="true" aria-labelledby="knxCartTitle">
       <header class="knx-cart-drawer__header">
         <h3 id="knxCartTitle">Your Cart</h3>
-        <button type="button" class="knx-cart-drawer__close" id="knxCartClose" aria-label="Close cart">脳</button>
+        <button type="button" class="knx-cart-drawer__close" id="knxCartClose" aria-label="Close cart">×</button>
       </header>
 
       <div class="knx-cart-drawer__body" id="knxCartItems">
-        <!-- Items renderizados via JS (solo summary del men煤, sin fees) -->
+        <!-- Items renderizados via JS (solo summary del menú, sin fees) -->
       </div>
 
       <footer class="knx-cart-drawer__footer">
@@ -115,12 +115,12 @@ add_action('wp_body_open', function () {
           <strong id="knxCartTotal">$0.00</strong>
         </div>
         
-        <!-- TASK 3: Bot贸n 1 - SIEMPRE visible -->
+        <!-- TASK 3: Botón 1 - SIEMPRE visible -->
         <a class="knx-cart-drawer__review-btn" href="<?php echo esc_url(site_url('/cart')); ?>" style="display:block;margin-bottom:8px;text-align:center;padding:12px;background:#f3f4f6;color:#374151;border-radius:8px;text-decoration:none;font-weight:500;">
           Review cart
         </a>
         
-        <!-- TASK 3: Bot贸n 2 - DIN脕MICO (renderizado por JS) -->
+        <!-- TASK 3: Botón 2 - DINÁMICO (renderizado por JS) -->
         <div id="knxCartCheckoutBtn">
           <!-- Renderizado por cart-drawer.js basado en estado login + availability -->
         </div>

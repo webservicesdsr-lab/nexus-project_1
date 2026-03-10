@@ -1,4 +1,4 @@
-(function(){'use strict';
+(function(){'use strict';document.addEventListener('DOMContentLoaded',function(){var root=document.querySelector('.knx-profile');if(!root)return;var btns=root.querySelectorAll('.knx-profile__btn');Array.prototype.forEach.call(btns,function(b){b.addEventListener('click',function(e){/* allow normal navigation */});});});})();(function(){'use strict';
 
 document.addEventListener('DOMContentLoaded',function(){
   var root=document.querySelector('.knx-profile');

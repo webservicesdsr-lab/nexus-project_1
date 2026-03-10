@@ -1,416 +1,169 @@
-/* File: inc/modules/ops/view-order/view-order-style.css */
+/* File: inc/modules/ops/driver-view-order/driver-view-order-style.css */
+
 /**
- * KNX OPS — View Order (1:1 Layout) — CANON v1.2
- * - Desktop: left details + right map/history
- * - Mobile: stack with right panel below
- * - Nexus shell variables, breakout full width
- * - Includes chat styles (OPS read-only) aligned with order-status + driver view
+ * ==========================================================
+ * KNX DRIVER — View Order — Chat Styling (Nexus Shell)
+ * ----------------------------------------------------------
+ * Purpose:
+ * - Driver chat inherits OPS view-order layout CSS, but that CSS
+ *   does not include chat bubble styling.
+ * - This file ONLY adds chat visuals for:
+ *     .knx-ops-vo__chat (driver) and optionally OPS read-only chat.
+ * ==========================================================
  */
 
-.knx-ops-vo{
+:root{
   --nxs-primary:#0b793a;
-  --nxs-accent:#1E6FF0;
+  --nxs-bg:#f6f7f9;
   --nxs-card:#ffffff;
-  --nxs-bg:#f5f7fb;
   --nxs-text:#0b1220;
   --nxs-muted:#6b7280;
-  --nxs-line:rgba(11,18,32,0.08);
-  --nxs-radius:12px;
-  --nxs-shadow:0 14px 30px rgba(11,18,32,0.06);
-  --nxs-font-sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial;
-
-  font-family:var(--nxs-font-sans);
-  color:var(--nxs-text);
-  background:var(--nxs-bg);
-  padding:14px 12px;
-  min-height:80vh;
-  box-sizing:border-box;
-
-  width:100vw;
-  margin-left:calc(50% - 50vw);
-  margin-right:calc(50% - 50vw);
-  overflow-x:hidden;
+  --nxs-border:rgba(11,18,32,.10);
+  --nxs-border-soft:rgba(11,18,32,.06);
+  --nxs-shadow-soft:0 10px 22px rgba(11,18,32,.06);
 }
 
-.knx-ops-vo *{box-sizing:border-box}
-
-.knx-ops-vo__shell{
-  max-width:1200px;
-  margin:0 auto;
-  padding:4px 10px 22px;
+/* Chat shell */
+.knx-ops-vo__chat{
+  margin-top:16px;
+  border-radius:14px;
+  background:var(--nxs-card);
+  border:1px solid var(--nxs-border);
+  box-shadow:var(--nxs-shadow-soft);
+  overflow:hidden;
 }
 
-.knx-ops-vo__topbar{
+/* Header */
+.knx-ops-vo__chat-header{
   display:flex;
   align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  flex-wrap:wrap;
+  gap:8px;
+  padding:12px 14px;
+  border-bottom:1px solid var(--nxs-border-soft);
+}
+.knx-ops-vo__chat-icon{ font-size:18px; line-height:1; }
+.knx-ops-vo__chat-title{ font-weight:800; font-size:14px; color:var(--nxs-text); }
+
+/* Messages list */
+.knx-ops-vo__chat-messages{
+  padding:12px 12px;
+  min-height:100px;
+  max-height:320px;
+  overflow-y:auto;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.knx-ops-vo__chat-empty{
+  color:var(--nxs-muted);
+  text-align:center;
+  padding:14px 0;
+  font-size:13px;
 }
 
-.knx-ops-vo__back{
-  text-decoration:none;
-  color:var(--nxs-accent);
-  font-weight:900;
-  padding:8px 10px;
-  border-radius:10px;
-  background:rgba(30,111,240,0.08);
-  border:1px solid rgba(30,111,240,0.14);
+/* System message */
+.knx-ops-vo__chat-msg--system{
+  display:flex;
+  justify-content:center;
+}
+.knx-ops-vo__chat-msg--system span{
+  background:rgba(11,121,58,.08);
+  color:var(--nxs-primary);
+  font-size:12px;
+  font-weight:600;
+  padding:6px 12px;
+  border-radius:20px;
+  max-width:88%;
+  text-align:center;
+  line-height:1.4;
 }
 
-.knx-ops-vo__title{
-  margin-top:10px;
+/* Message alignment */
+.knx-ops-vo__chat-msg--mine{ display:flex; justify-content:flex-end; }
+.knx-ops-vo__chat-msg--theirs{ display:flex; justify-content:flex-start; }
+
+.knx-ops-vo__chat-bubble{
+  max-width:78%;
   display:flex;
   flex-direction:column;
   gap:4px;
 }
 
-.knx-ops-vo__title h2{
-  margin:0;
-  font-size:18px;
-  font-weight:900;
-  letter-spacing:-0.01em;
-}
-
-.knx-ops-vo__state{
-  color:var(--nxs-muted);
-  font-size:13px;
-}
-
-.knx-ops-vo__content{ margin-top:10px; }
-
-.knx-ops-vo__layout{
-  display:grid;
-  grid-template-columns:1fr;
-  gap:14px;
-  align-items:start;
-}
-
-/* CANON: actions container lives above the left panel */
-.knx-ops-vo__actions{ width:100%; }
-.knx-ops-vo__actions--in-left{ width:100%; margin:0 0 14px 0; }
-
-.knx-ops-vo__panel{
-  background:var(--nxs-card);
-  border-radius:var(--nxs-radius);
-  border:1px solid rgba(11,18,32,0.06);
-  box-shadow:var(--nxs-shadow);
-  padding:16px;
-}
-
-.knx-ops-vo__panel-head{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  margin-bottom:12px;
-}
-
-.knx-ops-vo__panel-title{
-  font-size:12px;
-  font-weight:900;
-  color:var(--nxs-muted);
-  text-transform:uppercase;
-  letter-spacing:0.06em;
-}
-
-.knx-ops-vo__panel-pill{
-  padding:7px 10px;
-  border-radius:999px;
-  background:rgba(11,121,58,0.10);
-  color:var(--nxs-primary);
-  border:1px solid rgba(11,121,58,0.14);
-  font-size:12px;
-  font-weight:900;
-  white-space:nowrap;
-}
-
-.knx-ops-vo__divider{
-  height:1px;
-  background:var(--nxs-line);
-  margin:14px 0;
-}
-
-.knx-ops-vo__section-title{
-  font-size:12px;
-  font-weight:900;
-  color:var(--nxs-muted);
-  text-transform:uppercase;
-  letter-spacing:0.06em;
-  margin-bottom:10px;
-}
-
-.knx-ops-vo__info-row{ display:flex; gap:12px; align-items:flex-start; }
-
-.knx-ops-vo__logo{
-  width:44px;
-  height:44px;
-  border-radius:10px;
-  object-fit:cover;
-  flex-shrink:0;
-  border:1px solid rgba(11,18,32,0.08);
-}
-
-.knx-ops-vo__info-main{min-width:0}
-.knx-ops-vo__info-name{font-weight:900;font-size:16px;line-height:1.15}
-.knx-ops-vo__info-sub{color:var(--nxs-muted);font-size:13px;margin-top:4px;word-break:break-word}
-.knx-ops-vo__info-links{margin-top:8px;display:flex;flex-direction:column;gap:6px}
-.knx-ops-vo__link{color:#1f2937;font-weight:700;font-size:13px;word-break:break-word}
-
-.knx-ops-vo__kv-row{font-size:13px;color:#111;line-height:1.35;word-break:break-word}
-.knx-ops-vo__muted{color:var(--nxs-muted)}
-
-.knx-ops-vo__order-list{display:flex;flex-direction:column;gap:10px}
-.knx-ops-vo__order-row{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
-.knx-ops-vo__order-left{min-width:0}
-.knx-ops-vo__order-title{font-size:13px;line-height:1.3;display:flex;gap:8px;word-break:break-word}
-.knx-ops-vo__dot{color:#111;opacity:0.7}
-.knx-ops-vo__order-sub{color:var(--nxs-muted);font-size:12px;margin-top:4px}
-.knx-ops-vo__order-price{font-weight:900;font-size:13px;white-space:nowrap}
-
-.knx-ops-vo__order-mods{margin-top:6px}
-.knx-ops-vo__order-mod{font-size:12px;color:var(--nxs-muted);margin-top:6px;line-height:1.25}
-.knx-ops-vo__order-mod-g{font-weight:900;color:var(--nxs-text)}
-.knx-ops-vo__order-mod-o{word-break:break-word}
-
-.knx-ops-vo__totals{display:flex;flex-direction:column;gap:8px}
-.knx-ops-vo__tot-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:13px; }
-.knx-ops-vo__tot-grand{
-  margin-top:12px;
-  padding-top:12px;
-  border-top:1px solid var(--nxs-line);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  font-size:14px;
-  font-weight:900;
-}
-.knx-ops-vo__tot-grand strong{font-size:16px}
-
-.knx-ops-vo__meta{display:flex;flex-direction:column;gap:10px}
-.knx-ops-vo__meta-row{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:12px;
-  font-size:13px;
-}
-.knx-ops-vo__meta-row span{color:var(--nxs-muted)}
-.knx-ops-vo__meta-row strong{color:#111}
-
-.knx-ops-vo__notes{white-space:pre-wrap;word-break:break-word;font-size:13px;color:#111}
-
-.knx-ops-vo__map{
-  border-radius:12px;
-  overflow:hidden;
-  border:1px solid rgba(11,18,32,0.08);
-  background:#f3f4f6;
-  position:relative;
-}
-.knx-ops-vo__map-iframe{ width:100%; height:260px; border:0; display:block; }
-.knx-ops-vo__map-empty{
-  height:260px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  color:var(--nxs-muted);
-  font-weight:800;
-  font-size:13px;
-}
-.knx-ops-vo__map-link{
-  display:block;
-  padding:10px 12px;
-  text-decoration:none;
-  color:var(--nxs-accent);
-  font-weight:900;
-  background:#fff;
-  border-top:1px solid rgba(11,18,32,0.08);
-}
-
-.knx-ops-vo__hist{ display:flex; flex-direction:column; gap:14px; }
-.knx-ops-vo__hist-item{ display:grid; grid-template-columns:18px 1fr auto; gap:10px; align-items:flex-start; }
-.knx-ops-vo__hist-icon{
-  width:16px;height:16px;border-radius:999px;
-  background:rgba(11,121,58,0.14);
-  border:1px solid rgba(11,121,58,0.20);
-  margin-top:3px;
-  position:relative;
-}
-.knx-ops-vo__hist-icon:after{
-  content:"";
-  position:absolute;
-  left:50%;
-  top:16px;
-  transform:translateX(-50%);
-  width:2px;
-  height:42px;
-  background:rgba(11,18,32,0.10);
-}
-.knx-ops-vo__hist-item:last-child .knx-ops-vo__hist-icon:after{display:none}
-
-.knx-ops-vo__hist-title{font-weight:900;font-size:13px}
-.knx-ops-vo__hist-sub{color:var(--nxs-muted);font-size:12px;margin-top:4px}
-.knx-ops-vo__hist-time{color:var(--nxs-muted);font-size:12px;white-space:nowrap;padding-top:2px}
-
-.knx-ops-vo__error{
-  background:rgba(179,0,0,0.06);
-  border:1px solid rgba(179,0,0,0.16);
-  border-radius:12px;
-  padding:14px;
-}
-.knx-ops-vo__error-title{font-weight:900;margin-bottom:6px;color:#7a0000}
-.knx-ops-vo__error-detail{color:#7a0000;font-size:13px}
-
-/* Desktop 1:1: left wider, right fixed-ish */
-@media (min-width: 980px){
-  .knx-ops-vo{padding:18px 18px}
-  .knx-ops-vo__layout{ grid-template-columns: 1.35fr 0.85fr; gap:18px; }
-  .knx-ops-vo__map-iframe,
-  .knx-ops-vo__map-empty{height:300px}
-}
-
-/* Small phones */
-@media (max-width: 520px){
-  .knx-ops-vo__panel{padding:14px}
-  .knx-ops-vo__meta-row{flex-direction:column;gap:6px}
-  .knx-ops-vo__hist-item{grid-template-columns:18px 1fr}
-  .knx-ops-vo__hist-time{grid-column:2 / -1}
-}
-
-/* ===== Client readability (drivers-friendly, minimal structure change) ===== */
-.knx-ops-vo__client{ display:flex; flex-direction:column; gap:10px; }
-.knx-ops-vo__client-name{ font-size:14px; line-height:1.25; }
-.knx-ops-vo__client-actions{ display:flex; gap:10px; flex-wrap:wrap; }
-
-.knx-ops-vo__chip{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  padding:10px 14px;
-  border-radius:999px;
-  text-decoration:none;
-  font-weight:900;
-  font-size:13px;
-  color:#fff;
-  background:var(--nxs-primary);
-  border:1px solid rgba(11,121,58,0.20);
-}
-.knx-ops-vo__chip--ghost{ background:#fff; color:var(--nxs-primary); }
-
-.knx-ops-vo__client-meta{
-  display:flex;
-  flex-direction:column;
-  gap:6px;
-  font-size:13px;
-  line-height:1.35;
-  color:#111;
-}
-
-.knx-ops-vo__client-address{
-  font-size:13px;
-  line-height:1.35;
-  color:#111;
-  word-break:break-word;
-}
-
-/* ==========================================================
-   OPS CHAT STYLES (read-only panel)
-   Aligned with order-status.css chat panel
-   ========================================================== */
-.knx-ops-vo__chat{
-  margin-top: 16px;
-  border-radius: 12px;
-  background: var(--nxs-card);
-  border: 1px solid rgba(11,18,32,0.08);
-  box-shadow: var(--nxs-shadow);
-  overflow: hidden;
-}
-
-.knx-ops-vo__chat-header{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  padding: 12px 14px;
-  border-bottom: 1px solid rgba(11,18,32,0.08);
-}
-
-.knx-ops-vo__chat-icon{ font-size: 18px; line-height: 1; }
-.knx-ops-vo__chat-title{ font-size: 14px; font-weight: 900; color: var(--nxs-text); }
-
-.knx-ops-vo__chat-messages{
-  padding: 12px 14px;
-  min-height: 100px;
-  max-height: 320px;
-  overflow-y: auto;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-  scroll-behavior: smooth;
-}
-
-.knx-ops-vo__chat-empty{
-  font-size: 13px;
-  color: var(--nxs-muted);
-  text-align:center;
-  padding: 18px 0;
-}
-
-.knx-ops-vo__chat-msg--system{ display:flex; justify-content:center; }
-.knx-ops-vo__chat-msg--system span{
-  background: rgba(11,121,58,0.08);
-  color: var(--nxs-primary);
-  font-size: 12px;
-  font-weight: 600;
-  padding: 6px 12px;
-  border-radius: 20px;
-  max-width: 88%;
-  text-align:center;
-  line-height: 1.4;
-}
-
-.knx-ops-vo__chat-msg--mine{ display:flex; justify-content:flex-end; }
-.knx-ops-vo__chat-msg--theirs{ display:flex; justify-content:flex-start; }
-
-.knx-ops-vo__chat-bubble{
-  max-width: 78%;
-  display:flex;
-  flex-direction:column;
-  gap: 3px;
-}
-
 .knx-ops-vo__chat-meta{
-  font-size: 11px;
-  color: var(--nxs-muted);
-  font-weight: 600;
+  font-size:11px;
+  color:var(--nxs-muted);
+  font-weight:600;
 }
 .knx-ops-vo__chat-msg--mine .knx-ops-vo__chat-meta{ text-align:right; }
 
 .knx-ops-vo__chat-text{
-  padding: 9px 13px;
-  border-radius: 16px;
-  font-size: 14px;
-  line-height: 1.45;
-  word-break: break-word;
-  white-space: pre-wrap;
+  padding:9px 13px;
+  border-radius:16px;
+  font-size:14px;
+  line-height:1.45;
+  white-space:pre-wrap;
+  word-break:break-word;
 }
 
 .knx-ops-vo__chat-msg--mine .knx-ops-vo__chat-text{
-  background: var(--nxs-primary);
+  background:var(--nxs-primary);
   color:#fff;
-  border-bottom-right-radius: 4px;
+  border-bottom-right-radius:4px;
 }
 
 .knx-ops-vo__chat-msg--theirs .knx-ops-vo__chat-text{
-  background: #f0f2f5;
-  color: var(--nxs-text);
-  border-bottom-left-radius: 4px;
+  background:#f0f2f5;
+  color:var(--nxs-text);
+  border-bottom-left-radius:4px;
 }
 
+/* Footer input */
 .knx-ops-vo__chat-footer{
+  display:flex;
+  align-items:flex-end;
+  gap:8px;
+  padding:10px 12px;
+  border-top:1px solid var(--nxs-border-soft);
+}
+
+.knx-ops-vo__chat-input{
+  flex:1;
+  resize:none;
+  border:1.5px solid var(--nxs-border-soft);
+  border-radius:10px;
+  padding:8px 12px;
+  font-size:14px;
+  color:var(--nxs-text);
+  background:#f9fafb;
+  outline:none;
+  line-height:1.4;
+  min-height:38px;
+}
+
+.knx-ops-vo__chat-input:focus{
+  border-color:var(--nxs-primary);
+  background:#fff;
+}
+
+.knx-ops-vo__chat-input:disabled{
+  opacity:0.5;
+  cursor:not-allowed;
+}
+
+.knx-ops-vo__chat-send{
+  flex-shrink:0;
+  width:40px;
+  height:40px;
+  border-radius:50%;
+  background:var(--nxs-primary);
+  color:#fff;
+  border:none;
+  cursor:pointer;
   display:flex;
   align-items:center;
   justify-content:center;
-  gap: 8px;
-  padding: 10px 14px 12px;
-  border-top: 1px solid rgba(11,18,32,0.08);
+  transition:transform .12s ease, opacity .15s ease;
 }
+
+.knx-ops-vo__chat-send:active:not(:disabled){ transform:scale(.93); }
+.knx-ops-vo__chat-send:disabled{ opacity:.45; cursor:not-allowed; }

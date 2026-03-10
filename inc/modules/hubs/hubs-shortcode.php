@@ -3,11 +3,11 @@ if (!defined('ABSPATH')) exit;
 
 /**
  * ==========================================================
- * Kingdom Nexus - Hubs Shortcode (v4.0)
+ * Kingdom Nexus - Hubs Shortcode (v4.1)
  * ----------------------------------------------------------
  * ✅ REST-only CRUD (Add + Toggle)
  * ✅ Unified global knxToast() system
- * ✅ Desktop: table (unchanged)
+ * ✅ Desktop: table (unchanged markup)
  * ✅ Mobile: REAL cards container (same pattern as /customers)
  * ✅ Preserves Search/Pagination + existing endpoints/nonces
  * ==========================================================
@@ -65,7 +65,7 @@ add_shortcode('knx_hubs', function() {
 
     <link rel="stylesheet" href="<?php echo esc_url($css_url); ?>">
 
-    <div class="knx-hubs-wrapper"
+    <div class="knx-hubs-wrapper knx-admin-page"
         data-api-add="<?php echo esc_url(rest_url('knx/v1/add-hub')); ?>"
         data-api-toggle="<?php echo esc_url(rest_url('knx/v1/toggle-hub')); ?>"
         data-nonce-add="<?php echo esc_attr($nonce_add); ?>"
@@ -85,14 +85,14 @@ add_shortcode('knx_hubs', function() {
         </div>
 
         <!-- Desktop: Table -->
-        <table class="knx-hubs-table">
+        <table class="knx-hubs-table" aria-label="Hubs Table">
             <thead>
                 <tr>
                     <th>Name</th>
                     <th>Phone</th>
                     <th>Status</th>
-                    <th>Edit</th>
-                    <th>Toggle</th>
+                    <th class="knx-col-center">Edit</th>
+                    <th class="knx-col-center">Toggle</th>
                 </tr>
             </thead>
             <tbody>
@@ -122,12 +122,12 @@ add_shortcode('knx_hubs', function() {
                                 <?php echo ucfirst($hub->status); ?>
                             </span>
                         </td>
-                        <td class="knx-edit-cell">
+                        <td class="knx-edit-cell knx-col-center">
                             <a href="<?php echo esc_url(site_url('/edit-hub?id=' . $hub->id)); ?>" class="knx-edit-link" title="Edit Hub">
                                 <i class="fas fa-pen"></i>
                             </a>
                         </td>
-                        <td>
+                        <td class="knx-col-center">
                             <label class="knx-switch">
                                 <input type="checkbox" class="knx-toggle-hub" <?php checked($hub->status, 'active'); ?>>
                                 <span class="knx-slider"></span>
@@ -140,7 +140,7 @@ add_shortcode('knx_hubs', function() {
             </tbody>
         </table>
 
-        <!-- Mobile: Cards (same pattern as /customers) -->
+        <!-- Mobile: Cards -->
         <div class="knx-hubs-cards" aria-label="Hubs Cards">
             <?php if ($hubs): foreach ($hubs as $hub): ?>
                 <div class="knx-hub-card"

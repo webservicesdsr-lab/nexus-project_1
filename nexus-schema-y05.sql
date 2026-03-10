@@ -331,19 +331,6 @@ CREATE TABLE `y05_knx_modifier_options` (
   CONSTRAINT `fk_modifier_options_modifier` FOREIGN KEY (`modifier_id`) REFERENCES `y05_knx_item_modifiers` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `y05_knx_item_addon_groups` (
-  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
-  `item_id` bigint UNSIGNED NOT NULL,
-  `group_id` bigint UNSIGNED NOT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_item_group` (`item_id`,`group_id`),
-  KEY `idx_item_id` (`item_id`),
-  KEY `idx_group_id` (`group_id`),
-  CONSTRAINT `fk_item_addon_groups_item` FOREIGN KEY (`item_id`) REFERENCES `y05_knx_hub_items` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_item_addon_groups_group` FOREIGN KEY (`group_id`) REFERENCES `y05_knx_addon_groups` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 CREATE TABLE `y05_knx_item_global_modifiers` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `item_id` bigint UNSIGNED NOT NULL,

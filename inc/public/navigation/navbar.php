@@ -1,18 +1,15 @@
 <?php
+// File: inc/public/navigation/navbar.php
 if (!defined('ABSPATH')) exit;
 
 /**
- * ════════════════════════════════════════════════════════════════
- * KINGDOM NEXUS — NAVBAR (Top Navigation) v3.2 (Brand Logo Crop Frame)
- * ════════════════════════════════════════════════════════════════
- *
- * Purpose:
- * - Render brand logo as a fixed-size "window" (auto-crop display)
- * - Logo uses object-fit: cover inside a frame (no distortion, consistent)
- *
- * Notes:
- * - This change is DISPLAY-only. Upload pipeline stays intact.
- * - No wp_enqueue. No wp_footer dependency.
+ * ==========================================================
+ * KINGDOM NEXUS — NAVBAR (Top Navigation) v3.3 (Brand Logo View)
+ * ----------------------------------------------------------
+ * - Logo is displayed in a fixed frame
+ * - Image is NOT cropped at upload
+ * - We apply saved "view" (pan/zoom) via CSS variables
+ * ==========================================================
  */
 
 add_action('wp_body_open', 'knx_render_navbar');
@@ -39,18 +36,37 @@ if (!function_exists('knx_render_navbar')) {
             echo '<link rel="stylesheet" href="' . esc_url(KNX_URL . 'inc/modules/home/knx-location-modal.css?v=' . KNX_VERSION) . '">';
             echo '<script src="' . esc_url(KNX_URL . 'inc/modules/home/knx-location-detector.js?v=' . KNX_VERSION) . '" defer></script>';
         }
+
+        $knx_logo_url = get_option('knx_site_logo', '');
+
+        $view_raw = get_option('knx_site_logo_view', '');
+        $view = ['scale' => 1, 'x' => 0, 'y' => 0];
+        if (is_string($view_raw) && $view_raw) {
+            $decoded = json_decode($view_raw, true);
+            if (is_array($decoded)) {
+                $view['scale'] = isset($decoded['scale']) ? floatval($decoded['scale']) : 1;
+                $view['x']     = isset($decoded['x']) ? floatval($decoded['x']) : 0;
+                $view['y']     = isset($decoded['y']) ? floatval($decoded['y']) : 0;
+            }
+        }
+        $view['scale'] = max(0.5, min(3.0, $view['scale']));
+        $view['x']     = max(-300, min(300, $view['x']));
+        $view['y']     = max(-120, min(120, $view['y']));
+
+        $logo_style = sprintf(
+            '--knx-logo-scale:%s;--knx-logo-x:%spx;--knx-logo-y:%spx;',
+            esc_attr($view['scale']),
+            esc_attr($view['x']),
+            esc_attr($view['y'])
+        );
         ?>
 
-        <!-- NAVBAR -->
         <nav class="knx-nav" id="knxNav">
             <div class="knx-nav__inner">
 
-                <!-- Brand -->
-                <?php $knx_logo_url = get_option('knx_site_logo', ''); ?>
                 <a href="<?php echo esc_url(site_url('/')); ?>" class="knx-nav__brand" id="knxNavBrand">
                     <?php if ($knx_logo_url): ?>
-                        <!-- Fixed frame window (auto-crop display) -->
-                        <span class="knx-nav__logo-frame" id="knxNavLogoFrame" aria-hidden="true">
+                        <span class="knx-nav__logo-frame" id="knxNavLogoFrame" style="<?php echo esc_attr($logo_style); ?>" aria-hidden="true">
                             <img
                                 id="knxNavLogoImg"
                                 src="<?php echo esc_url($knx_logo_url); ?>"
@@ -76,7 +92,6 @@ if (!function_exists('knx_render_navbar')) {
                             >
                         </span>
 
-                        <!-- Fallback (hidden unless error) -->
                         <span class="knx-nav__logo" style="display:none;">🍃</span>
                         <span class="knx-nav__brand-text" style="display:none;">Kingdom Nexus</span>
                     <?php else: ?>
@@ -85,7 +100,6 @@ if (!function_exists('knx_render_navbar')) {
                     <?php endif; ?>
                 </a>
 
-                <!-- Center: Location detector (explore page only) -->
                 <?php if ($context['current_slug'] === 'explore-hubs'): ?>
                     <div class="knx-nav__center">
                         <button class="knx-loc-chip" id="knx-detect-location" type="button" aria-label="Detect location">
@@ -95,10 +109,7 @@ if (!function_exists('knx_render_navbar')) {
                     </div>
                 <?php endif; ?>
 
-                <!-- Right Actions -->
                 <div class="knx-nav__actions">
-
-                    <!-- Cart -->
                     <?php if ($context['is_logged']): ?>
                         <a href="#" class="knx-nav__cart" id="knxCartToggle" role="button"
                            aria-haspopup="dialog" aria-controls="knxCartDrawer" aria-expanded="false">
@@ -110,7 +121,6 @@ if (!function_exists('knx_render_navbar')) {
                         </a>
                     <?php endif; ?>
 
-                    <!-- User -->
                     <?php if ($context['is_logged']):
                         $nav_display = $context['name'] ?: $context['email'] ?: $context['username'] ?: 'Guest';
                         ?>
@@ -142,37 +152,29 @@ if (!function_exists('knx_render_navbar')) {
             </div>
         </nav>
 
-        <!-- Cart Drawer -->
         <?php if ($context['is_logged']): ?>
             <aside class="knx-cart-drawer" id="knxCartDrawer" role="dialog" aria-modal="true" aria-labelledby="knxCartTitle">
                 <header class="knx-cart-drawer__header">
                     <h3 id="knxCartTitle">Your Cart</h3>
                     <button type="button" class="knx-cart-drawer__close" id="knxCartClose" aria-label="Close cart">×</button>
                 </header>
-
                 <div class="knx-cart-drawer__body" id="knxCartItems"></div>
-
                 <footer class="knx-cart-drawer__footer">
                     <div class="knx-cart-drawer__total">
                         <span>Subtotal:</span>
                         <strong id="knxCartTotal">$0.00</strong>
                     </div>
-
                     <a class="knx-cart-drawer__review-btn" href="<?php echo esc_url(site_url('/cart')); ?>">
                         Review cart
                     </a>
-
                     <div id="knxCartCheckoutBtn"></div>
                 </footer>
             </aside>
         <?php endif; ?>
 
-        <!-- Customer Sidebar -->
         <?php
         if ($context['is_logged']) {
             include KNX_PATH . 'inc/public/navigation/customer-sidebar.php';
         }
-        ?>
-        <?php
     }
 }

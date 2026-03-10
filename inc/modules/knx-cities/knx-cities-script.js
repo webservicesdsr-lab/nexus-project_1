@@ -1,6 +1,6 @@
 /**
  * ==========================================================
- * KNX Cities — Sealed UI Script (NEXUS FINAL)
+ * KNX Cities — UI Script (NEXUS)
  * ----------------------------------------------------------
  * Desktop → TABLE (CSS controls visibility)
  * Mobile  → CARDS (CSS controls visibility)
@@ -14,7 +14,6 @@
 
 (function () {
   function qs(sel, root) { return (root || document).querySelector(sel); }
-  function qsa(sel, root) { return Array.from((root || document).querySelectorAll(sel)); }
 
   function toast(msg, type) {
     try {
@@ -59,13 +58,56 @@
   }
 
   function buildEditUrl(editBase, id) {
-    // editBase example: https://site.com/knx-edit-city/?id=
     const base = String(editBase || "");
     if (!base) return "#";
     return base + encodeURIComponent(String(id));
   }
 
-  function renderRow(city, role, editBase, apiToggle, nonceToggle, apiDelete, nonceDelete) {
+  function wireOperationalToggle(hostEl, id, apiToggle, nonceToggle) {
+    const toggle = qs(".knx-operational-toggle", hostEl);
+    if (!toggle) return;
+
+    toggle.addEventListener("change", async () => {
+      const desired = toggle.checked ? 1 : 0;
+      hostEl.classList.add("is-busy");
+
+      const { ok, json } = await apiJson(apiToggle, {
+        city_id: id,
+        operational: desired,
+        knx_nonce: nonceToggle
+      });
+
+      hostEl.classList.remove("is-busy");
+
+      if (!ok || !json || json.success === false) {
+        toggle.checked = !toggle.checked;
+        toast((json && (json.message || json.error)) || "Operational toggle failed", "error");
+        return;
+      }
+
+      toast("Operational updated", "success");
+    });
+  }
+
+  function wireDelete(hostEl, id, apiDelete, nonceDelete) {
+    const delBtn = qs(".knx-delete-city", hostEl);
+    if (!delBtn) return;
+
+    delBtn.addEventListener("click", () => {
+      if (typeof window.knxOpenCityDeleteModal !== "function") {
+        toast("Delete modal is not loaded.", "error");
+        return;
+      }
+
+      window.knxOpenCityDeleteModal({
+        city_id: String(id),
+        api: apiDelete,
+        nonce: nonceDelete
+      });
+    });
+  }
+
+  function renderRow(city, role, editBase) {
     const id = city.id;
     const name = city.name || ("City #" + id);
     const status = normalizeStatus(city);
@@ -108,52 +150,10 @@
       ` : ``}
     `;
 
-    // Toggle
-    const toggle = qs(".knx-operational-toggle", tr);
-    if (toggle) {
-      toggle.addEventListener("change", async () => {
-        const desired = toggle.checked ? 1 : 0;
-        tr.classList.add("is-busy");
-
-        const { ok, json } = await apiJson(apiToggle, {
-          city_id: id,
-          operational: desired,
-          knx_nonce: nonceToggle
-        });
-
-        tr.classList.remove("is-busy");
-
-        if (!ok || !json || json.success === false) {
-          toggle.checked = !toggle.checked;
-          toast((json && (json.message || json.error)) || "Operational toggle failed", "error");
-          return;
-        }
-
-        toast("Operational updated", "success");
-      });
-    }
-
-    // Delete (modal only)
-    const delBtn = qs(".knx-delete-city", tr);
-    if (delBtn) {
-      delBtn.addEventListener("click", () => {
-        if (typeof window.knxOpenCityDeleteModal !== "function") {
-          toast("Delete modal is not loaded.", "error");
-          return;
-        }
-
-        window.knxOpenCityDeleteModal({
-          city_id: String(id),
-          api: apiDelete,
-          nonce: nonceDelete
-        });
-      });
-    }
-
     return tr;
   }
 
-  function renderCard(city, role, editBase, apiToggle, nonceToggle, apiDelete, nonceDelete) {
+  function renderCard(city, role, editBase) {
     const id = city.id;
     const name = city.name || ("City #" + id);
     const status = normalizeStatus(city);
@@ -195,48 +195,6 @@
       </div>
     `;
 
-    // Toggle
-    const toggle = qs(".knx-operational-toggle", card);
-    if (toggle) {
-      toggle.addEventListener("change", async () => {
-        const desired = toggle.checked ? 1 : 0;
-        card.classList.add("is-busy");
-
-        const { ok, json } = await apiJson(apiToggle, {
-          city_id: id,
-          operational: desired,
-          knx_nonce: nonceToggle
-        });
-
-        card.classList.remove("is-busy");
-
-        if (!ok || !json || json.success === false) {
-          toggle.checked = !toggle.checked;
-          toast((json && (json.message || json.error)) || "Operational toggle failed", "error");
-          return;
-        }
-
-        toast("Operational updated", "success");
-      });
-    }
-
-    // Delete
-    const delBtn = qs(".knx-delete-city", card);
-    if (delBtn) {
-      delBtn.addEventListener("click", () => {
-        if (typeof window.knxOpenCityDeleteModal !== "function") {
-          toast("Delete modal is not loaded.", "error");
-          return;
-        }
-
-        window.knxOpenCityDeleteModal({
-          city_id: String(id),
-          api: apiDelete,
-          nonce: nonceDelete
-        });
-      });
-    }
-
     return card;
   }
 
@@ -269,7 +227,6 @@
 
     let cities = (json?.data?.cities && Array.isArray(json.data.cities)) ? json.data.cities : [];
 
-    // Render function (client-side search)
     function doRender() {
       const f = String(search?.value || "").trim().toLowerCase();
       const filtered = !f
@@ -279,21 +236,29 @@
       // Table
       tbody.innerHTML = "";
       filtered.forEach(city => {
-        tbody.appendChild(renderRow(city, role, editBase, apiToggle, nonceToggle, apiDelete, nonceDelete));
+        const tr = renderRow(city, role, editBase);
+        tbody.appendChild(tr);
+
+        // Wire row actions
+        wireOperationalToggle(tr, city.id, apiToggle, nonceToggle);
+        if (role === "super_admin") wireDelete(tr, city.id, apiDelete, nonceDelete);
       });
 
       // Cards
       cards.innerHTML = "";
       filtered.forEach(city => {
-        cards.appendChild(renderCard(city, role, editBase, apiToggle, nonceToggle, apiDelete, nonceDelete));
+        const card = renderCard(city, role, editBase);
+        cards.appendChild(card);
+
+        // Wire card actions
+        wireOperationalToggle(card, city.id, apiToggle, nonceToggle);
+        if (role === "super_admin") wireDelete(card, city.id, apiDelete, nonceDelete);
       });
     }
 
     doRender();
 
-    if (search) {
-      search.addEventListener("input", doRender);
-    }
+    if (search) search.addEventListener("input", doRender);
 
     // ==========================
     // Add City Modal (super_admin)
@@ -323,17 +288,13 @@
     if (addBtn && addModal) addBtn.addEventListener("click", openAddModal);
     if (addCancel && addModal) addCancel.addEventListener("click", closeAddModal);
 
-    // Close by backdrop
     if (addModal) {
       addModal.addEventListener("click", (e) => {
         const t = e.target;
-        if (t && t.getAttribute && t.getAttribute("data-knx-close") === "1") {
-          closeAddModal();
-        }
+        if (t && t.getAttribute && t.getAttribute("data-knx-close") === "1") closeAddModal();
       });
     }
 
-    // Submit add
     if (addForm) {
       addForm.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -353,10 +314,7 @@
 
         if (addSave) addSave.disabled = true;
 
-        const { ok: okAdd, json: out } = await apiJson(apiAdd, {
-          name,
-          knx_nonce: nonceAdd
-        });
+        const { ok: okAdd, json: out } = await apiJson(apiAdd, { name, knx_nonce: nonceAdd });
 
         if (addSave) addSave.disabled = false;
 
@@ -368,22 +326,13 @@
         toast("City added successfully", "success");
         closeAddModal();
 
-        // Refresh list (no reload)
         const fresh = await apiJson(apiGet);
         if (fresh.ok && fresh.json && fresh.json.success) {
           cities = Array.isArray(fresh.json?.data?.cities) ? fresh.json.data.cities : cities;
-          doRender();
-        } else {
-          // fallback
-          doRender();
         }
+        doRender();
       });
     }
-
-    // NOTE:
-    // Delete modal JS removes row/card itself by selector:
-    // tr[data-city-id="X"] + .knx-citycard[data-city-id="X"]
-    // We matched those attributes intentionally.
   }
 
   document.addEventListener("DOMContentLoaded", init);

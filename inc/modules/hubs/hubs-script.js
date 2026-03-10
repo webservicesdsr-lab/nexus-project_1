@@ -1,7 +1,8 @@
 /**
  * ==========================================================
- * Kingdom Nexus - Hubs Script (v4.0)
+ * Kingdom Nexus - Hubs Script (v4.1)
  * ----------------------------------------------------------
+ * NOTE: Desktop UX is CSS-driven. Script remains functionally identical.
  * ✅ Works for BOTH desktop table rows and mobile cards
  * ✅ Add Hub modal (FormData) using wrapper dataset endpoints/nonces
  * ✅ Toggle with confirm modal on deactivate
@@ -118,7 +119,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // ---- Add Hub modal
   addBtn?.addEventListener("click", openModal);
   closeModalBtn?.addEventListener("click", closeModal);
 
@@ -126,7 +126,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.key !== "Escape") return;
     if (modal?.classList.contains("active")) closeModal();
     if (confirmModal?.classList.contains("active")) {
-      // if confirm is open, cancel and restore checkbox
       if (pendingToggle?.checkboxEl) pendingToggle.checkboxEl.checked = true;
       pendingToggle = null;
       closeConfirm();
@@ -160,7 +159,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // ---- Toggle (delegated; works for table + cards)
   wrapper.addEventListener("change", (e) => {
     const checkbox = e.target.closest(".knx-toggle-hub");
     if (!checkbox) return;
@@ -175,7 +173,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const status = checkbox.checked ? "active" : "inactive";
 
-    // confirm only on deactivate
     if (status === "inactive") {
       pendingToggle = { containerEl: container, checkboxEl: checkbox, id: id };
       openConfirm();
@@ -185,7 +182,6 @@ document.addEventListener("DOMContentLoaded", () => {
     doToggle(id, status, checkbox, container);
   });
 
-  // ---- Confirm modal actions
   cancelDeactivateBtn?.addEventListener("click", () => {
     if (pendingToggle?.checkboxEl) pendingToggle.checkboxEl.checked = true;
     pendingToggle = null;
@@ -205,7 +201,6 @@ document.addEventListener("DOMContentLoaded", () => {
     await doToggle(id, "inactive", checkboxEl, containerEl);
   });
 
-  // close modal if clicking overlay
   modal?.addEventListener("click", (e) => {
     if (e.target === modal) closeModal();
   });

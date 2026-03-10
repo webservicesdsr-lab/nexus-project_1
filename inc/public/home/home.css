@@ -1,10 +1,13 @@
 /* File: inc/public/home/home.css */
 
 /**
- * Kingdom Nexus — Home (v4.2)
- * - FIX: Removes checkerboard background so transparent PNGs render clean (no diagonal lines)
- * - Keeps pan/zoom view behavior via CSS vars:
- *   --knx-home-center-scale, --knx-home-center-x, --knx-home-center-y
+ * Kingdom Nexus — Home (v4.4)
+ * - City cards canonized to "banner-ready" structure:
+ *   .knx-city-card > .knx-city-banner + .knx-city-content
+ * - This CSS is scoped to #knx-home so it won't break admin cities UI.
+ *
+ * NOTE:
+ * Keep the rest of your file as-is; this is the FULL file including prior sections + new city styles.
  */
 
 #knx-home.knx-home{
@@ -33,31 +36,27 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 18px 0 6px;
-  min-height: 108px;
+  padding: 18px 0 10px;
+  min-height: 170px;
 }
 
-/* Frame for center image (allows pan/zoom view like settings) */
+/* Invisible frame (no border/shadow/radius/background) */
 #knx-home .knx-home__center-frame{
-  width: 96px;
-  height: 96px;
-  border-radius: 18px;
-  overflow: hidden;
-  position: relative;
+  width: min(420px, 72vw);
+  height: 150px;
 
-  /* View variables (set inline from PHP) */
+  position: relative;
+  overflow: hidden;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+
   --knx-home-center-scale: 1;
   --knx-home-center-x: 0px;
   --knx-home-center-y: 0px;
-
-  /* ✅ FIX: no checkerboard/background pattern (keep true transparency) */
-  background: transparent;
-
-  /* keep subtle depth, but no forced background */
-  box-shadow: 0 12px 30px rgba(17,24,39,0.10);
 }
 
-/* Image uses "fit height first" then pan/zoom via transform */
 #knx-home .knx-home__center-img{
   position: absolute;
   left: 50%;
@@ -81,9 +80,7 @@
 }
 
 /* Copy */
-#knx-home .knx-home__copy{
-  padding: 8px 0 18px;
-}
+#knx-home .knx-home__copy{ padding: 3px 0 0px; }
 
 #knx-home .knx-home__title{
   margin: 0 auto;
@@ -115,9 +112,7 @@
   align-items: stretch;
 }
 
-#knx-home .knx-home__input-wrap{
-  width: 100%;
-}
+#knx-home .knx-home__input-wrap{ width: 100%; }
 
 /* IMPORTANT: keep .knx-search-wrapper for dropdown positioning */
 #knx-home .knx-search-wrapper{
@@ -143,7 +138,7 @@
   box-shadow: 0 0 0 3px rgba(34,86,56,0.12), var(--knx-shadow);
 }
 
-/* Locate button (pin icon on the right) */
+/* Locate button */
 #knx-home .knx-home__locate-btn{
   height: 56px;
   width: 62px;
@@ -157,16 +152,14 @@
   justify-content: center;
 }
 
-#knx-home .knx-home__locate-btn:hover{
-  transform: translateY(-1px);
-}
+#knx-home .knx-home__locate-btn:hover{ transform: translateY(-1px); }
 
 #knx-home .knx-home__locate-icon{
   font-size: 18px;
   line-height: 1;
 }
 
-/* Search main CTA */
+/* Search CTA */
 #knx-home #knx-search-btn.knx-home__search-btn{
   margin-top: 16px;
   width: min(520px, 100%);
@@ -186,11 +179,9 @@
   transform: translateY(-1px);
 }
 
-#knx-home #knx-search-btn.knx-home__search-btn:active{
-  transform: translateY(0);
-}
+#knx-home #knx-search-btn.knx-home__search-btn:active{ transform: translateY(0); }
 
-/* Status message */
+/* Status */
 #knx-home .knx-status-message{
   margin: 14px auto 0;
   padding: 12px 16px;
@@ -201,7 +192,6 @@
   text-align: center;
 }
 
-/* Status types */
 #knx-home .knx-status-info    { background:#e3f2fd; color:#1565c0; border:1px solid #90caf9; }
 #knx-home .knx-status-loading { background:#fff3e0; color:#e65100; border:1px solid #ffb74d; }
 #knx-home .knx-status-success { background:#e8f5e9; color:#2e7d32; border:1px solid #81c784; }
@@ -257,7 +247,10 @@
   font-size: 14px;
 }
 
-/* Cities section */
+/* ==========================================================
+   CITIES (CANON v2, banner-ready)
+========================================================== */
+
 #knx-home .knx-home__cities{ margin-top: 36px; }
 
 #knx-home .knx-cities-title{
@@ -270,31 +263,164 @@
 
 #knx-home .knx-cities-grid{
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 16px;
   padding: 0 6px;
 }
 
+/* Card */
 #knx-home .knx-city-card{
-  border-radius: 16px;
+  position: relative;
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 18px;
+  overflow: hidden;
   border: 1px solid rgba(17,24,39,0.08);
-  box-shadow: 0 10px 24px rgba(17,24,39,0.06);
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(17,24,39,0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  min-height: 96px; /* reduced to keep cards more compact */
 }
 
 #knx-home .knx-city-card:hover{
-  box-shadow: 0 18px 40px rgba(11,121,58,0.12);
+  transform: translateY(-2px);
+  box-shadow: 0 18px 40px rgba(17,24,39,0.10);
+}
+
+/* Banner (fallback gradient for now) */
+#knx-home .knx-city-banner{
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(135deg, rgba(251,115,6,0.14) 0%, rgba(34,86,56,0.16) 100%);
+}
+
+/* Content layer */
+#knx-home .knx-city-content{
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px; /* reduced padding to lower visual height */
+}
+
+#knx-home .knx-city-icon{
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.78);
+  border: 1px solid rgba(17,24,39,0.08);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  box-shadow: 0 10px 22px rgba(17,24,39,0.08);
+}
+
+#knx-home .knx-city-icon i{
+  font-size: 22px;
+  color: #0f172a;
+  opacity: 0.92;
+}
+
+#knx-home .knx-city-info{
+  flex: 1;
+  min-width: 0;
+  display: flex; /* switch to flex so title + CTA render inline */
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+}
+
+#knx-home .knx-city-name{
+  font-size: 18px;
+  font-weight: 900;
+  color: #0b1220;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#knx-home .knx-city-meta{
+  display: grid;
+  gap: 6px;
+}
+
+#knx-home .knx-hub-count{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  background: rgba(255,255,255,0.78);
+  border: 1px solid rgba(17,24,39,0.08);
+  color: #0b793a;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+#knx-home .knx-hub-count i{
+  color: #0b793a;
+}
+
+#knx-home .knx-city-cta{
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(15,23,42,0.78);
+}
+
+#knx-home .knx-city-cta strong{
+  color: rgba(15,23,42,0.92);
+  letter-spacing: 0.06em;
+}
+
+/* Empty state (scoped) */
+#knx-home .knx-cities-empty{
+  text-align: center;
+  padding: 40px 16px;
+  background: #fff;
+  border: 1px dashed rgba(17,24,39,0.18);
+  border-radius: 16px;
+  grid-column: 1 / -1;
+}
+
+#knx-home .knx-cities-empty i{
+  font-size: 44px;
+  color: #d1d5db;
+  margin-bottom: 12px;
+  display: block;
+}
+
+#knx-home .knx-cities-empty h3{
+  margin: 0 0 6px 0;
+  font-size: 18px;
+  font-weight: 900;
+  color: #111827;
+}
+
+#knx-home .knx-cities-empty p{
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
 }
 
 /* Responsive */
 @media (max-width: 700px){
   #knx-home .knx-home__inner{ padding-top: 18px; }
   #knx-home .knx-home__title{ font-size: 26px; }
+  #knx-home .knx-home__center-frame{ height: 140px; }
 }
 
 @media (max-width: 420px){
   #knx-home .knx-home__title{ font-size: 24px; }
   #knx-home .knx-home__input-row{ grid-template-columns: 1fr 56px; }
   #knx-home .knx-home__locate-btn{ width: 56px; }
+  #knx-home .knx-home__center-frame{ width: 86vw; height: 130px; }
 }
 
 /* Animations */
