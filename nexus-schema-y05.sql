@@ -321,6 +321,7 @@ CREATE TABLE `y05_knx_modifier_options` (
   `modifier_id` bigint UNSIGNED NOT NULL,
   `name` varchar(191) NOT NULL,
   `price_adjustment` decimal(10,2) DEFAULT '0.00',
+  `option_action` varchar(10) NOT NULL DEFAULT 'add',
   `is_default` tinyint(1) DEFAULT '0',
   `sort_order` int UNSIGNED DEFAULT '0',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,

@@ -251,6 +251,8 @@ function knx_api_save_modifier_option(WP_REST_Request $r) {
     $modifier_id      = intval($r->get_param('modifier_id'));
     $name             = sanitize_text_field($r->get_param('name'));
     $price_adjustment = floatval($r->get_param('price_adjustment'));
+    $option_action_raw = sanitize_text_field($r->get_param('option_action'));
+    $option_action    = ($option_action_raw === 'remove') ? 'remove' : 'add';
     $is_default       = intval($r->get_param('is_default'));
     $sort_order_param = $r->get_param('sort_order');
     $sort_order       = ($sort_order_param !== null && $sort_order_param !== '') ? intval($sort_order_param) : null;
@@ -272,10 +274,11 @@ function knx_api_save_modifier_option(WP_REST_Request $r) {
             'modifier_id'      => $modifier_id,
             'name'             => $name,
             'price_adjustment' => $price_adjustment,
+            'option_action'    => $option_action,
             'is_default'       => $is_default,
             'updated_at'       => current_time('mysql'),
         ];
-        $fmt = ['%d','%s','%f','%d','%s'];
+        $fmt = ['%d','%s','%f','%s','%d','%s'];
         if (!is_null($sort_order)) { $upd['sort_order'] = $sort_order; $fmt[] = '%d'; }
 
         $ok = $wpdb->update($table, $upd, ['id' => $id], $fmt, ['%d']);
@@ -292,11 +295,12 @@ function knx_api_save_modifier_option(WP_REST_Request $r) {
         'modifier_id'      => $modifier_id,
         'name'             => $name,
         'price_adjustment' => $price_adjustment,
+        'option_action'    => $option_action,
         'is_default'       => $is_default,
         'sort_order'       => $next_sort,
         'created_at'       => current_time('mysql'),
         'updated_at'       => current_time('mysql'),
-    ], ['%d','%s','%f','%d','%d','%s','%s']);
+    ], ['%d','%s','%f','%s','%d','%d','%s','%s']);
     if ($ok === false) {
         return new WP_REST_Response(['success' => false, 'error' => 'db_insert_failed', 'detail' => $wpdb->last_error], 500);
     }
@@ -466,11 +470,12 @@ function knx_api_clone_global_modifier(WP_REST_Request $r) {
             'modifier_id'      => $new_modifier_id,
             'name'             => $o->name,
             'price_adjustment' => $o->price_adjustment,
+            'option_action'    => isset($o->option_action) ? $o->option_action : 'add',
             'is_default'       => $o->is_default,
             'sort_order'       => $o->sort_order,
             'created_at'       => current_time('mysql'),
             'updated_at'       => current_time('mysql'),
-        ], ['%d','%s','%f','%d','%d','%s','%s']);
+        ], ['%d','%s','%f','%s','%d','%d','%s','%s']);
         if ($ok2 === false) {
             return new WP_REST_Response(['success' => false, 'error' => 'db_insert_failed', 'detail' => $wpdb->last_error], 500);
         }

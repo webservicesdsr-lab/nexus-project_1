@@ -430,15 +430,20 @@
 
       (mod.options || []).forEach(function (opt) {
         var adj = parseFloat(opt.price_adjustment || 0);
+        var isRemove = (opt.option_action === 'remove');
+        var removeClass = isRemove ? ' knx-modal-option--remove' : '';
+        var ctaText = isRemove ? 'Tap to exclude ✕' : 'Tap to select +';
+        var priceHtml = isRemove ? '' : '<strong class="knx-modal-option-cta-price">$' + adj.toFixed(2) + '</strong>';
 
         html +=
-          '<button type="button" class="knx-modal-option"' +
+          '<button type="button" class="knx-modal-option' + removeClass + '"' +
             ' data-option-id="' + esc(opt.id) + '"' +
-            ' data-price="' + adj.toFixed(2) + '">' +
+            ' data-price="' + adj.toFixed(2) + '"' +
+            ' data-action="' + (isRemove ? 'remove' : 'add') + '">' +
             '<div class="knx-modal-option-label">' + esc(opt.name || '') + '</div>' +
             '<div class="knx-modal-option-cta">' +
-              '<span class="knx-modal-option-cta-main">Tap to select +</span>' +
-              '<strong class="knx-modal-option-cta-price">$' + adj.toFixed(2) + '</strong>' +
+              '<span class="knx-modal-option-cta-main">' + ctaText + '</span>' +
+              priceHtml +
             '</div>' +
           '</button>';
       });
@@ -490,12 +495,12 @@
             groupEl.querySelectorAll('.knx-modal-option').forEach(function (b) {
               b.classList.remove('is-selected');
               var span = b.querySelector('.knx-modal-option-cta-main');
-              if (span) span.textContent = 'Tap to select +';
+              if (span) span.textContent = b.getAttribute('data-action') === 'remove' ? 'Tap to exclude ✕' : 'Tap to select +';
             });
 
             btn.classList.add('is-selected');
             var labelSingle = btn.querySelector('.knx-modal-option-cta-main');
-            if (labelSingle) labelSingle.textContent = 'SELECTED';
+            if (labelSingle) labelSingle.textContent = btn.getAttribute('data-action') === 'remove' ? 'EXCLUDED' : 'SELECTED';
             selectedSingles[String(modId)] = String(optId);
 
           } else {
@@ -508,12 +513,12 @@
               set.delete(String(optId));
               btn.classList.remove('is-selected');
               var spanOff = btn.querySelector('.knx-modal-option-cta-main');
-              if (spanOff) spanOff.textContent = 'Tap to select +';
+              if (spanOff) spanOff.textContent = btn.getAttribute('data-action') === 'remove' ? 'Tap to exclude ✕' : 'Tap to select +';
             } else {
               set.add(String(optId));
               btn.classList.add('is-selected');
               var spanOn = btn.querySelector('.knx-modal-option-cta-main');
-              if (spanOn) spanOn.textContent = 'SELECTED';
+              if (spanOn) spanOn.textContent = btn.getAttribute('data-action') === 'remove' ? 'EXCLUDED' : 'SELECTED';
             }
           }
 
@@ -814,7 +819,8 @@
           opts.push({
             id: opt.id,
             name: opt.name,
-            price_adjustment: parseFloat(opt.price_adjustment || 0)
+            price_adjustment: parseFloat(opt.price_adjustment || 0),
+            option_action: opt.option_action || 'add'
           });
         }
       });

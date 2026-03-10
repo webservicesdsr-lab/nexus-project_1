@@ -203,6 +203,7 @@ function knx_api_cart_sync(WP_REST_Request $req) {
                     mo.id AS option_id,
                     mo.name AS option_name,
                     mo.price_adjustment,
+                    mo.option_action,
                     mo.modifier_id,
                     im.name AS modifier_name,
                     im.type AS modifier_type,
@@ -246,6 +247,7 @@ function knx_api_cart_sync(WP_REST_Request $req) {
                         'id'               => (int) $r->option_id,
                         'name'             => (string) $r->option_name,
                         'price_adjustment' => (float) $adj,
+                        'option_action'    => isset($r->option_action) ? (string) $r->option_action : 'add',
                     ];
                 }
 

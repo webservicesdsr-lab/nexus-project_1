@@ -85,7 +85,13 @@ document.addEventListener("DOMContentLoaded", () => {
       subtotal += item.line_total;
 
       const modsText = item.modifiers?.length
-        ? item.modifiers.map(m => `${m.name}: ${m.options.map(o => o.name).join(", ")}`).join(" • ")
+        ? item.modifiers.map(m => {
+            const opts = (m.options || []).map(o => {
+              if (o.option_action === 'remove') return `<span class="knx-mod-remove">No ${o.name}</span>`;
+              return o.name;
+            }).join(", ");
+            return `${m.name}: ${opts}`;
+          }).join(" \u2022 ")
         : "";
 
       const html = `

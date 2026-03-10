@@ -432,6 +432,17 @@
   border-radius: 999px;
 }
 
+.knx-os__mod--remove {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.08);
+  font-weight: 700;
+}
+
+.knx-os__mod .knx-mod-remove {
+  color: #dc2626;
+  font-weight: 700;
+}
+
 .knx-os__item-price {
   font-size: 13px;
   font-weight: 800;

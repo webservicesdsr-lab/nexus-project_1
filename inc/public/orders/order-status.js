@@ -226,10 +226,15 @@
           for (var m = 0; m < it.modifiers.length; m++) {
             var mod = it.modifiers[m];
             if (mod && Array.isArray(mod.options)) {
-              var optNames = mod.options.map(function (opt) {
-                return esc(opt.option || opt.name || '');
-              }).filter(Boolean).join(', ');
-              if (optNames) html += '<span class="knx-os__mod">' + optNames + '</span>';
+              var optParts = mod.options.map(function (opt) {
+                var oName = esc(opt.option || opt.name || '');
+                if (!oName) return '';
+                if (opt.option_action === 'remove') {
+                  return '<span class="knx-os__mod knx-os__mod--remove">No ' + oName + '</span>';
+                }
+                return '<span class="knx-os__mod">' + oName + '</span>';
+              }).filter(Boolean);
+              if (optParts.length) html += optParts.join('');
             }
           }
           html += '</div>';

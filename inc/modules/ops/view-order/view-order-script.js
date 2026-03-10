@@ -7,7 +7,6 @@
  *
  * Add-on (safe):
  * - Read-only chat panel (Driver ↔ Customer) inside OPS view-order.
- * - Incremental polling + buffer (like order-status page).
  * - Polling ONLY when order is non-terminal. One-time fetch when terminal.
  * - Fail-soft: if API denies OPS (401/403/404), panel quietly stays hidden.
  */
@@ -103,6 +102,11 @@
           const oName = String(opt?.option || opt?.name || opt?.value || '').trim();
           if (!oName) return;
 
+          if (opt?.option_action === 'remove') {
+            rendered.push(`<span class="knx-mod-remove">No ${esc(oName)}</span>`);
+            return;
+          }
+
           const deltaRaw =
             (opt?.price_adjustment !== undefined) ? opt.price_adjustment :
             (opt?.price !== undefined) ? opt.price :
@@ -171,6 +175,7 @@
     function humanStatusLabel(s) {
       const v = String(s || '').trim().toLowerCase();
       if (!v) return '—';
+      // Canonical labels (same across ALL modules)
       const labels = {
         'pending_payment': 'Pending Payment',
         'confirmed': 'Order Created',
@@ -191,6 +196,8 @@
       if (!arr.length) return `<div class="knx-ops-vo__muted">No history.</div>`;
 
       const rows = arr
+        // Hide financial/internal states (pending_payment, confirmed) from timeline
+        // For pickup orders, also hide picked_up (auto double-jump, not a manual step)
         .filter(h => {
           const st = String(h?.status || '').trim().toLowerCase();
           const ts = String(h?.created_at || '').trim();
@@ -222,16 +229,25 @@
       const la = Number(lat);
       const ln = Number(lng);
       if (!Number.isFinite(la) || !Number.isFinite(ln)) return '';
+
       const q = encodeURIComponent(la + ',' + ln);
       return `https://www.google.com/maps?q=${q}&z=13&output=embed`;
     }
 
     function platformIsIOS() {
-      try { return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream; } catch (e) { return false; }
+      try {
+        return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      } catch (e) {
+        return false;
+      }
     }
 
     function platformIsAndroid() {
-      try { return /Android/.test(navigator.userAgent); } catch (e) { return false; }
+      try {
+        return /Android/.test(navigator.userAgent);
+      } catch (e) {
+        return false;
+      }
     }
 
     function buildWebNav(lat, lng, address) {
@@ -243,13 +259,15 @@
       return 'https://www.google.com/maps';
     }
 
-    // Exposed globally for inline handlers in rendered HTML
-    window.openNavigation = function openNavigation(lat, lng, address, ev) {
-      try { if (ev && ev.preventDefault) ev.preventDefault(); } catch (e) {}
+    function openNavigation(lat, lng, address, ev) {
+      try {
+        if (ev && ev.preventDefault) ev.preventDefault();
+      } catch (e) {}
 
       const web = buildWebNav(lat, lng, address);
 
       if (platformIsIOS()) {
+        // Try Apple Maps native scheme first, then fallback to web
         const native = (lat !== null && lng !== null)
           ? 'maps://?daddr=' + encodeURIComponent(String(lat) + ',' + String(lng)) + (address ? '&q=' + encodeURIComponent(String(address)) : '')
           : 'maps://?q=' + encodeURIComponent(String(address || ''));
@@ -259,6 +277,7 @@
       }
 
       if (platformIsAndroid()) {
+        // Android: geo: scheme opens native map apps
         const native = (lat !== null && lng !== null)
           ? 'geo:' + encodeURIComponent(String(lat) + ',' + String(lng)) + '?q=' + encodeURIComponent(String(address || ''))
           : 'geo:0,0?q=' + encodeURIComponent(String(address || ''));
@@ -267,35 +286,32 @@
         return;
       }
 
+      // Desktop or unknown: open web maps directly
       window.location.href = web;
-    };
+    }
 
     function normalizePhoneForTel(phone) {
       const p = String(phone || '').trim();
       if (!p) return '';
-      return p.replace(/[^\d+]/g, '');
+      // keep + and digits
+      const cleaned = p.replace(/[^\d+]/g, '');
+      return cleaned;
     }
 
     // ==========================================================
     // OPS CHAT (read-only) — Driver ↔ Customer
-    // - Incremental polling + bounded buffer
-    // - Fail-soft on 401/403/404 (hide forever)
+    // - Option B: show chat always, poll only if order active.
+    // - Fail-soft: if API denies access, panel stays hidden.
     // ==========================================================
 
     const OPS_CHAT_POLL_MS = 12000;
-
     let opsChatTimer = null;
-    let opsChatAllowed = true;
+    let opsChatReady = false;
+    let opsChatAllowed = true; // becomes false after first denied response
     let opsChatIsTerminal = false;
 
-    // Incremental state
-    let opsChatLoadedOnce = false;
-    let opsChatLastId = 0;
-    let opsChatServerLastId = 0;
-    let opsChatBuffer = [];
-    let opsChatBusy = false;
-
     function buildOpsMessagesBase() {
+      // messages live at: /wp-json/knx/v1/orders/{id}/messages
       try {
         const u = new URL(apiUrl, window.location.origin);
         return u.origin + '/wp-json/knx/v1/orders/';
@@ -324,6 +340,7 @@
         </div>
       `;
 
+      // Place it after the tracking panel (clean + predictable)
       rightCol.appendChild(panel);
     }
 
@@ -369,42 +386,23 @@
       const wasAtBottom = el.scrollTop + el.clientHeight >= prevHeight - 10;
 
       el.innerHTML = rows;
+
       if (wasAtBottom) el.scrollTop = el.scrollHeight;
-    }
-
-    function buildOpsMessagesUrl() {
-      const base = buildOpsMessagesBase().replace(/\/+$/, '') + '/';
-      const afterId = opsChatLoadedOnce ? opsChatLastId : 0;
-      const limit = 60;
-      const ts = Date.now();
-
-      return (
-        base +
-        orderId +
-        '/messages?after_id=' +
-        encodeURIComponent(String(afterId)) +
-        '&limit=' +
-        encodeURIComponent(String(limit)) +
-        '&_ts=' +
-        encodeURIComponent(String(ts))
-      );
     }
 
     function fetchOpsChatOnce() {
       if (!orderId || !opsChatAllowed) return;
-      if (opsChatBusy) return;
-
       ensureOpsChatPanel();
-      opsChatBusy = true;
 
-      const url = buildOpsMessagesUrl();
+      const base = buildOpsMessagesBase().replace(/\/+$/, '') + '/';
+      const url = base + orderId + '/messages';
+
       const headers = {};
       if (restNonce) headers['X-WP-Nonce'] = restNonce;
-      headers['Cache-Control'] = 'no-cache';
-      headers['Pragma'] = 'no-cache';
 
-      fetch(url, { credentials: 'same-origin', headers, cache: 'no-store' })
+      fetch(url, { credentials: 'same-origin', headers })
         .then(function (r) {
+          // If OPS is not allowed by backend (likely), hide panel and stop forever.
           if (r.status === 401 || r.status === 403 || r.status === 404) {
             opsChatAllowed = false;
             const p = document.getElementById('knxOpsChatPanel');
@@ -416,36 +414,16 @@
         })
         .then(function (data) {
           if (!data || !data.success) return;
-
-          const srv = parseInt(data.server_last_id || '0', 10);
-          if (Number.isFinite(srv) && srv >= 0) opsChatServerLastId = srv;
-
-          const incoming = Array.isArray(data.messages) ? data.messages : [];
-
-          if (!opsChatLoadedOnce) {
-            opsChatBuffer = incoming;
-            opsChatLoadedOnce = true;
-          } else if (incoming.length) {
-            opsChatBuffer = opsChatBuffer.concat(incoming);
-            if (opsChatBuffer.length > 120) {
-              opsChatBuffer = opsChatBuffer.slice(opsChatBuffer.length - 120);
-            }
-          }
-
-          if (opsChatServerLastId > opsChatLastId) opsChatLastId = opsChatServerLastId;
-
-          renderOpsChatMessages(opsChatBuffer);
+          opsChatReady = true;
+          renderOpsChatMessages(Array.isArray(data.messages) ? data.messages : []);
         })
-        .catch(function () {})
-        .finally(function () {
-          opsChatBusy = false;
-        });
+        .catch(function () {});
     }
 
     function startOpsChatPollingIfNeeded() {
       stopOpsChatPolling();
       if (!opsChatAllowed) return;
-      if (opsChatIsTerminal) return;
+      if (opsChatIsTerminal) return; // Option B: no polling when terminal
 
       opsChatTimer = setInterval(function () {
         if (document.hidden) return;
@@ -489,7 +467,8 @@
 
       const created = esc(String(pick(order, 'created_at', '') || ''));
       const statusRaw = String(pick(order, 'status', '') || '');
-      const statusNice = humanStatusLabel(statusRaw);
+      const status = esc(statusRaw);
+      const statusNice = humanStatusLabel(status);
 
       const subtotal = (function () {
         const raw = pick(order, 'raw.items.subtotal', null);
@@ -548,11 +527,14 @@
                   ${rLogo ? `<img class="knx-ops-vo__logo" src="${esc(rLogo)}" alt="" loading="lazy">` : ``}
                   <div class="knx-ops-vo__info-main">
                     <div class="knx-ops-vo__info-name">${rName || '<span class="knx-ops-vo__muted">Unknown</span>'}</div>
-                    <div class="knx-ops-vo__info-sub">${rAddr ? `${
-                      (rLat !== null && rLng !== null)
-                        ? `<a class="knx-ops-vo__link" href="${rNavWeb}" onclick="openNavigation(${JSON.stringify(rLat)}, ${JSON.stringify(rLng)}, ${JSON.stringify(rAddrRaw)}, event)" target="_blank" rel="noopener">${rAddr}</a>`
-                        : `<a class="knx-ops-vo__link" href="${rNavWeb}" onclick="openNavigation(null, null, ${JSON.stringify(rAddrRaw)}, event)" target="_blank" rel="noopener">${rAddr}</a>`
-                    }` : ''}</div>
+                    <div class="knx-ops-vo__info-sub">${
+                      rAddr
+                        ? `${(rLat !== null && rLng !== null)
+                            ? `<a class="knx-ops-vo__link" href="${rNavWeb}" onclick="openNavigation(${JSON.stringify(rLat)}, ${JSON.stringify(rLng)}, ${JSON.stringify(rAddrRaw)}, event)" target="_blank" rel="noopener">${rAddr}</a>`
+                            : `<a class="knx-ops-vo__link" href="${rNavWeb}" onclick="openNavigation(null, null, ${JSON.stringify(rAddrRaw)}, event)" target="_blank" rel="noopener">${rAddr}</a>`
+                          }`
+                        : ''
+                    }</div>
                     <div class="knx-ops-vo__info-links">
                       ${rPhone ? `<a class="knx-ops-vo__link" href="tel:${esc(rTel || rPhone)}" aria-label="Call restaurant">${rPhone}</a>` : ``}
                       ${rEmail ? `<a class="knx-ops-vo__link" href="mailto:${esc(rEmail)}" aria-label="Email restaurant">${rEmail}</a>` : ``}
@@ -579,10 +561,9 @@
                       </div>
                     ` : ``}
 
-                    ${dAddr ? `${
-                      (lat !== null && lng !== null)
-                        ? `<a class="knx-ops-vo__client-address knx-ops-vo__link" href="${dNavWeb}" onclick="openNavigation(${JSON.stringify(lat)}, ${JSON.stringify(lng)}, ${JSON.stringify(dAddrRaw)}, event)" target="_blank" rel="noopener">${dAddr}</a>`
-                        : `<a class="knx-ops-vo__client-address knx-ops-vo__link" href="${dNavWeb}" onclick="openNavigation(null, null, ${JSON.stringify(dAddrRaw)}, event)" target="_blank" rel="noopener">${dAddr}</a>`
+                    ${dAddr ? `${(lat !== null && lng !== null)
+                      ? `<a class="knx-ops-vo__client-address knx-ops-vo__link" href="${dNavWeb}" onclick="openNavigation(${JSON.stringify(lat)}, ${JSON.stringify(lng)}, ${JSON.stringify(dAddrRaw)}, event)" target="_blank" rel="noopener">${dAddr}</a>`
+                      : `<a class="knx-ops-vo__client-address knx-ops-vo__link" href="${dNavWeb}" onclick="openNavigation(null, null, ${JSON.stringify(dAddrRaw)}, event)" target="_blank" rel="noopener">${dAddr}</a>`
                     }` : ``}
                   </div>
                 ` : `
@@ -734,10 +715,13 @@
 
         renderOrder(order);
 
+        // OPS chat lifecycle (Option B):
+        // - Always try to show it.
+        // - Poll only if non-terminal.
         const stNow = String((order.status || '')).toLowerCase();
         opsChatIsTerminal = TERMINAL_STATUSES.indexOf(stNow) !== -1;
 
-        // Always fetch once
+        // One-time fetch always
         fetchOpsChatOnce();
 
         // Poll only if active
@@ -751,6 +735,7 @@
 
     document.addEventListener('visibilitychange', function () {
       if (document.hidden) return;
+      // On return to tab, refresh both order and chat once (safe).
       fetchOrder();
       if (opsChatAllowed) fetchOpsChatOnce();
     });

@@ -574,6 +574,19 @@
   background: #fbbf24;
 }
 
+#olc-menu .knx-modal-option--remove .knx-modal-option-cta {
+  background: #ef4444;
+}
+
+#olc-menu .knx-modal-option--remove.is-selected {
+  border-color: #dc2626;
+  box-shadow: 0 8px 20px rgba(220, 38, 38, 0.3);
+}
+
+#olc-menu .knx-modal-option--remove.is-selected .knx-modal-option-cta {
+  background: #dc2626;
+}
+
 @media (max-width:899px) {
   #olc-menu .knx-modal-options .knx-modal-option:last-child:nth-child(odd) {
     grid-column: 1 / -1;

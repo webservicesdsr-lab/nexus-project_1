@@ -214,9 +214,12 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderOption(opt){
+    var removeBadge = (opt.option_action === 'remove')
+      ? '<span class="knx-option-remove-badge">REMOVE</span>'
+      : '';
     return `
       <div class="knx-option-item" data-option-id="${opt.id}">
-        <div class="knx-option-name">${esc(opt.name)}</div>
+        <div class="knx-option-name">${esc(opt.name)}${removeBadge}</div>
         <div class="knx-option-price">${priceTextUSD(opt.price_adjustment)}</div>
         <div class="knx-option-actions">
           <button class="knx-icon-btn" data-action="edit-option" title="Edit option" aria-label="Edit option"><i class="fas fa-pen"></i></button>
@@ -384,10 +387,15 @@ document.addEventListener("DOMContentLoaded", () => {
       const row = document.createElement("div");
       row.className = "knx-option-row";
       row.dataset.optId = o?.id || "";
+      var curAction = (o && o.option_action === 'remove') ? 'remove' : 'add';
       row.innerHTML = `
         <div class="knx-opt-drag"><i class="fas fa-grip-vertical"></i></div>
         <input type="text" class="mmOptName" placeholder="Option name" value="${o ? esc(o.name) : ""}">
         <input type="number" step="0.01" class="mmOptPrice" value="${o ? (o.price_adjustment || 0) : 0}">
+        <select class="mmOptAction">
+          <option value="add"${curAction==='add' ? ' selected' : ''}>Add</option>
+          <option value="remove"${curAction==='remove' ? ' selected' : ''}>Remove</option>
+        </select>
         <button type="button" class="knx-icon-btn danger mmDel" title="Remove"><i class="fas fa-trash"></i></button>`;
       row.querySelector(".mmDel").addEventListener("click", ()=> row.remove());
       list.appendChild(row);
@@ -435,9 +443,10 @@ document.addEventListener("DOMContentLoaded", () => {
           const oId    = row.dataset.optId ? +row.dataset.optId : 0;
           const oName  = row.querySelector(".mmOptName").value.trim();
           const oPrice = parseFloat(row.querySelector(".mmOptPrice").value)||0;
+          const oAction = row.querySelector(".mmOptAction") ? row.querySelector(".mmOptAction").value : 'add';
           if (!oName) continue;
           await fetch(api.saveOpt,{ method:"POST", headers:{'Content-Type':'application/json'}, body:JSON.stringify({
-            id:oId, modifier_id:savedId, name:oName, price_adjustment:oPrice, knx_nonce: state.nonce
+            id:oId, modifier_id:savedId, name:oName, price_adjustment:oPrice, option_action:oAction, knx_nonce: state.nonce
           })});
         }
 
@@ -467,6 +476,14 @@ document.addEventListener("DOMContentLoaded", () => {
             <input id="opPrice" type="number" step="0.01" value="${isEdit ? (option.price_adjustment || 0) : 0}">
             <small>0.00 = FREE</small>
           </div>
+          <div class="knx-form-group">
+            <label>Action</label>
+            <select id="opAction">
+              <option value="add"${isEdit && option.option_action === 'remove' ? '' : ' selected'}>Add (+)</option>
+              <option value="remove"${isEdit && option.option_action === 'remove' ? ' selected' : ''}>Remove (No&hellip;)</option>
+            </select>
+            <small>"Remove" shows as <strong>No [name]</strong> in the cart &amp; order</small>
+          </div>
 
           <div class="knx-modal-actions">
             <button class="knx-btn" type="submit"><i class="fas fa-save"></i> ${isEdit ? "Update" : "Create"}</button>
@@ -484,11 +501,12 @@ document.addEventListener("DOMContentLoaded", () => {
       e.preventDefault();
       const name  = modal.querySelector("#opName").value.trim();
       const price = parseFloat(modal.querySelector("#opPrice").value)||0;
+      const action = modal.querySelector("#opAction").value || 'add';
       if (!name){ toast("Name is required","error"); return; }
 
       try{
         const r = await fetch(api.saveOpt,{ method:"POST", headers:{'Content-Type':'application/json'}, body:JSON.stringify({
-          id: isEdit ? option.id : 0, modifier_id: modifierId, name, price_adjustment: price, knx_nonce: state.nonce
+          id: isEdit ? option.id : 0, modifier_id: modifierId, name, price_adjustment: price, option_action: action, knx_nonce: state.nonce
         })});
         const j = await r.json();
         if (j.success){ toast(isEdit ? "Option updated" : "Option created"); close(); loadModifiers(); }

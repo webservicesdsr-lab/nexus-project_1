@@ -91,6 +91,11 @@
   margin-bottom: 4px;
 }
 
+.knx-cart-item__mods .knx-mod-remove {
+  color: #dc2626;
+  font-weight: 700;
+}
+
 .knx-cart-item__notes {
   font-size: 0.82rem;
   font-style: italic;

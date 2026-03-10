@@ -165,7 +165,7 @@ function knx_api_get_menu( WP_REST_Request $req ) {
     if (!empty($modIds)) {
       $inMod = implode(',', $modIds);
       $opts = $wpdb->get_results(
-        "SELECT id, modifier_id, name, price_adjustment, is_default, sort_order
+        "SELECT id, modifier_id, name, price_adjustment, option_action, is_default, sort_order
          FROM {$t_mod_opts}
          WHERE modifier_id IN ($inMod)
          ORDER BY sort_order ASC, id ASC",
@@ -178,6 +178,7 @@ function knx_api_get_menu( WP_REST_Request $req ) {
           'id' => (int)$o['id'],
           'name' => $o['name'],
           'price_adjustment' => (float)$o['price_adjustment'],
+          'option_action' => isset($o['option_action']) ? (string)$o['option_action'] : 'add',
           'is_default' => (int)$o['is_default'] === 1,
           'sort_order' => (int)$o['sort_order'],
         ];

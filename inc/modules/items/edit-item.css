@@ -135,6 +135,7 @@
 }
 .knx-option-item + .knx-option-item{margin-top:8px;}
 .knx-option-name{font-weight:800;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;}
+.knx-option-remove-badge{display:inline-block;margin-left:6px;padding:1px 7px;font-size:.72rem;font-weight:800;color:#fff;background:#ef4444;border-radius:999px;vertical-align:middle;}
 .knx-option-price{font-weight:700;color:var(--brand);white-space:nowrap;}
 .knx-free{color:#64748b;font-weight:700;}
 .knx-option-actions{display:flex;gap:6px;}
@@ -161,8 +162,9 @@
 @media (max-width:640px){.knx-form-row{grid-template-columns:1fr;}}
 
 .knx-option-row{
-  display:grid;grid-template-columns:auto 1fr 130px auto;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed rgba(0,0,0,.06);
+  display:grid;grid-template-columns:auto 1fr 130px 90px auto;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed rgba(0,0,0,.06);
 }
+.mmOptAction{padding:6px 8px;border:1px solid var(--line);border-radius:8px;font-size:.88rem;font-weight:700;background:#fff;color:var(--ink);}
 .knx-opt-drag{width:22px;height:22px;border-radius:6px;border:1px solid var(--line);display:inline-flex;align-items:center;justify-content:center;color:#6b7280;}
 
 /* Modal actions */

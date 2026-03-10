@@ -68,8 +68,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
     return mods
       .map(m => {
-        const opts = m.options.map(o => o.name).join(", ");
-        return `<span>${escapeHtml(m.name)}: ${escapeHtml(opts)}</span>`;
+        const opts = (m.options || []).map(o => {
+          if (o.option_action === 'remove') {
+            return `<span class="knx-mod-remove">No ${escapeHtml(o.name)}</span>`;
+          }
+          return escapeHtml(o.name);
+        }).join(", ");
+        return `<span>${escapeHtml(m.name)}: ${opts}</span>`;
       })
       .join("<br>");
   }

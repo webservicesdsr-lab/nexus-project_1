@@ -280,10 +280,13 @@ document.addEventListener("DOMContentLoaded", () => {
       const modsText = item.modifiers && item.modifiers.length
         ? item.modifiers
             .map((m) => {
-              const names = (m.options || []).map((o) => o.name).join(", ");
+              const names = (m.options || []).map((o) => {
+                if (o.option_action === 'remove') return `<span class="knx-mod-remove">No ${o.name}</span>`;
+                return o.name;
+              }).join(", ");
               return names ? `${m.name}: ${names}` : m.name;
             })
-            .join(" • ")
+            .join(" \u2022 ")
         : "";
 
       const safeName = item.name || "";

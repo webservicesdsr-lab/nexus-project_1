@@ -168,16 +168,21 @@ function knx_cart_page_render_html($cart_row, $items, $subtotal, $hub_name = nul
                             foreach ($decoded as $mod) {
                                 if (empty($mod['name']) || empty($mod['options']) || !is_array($mod['options'])) continue;
 
-                                $opt_names = [];
+                                $opt_labels = [];
                                 foreach ($mod['options'] as $opt) {
-                                    if (!empty($opt['name'])) $opt_names[] = $opt['name'];
+                                    if (empty($opt['name'])) continue;
+                                    if (isset($opt['option_action']) && $opt['option_action'] === 'remove') {
+                                        $opt_labels[] = '<span class="knx-mod-remove">No ' . esc_html($opt['name']) . '</span>';
+                                    } else {
+                                        $opt_labels[] = esc_html($opt['name']);
+                                    }
                                 }
 
-                                if ($opt_names) {
-                                    $parts[] = $mod['name'] . ': ' . implode(', ', $opt_names);
+                                if ($opt_labels) {
+                                    $parts[] = esc_html($mod['name']) . ': ' . implode(', ', $opt_labels);
                                 }
                             }
-                            if ($parts) $mods_text = implode(' • ', $parts);
+                            if ($parts) $mods_text = implode(' &bull; ', $parts);
                         }
                     }
                     ?>
@@ -196,7 +201,7 @@ function knx_cart_page_render_html($cart_row, $items, $subtotal, $hub_name = nul
 
                             <?php if ($mods_text) : ?>
                                 <div class="knx-cart-item__mods">
-                                    <?php echo esc_html($mods_text); ?>
+                                    <?php echo wp_kses_post($mods_text); ?>
                                 </div>
                             <?php endif; ?>
                         </div>

@@ -157,6 +157,11 @@
   color: #6b7280;
 }
 
+.knx-cart-line__mods .knx-mod-remove {
+  color: #dc2626;
+  font-weight: 700;
+}
+
 /* Notes */
 .knx-cart-line__notes {
   font-size: 12px;

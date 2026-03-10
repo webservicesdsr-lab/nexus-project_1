@@ -342,16 +342,24 @@ function knx_render_checkout_page() {
                                     $parts = [];
                                     foreach ($mods as $m) {
                                         if (empty($m['options']) || !is_array($m['options'])) continue;
-                                        $opt_names = array_map(
+                                        $opt_labels = array_map(
                                             static function ($o) {
-                                                return isset($o['name']) ? $o['name'] : '';
+                                                $name = isset($o['name']) ? $o['name'] : '';
+                                                if (!$name) return '';
+                                                if (isset($o['option_action']) && $o['option_action'] === 'remove') {
+                                                    return '<span class="knx-mod-remove">No ' . esc_html($name) . '</span>';
+                                                }
+                                                return esc_html($name);
                                             },
                                             $m['options']
                                         );
-                                        $label = (isset($m['name']) ? $m['name'] . ': ' : '') . implode(', ', $opt_names);
-                                        $parts[] = $label;
+                                        $opt_labels = array_filter($opt_labels);
+                                        if (!empty($opt_labels)) {
+                                            $label = (isset($m['name']) ? esc_html($m['name']) . ': ' : '') . implode(', ', $opt_labels);
+                                            $parts[] = $label;
+                                        }
                                     }
-                                    $mods_text = implode(' • ', $parts);
+                                    $mods_text = implode(' &bull; ', $parts);
                                 }
                             }
                             ?>
@@ -375,7 +383,7 @@ function knx_render_checkout_page() {
 
                                     <?php if ($mods_text): ?>
                                         <div class="knx-co-item__mods">
-                                            <?php echo esc_html($mods_text); ?>
+                                            <?php echo wp_kses_post($mods_text); ?>
                                         </div>
                                     <?php endif; ?>
                                 </div>

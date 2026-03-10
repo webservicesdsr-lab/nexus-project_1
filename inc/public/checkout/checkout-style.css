@@ -553,6 +553,11 @@
   line-height: 1.45;
 }
 
+.knx-co-item__mods .knx-mod-remove {
+  color: #dc2626;
+  font-weight: 700;
+}
+
 /* Items subtotal (inside Order Details) */
 .knx-co-items-subtotal {
   display: flex;

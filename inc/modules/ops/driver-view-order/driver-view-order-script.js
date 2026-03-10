@@ -84,6 +84,11 @@
           const oName = String(opt?.option || opt?.name || opt?.value || '').trim();
           if (!oName) return;
 
+          if (opt?.option_action === 'remove') {
+            rendered.push(`<span class="knx-mod-remove">No ${esc(oName)}</span>`);
+            return;
+          }
+
           const deltaRaw =
             (opt?.price_adjustment !== undefined) ? opt.price_adjustment :
             (opt?.price !== undefined) ? opt.price :
