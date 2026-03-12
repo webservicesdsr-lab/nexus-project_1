@@ -143,6 +143,9 @@ document.addEventListener("DOMContentLoaded", () => {
       header.className = "knx-category-header";
       header.innerHTML = `
         <h3>${catName}</h3>
+        <button class="knx-category-add-btn" data-cat-id="${catId}" data-cat-name="${catName}" title="Add item to ${catName}">
+          <i class="fas fa-plus"></i>
+        </button>
       `;
       categoryBlock.appendChild(header);
 
@@ -243,9 +246,22 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   /* ==========================================================
-     6. Item event listeners (delete + reorder)
+     6. Item event listeners (delete + reorder + category add)
   ========================================================== */
   function attachItemEvents() {
+    // Category add buttons
+    document.querySelectorAll(".knx-category-add-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const catId = btn.dataset.catId;
+        modal.classList.add("active");
+        await loadCategories();
+        // Pre-select the category
+        if (categorySelect && catId) {
+          categorySelect.value = catId;
+        }
+      });
+    });
+
     // Delete
     document.querySelectorAll(".knx-action-icon.delete").forEach((btn) => {
       btn.addEventListener("click", () => {

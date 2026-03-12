@@ -8,6 +8,13 @@
   padding-bottom: 40px;
 }
 
+/* Slightly larger base type for the menu and default centering for menu areas */
+#olc-menu {
+  font-size: 16px;
+  overflow-x: hidden; /* prevent any child from causing horizontal scroll */
+  width: 100%;        /* never exceed the page width */
+}
+
 #olc-menu button {
   /* font removed to inherit theme typography */
 }
@@ -204,20 +211,31 @@
    CATEGORY CHIPS
 ========================================================== */
 #olc-menu .knx-menu__categories {
-
-  max-width: 1260px;
-  margin: 0 auto;
-  margin-bottom: 20px;
+  max-width: 100%;         /* never wider than the menu */
+  margin: 18px 0 20px;
+  padding: 0 16px;
   display: flex;
-  gap: 18px;
-
+  gap: 10px;
+  /* scroll horizontally on small screens instead of overflowing */
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;   /* hide scrollbar Firefox */
 }
 
-@media (max-width:900px) {
-    #olc-menu .knx-menu__categories {
-  margin: 0px 16px;
-  margin-bottom: 20px;
+#olc-menu .knx-menu__categories::-webkit-scrollbar {
+  display: none;           /* hide scrollbar Chrome/Safari */
 }
+
+@media (min-width:900px) {
+  #olc-menu .knx-menu__categories {
+    max-width: 1260px;
+    margin: 30px auto 20px;
+    padding: 0;
+    overflow-x: visible;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
 }
 
 #olc-menu .knx-menu__category-chip {
@@ -247,6 +265,23 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0,1fr));
   gap: 16px;
+  width: 100%;      /* never exceed the container */
+  min-width: 0;     /* prevent grid blowout */
+  box-sizing: border-box;
+}
+
+/* Category group title + spacing */
+#olc-menu .knx-menu__category-group {
+  margin: 18px 0 28px;
+}
+
+#olc-menu .knx-menu__category-title {
+  margin: 0 16px 12px;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #000000;
+  text-align: center;
+  padding: 8px 0; /* vertical spacing to make titles breathe */
 }
 
 @media (min-width:900px) {
@@ -295,6 +330,8 @@
   position: relative;
   padding: 28px 14px 16px;
   text-align: center;
+  /* ensure readable, slightly larger copy */
+  font-size: 1rem;
 }
 
 #olc-menu .knx-menu__price-pill {
@@ -314,18 +351,20 @@
 
 #olc-menu .knx-menu__card-title {
   margin: 6px 0 4px;
-  font-size: 1.02rem;
+  font-size: 1.15rem;
   font-weight: 800;
+  text-align: center;
 }
 
 #olc-menu .knx-menu__card-desc {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 1rem;
   color: #4b5563;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  text-align: center;
 }
 
 /* ==========================================================

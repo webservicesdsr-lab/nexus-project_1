@@ -53,9 +53,6 @@ function knx_api_get_hub_items(WP_REST_Request $r) {
         return new WP_REST_Response(['success' => false, 'error' => 'missing_hub_id'], 400);
     }
 
-    $page      = max(1, intval($r->get_param('page') ?: 1));
-    $per_page  = 20;
-    $offset    = ($page - 1) * $per_page;
     $search    = sanitize_text_field($r->get_param('search') ?? '');
 
     $where = $wpdb->prepare("WHERE i.hub_id = %d", $hub_id);
@@ -64,26 +61,22 @@ function knx_api_get_hub_items(WP_REST_Request $r) {
         $where .= $wpdb->prepare(" AND (i.name LIKE %s OR i.description LIKE %s)", $like, $like);
     }
 
+    // No pagination — return all items for vertical scroll
     $sql = "
         SELECT i.*, c.name AS category_name
         FROM $table_items i
         LEFT JOIN $table_cats c ON i.category_id = c.id
         $where
-        ORDER BY i.sort_order ASC, i.created_at DESC
-        LIMIT %d OFFSET %d
+        ORDER BY c.sort_order ASC, i.sort_order ASC, i.created_at DESC
     ";
-    $items = $wpdb->get_results($wpdb->prepare($sql, $per_page, $offset));
+    $items = $wpdb->get_results($sql);
 
-    $total = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $table_items i $where"));
-    $pages = ceil($total / $per_page);
+    $total = count($items);
 
     return new WP_REST_Response([
         'success'  => true,
         'items'    => $items,
-        'total'    => intval($total),
-        'page'     => $page,
-        'per_page' => $per_page,
-        'pages'    => $pages
+        'total'    => $total
     ], 200);
 }
 

@@ -235,7 +235,7 @@
    * ========================================================== */
   function initFilter(root) {
     var chips = root.querySelectorAll('.knx-menu__category-chip');
-    var cards = root.querySelectorAll('.knx-menu__card');
+    var groups = root.querySelectorAll('.knx-menu__category-group');
     var empty = root.querySelector('#knxMenuEmpty');
 
     var searchMobile  = root.querySelector('#knxMenuSearchMobile');
@@ -251,26 +251,38 @@
     function applyFilter() {
       var category = getActiveCategory();
       var q = currentQuery;
-      var visible = 0;
+      var visibleGroups = 0;
 
-      cards.forEach(function (card) {
-        var cat  = card.getAttribute('data-category') || '';
-        var name = (card.getAttribute('data-name') || '').toLowerCase();
-        var desc = (card.getAttribute('data-description') || '').toLowerCase();
+      groups.forEach(function (group) {
+        var groupCat = group.getAttribute('data-category') || '';
+        var cards = group.querySelectorAll('.knx-menu__card');
+        var visibleCards = 0;
 
-        var matchCat    = category === 'All' || category === cat;
-        var matchSearch = !q || name.indexOf(q) !== -1 || desc.indexOf(q) !== -1;
+        cards.forEach(function (card) {
+          var name = (card.getAttribute('data-name') || '').toLowerCase();
+          var desc = (card.getAttribute('data-description') || '').toLowerCase();
 
-        if (matchCat && matchSearch) {
-          card.style.display = '';
-          visible++;
+          var matchCat    = category === 'All' || category === groupCat;
+          var matchSearch = !q || name.indexOf(q) !== -1 || desc.indexOf(q) !== -1;
+
+          if (matchCat && matchSearch) {
+            card.style.display = '';
+            visibleCards++;
+          } else {
+            card.style.display = 'none';
+          }
+        });
+
+        if (visibleCards) {
+          group.style.display = '';
+          visibleGroups++;
         } else {
-          card.style.display = 'none';
+          group.style.display = 'none';
         }
       });
 
       if (empty) {
-        empty.style.display = visible ? 'none' : 'block';
+        empty.style.display = visibleGroups ? 'none' : 'block';
       }
     }
 

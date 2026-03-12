@@ -109,6 +109,14 @@ function knx_render_menu_page() {
 		];
 	}
 
+	// Group items by category name for rendering into separate grids
+	$menu_items_by_category = [];
+	foreach ($menu_items as $mi) {
+		$cat = $mi['category'] ?: 'Uncategorized';
+		if (!isset($menu_items_by_category[$cat])) $menu_items_by_category[$cat] = [];
+		$menu_items_by_category[$cat][] = $mi;
+	}
+
 	/* ==========================================================
 	   AVAILABILITY (SINGLE SOURCE OF TRUTH)
 	   - If availability blocks ordering for ANY reason => header shows "CLOSED"
@@ -262,7 +270,7 @@ function knx_render_menu_page() {
 
 	<!-- MENU ITEMS -->
 	<section class="knx-menu__tab-content active" data-content="menu">
-		<div class="knx-menu__items" id="knxMenuItems">
+		<div id="knxMenuItems">
 
 			<?php if (empty($menu_items)): ?>
 				<div class="knx-menu__empty">
@@ -273,40 +281,54 @@ function knx_render_menu_page() {
 
 			<?php else: ?>
 
-				<?php foreach ($menu_items as $item): ?>
-					<?php
-					$price_raw  = number_format($item['price'], 2, '.', '');
-					$price_disp = number_format($item['price'], 2);
-					$mods_json  = wp_json_encode($item['modifiers']);
-					?>
-					<article
-						class="knx-menu__card"
-						data-category="<?php echo esc_attr($item['category']); ?>"
-						data-name="<?php echo esc_attr(strtolower($item['name'])); ?>"
-						data-description="<?php echo esc_attr(strtolower($item['description'])); ?>"
-						data-item-id="<?php echo esc_attr($item['id']); ?>"
-						data-item-name="<?php echo esc_attr($item['name']); ?>"
-						data-item-price="<?php echo esc_attr($price_raw); ?>"
-						data-item-image="<?php echo esc_url($item['image']); ?>"
-						data-item-desc="<?php echo esc_attr($item['description']); ?>"
-						data-item-modifiers='<?php echo esc_attr($mods_json); ?>'
-					>
+				<?php
+				// Render groups in the order of $categories (skip the 'All' fake category)
+				foreach ($categories as $index => $cat):
+					if ($index === 0) continue; // skip 'All'
+					$cat_name = $cat['name'];
+					$items_for_cat = $menu_items_by_category[$cat_name] ?? [];
+					if (empty($items_for_cat)) continue;
+				?>
+					<div class="knx-menu__category-group" data-category="<?php echo esc_attr($cat_name); ?>">
+						<h2 class="knx-menu__category-title"><?php echo esc_html($cat_name); ?></h2>
+						<div class="knx-menu__items">
+							<?php foreach ($items_for_cat as $item): ?>
+								<?php
+								$price_raw  = number_format($item['price'], 2, '.', '');
+								$price_disp = number_format($item['price'], 2);
+								$mods_json  = wp_json_encode($item['modifiers']);
+								?>
+								<article
+									class="knx-menu__card"
+									data-category="<?php echo esc_attr($item['category']); ?>"
+									data-name="<?php echo esc_attr(strtolower($item['name'])); ?>"
+									data-description="<?php echo esc_attr(strtolower($item['description'])); ?>"
+									data-item-id="<?php echo esc_attr($item['id']); ?>"
+									data-item-name="<?php echo esc_attr($item['name']); ?>"
+									data-item-price="<?php echo esc_attr($price_raw); ?>"
+									data-item-image="<?php echo esc_url($item['image']); ?>"
+									data-item-desc="<?php echo esc_attr($item['description']); ?>"
+									data-item-modifiers='<?php echo esc_attr($mods_json); ?>'
+								>
 
-						<div class="knx-menu__card-img-wrap">
-							<?php if ($item['image']): ?>
-								<img src="<?php echo esc_url($item['image']); ?>" class="knx-menu__card-image" loading="lazy">
-							<?php else: ?>
-								<div class="knx-menu__card-image knx-menu__card-image--placeholder"></div>
-							<?php endif; ?>
+									<div class="knx-menu__card-img-wrap">
+										<?php if ($item['image']): ?>
+											<img src="<?php echo esc_url($item['image']); ?>" class="knx-menu__card-image" loading="lazy">
+										<?php else: ?>
+											<div class="knx-menu__card-image knx-menu__card-image--placeholder"></div>
+										<?php endif; ?>
+									</div>
+
+									<div class="knx-menu__card-body">
+										<div class="knx-menu__price-pill">$<?php echo esc_html($price_disp); ?></div>
+										<h3 class="knx-menu__card-title"><?php echo esc_html($item['name']); ?></h3>
+										<p class="knx-menu__card-desc"><?php echo esc_html($item['description']); ?></p>
+									</div>
+
+								</article>
+							<?php endforeach; ?>
 						</div>
-
-						<div class="knx-menu__card-body">
-							<div class="knx-menu__price-pill">$<?php echo esc_html($price_disp); ?></div>
-							<h3 class="knx-menu__card-title"><?php echo esc_html($item['name']); ?></h3>
-							<p class="knx-menu__card-desc"><?php echo esc_html($item['description']); ?></p>
-						</div>
-
-					</article>
+					</div>
 				<?php endforeach; ?>
 
 			<?php endif; ?>

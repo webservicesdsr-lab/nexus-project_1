@@ -162,6 +162,49 @@ body {
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 16px;
 }
+
+/* CATEGORY HEADER with add button */
+.knx-category-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e9ecef;
+}
+.knx-category-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0B793A;
+}
+.knx-category-add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  background: #e6f4ec;
+  color: #0B793A;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all .2s;
+}
+.knx-category-add-btn:hover {
+  background: #0B793A;
+  color: #fff;
+  transform: scale(1.05);
+}
+
+/* CATEGORY BLOCK spacing */
+.knx-category-block {
+  margin-bottom: 32px;
+}
+.knx-category-block:last-child {
+  margin-bottom: 0;
+}
 .knx-item-card {
   background: #fff;
   border-radius: 10px;

@@ -1,6 +1,5 @@
 .
 ├── .DS_Store
-├── .gitignore
 ├── .vscode
 │   └── settings.json
 ├── NEXUS.md
@@ -8,8 +7,6 @@
 ├── READ-THIS-BEFORE-MAKING-ANY-CHANGE.md
 ├── README.md
 ├── ROADMAP.md
-├── assets
-│   └── images
 ├── csv-uploader-knx-canonical.md
 ├── documentation
 │   ├── .DS_Store
@@ -52,7 +49,6 @@
 ├── inc
 │   ├── .DS_Store
 │   ├── core
-│   │   ├── .DS_Store
 │   │   ├── cart
 │   │   │   └── cart-cleanup.php
 │   │   ├── install
@@ -65,7 +61,6 @@
 │   │   │   └── api-update-order-status.php
 │   │   ├── pages-installer.php
 │   │   ├── resources
-│   │   │   ├── .DS_Store
 │   │   │   ├── knx-addresses
 │   │   │   │   ├── api-addresses.php
 │   │   │   │   └── api-addresses.php.backup
@@ -76,6 +71,7 @@
 │   │   │   │   └── api-checkout-quote.php
 │   │   │   ├── knx-cities
 │   │   │   │   ├── add-city.php
+│   │   │   │   ├── api-city-branding.php
 │   │   │   │   ├── api-edit-city.php
 │   │   │   │   ├── delete-city.php
 │   │   │   │   ├── get-cities.php
@@ -94,6 +90,7 @@
 │   │   │   │   └── api-explore-hubs.php
 │   │   │   ├── knx-fees
 │   │   │   │   └── api-software-fees.php
+│   │   │   ├── knx-geocode-search.php
 │   │   │   ├── knx-hubs
 │   │   │   │   ├── api-delete-hub.php
 │   │   │   │   ├── api-edit-hub-identity.php
@@ -109,10 +106,8 @@
 │   │   │   │   ├── api-update-closure.php
 │   │   │   │   ├── api-update-hub-slug.php
 │   │   │   │   ├── api-update-settings.php
-│   │   │   │   ├── api-upload-logo.php
-│   │   │   │   └── knx-geocode-search.php
+│   │   │   │   └── api-upload-logo.php
 │   │   │   ├── knx-items
-│   │   │   │   ├── .DS_Store
 │   │   │   │   ├── api-delete-item-category.php
 │   │   │   │   ├── api-get-item-categories.php
 │   │   │   │   ├── api-hub-items.php
@@ -129,7 +124,6 @@
 │   │   │   │   ├── api-check-coverage.php
 │   │   │   │   └── api-location-search.php
 │   │   │   ├── knx-ops
-│   │   │   │   ├── .DS_Store
 │   │   │   │   ├── api-all-orders.php
 │   │   │   │   ├── api-assign-driver.php
 │   │   │   │   ├── api-dashboard.php
@@ -143,6 +137,7 @@
 │   │   │   │   ├── api-update-status.php
 │   │   │   │   ├── api-view-order.php
 │   │   │   │   └── knx-ops-availability.php
+│   │   │   ├── knx-orders
 │   │   │   ├── knx-payments
 │   │   │   │   ├── api-create-payment-intent.php
 │   │   │   │   ├── api-payment-status.php
@@ -181,10 +176,7 @@
 │   │   ├── stripe-logger.php
 │   │   ├── taxes-engine.php
 │   │   └── totals-engine.php
-│   ├── install
-│   │   └── knx-migrations
 │   ├── modules
-│   │   ├── .DS_Store
 │   │   ├── admin
 │   │   │   ├── admin-menu.php
 │   │   │   ├── admin-script.js
@@ -216,7 +208,6 @@
 │   │   │   ├── customers-shortcode.php
 │   │   │   └── customers-style.css
 │   │   ├── drivers
-│   │   │   ├── active-orders
 │   │   │   ├── drivers-script.js
 │   │   │   ├── drivers-shortcode.php
 │   │   │   └── drivers-style.css
@@ -253,7 +244,6 @@
 │   │   │   ├── hubs-script.js
 │   │   │   ├── hubs-shortcode.php
 │   │   │   └── hubs-style.css
-│   │   ├── import
 │   │   ├── items
 │   │   │   ├── edit-hub-items.css
 │   │   │   ├── edit-hub-items.js
@@ -278,7 +268,6 @@
 │   │   │   ├── navbar-script.js
 │   │   │   └── navbar-style.css
 │   │   ├── ops
-│   │   │   ├── .DS_Store
 │   │   │   ├── all-orders
 │   │   │   │   ├── all-orders-script.js
 │   │   │   │   ├── all-orders-shortcode.php
@@ -295,10 +284,6 @@
 │   │   │   │   ├── driver-bottom-nav-style.css
 │   │   │   │   ├── driver-bottom-nav.php
 │   │   │   │   └── driver-bottom-navbar.js
-│   │   │   ├── driver-live-orders
-│   │   │   │   ├── driver-live-orders-script.js
-│   │   │   │   ├── driver-live-orders-shortcode.php
-│   │   │   │   └── driver-live-orders-style.css
 │   │   │   ├── driver-ops
 │   │   │   │   ├── driver-notifier-shortcode.php
 │   │   │   │   ├── driver-ops-script.js
@@ -322,15 +307,17 @@
 │   │   │   │   ├── live-orders-shortcode.php
 │   │   │   │   └── live-orders-style.css
 │   │   │   └── view-order
-│   │   │       ├── .DS_Store
 │   │   │       ├── view-order-actions.css
 │   │   │       ├── view-order-actions.js
 │   │   │       ├── view-order-script.js
 │   │   │       ├── view-order-shortcode.php
 │   │   │       └── view-order-style.css
+│   │   ├── payments
+│   │   │   ├── payments-api.php
+│   │   │   ├── payments-helpers.php
+│   │   │   └── payments-service.php
 │   │   ├── profile
 │   │   └── settings
-│   │       ├── .DS_Store
 │   │       ├── brand-logo-style.css
 │   │       ├── brand-logo-upload.js
 │   │       ├── settings-shortcode.php
@@ -338,7 +325,6 @@
 │   │       ├── settings.css
 │   │       └── settings.js
 │   ├── public
-│   │   ├── .DS_Store
 │   │   ├── addresses
 │   │   │   ├── my-addresses-script.js
 │   │   │   ├── my-addresses-shortcode.php
@@ -379,7 +365,6 @@
 │   │   │   ├── navigation-script.js
 │   │   │   └── navigation-style.css
 │   │   ├── orders
-│   │   │   ├── .DS_Store
 │   │   │   ├── my-orders-shortcode.php
 │   │   │   ├── my-orders.css
 │   │   │   ├── my-orders.js
@@ -398,23 +383,45 @@
 │       └── cities-grid-shortcode.php
 ├── kingdom-nexus.php
 ├── knx-menu-studio
-│   ├── inc
-│   │   ├── core
-│   │   │   ├── helpers.php
-│   │   │   └── rest.php
-│   │   └── modules
-│   │       ├── capture-manager
-│   │       │   ├── capture-manager-script.js
-│   │       │   └── capture-manager-style.css
-│   │       └── session-starter
-│   │           ├── session-starter-script.js
-│   │           ├── session-starter-shortcode.php
-│   │           └── session-starter-style.css
+│   ├── assets
+│   │   ├── migration-builder.js
+│   │   ├── migration-capture-bak.js
+│   │   ├── migration-capture.css
+│   │   ├── migration-capture.js
+│   │   ├── migration-core.js
+│   │   ├── migration-ocr.js
+│   │   └── studio.css
 │   └── knx-menu-studio.php
+├── knx-menu-studio-refactorized.zip
+├── knx-menu-tool
+│   ├── .DS_Store
+│   ├── assets
+│   │   ├── menu-tool.css
+│   │   ├── menu-tool.js
+│   │   └── modules
+│   │       ├── mt-crop.js
+│   │       ├── mt-db.js
+│   │       ├── mt-export.js
+│   │       ├── mt-groups.js
+│   │       ├── mt-ocr.js
+│   │       ├── mt-renderer.js
+│   │       ├── mt-ui.js
+│   │       ├── mt-utils.js
+│   │       └── mt-workspace.js
+│   ├── inc
+│   │   ├── .DS_Store
+│   │   └── core
+│   │       ├── ajax.php
+│   │       ├── csv-generator.php
+│   │       ├── render.php
+│   │       ├── security.php
+│   │       ├── structure-engine.php
+│   │       └── text-cleaner.php
+│   └── knx-menu-tool.php
 ├── localbites-colors.md
 ├── modifiers-categories.sql
 ├── nexus-guidelines.md
 ├── nexus-schema-y05.sql
 └── project-tree.txt
 
-98 directories, 320 files
+94 directories, 333 files
