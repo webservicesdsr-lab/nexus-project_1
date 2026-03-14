@@ -1,0 +1,623 @@
+/* ============================================================
+   KNX Menu Studio — Responsive Design
+   All responsive breakpoints and mobile optimizations
+   ============================================================ */
+
+/* ============================================================
+   LARGE TABLET LANDSCAPE
+   ============================================================ */
+@media (max-width: 1180px) and (orientation: landscape) {
+  .mc-bubble__expanded {
+    padding: 12px;
+  }
+
+  .mc-bubble__expanded-body {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 12px;
+  }
+
+  .mc-bubble__stage-wrap {
+    height: min(62vh, 620px);
+  }
+
+  .mc-bubble__expanded-img {
+    max-width: min(100%, 760px);
+    max-height: min(62vh, 620px);
+  }
+
+  .mc-guided-item-preview {
+    padding: 14px;
+  }
+
+  .mc-guided-item-preview__card {
+    min-height: 180px;
+    padding: 18px 14px;
+  }
+
+  .mc-guided-item-preview__name {
+    font-size: 1.25rem;
+  }
+
+  .mc-guided-item-preview__description {
+    font-size: 0.9rem;
+  }
+
+  .mc-guided-item-preview__price {
+    font-size: 1.55rem;
+  }
+}
+
+/* ============================================================
+   TABLET / STACK MODE
+   ============================================================ */
+@media (max-width: 1024px) {
+  .mc-topbar {
+    flex-wrap: wrap;
+    align-items: stretch;
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .mc-topbar__back,
+  .mc-topbar__title {
+    align-self: center;
+  }
+
+  .mc-cat-bar {
+    order: 10;
+    width: 100%;
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .mc-cat-bar__select-wrap {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .mc-cat-bar__input {
+    width: 100%;
+    min-width: 0;
+    font-size: 0.9rem;
+    min-height: 46px;
+  }
+
+  .mc-topbar__actions {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+
+  .mc-bubble__expanded {
+    padding: 10px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mc-bubble__expanded-body {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+
+  .mc-guided-item-preview {
+    order: -1;
+    max-height: none;
+    min-height: auto;
+    flex: 0 0 auto;
+  }
+
+  .mc-guided-item-preview__card {
+    min-height: 140px;
+    padding: 14px 12px;
+    gap: 10px;
+  }
+
+  .mc-guided-item-preview__name {
+    font-size: 1.15rem;
+  }
+
+  .mc-guided-item-preview__description {
+    font-size: 0.88rem;
+    min-height: 32px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .mc-guided-item-preview__price {
+    font-size: 1.4rem;
+  }
+
+  .mc-bubble__source-panel {
+    padding: 10px;
+    flex: 1 1 auto;
+    min-height: 200px;
+  }
+
+  .mc-bubble__stage-wrap {
+    height: auto;
+    max-height: min(50vh, 500px);
+    justify-content: center;
+    align-items: center;
+  }
+
+  .mc-bubble__expanded-img {
+    max-width: 100%;
+    max-height: min(50vh, 500px);
+  }
+
+  .mc-pick-btn {
+    width: 48px;
+    min-width: 48px;
+    height: 48px;
+    min-height: 48px;
+    font-size: 1.1rem;
+  }
+
+  .mc-pick-btn--sm {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .mc-group-draft {
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .mc-group-draft__seg-bar {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .mc-group-draft__option-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .mc-group-draft__quick-cell--price {
+    grid-template-columns: minmax(0, 1fr) 46px 52px;
+  }
+}
+
+/* ============================================================
+   TABLET PORTRAIT MODE
+   ============================================================ */
+@media (max-width: 1024px) and (orientation: portrait) {
+  .mc-bubble__expanded {
+    padding: 8px;
+  }
+
+  .mc-bubble__expanded-header {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-bottom: 8px;
+  }
+
+  .mc-bubble__expanded-header-left {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .mc-bubble__expanded-actions {
+    flex: 0 0 auto;
+  }
+
+  .mc-bubble__image-rail {
+    padding: 4px 0 8px;
+  }
+
+  .mc-bubble__expanded-body {
+    gap: 8px;
+  }
+
+  .mc-guided-item-preview {
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  .mc-guided-item-preview__steps {
+    gap: 6px;
+  }
+
+  .mc-guided-item-preview__step {
+    min-height: 30px;
+    padding: 0 10px;
+    font-size: 0.72rem;
+  }
+
+  .mc-bubble__source-panel {
+    border-radius: 16px;
+    min-height: 180px;
+  }
+
+  .mc-bubble__stage-wrap {
+    max-height: min(45vh, 400px);
+  }
+
+  .mc-bubble__expanded-img {
+    max-height: min(45vh, 400px);
+    border-radius: 14px;
+  }
+
+  .mc-bubble__expanded-footer {
+    padding-top: 8px;
+  }
+
+  .mc-bubble__ocr-hint {
+    font-size: 0.78rem;
+    padding: 0 8px;
+  }
+
+  .mc-group-guide-shell {
+    padding: 12px;
+    border-radius: 14px;
+  }
+
+  .mc-group-draft__seg-bar {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+/* ============================================================
+   TABLET LANDSCAPE MODE
+   ============================================================ */
+@media (max-width: 1024px) and (min-width: 681px) and (orientation: landscape) {
+  .mc-bubble__expanded {
+    padding: 10px;
+  }
+
+  .mc-bubble__expanded-body {
+    grid-template-columns: minmax(0, 1fr) 260px;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .mc-guided-item-preview {
+    order: 0;
+    max-height: none;
+    align-self: stretch;
+  }
+
+  .mc-guided-item-preview__card {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .mc-bubble__stage-wrap {
+    height: min(58vh, 480px);
+    max-height: min(58vh, 480px);
+  }
+
+  .mc-bubble__expanded-img {
+    max-height: min(58vh, 480px);
+  }
+
+  .mc-group-draft {
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .mc-group-draft__seg-bar {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .mc-draft-options-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .mc-modal-groups--grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ============================================================
+   MOBILE AND GROUP DRAFT RESPONSIVE
+   ============================================================ */
+@media (max-width: 768px) {
+  .mc-group-draft__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mc-group-draft__header-actions {
+    width: 100%;
+  }
+
+  .mc-group-draft__guided-btn,
+  .mc-group-draft__raw-btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .mc-draft-options-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================================
+   SMALL TABLET / LENOVO M7 FRIENDLY
+   ============================================================ */
+@media (max-width: 900px) {
+  .mc-builder__content {
+    max-width: 100%;
+  }
+
+  .mc-live-modal-shell {
+    padding: 10px;
+    border-radius: 24px;
+  }
+
+  .mc-live-modal-scroll {
+    max-height: calc(100vh - 260px);
+    max-height: calc(100dvh - 260px);
+  }
+
+  .mc-modal-dialog {
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .mc-modal-header-card {
+    padding: 18px 16px 20px;
+    border-radius: 18px;
+  }
+
+  .mc-modal-title-input {
+    font-size: 1.25rem;
+    max-width: 100%;
+  }
+
+  .mc-modal-desc-input {
+    min-height: 72px;
+    font-size: 0.96rem;
+  }
+
+  .mc-modal-price-input {
+    width: 110px;
+    font-size: 1.35rem;
+  }
+
+  .mc-draft-options-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mc-modal-groups--grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mc-group-draft__seg-bar {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .mc-builder__footer {
+    flex-direction: column;
+  }
+
+  .mc-builder__add-btn {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .mc-bubble__expanded-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mc-bubble__expanded-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .mc-bubble__action-btn {
+    min-height: 42px;
+    padding: 0 14px;
+    font-size: 0.82rem;
+  }
+
+  .mc-guided-item-preview__head {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .mc-guided-item-preview__restart {
+    align-self: flex-start;
+  }
+
+  .mc-group-draft__option-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .mc-group-draft__quick-cell {
+    width: 100%;
+  }
+
+  .mc-group-draft__quick-cell--name {
+    order: 1;
+  }
+
+  .mc-group-draft__quick-cell--price {
+    order: 2;
+    display: grid;
+    grid-template-columns: 1fr 40px 40px;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .mc-group-draft__option-row .mc-quick-fill {
+    order: 3;
+    grid-column: 2;
+  }
+
+  .mc-group-draft__option-row .mc-group-draft__add-opt {
+    order: 4;
+    grid-column: 3;
+  }
+
+  .mc-group-guide-shell__actions {
+    gap: 8px;
+  }
+
+  .mc-group-guide-btn {
+    flex: 1 1 auto;
+    min-width: 100px;
+    justify-content: center;
+  }
+
+  .mc-bubble__guide-step {
+    min-height: 34px;
+    font-size: 0.76rem;
+  }
+
+  .mc-bubble__guide-btn {
+    min-height: 38px;
+    padding: 0 16px;
+  }
+}
+
+/* ============================================================
+   PHONE / VERY SMALL
+   ============================================================ */
+@media (max-width: 680px) {
+  .mc-topbar {
+    padding: 6px 10px;
+    gap: 6px;
+  }
+
+  .mc-topbar__actions {
+    order: 5;
+  }
+
+  .mc-builder {
+    padding: 10px;
+  }
+
+  .mc-live-modal-shell {
+    padding: 8px;
+    border-radius: 20px;
+  }
+
+  .mc-live-modal-scroll {
+    max-height: calc(100vh - 250px);
+    max-height: calc(100dvh - 250px);
+  }
+
+  .mc-group-draft {
+    padding: 10px;
+    gap: 8px;
+    border-radius: 14px;
+  }
+
+  .mc-group-draft__hero-input {
+    min-height: 40px;
+    font-size: 0.92rem;
+  }
+
+  .mc-group-draft__seg-bar {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .mc-group-draft__quick-cell--price {
+    grid-template-columns: 1fr 42px 46px;
+  }
+
+  .mc-quick-fill {
+    width: 42px;
+    min-width: 42px;
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .mc-group-draft__add-opt {
+    width: 46px;
+    min-width: 46px;
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .mc-draft-options-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .mc-group-draft__commit {
+    min-height: 42px;
+    font-size: 0.88rem;
+  }
+
+  .mc-modal-header-card__row,
+  .mc-modal-desc-row,
+  .mc-modal-price-row {
+    gap: 6px;
+  }
+
+  .mc-session {
+    height: 172px;
+  }
+
+  .mc-bubble__mini {
+    width: 54px;
+    height: 54px;
+  }
+
+  .mc-bubble__image-thumb {
+    width: 62px;
+    height: 62px;
+  }
+
+  .mc-bubble__stage-wrap {
+    height: min(48vh, 480px);
+  }
+
+  .mc-bubble__expanded-img {
+    max-width: 100%;
+    max-height: min(48vh, 480px);
+  }
+
+  .mc-guided-item-preview {
+    max-height: 34vh;
+    padding: 14px;
+  }
+
+  .mc-guided-item-preview__step {
+    min-height: 32px;
+    font-size: 0.72rem;
+    padding: 0 10px;
+  }
+
+  .mc-group-guide-shell {
+    padding: 12px 14px;
+  }
+
+  .mc-group-guide-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .mc-ocr-panel {
+    right: 10px;
+    left: 10px;
+    bottom: 74px;
+    width: auto;
+    max-height: 38vh;
+  }
+
+  .mc-ocr-panel__text {
+    max-height: calc(38vh - 46px);
+    font-size: 0.72rem;
+  }
+}

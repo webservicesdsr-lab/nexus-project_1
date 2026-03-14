@@ -184,8 +184,8 @@
       description: '',
       basePrice: '',
       groups: [],
-      imageUrl: getActiveImageUrl() || '',
-      imageUrls: Array.isArray(state.currentImageUrls) ? state.currentImageUrls.slice() : [],
+      imageUrl: '', // Don't inherit images from previous items
+      imageUrls: [], // Start fresh to prevent memory buildup
     };
   }
 

@@ -21,7 +21,9 @@ add_action('template_redirect', function() {
     $restricted_pages = ['hubs', 'drivers', 'customers', 'cities', 'advanced-dashboard', 'dashboard',
                          'account-settings', 'knx-dashboard', 'live-orders', 'orders', 'view-order',
                          'fees', 'coupons', 'knx-cities', 'knx-edit-city', 'edit-hub',
-                         'edit-hub-items', 'edit-item', 'edit-item-categories', 'drivers-admin'];
+                         'edit-hub-items', 'edit-item', 'edit-item-categories', 'drivers-admin',
+                         'menu-studio', 'capture'];
+    $studio_pages     = ['menu-studio', 'capture'];
     $dashboard_pages  = ['hubs', 'drivers', 'customers', 'cities', 'advanced-dashboard', 'dashboard',
                          'knx-dashboard', 'live-orders', 'orders', 'fees', 'coupons',
                          'knx-cities', 'drivers-admin'];
@@ -71,6 +73,13 @@ add_action('template_redirect', function() {
         // Drivers cannot access hubs or admin dashboards
         if ($role === 'driver' && in_array($slug, ['hubs', 'customers', 'cities', 'advanced-dashboard'])) {
             wp_safe_redirect(site_url('/driver-dashboard'));
+            exit;
+        }
+
+        // Menu Studio: only allowed roles
+        $studio_allowed = ['super_admin', 'manager', 'hub_management', 'menu_uploader'];
+        if (in_array($slug, $studio_pages) && !in_array($role, $studio_allowed, true)) {
+            wp_safe_redirect(site_url('/'));
             exit;
         }
     }

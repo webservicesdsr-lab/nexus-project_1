@@ -25,6 +25,11 @@
   function startNewItem() {
     state.currentDraft = freshItemDraft();
 
+    // Clear image state to prevent memory accumulation
+    state.currentImageUrl = '';
+    state.currentImageUrls = [];
+    state.activeImageIndex = 0;
+
     if (dom.builderEmpty) dom.builderEmpty.style.display = 'none';
     if (dom.builderContent) dom.builderContent.style.display = '';
 
@@ -98,7 +103,62 @@
     syncAll();
 
     toast('"' + addedName + '" added — ' + groupCount + ' group' + (groupCount !== 1 ? 's' : '') + '.');
+    
+    // Clean up temporary images to prevent server memory saturation
+    cleanupTemporaryImages();
+    
     scheduleAutosave();
+  }
+
+  function cleanupTemporaryImages() {
+    const imagesToClean = [];
+    
+    // Collect current image URLs that need cleanup
+    if (state.currentImageUrl && state.currentImageUrl.includes('knx-studio-temp/')) {
+      imagesToClean.push(state.currentImageUrl);
+    }
+    
+    if (Array.isArray(state.currentImageUrls)) {
+      state.currentImageUrls.forEach(url => {
+        if (url && url.includes('knx-studio-temp/') && imagesToClean.indexOf(url) === -1) {
+          imagesToClean.push(url);
+        }
+      });
+    }
+    
+    if (imagesToClean.length === 0) return;
+    
+    // Send cleanup request to server
+    const formData = new FormData();
+    formData.append('action', 'knx_studio_cleanup_images');
+    formData.append('nonce', window.knxStudioNonce || '');
+    formData.append('urls', JSON.stringify(imagesToClean));
+    
+    fetch(window.ajaxurl || '/wp-admin/admin-ajax.php', {
+      method: 'POST',
+      body: formData
+    }).then(response => response.json())
+    .then(data => {
+      if (data.success && data.data.cleaned > 0) {
+        console.log('Cleaned up ' + data.data.cleaned + ' temporary image(s)');
+      }
+    }).catch(err => {
+      console.warn('Image cleanup failed:', err);
+    });
+    
+    // Clear image references from state
+    state.currentImageUrl = '';
+    state.currentImageUrls = [];
+    state.activeImageIndex = 0;
+    
+    // Update UI to reflect no images
+    if (typeof root.setImages === 'function') {
+      root.setImages([], 0, true);
+    }
+    
+    // Clear bubble image if it exists
+    if (dom.bubbleMiniImg) dom.bubbleMiniImg.src = '';
+    if (dom.bubbleExpandedImg) dom.bubbleExpandedImg.src = '';
   }
 
   function openGroupDraft(skipCapture) {
@@ -308,52 +368,42 @@
       const price = (parseFloat(opt.price) || 0).toFixed(2);
       const isRemove = opt.action === 'remove';
       const actionClass = isRemove ? ' mc-draft-option-card--remove' : '';
-      const actionLabel = isRemove ? 'remove' : 'add';
-      const ctaText = isRemove ? 'Tap to remove' : 'Tap to add';
+      const ctaText = isRemove ? 'Remove' : 'Add';
 
       return `
         <div class="mc-draft-option-card${actionClass}" data-draft-opt-idx="${i}">
-          <div class="mc-draft-option-card__top">
-            <span class="mc-draft-option-card__badge">${actionLabel}</span>
-            <button class="mc-draft-option-card__delete" data-remove-draft-opt="${i}" title="Delete option">×</button>
+
+          <div class="mc-draft-option-card__name-row">
+            <input
+              type="text"
+              class="mc-draft-option-card__name-input"
+              data-draft-opt-input="name"
+              data-draft-opt-idx="${i}"
+              value="${escAttr(opt.name)}"
+              placeholder="Name"
+              autocomplete="off">
           </div>
 
-          <div class="mc-draft-option-card__center">
-            <div class="mc-draft-option-card__name-row">
+          <div class="mc-draft-option-card__top">
+            <button class="mc-draft-option-card__delete" data-remove-draft-opt="${i}" title="Delete">×</button>
+          </div>
+
+          <div class="mc-draft-option-card__cta">
+            <span class="mc-draft-option-card__cta-label">${ctaText}</span>
+            <div class="mc-draft-option-card__price-shell">
+              <span class="mc-draft-option-card__price-prefix">$</span>
               <input
                 type="text"
-                class="mc-draft-option-card__name-input"
-                data-draft-opt-input="name"
+                class="mc-draft-option-card__price-input"
+                data-draft-opt-input="price"
                 data-draft-opt-idx="${i}"
-                value="${escAttr(opt.name)}"
+                value="${isRemove ? '—' : escAttr(price)}"
+                inputmode="decimal"
+                ${isRemove ? 'readonly' : ''}
                 autocomplete="off">
-              <button
-                class="mc-pick-btn mc-pick-btn--sm"
-                data-pick-target="draft-option-name:${i}"
-                title="Pick option name from image">⎗</button>
-            </div>
-
-            <div class="mc-draft-option-card__cta">
-              <span class="mc-draft-option-card__cta-label">${ctaText}</span>
-              ${!isRemove ? `
-                <div class="mc-draft-option-card__price-shell">
-                  <span class="mc-draft-option-card__price-prefix">+$</span>
-                  <input
-                    type="text"
-                    class="mc-draft-option-card__price-input"
-                    data-draft-opt-input="price"
-                    data-draft-opt-idx="${i}"
-                    value="${escAttr(price)}"
-                    inputmode="decimal"
-                    autocomplete="off">
-                  <button
-                    class="mc-pick-btn mc-pick-btn--sm"
-                    data-pick-target="draft-option-price:${i}"
-                    title="Pick option price from image">⎗</button>
-                </div>
-              ` : ''}
             </div>
           </div>
+
         </div>
       `;
     }).join('');
@@ -417,16 +467,26 @@
   function initChips() {
     root.$$('[data-chip-group]').forEach(container => {
       const group = container.dataset.chipGroup;
+      // support both new segmented-btn and legacy chip classes
+      const btnSel = '.mc-seg__btn, .mc-chip';
 
-      container.querySelectorAll('.mc-chip').forEach(chip => {
+      container.querySelectorAll(btnSel).forEach(chip => {
         chip.addEventListener('click', () => {
-          container.querySelectorAll('.mc-chip').forEach(c => {
-            c.className = 'mc-chip';
+          container.querySelectorAll(btnSel).forEach(c => {
+            c.classList.remove(
+              'mc-seg__btn--active', 'mc-seg__btn--add', 'mc-seg__btn--remove',
+              'mc-chip--active', 'mc-chip--active-add', 'mc-chip--active-remove'
+            );
           });
 
           if (group === 'action') {
+            chip.classList.add('mc-seg__btn--active');
+            if (chip.dataset.value === 'add') chip.classList.add('mc-seg__btn--add');
+            else chip.classList.add('mc-seg__btn--remove');
+            // legacy
             chip.classList.add(chip.dataset.value === 'add' ? 'mc-chip--active-add' : 'mc-chip--active-remove');
           } else {
+            chip.classList.add('mc-seg__btn--active');
             chip.classList.add('mc-chip--active');
           }
 
@@ -462,11 +522,17 @@
     const container = root.$('[data-chip-group="' + group + '"]');
     if (!container) return;
 
-    container.querySelectorAll('.mc-chip').forEach(c => {
-      c.className = 'mc-chip';
+    const btnSel = '.mc-seg__btn, .mc-chip';
+    container.querySelectorAll(btnSel).forEach(c => {
+      c.classList.remove(
+        'mc-seg__btn--active', 'mc-seg__btn--add', 'mc-seg__btn--remove',
+        'mc-chip--active', 'mc-chip--active-add', 'mc-chip--active-remove'
+      );
 
       if (c.dataset.value === value) {
+        c.classList.add('mc-seg__btn--active');
         if (group === 'action') {
+          c.classList.add(value === 'add' ? 'mc-seg__btn--add' : 'mc-seg__btn--remove');
           c.classList.add(value === 'add' ? 'mc-chip--active-add' : 'mc-chip--active-remove');
         } else {
           c.classList.add('mc-chip--active');

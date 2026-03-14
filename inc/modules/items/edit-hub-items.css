@@ -442,12 +442,18 @@ body {
   box-shadow: 0 4px 16px rgba(0,0,0,0.2);
   animation: fadeIn .25s ease-in-out;
 }
+.knx-modal-content--wide {
+  width: 540px;
+}
 .knx-modal-content h3 {
   margin-top: 0;
   color: #0B793A;
   font-size: 18px;
   font-weight: 600;
   margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .knx-form-group label {
   display: block;
@@ -469,6 +475,124 @@ body {
   justify-content: space-between;
   margin-top: 18px;
   gap: 10px;
+}
+
+/* CSV FORMAT INFO */
+.knx-csv-format-info {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+}
+.knx-csv-format-info p {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+.knx-csv-format-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.knx-csv-format-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 11px;
+}
+.knx-csv-format-card code {
+  font-size: 10.5px;
+  color: #495057;
+  word-break: break-all;
+  line-height: 1.5;
+}
+.knx-csv-format-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.knx-csv-format-badge--simple {
+  background: #e9ecef;
+  color: #495057;
+}
+.knx-csv-format-badge--studio {
+  background: #ede9fe;
+  color: #7c3aed;
+}
+
+/* CONFLICT MODE RADIO GROUP */
+.knx-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+.knx-radio-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+}
+.knx-radio-option:hover {
+  border-color: #0B793A;
+  background: #f0faf4;
+}
+.knx-radio-option input[type="radio"] {
+  width: auto;
+  margin-top: 3px;
+  flex-shrink: 0;
+  accent-color: #0B793A;
+}
+.knx-radio-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.knx-radio-label strong {
+  font-size: 14px;
+  color: #222;
+}
+.knx-radio-label small {
+  font-size: 12px;
+  color: #666;
+  line-height: 1.4;
+}
+.knx-radio-label em {
+  color: #b02a37;
+}
+
+/* REPLACE WARNING */
+.knx-csv-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #664d03;
+}
+.knx-csv-warning i {
+  color: #ffc107;
+  font-size: 16px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+.knx-csv-warning em {
+  font-style: normal;
+  text-decoration: underline;
 }
 
 /* ─── RESPONSIVE ───────────────────────────────────────────────── */

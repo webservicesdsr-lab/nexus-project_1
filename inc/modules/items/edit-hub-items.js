@@ -19,6 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const apiDelete = wrap.dataset.apiDelete;
   const apiReorder = wrap.dataset.apiReorder;
   const apiCats = wrap.dataset.apiCats;
+  const apiExportCsv = wrap.dataset.apiExportCsv;
   const hubId = wrap.dataset.hubId;
   const nonce = wrap.dataset.nonce;
 
@@ -337,13 +338,25 @@ document.addEventListener("DOMContentLoaded", () => {
   loadItems();
   
   /* ==========================================================
-     7. CSV Upload flow
+     7. CSV Upload flow (v2.0 — dual format + conflict mode)
   ========================================================== */
   const uploadCsvBtn = document.getElementById("knxUploadCsvBtn");
   const uploadCsvModal = document.getElementById("knxUploadCsvModal");
   const uploadCsvForm = document.getElementById("knxUploadCsvForm");
   const uploadCsvFile = document.getElementById("knxCsvFile");
   const closeCsvBtn = document.getElementById("knxCloseCsvModal");
+  const replaceWarning = document.getElementById("knxReplaceWarning");
+
+  // Show/hide replace warning based on conflict_mode radio
+  if (uploadCsvModal) {
+    uploadCsvModal.querySelectorAll('input[name="conflict_mode"]').forEach((radio) => {
+      radio.addEventListener("change", () => {
+        if (replaceWarning) {
+          replaceWarning.style.display = radio.value === "replace" && radio.checked ? "" : "none";
+        }
+      });
+    });
+  }
 
   if (uploadCsvBtn && uploadCsvModal) {
     uploadCsvBtn.addEventListener("click", () => {
@@ -355,6 +368,7 @@ document.addEventListener("DOMContentLoaded", () => {
     closeCsvBtn.addEventListener("click", () => {
       uploadCsvModal.classList.remove("active");
       if (uploadCsvForm) uploadCsvForm.reset();
+      if (replaceWarning) replaceWarning.style.display = "none";
     });
   }
 
@@ -368,25 +382,36 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       const file = uploadCsvFile.files[0];
-      // Basic client-side checks
       if (!file.name.match(/\.csv$/i)) {
         knxToast("Please upload a .csv file", "error");
         return;
+      }
+
+      // Get conflict mode
+      const conflictRadio = uploadCsvForm.querySelector('input[name="conflict_mode"]:checked');
+      const conflictMode = conflictRadio ? conflictRadio.value : "skip";
+
+      // Confirm replace mode
+      if (conflictMode === "replace") {
+        if (!confirm("Replace mode will DELETE and RECREATE all modifier groups for matched items. Existing orders are not affected.\n\nContinue?")) {
+          return;
+        }
       }
 
       const fd = new FormData();
       fd.append("items_csv", file);
       fd.append("hub_id", hubId);
       fd.append("knx_nonce", nonce);
+      fd.append("conflict_mode", conflictMode);
 
       try {
-        const submitBtn = uploadCsvForm.querySelector('button[type="submit"]');
+        const submitBtn = document.getElementById("knxUploadCsvSubmit");
         if (submitBtn) {
           submitBtn.disabled = true;
-          submitBtn.textContent = "Uploading...";
+          submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
         }
 
-        const res = await fetch(wrap.dataset.apiUploadCsv || apiUploadCsv || (wrap.dataset.apiUploadCsv), {
+        const res = await fetch(wrap.dataset.apiUploadCsv, {
           method: "POST",
           body: fd,
         });
@@ -394,9 +419,21 @@ document.addEventListener("DOMContentLoaded", () => {
         const data = await res.json();
 
         if (data && data.success) {
-          knxToast(data.message || "CSV processed", "success");
+          // Build summary message
+          const d = data.data || {};
+          const parts = [];
+          if (d.inserted) parts.push(d.inserted + " inserted");
+          if (d.updated) parts.push(d.updated + " updated");
+          if (d.skipped) parts.push(d.skipped + " skipped");
+          if (d.categories_created) parts.push(d.categories_created + " categories created");
+          if (d.modifiers_created) parts.push(d.modifiers_created + " modifier groups");
+          if (d.options_created) parts.push(d.options_created + " options");
+
+          const summary = parts.length ? parts.join(", ") : "CSV processed";
+          knxToast(summary, "success");
           uploadCsvModal.classList.remove("active");
           uploadCsvForm.reset();
+          if (replaceWarning) replaceWarning.style.display = "none";
           loadItems();
         } else {
           const errMsg = (data && data.message) ? data.message : (data && data.error) ? data.error : "CSV upload failed";
@@ -407,12 +444,84 @@ document.addEventListener("DOMContentLoaded", () => {
         console.error(err);
         knxToast("Network error during CSV upload", "error");
       } finally {
-        const submitBtn = uploadCsvForm.querySelector('button[type="submit"]');
+        const submitBtn = document.getElementById("knxUploadCsvSubmit");
         if (submitBtn) {
           submitBtn.disabled = false;
-          submitBtn.textContent = "Upload";
+          submitBtn.innerHTML = '<i class="fas fa-upload"></i> Upload';
         }
       }
+    });
+  }
+
+  /* ==========================================================
+     8. CSV Export flow (Studio format)
+  ========================================================== */
+  const exportCsvBtn = document.getElementById("knxExportCsvBtn");
+  const exportCsvModal = document.getElementById("knxExportCsvModal");
+  const exportCsvSubmit = document.getElementById("knxExportCsvSubmit");
+  const closeExportBtn = document.getElementById("knxCloseExportModal");
+  const exportCatSelect = document.getElementById("knxExportCategorySelect");
+
+  async function loadExportCategories() {
+    if (!exportCatSelect) return;
+    try {
+      const res = await fetch(`${apiCats}?hub_id=${hubId}`);
+      const data = await res.json();
+
+      // Keep the "All categories" option
+      exportCatSelect.innerHTML = '<option value="">All categories (full hub)</option>';
+
+      if (data.success && data.categories) {
+        data.categories.forEach((cat) => {
+          if (cat.status === "active") {
+            const opt = document.createElement("option");
+            opt.value = cat.id;
+            opt.textContent = cat.name;
+            exportCatSelect.appendChild(opt);
+          }
+        });
+      }
+    } catch (err) {
+      console.error("Error loading export categories:", err);
+    }
+  }
+
+  if (exportCsvBtn && exportCsvModal) {
+    exportCsvBtn.addEventListener("click", () => {
+      exportCsvModal.classList.add("active");
+      loadExportCategories();
+    });
+  }
+
+  if (closeExportBtn) {
+    closeExportBtn.addEventListener("click", () => {
+      exportCsvModal.classList.remove("active");
+    });
+  }
+
+  if (exportCsvSubmit) {
+    exportCsvSubmit.addEventListener("click", () => {
+      if (!apiExportCsv) {
+        knxToast("Export endpoint not configured", "error");
+        return;
+      }
+
+      const catId = exportCatSelect ? exportCatSelect.value : "";
+      let url = `${apiExportCsv}?action=knx_export_hub_items_csv&hub_id=${hubId}&knx_nonce=${nonce}`;
+      if (catId) {
+        url += `&category_id=${catId}`;
+      }
+
+      // Trigger download via hidden link
+      const a = document.createElement("a");
+      a.href = url;
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      knxToast("Export started...", "success");
+      exportCsvModal.classList.remove("active");
     });
   }
 });

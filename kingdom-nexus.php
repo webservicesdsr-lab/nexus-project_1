@@ -216,6 +216,7 @@ add_action('plugins_loaded', function() {
     knx_require('inc/core/resources/knx-items/api-reorder-item-category.php');
     knx_require('inc/core/resources/knx-items/api-hub-items.php');
     knx_require('inc/core/resources/knx-items/api-upload-hub-items-csv.php');
+    knx_require('inc/core/resources/knx-items/api-export-hub-items-csv.php');
     knx_require('inc/core/resources/knx-items/api-update-item.php');
     knx_require('inc/core/resources/knx-items/api-reorder-item.php');
     knx_require('inc/core/resources/knx-items/api-item-addons.php');

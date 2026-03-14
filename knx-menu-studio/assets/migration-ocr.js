@@ -890,7 +890,7 @@
             const field = target.endsWith('name') ? 'name' : 'price';
 
             if (field === 'name') {
-              state.groupDraft.options[index].name = cleaned;
+              state.groupDraft.options[index].name = cleaned.replace(/\|/g, '').replace(/\s{2,}/g, ' ').trim();
             } else {
               state.groupDraft.options[index].price = extractFirstMoney(cleaned, true);
             }
@@ -914,8 +914,14 @@
               input.value = cleaned;
             }
 
-            input.focus();
             input.dispatchEvent(new Event('input', { bubbles: true }));
+
+            // On tablet app mode, avoid raising the on-screen keyboard after OCR fill
+            if (root.appState && root.appState.isAppMode) {
+              input.blur();
+            } else {
+              input.focus();
+            }
 
             // Trigger field capture animation in app mode
             if (typeof root.animateFieldCapture === 'function') {

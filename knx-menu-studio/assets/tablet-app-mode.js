@@ -28,7 +28,7 @@
   };
 
   function isTabletViewport() {
-    return window.innerWidth <= 1024;
+    return window.innerWidth <= 1366;
   }
 
   function getShell() {
@@ -542,6 +542,67 @@
     }, 250);
   }
 
+  function getBubbleExpanded() {
+    return document.getElementById('bubble-expanded');
+  }
+
+  function setGroupDraftContext(active) {
+    const bubble = getBubbleExpanded();
+    if (!bubble) return;
+    if (active) {
+      bubble.setAttribute('data-context', 'group-draft');
+    } else {
+      bubble.removeAttribute('data-context');
+    }
+  }
+
+  function isGroupDraftPickTarget(targetId) {
+    if (!targetId) return false;
+    // group draft pick targets: draft-group-name, draft-option-name, draft-option-price,
+    // or indexed draft-option-name:N / draft-option-price:N
+    return (
+      targetId === 'draft-group-name' ||
+      targetId === 'draft-option-name' ||
+      targetId === 'draft-option-price' ||
+      (typeof targetId === 'string' && targetId.startsWith('draft-option-'))
+    );
+  }
+
+  const originalActivatePickMode = root.activatePickMode;
+  root.activatePickMode = function (targetId) {
+    if (typeof originalActivatePickMode === 'function') {
+      originalActivatePickMode(targetId);
+    }
+
+    if (!appState.isAppMode) return;
+
+    if (isGroupDraftPickTarget(targetId) && state.groupDraft) {
+      setGroupDraftContext(true);
+
+      // Hide the item guided-preview bottom sheet so image gets full space
+      const preview = getPreview();
+      if (preview) {
+        preview.style.display = 'none';
+      }
+
+      if (typeof root.syncOcrCanvas === 'function') {
+        setTimeout(function () { root.syncOcrCanvas(); }, 60);
+      }
+    } else {
+      setGroupDraftContext(false);
+    }
+  };
+
+  const originalClearPickMode = root.clearPickMode;
+  root.clearPickMode = function () {
+    if (typeof originalClearPickMode === 'function') {
+      originalClearPickMode();
+    }
+
+    if (!appState.isAppMode) return;
+    setGroupDraftContext(false);
+  };
+
   const originalShowBubbleExpanded = root.showBubbleExpanded;
   root.showBubbleExpanded = function () {
     if (typeof originalShowBubbleExpanded === 'function') {
@@ -574,6 +635,13 @@
 
     if (!appState.isAppMode) return;
     unlockBodyScroll();
+    setGroupDraftContext(false);
+
+    // Restore the item guided-preview if it was hidden during group draft pick mode
+    const preview = getPreview();
+    if (preview && state.guidedMode === 'item') {
+      preview.style.display = '';
+    }
   };
 
   const originalHideBubble = root.hideBubble;

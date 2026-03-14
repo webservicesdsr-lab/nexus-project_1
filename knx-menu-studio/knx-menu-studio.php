@@ -49,15 +49,13 @@ function knx_menu_studio_shortcode( $atts ) {
     );
 
     if ( ! function_exists( 'knx_get_session' ) ) {
-        wp_safe_redirect( site_url( '/' ) );
-        exit;
+        return '';
     }
 
     $session = knx_get_session();
 
     if ( ! $session || ! in_array( $session->role, KNX_STUDIO_ALLOWED_ROLES, true ) ) {
-        wp_safe_redirect( site_url( '/' ) );
-        exit;
+        return '';
     }
 
     ob_start();
@@ -136,8 +134,11 @@ function knx_studio_render_capture( $session ) {
     $ajax_url     = admin_url( 'admin-ajax.php' );
     $home_url     = site_url( '/menu-studio/' );
 
-    echo '<link rel="stylesheet" href="' . esc_url( KNX_STUDIO_URL . 'assets/migration-capture.css?v=' . knx_studio_asset_ver( 'assets/migration-capture.css' ) ) . '">';
-    echo '<link rel="stylesheet" href="' . esc_url( KNX_STUDIO_URL . 'assets/tablet-app-mode.css?v=' . knx_studio_asset_ver( 'assets/tablet-app-mode.css' ) ) . '">';
+    echo '<link rel="stylesheet" href="' . esc_url( KNX_STUDIO_URL . 'assets/migration-core-layout.css?v='       . knx_studio_asset_ver( 'assets/migration-core-layout.css' ) ) . '">';
+    echo '<link rel="stylesheet" href="' . esc_url( KNX_STUDIO_URL . 'assets/migration-modals-components.css?v=' . knx_studio_asset_ver( 'assets/migration-modals-components.css' ) ) . '">';
+    echo '<link rel="stylesheet" href="' . esc_url( KNX_STUDIO_URL . 'assets/migration-interactive.css?v='       . knx_studio_asset_ver( 'assets/migration-interactive.css' ) ) . '">';
+    echo '<link rel="stylesheet" href="' . esc_url( KNX_STUDIO_URL . 'assets/migration-responsive.css?v='        . knx_studio_asset_ver( 'assets/migration-responsive.css' ) ) . '">';
+    echo '<link rel="stylesheet" href="' . esc_url( KNX_STUDIO_URL . 'assets/tablet-app-mode.css?v='             . knx_studio_asset_ver( 'assets/tablet-app-mode.css' ) ) . '">';
 
     ?>
     <div class="mc-shell"
@@ -220,107 +221,130 @@ function knx_studio_render_capture( $session ) {
                     </div>
                   </div>
 
-                  <div id="builder-groups" class="mc-modal-groups"></div>
+                  <div id="builder-groups" class="mc-modal-groups mc-modal-groups--grid"></div>
 
                   <button id="btn-add-group" class="mc-modal-add-group-btn">+ Add Group</button>
 
-                  <div id="group-draft" class="mc-group-draft">
 
-                    <div class="mc-group-draft__topbar">
-                      <div class="mc-group-draft__topbar-left">
-                        <span class="mc-group-draft__eyebrow">Group Draft</span>
-                        <span id="draft-group-summary" class="mc-group-draft__summary">Start with the group title, then add options.</span>
-                      </div>
 
-                      <div class="mc-group-draft__header-actions">
-                        <button id="btn-group-guided-capture" class="mc-group-draft__guided-btn">Capture from image</button>
-                        <button id="btn-show-raw-ocr" class="mc-group-draft__raw-btn" style="display:none;">Raw OCR</button>
-                        <button id="btn-cancel-group" class="mc-group-draft__cancel">Cancel</button>
-                      </div>
-                    </div>
 
-                    <div class="mc-group-draft__hero">
-                      <div class="mc-group-draft__hero-row">
-                        <input
-                          id="draft-group-name"
-                          class="mc-group-draft__hero-input"
-                          placeholder="Group title"
-                          autocomplete="off">
-                        <button class="mc-pick-btn" data-pick-target="draft-group-name" title="Pick group title from active image">⎗</button>
-                      </div>
+<div id="group-draft" class="mc-group-draft">
 
-                      <div class="mc-group-draft__meta-display">
-                        <span id="draft-pill-required" class="mc-group-draft__meta-pill">Optional</span>
-                        <span id="draft-pill-type" class="mc-group-draft__meta-pill">Multi</span>
-                        <span id="draft-pill-action" class="mc-group-draft__meta-pill mc-group-draft__meta-pill--add">Add</span>
-                      </div>
-                    </div>
+  <div class="mc-group-draft__header">
+    <div class="mc-group-draft__header-info">
+      <span class="mc-group-draft__eyebrow">New Group</span>
+      <span id="draft-group-summary" class="mc-group-draft__summary">Start with the group title, then add options.</span>
+    </div>
 
-                    <div class="mc-group-draft__controls">
-                      <div class="mc-chip-grid">
-                        <div class="mc-chip-row">
-                          <span class="mc-chip-row__label">Action</span>
-                          <div class="mc-chip-row__chips" data-chip-group="action">
-                            <button class="mc-chip mc-chip--active-add" data-value="add">Add</button>
-                            <button class="mc-chip" data-value="remove">Remove</button>
-                          </div>
-                        </div>
+    <div class="mc-group-draft__header-actions">
+      <button id="btn-group-guided-capture" class="mc-group-draft__guided-btn" type="button" title="Capture from image">📷 OCR</button>
+      <button id="btn-show-raw-ocr" class="mc-group-draft__raw-btn" type="button" style="display:none;">Raw</button>
+      <button id="btn-cancel-group" class="mc-group-draft__cancel" type="button" title="Cancel">✕</button>
+    </div>
+  </div>
 
-                        <div class="mc-chip-row">
-                          <span class="mc-chip-row__label">Required</span>
-                          <div class="mc-chip-row__chips" data-chip-group="required">
-                            <button class="mc-chip" data-value="1">Yes</button>
-                            <button class="mc-chip mc-chip--active" data-value="0">No</button>
-                          </div>
-                        </div>
+  <div class="mc-group-draft__title-row">
+    <div class="mc-group-draft__field mc-group-draft__field--hero">
+      <label class="mc-group-draft__field-label" for="draft-group-name">Group Title</label>
+      <div class="mc-group-draft__field-control">
+        <input
+          id="draft-group-name"
+          class="mc-group-draft__hero-input"
+          placeholder="Choose Your Size"
+          autocomplete="off">
+        <button class="mc-pick-btn" data-pick-target="draft-group-name" type="button" title="Pick from image">⎗</button>
+      </div>
+    </div>
+  </div>
 
-                        <div class="mc-chip-row">
-                          <span class="mc-chip-row__label">Type</span>
-                          <div class="mc-chip-row__chips" data-chip-group="type">
-                            <button class="mc-chip" data-value="single">Single</button>
-                            <button class="mc-chip mc-chip--active" data-value="multiple">Multi</button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+  <div class="mc-group-draft__config-card">
+    <div class="mc-group-draft__config-head">
+      <span class="mc-group-draft__section-title">Group Rules</span>
 
-                    <div class="mc-group-draft__quick-add">
-                      <div class="mc-group-draft__quick-add-head">
-                        <span class="mc-group-draft__quick-add-label">Quick Add Option</span>
-                        <span class="mc-group-draft__quick-add-help">Build manually or use OCR from the active image.</span>
-                      </div>
+      <div class="mc-group-draft__meta-strip">
+        <span id="draft-pill-required" class="mc-group-draft__meta-pill">Optional</span>
+        <span id="draft-pill-type" class="mc-group-draft__meta-pill">Multi</span>
+        <span id="draft-pill-action" class="mc-group-draft__meta-pill mc-group-draft__meta-pill--add">Add</span>
+      </div>
+    </div>
 
-                      <div class="mc-group-draft__option-row">
-                        <div class="mc-group-draft__quick-cell mc-group-draft__quick-cell--name">
-                          <input
-                            id="draft-option-name"
-                            class="mc-group-draft__opt-name"
-                            placeholder="Option name"
-                            autocomplete="off">
-                          <button class="mc-pick-btn mc-pick-btn--sm" data-pick-target="draft-option-name" title="Pick option name from active image">⎗</button>
-                        </div>
+    <div class="mc-group-draft__seg-bar">
 
-                        <div class="mc-group-draft__quick-cell mc-group-draft__quick-cell--price">
-                          <input
-                            id="draft-option-price"
-                            class="mc-group-draft__opt-price"
-                            placeholder="0.00"
-                            inputmode="decimal"
-                            autocomplete="off">
-                          <button class="mc-pick-btn mc-pick-btn--sm" data-pick-target="draft-option-price" title="Pick option price from active image">⎗</button>
-                        </div>
+      <div class="mc-seg-group">
+        <span class="mc-seg-group__label">Action</span>
+        <div class="mc-seg" data-chip-group="action">
+          <button class="mc-seg__btn mc-seg__btn--add mc-seg__btn--active" type="button" data-value="add">Add</button>
+          <button class="mc-seg__btn mc-seg__btn--remove" type="button" data-value="remove">Remove</button>
+        </div>
+      </div>
 
-                        <button id="btn-quick-fill" class="mc-quick-fill" title="Quick fill $0.00">$0</button>
-                        <button id="btn-add-option" class="mc-group-draft__add-opt" title="Add option">+</button>
-                      </div>
-                    </div>
+      <div class="mc-seg-group">
+        <span class="mc-seg-group__label">Required</span>
+        <div class="mc-seg" data-chip-group="required">
+          <button class="mc-seg__btn" type="button" data-value="1">Yes</button>
+          <button class="mc-seg__btn mc-seg__btn--active" type="button" data-value="0">No</button>
+        </div>
+      </div>
 
-                    <div id="draft-options-grid" class="mc-draft-options-grid"></div>
+      <div class="mc-seg-group">
+        <span class="mc-seg-group__label">Type</span>
+        <div class="mc-seg" data-chip-group="type">
+          <button class="mc-seg__btn" type="button" data-value="single">Single</button>
+          <button class="mc-seg__btn mc-seg__btn--active" type="button" data-value="multiple">Multi</button>
+        </div>
+      </div>
 
-                    <div class="mc-group-draft__commit-wrap">
-                      <button id="btn-commit-group" class="mc-group-draft__commit" disabled>Commit Group ↓</button>
-                    </div>
-                  </div>
+    </div>
+  </div>
+
+  <div class="mc-group-draft__quick-add">
+    <div class="mc-group-draft__quick-add-head">
+      <span class="mc-group-draft__section-title">Quick Add Option</span>
+      <span class="mc-group-draft__quick-add-help">Add options fast, then review them below.</span>
+    </div>
+
+    <div class="mc-group-draft__option-row">
+      <div class="mc-group-draft__quick-cell mc-group-draft__quick-cell--name">
+        <label class="mc-group-draft__field-label" for="draft-option-name">Option Name</label>
+        <div class="mc-group-draft__field-control">
+          <input
+            id="draft-option-name"
+            class="mc-group-draft__opt-name"
+            placeholder="Half Pan"
+            autocomplete="off">
+          <button class="mc-pick-btn mc-pick-btn--sm" data-pick-target="draft-option-name" type="button" title="Pick from image">⎗</button>
+        </div>
+      </div>
+
+      <div class="mc-group-draft__quick-cell mc-group-draft__quick-cell--price">
+        <div class="mc-group-draft__price-field">
+          <label class="mc-group-draft__field-label" for="draft-option-price">Price</label>
+          <div class="mc-group-draft__field-control">
+            <input
+              id="draft-option-price"
+              class="mc-group-draft__opt-price"
+              placeholder="0.00"
+              inputmode="decimal"
+              autocomplete="off">
+            <button class="mc-pick-btn mc-pick-btn--sm" data-pick-target="draft-option-price" type="button" title="Pick from image">⎗</button>
+          </div>
+        </div>
+
+        <button id="btn-quick-fill" class="mc-quick-fill" type="button" title="Set $0.00">$0</button>
+        <button id="btn-add-option" class="mc-group-draft__add-opt" type="button" title="Add option">+</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="mc-group-draft__options-head">
+    <span class="mc-group-draft__section-title">Options</span>
+  </div>
+
+  <div id="draft-options-grid" class="mc-draft-options-grid"></div>
+
+  <button id="btn-commit-group" class="mc-group-draft__commit" type="button" disabled>✓ Save Group</button>
+
+</div>
 
                 </div>
               </div>
@@ -627,3 +651,73 @@ function knx_menu_studio_handle_upload() {
         ]
     );
 }
+
+/**
+ * Handle AJAX cleanup of temporary images after adding item to list
+ */
+function knx_studio_handle_cleanup_images() {
+    if ( ! wp_verify_nonce( $_POST['nonce'] ?? '', 'knx_studio_nonce' ) ) {
+        wp_send_json_error( [ 'error' => 'Invalid nonce.' ], 403 );
+    }
+
+    $urls = $_POST['urls'] ?? [];
+    if ( ! is_array( $urls ) || empty( $urls ) ) {
+        wp_send_json_success( [ 'cleaned' => 0 ] );
+    }
+
+    $upload_dir = wp_upload_dir();
+    $temp_dir   = trailingslashit( $upload_dir['basedir'] ) . 'knx-studio-temp/';
+    $temp_url   = trailingslashit( $upload_dir['baseurl'] ) . 'knx-studio-temp/';
+    
+    $cleaned_count = 0;
+    
+    foreach ( $urls as $url ) {
+        if ( ! is_string( $url ) || strpos( $url, $temp_url ) !== 0 ) {
+            continue; // Only delete files from our temp directory
+        }
+        
+        $filename = basename( $url );
+        $filepath = $temp_dir . $filename;
+        
+        if ( file_exists( $filepath ) && is_file( $filepath ) ) {
+            if ( unlink( $filepath ) ) {
+                $cleaned_count++;
+            }
+        }
+    }
+    
+    wp_send_json_success( [ 'cleaned' => $cleaned_count ] );
+}
+
+/**
+ * Clean up old temporary images (older than 1 hour) to prevent disk space issues
+ */
+function knx_studio_cleanup_old_temp_files() {
+    $upload_dir = wp_upload_dir();
+    $temp_dir   = trailingslashit( $upload_dir['basedir'] ) . 'knx-studio-temp/';
+    
+    if ( ! is_dir( $temp_dir ) ) {
+        return 0;
+    }
+    
+    $cleaned = 0;
+    $cutoff_time = time() - 3600; // 1 hour ago
+    
+    $files = glob( $temp_dir . '*' );
+    foreach ( $files as $file ) {
+        if ( is_file( $file ) && basename( $file ) !== 'index.php' ) {
+            if ( filemtime( $file ) < $cutoff_time ) {
+                if ( unlink( $file ) ) {
+                    $cleaned++;
+                }
+            }
+        }
+    }
+    
+    return $cleaned;
+}
+
+// Clean old temp files on upload to prevent accumulation
+add_action( 'wp_ajax_knx_studio_upload', function() {
+    knx_studio_cleanup_old_temp_files();
+}, 5 );

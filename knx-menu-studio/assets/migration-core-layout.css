@@ -1,0 +1,295 @@
+/* ============================================================
+   KNX Menu Studio — Core Layout & Variables
+   Base styles, variables, shell structure, topbar and workspace
+   ============================================================ */
+
+:root{
+  --mc-bg: #f5f5f5;
+  --mc-card: #ffffff;
+  --mc-text: #111827;
+  --mc-muted: #6b7280;
+  --mc-border: rgba(17,24,39,0.08);
+  --mc-border-soft: rgba(17,24,39,0.05);
+  --mc-green: #0b793a;
+  --mc-green-2: #9bc8aa;
+  --mc-orange: #f97316;
+  --mc-orange-2: #ea6c10;
+  --mc-red: #dc2626;
+  --mc-blue-bg: #dbeafe;
+  --mc-blue-text: #1d4ed8;
+  --mc-shadow-lg: 0 18px 44px rgba(15,23,42,0.08);
+  --mc-shadow-md: 0 10px 32px rgba(15,23,42,0.06);
+  --mc-shadow-sm: 0 6px 18px rgba(15,23,42,0.08);
+}
+
+/* ============================================================
+   ROOT SHELL
+   ============================================================ */
+.mc-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--mc-bg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--mc-text);
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mc-shell *,
+.mc-shell *::before,
+.mc-shell *::after {
+  box-sizing: border-box;
+}
+
+/* ============================================================
+   TOPBAR
+   ============================================================ */
+.mc-topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  background: rgba(255,255,255,0.88);
+  border-bottom: 1px solid var(--mc-border);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  min-height: 58px;
+  flex-shrink: 0;
+  z-index: 50;
+}
+
+.mc-topbar__back {
+  font-size: 0.82rem;
+  color: var(--mc-muted);
+  text-decoration: none;
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.mc-topbar__back:hover { color: var(--mc-text); }
+
+.mc-topbar__title {
+  font-size: 0.92rem;
+  font-weight: 800;
+  margin: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.mc-cat-bar {
+  flex: 1 1 320px;
+  min-width: 180px;
+}
+
+.mc-cat-bar__select-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 460px;
+  min-width: 160px;
+}
+
+.mc-cat-bar__input {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 8px 14px;
+  border: 2px solid var(--mc-border);
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: var(--mc-text);
+  font-size: 0.84rem;
+  transition: 0.15s ease;
+  pointer-events: auto;
+}
+
+.mc-cat-bar__input:focus {
+  outline: none;
+  border-color: #d1d5db;
+  background: #ffffff;
+}
+
+.mc-topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.mc-topbar__upload-btn,
+.mc-topbar__new-item-btn,
+.mc-topbar__export-btn,
+.mc-topbar__reset-btn {
+  min-height: 38px;
+  border: none;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 0.15s ease;
+  white-space: nowrap;
+}
+
+.mc-topbar__upload-btn {
+  background: #f6b489;
+  color: #ffffff;
+  padding: 0 16px;
+}
+
+.mc-topbar__upload-btn:hover:not(:disabled) { background: #eda06d; }
+
+.mc-topbar__new-item-btn {
+  background: var(--mc-green-2);
+  color: #ffffff;
+  padding: 0 16px;
+}
+
+.mc-topbar__new-item-btn:hover:not(:disabled) { background: #88b996; }
+
+.mc-topbar__export-btn {
+  background: #cfe3d5;
+  color: #ffffff;
+  padding: 0 16px;
+}
+
+.mc-topbar__export-btn:hover:not(:disabled) { background: #bdd7c5; }
+
+.mc-topbar__reset-btn {
+  width: 38px;
+  min-width: 38px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--mc-border);
+  color: var(--mc-muted);
+  font-size: 1rem;
+}
+
+.mc-topbar__reset-btn:hover {
+  color: var(--mc-red);
+  border-color: var(--mc-red);
+}
+
+.mc-topbar__upload-btn:disabled,
+.mc-topbar__new-item-btn:disabled,
+.mc-topbar__export-btn:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+
+/* ============================================================
+   WORKSPACE
+   ============================================================ */
+.mc-workspace {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mc-builder {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 18px 16px;
+  display: flex;
+  justify-content: center;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mc-builder__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--mc-muted);
+}
+
+.mc-builder__empty-icon {
+  font-size: 2.8rem;
+  opacity: 0.35;
+  margin-bottom: 8px;
+}
+
+.mc-builder__empty h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--mc-text);
+}
+
+.mc-builder__empty p {
+  margin: 0;
+  max-width: 360px;
+  font-size: 0.9rem;
+}
+
+.mc-builder__content {
+  width: 100%;
+  max-width: 1040px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ============================================================
+   BUILDER FOOTER
+   ============================================================ */
+.mc-builder__footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.mc-builder__add-btn {
+  min-width: 320px;
+  min-height: 54px;
+  padding: 0 28px;
+  border: none;
+  border-radius: 999px;
+  background: var(--mc-orange);
+  color: #ffffff;
+  font-size: 0.98rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 10px 26px rgba(249,115,22,0.36);
+}
+
+.mc-builder__add-btn:hover:not(:disabled) { background: var(--mc-orange-2); }
+
+.mc-builder__add-btn:disabled {
+  opacity: 0.42;
+  cursor: default;
+  box-shadow: none;
+}
+
+.mc-builder__clear-btn {
+  min-height: 54px;
+  padding: 0 22px;
+  border: 1px solid var(--mc-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--mc-muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mc-builder__clear-btn:hover {
+  color: var(--mc-red);
+  border-color: rgba(239,68,68,0.24);
+}

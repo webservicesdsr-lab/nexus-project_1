@@ -48,6 +48,7 @@ add_shortcode('knx_edit_hub_items', function() {
       data-api-delete="<?php echo esc_url(rest_url('knx/v1/delete-hub-item')); ?>"
       data-api-reorder="<?php echo esc_url(rest_url('knx/v1/reorder-item')); ?>"
       data-api-upload-csv="<?php echo esc_url(rest_url('knx/v1/upload-hub-items-csv')); ?>"
+      data-api-export-csv="<?php echo esc_url(admin_url('admin-post.php')); ?>"
       data-api-cats="<?php echo esc_url(rest_url('knx/v1/get-item-categories')); ?>"
       data-hub-id="<?php echo esc_attr($hub_id); ?>"
       data-nonce="<?php echo esc_attr($nonce); ?>"
@@ -83,6 +84,10 @@ add_shortcode('knx_edit_hub_items', function() {
 
             <button id="knxUploadCsvBtn" class="knx-btn-secondary" title="Upload CSV" aria-label="Upload CSV">
               <i class="fas fa-file-csv"></i> Upload CSV
+            </button>
+
+            <button id="knxExportCsvBtn" class="knx-btn-purple" title="Export CSV" aria-label="Export CSV">
+              <i class="fas fa-download"></i> Export CSV
             </button>
           </div>
         </div>
@@ -148,19 +153,71 @@ add_shortcode('knx_edit_hub_items', function() {
 
   <!-- ====== MODAL: CSV UPLOAD ====== -->
   <div id="knxUploadCsvModal" class="knx-modal" role="dialog" aria-modal="true" aria-labelledby="knxUploadCsvTitle">
-    <div class="knx-modal-content">
-      <h3 id="knxUploadCsvTitle">Upload Items CSV</h3>
-      <p>Expected columns: <code>name</code> (required), <code>price</code> (required), <code>category_id</code> or <code>category_name</code>, <code>description</code>, <code>status</code>, <code>image_url</code>.</p>
+    <div class="knx-modal-content knx-modal-content--wide">
+      <h3 id="knxUploadCsvTitle"><i class="fas fa-file-csv"></i> Import Items CSV</h3>
+
       <form id="knxUploadCsvForm" enctype="multipart/form-data">
         <div class="knx-form-group">
           <label for="knxCsvFile">CSV file</label>
           <input type="file" id="knxCsvFile" name="items_csv" accept=".csv, text/csv" required>
         </div>
+
+        <!-- Conflict Mode -->
+        <div class="knx-form-group">
+          <label>If items already exist:</label>
+          <div class="knx-radio-group">
+            <label class="knx-radio-option">
+              <input type="radio" name="conflict_mode" value="skip" checked>
+              <span class="knx-radio-label">
+                <strong>Skip</strong>
+                <small>Keep existing items untouched, only add new ones</small>
+              </span>
+            </label>
+            <label class="knx-radio-option">
+              <input type="radio" name="conflict_mode" value="replace">
+              <span class="knx-radio-label">
+                <strong>Replace</strong>
+                <small>Update price, description &amp; category; <em>rebuild all modifier groups from CSV</em></small>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Replace Warning -->
+        <div id="knxReplaceWarning" class="knx-csv-warning" style="display:none;">
+          <i class="fas fa-exclamation-triangle"></i>
+          <span><strong>Warning:</strong> Replace mode will <em>delete and recreate</em> all modifier groups for matched items. Existing orders are not affected.</span>
+        </div>
+
         <div class="knx-modal-actions">
-          <button type="submit" class="knx-btn">Upload</button>
+          <button type="submit" class="knx-btn" id="knxUploadCsvSubmit">
+            <i class="fas fa-upload"></i> Upload
+          </button>
           <button type="button" id="knxCloseCsvModal" class="knx-btn-secondary">Cancel</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- ====== MODAL: CSV EXPORT ====== -->
+  <div id="knxExportCsvModal" class="knx-modal" role="dialog" aria-modal="true" aria-labelledby="knxExportCsvTitle">
+    <div class="knx-modal-content">
+      <h3 id="knxExportCsvTitle"><i class="fas fa-download"></i> Export Items CSV</h3>
+      <p>Export menu items in <strong>KNX Studio format</strong> (9 columns with categories, items &amp; modifier groups).</p>
+
+      <div class="knx-form-group">
+        <label for="knxExportCategorySelect">Scope</label>
+        <select id="knxExportCategorySelect">
+          <option value="">All categories (full hub)</option>
+        </select>
+      </div>
+
+      <div class="knx-modal-actions">
+        <button type="button" id="knxExportCsvSubmit" class="knx-btn-purple">
+          <i class="fas fa-download"></i> Download CSV
+        </button>
+        <button type="button" id="knxCloseExportModal" class="knx-btn-secondary">Cancel</button>
+      </div>
     </div>
   </div>
 
