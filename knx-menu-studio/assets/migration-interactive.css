@@ -490,6 +490,63 @@
   100% { transform: translate(-50%, -50%) scale(1.8); opacity: 0; }
 }
 
+/* ============================================================
+   OCR ACTION BAR (touch / tablet)
+   Fixed bar in the expanded-footer with Scan + Discard buttons.
+   Appears only when a selection rectangle is pending.
+   ============================================================ */
+.mc-ocr-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 6px 0 2px;
+  animation: mcActionBarIn 0.2s ease both;
+}
+
+.mc-ocr-action-bar__btn {
+  min-height: 42px;
+  padding: 0 22px;
+  border: none;
+  border-radius: 999px;
+  font-size: 0.84rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: transform 0.1s ease;
+}
+
+.mc-ocr-action-bar__btn:active {
+  transform: scale(0.95);
+}
+
+.mc-ocr-action-bar__btn--scan {
+  background: var(--mc-green, #16a34a);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(22,163,74,0.35);
+  min-width: 110px;
+}
+
+.mc-ocr-action-bar__btn--discard {
+  background: rgba(255,255,255,0.14);
+  color: rgba(255,255,255,0.88);
+  border: 1px solid rgba(255,255,255,0.18);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.mc-ocr-action-bar__btn--discard:active {
+  background: rgba(239,68,68,0.18);
+  color: #fca5a5;
+}
+
+@keyframes mcActionBarIn {
+  0%   { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
 .mc-bubble__expanded-footer {
   width: 100%;
   max-width: 1280px;

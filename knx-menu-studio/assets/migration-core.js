@@ -208,10 +208,25 @@
   }
 
   function csvCell(v) {
-    const s = String(v == null ? '' : v);
-    return (s.includes(',') || s.includes('"') || s.includes('\n'))
-      ? '"' + s.replace(/"/g, '""') + '"'
-      : s;
+    let s = String(v == null ? '' : v);
+
+    // Strip stray brackets that OCR or HTML-entity decoding might inject
+    s = s.replace(/[\[\]]/g, '');
+
+    // Normalise typographic quotes / smart-quotes → plain equivalents
+    s = s.replace(/[\u2018\u2019\u02BC]/g, "'")   // ' ' ʼ  → '
+         .replace(/[\u201C\u201D]/g, '"');          // " "    → "
+
+    // Prevent CSV formula injection (=, +, -, @, \t, \r at start)
+    if (/^[=+\-@\t\r]/.test(s)) {
+      s = "'" + s;  // prefix with a single-quote (Excel safe)
+    }
+
+    // Standard RFC-4180 escaping — also quote if apostrophe or ampersand present
+    if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes("'") || s.includes('&')) {
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
   }
 
   function updateCatDatalist() {
@@ -424,7 +439,9 @@
     const dateStr = new Date().toISOString().slice(0, 10);
     const filename = 'migration-' + slug(getCategory() || 'export') + '-' + dateStr + '.csv';
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    // UTF-8 BOM so Excel / Sheets decode accents, &, ' correctly
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
 

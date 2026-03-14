@@ -480,6 +480,46 @@
     });
   }
 
+  /* ────────────────────────────────────────────────────────
+     CLIPBOARD PASTE — desktop only (pointer: fine)
+     Lets the user Ctrl+V / Cmd+V an image from the clipboard.
+     On touch/mobile this is disabled to avoid conflicts with
+     the on-screen keyboard paste shortcut.
+     ──────────────────────────────────────────────────────── */
+  function initClipboardPaste() {
+    // Only enable on desktop-class pointer
+    const isDesktop = window.matchMedia && window.matchMedia('(pointer: fine)').matches;
+    if (!isDesktop) return;
+
+    document.addEventListener('paste', e => {
+      // Don't intercept if user is typing in an input / textarea
+      const tag = (document.activeElement && document.activeElement.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || (document.activeElement && document.activeElement.isContentEditable)) {
+        return;
+      }
+
+      const items = e.clipboardData && e.clipboardData.items;
+      if (!items) return;
+
+      const imageFiles = [];
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith('image/')) {
+          const file = items[i].getAsFile();
+          if (file) imageFiles.push(file);
+        }
+      }
+
+      if (!imageFiles.length) return;
+
+      e.preventDefault();
+
+      // Determine append vs replace: if we already have images, append
+      const appendMode = (state.currentImageUrls || []).length > 0;
+      uploadFiles(imageFiles, appendMode);
+      toast('Image pasted from clipboard.');
+    });
+  }
+
   function initCaptureCoordinator() {
     if (booted) return;
     booted = true;
@@ -491,6 +531,7 @@
     initImageUpload();
     initBubbleDrag();
     initBubbleControls();
+    initClipboardPaste();
   }
 
   root.normalizeImageUrls = normalizeImageUrls;

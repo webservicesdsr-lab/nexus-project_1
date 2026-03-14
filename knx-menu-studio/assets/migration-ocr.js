@@ -27,6 +27,12 @@
   let startY = 0;
   let currentRect = null;
 
+  /* ── Touch-confirm state (initialised here so clearSelection can access them) ── */
+  let pendingRect = null;
+  let draggingRect = false;
+  let dragOffsetX = 0;
+  let dragOffsetY = 0;
+
   function getPreviewDom() {
     return {
       wrap: document.getElementById('item-guided-preview'),
@@ -107,6 +113,8 @@
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     currentRect = null;
+    pendingRect = null;
+    hideActionBar();
   }
 
   function clamp(value, min, max) {
@@ -123,12 +131,14 @@
     };
   }
 
-  function drawSelection(rect) {
+  function drawSelection(rect, isPending) {
     const canvas = dom.ocrCanvas;
     const ctx = getSelectionCtx();
     if (!canvas || !ctx) return;
 
-    clearSelection();
+    // Clear canvas without resetting pendingRect (clearSelection resets it)
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    currentRect = rect;
 
     if (!rect) return;
 
@@ -136,20 +146,51 @@
 
     ctx.save();
 
-    ctx.strokeStyle = '#f97316';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([8, 5]);
-    ctx.fillStyle = 'rgba(249, 115, 22, 0.14)';
+    // Fill
+    ctx.fillStyle = isPending
+      ? 'rgba(249, 115, 22, 0.22)'
+      : 'rgba(249, 115, 22, 0.14)';
     ctx.beginPath();
     ctx.rect(safe.x, safe.y, safe.w, safe.h);
     ctx.fill();
+
+    // Stroke
+    ctx.strokeStyle = '#f97316';
+    ctx.lineWidth = isPending ? 3 : 2;
+    ctx.setLineDash(isPending ? [] : [8, 5]);
+    ctx.beginPath();
+    ctx.rect(safe.x, safe.y, safe.w, safe.h);
     ctx.stroke();
 
-    ctx.setLineDash([]);
-    ctx.fillStyle = '#f97316';
-    ctx.beginPath();
-    ctx.arc(safe.x, safe.y, 5, 0, Math.PI * 2);
-    ctx.fill();
+    // Corner dot (only while drawing, not pending)
+    if (!isPending) {
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#f97316';
+      ctx.beginPath();
+      ctx.arc(safe.x, safe.y, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Corner handles when pending (visual "I'm draggable" cue)
+    if (isPending) {
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#f97316';
+      ctx.lineWidth = 2;
+      const r = 6;
+      const corners = [
+        [safe.x, safe.y],
+        [safe.x + safe.w, safe.y],
+        [safe.x, safe.y + safe.h],
+        [safe.x + safe.w, safe.y + safe.h],
+      ];
+      corners.forEach(([cx, cy]) => {
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      });
+    }
 
     ctx.restore();
   }
@@ -412,11 +453,103 @@
     }
   }
 
+  /* ──────────────────────────────────────────────────────
+     Device detection — used to branch UX:
+     • Desktop (pointer: fine) → draw-and-scan instantly
+     • Touch / tablet / mobile  → draw rect, allow drag/
+       reposition, then confirm with a "Scan" button
+     ────────────────────────────────────────────────────── */
+  function isDesktopPointer() {
+    return window.matchMedia && window.matchMedia('(pointer: fine)').matches;
+  }
+
+  /* ── Action bar (replaces the floating Scan button) ───
+     Lives inside #bubble-expanded-footer, right below the
+     hint text.  Two pill buttons:  ✓ Scan  ·  ✕ Discard
+     Visible only while a pendingRect exists.
+     ──────────────────────────────────────────────────────── */
+  let actionBar = null;
+
+  function getOrCreateActionBar() {
+    if (actionBar) return actionBar;
+
+    actionBar = document.createElement('div');
+    actionBar.className = 'mc-ocr-action-bar';
+    actionBar.style.display = 'none';
+    actionBar.innerHTML =
+      '<button type="button" class="mc-ocr-action-bar__btn mc-ocr-action-bar__btn--scan" id="mc-ocr-btn-scan">✓ Scan</button>' +
+      '<button type="button" class="mc-ocr-action-bar__btn mc-ocr-action-bar__btn--discard" id="mc-ocr-btn-discard">✕ Discard</button>';
+
+    // Insert into the expanded footer, after the hint
+    if (dom.bubbleExpandedFooter) {
+      // Place right after ocrHint
+      if (dom.ocrHint && dom.ocrHint.nextSibling) {
+        dom.bubbleExpandedFooter.insertBefore(actionBar, dom.ocrHint.nextSibling);
+      } else {
+        dom.bubbleExpandedFooter.appendChild(actionBar);
+      }
+    }
+
+    // Scan button
+    actionBar.querySelector('#mc-ocr-btn-scan').addEventListener('click', async () => {
+      if (!pendingRect) return;
+      const r = pendingRect;
+      dismissPending();
+      const naturalRect = rectCanvasToNatural(r);
+      if (!naturalRect) {
+        clearSelection();
+        toast('Image area not ready.');
+        return;
+      }
+      setTimeout(() => clearSelection(), 80);
+      await performOCR(naturalRect);
+    });
+
+    // Discard button
+    actionBar.querySelector('#mc-ocr-btn-discard').addEventListener('click', () => {
+      dismissPending();
+      clearSelection();
+    });
+
+    return actionBar;
+  }
+
+  function showActionBar() {
+    const bar = getOrCreateActionBar();
+    bar.style.display = '';
+    setHint('Drag the rectangle to reposition · Tap Scan to confirm', true);
+  }
+
+  function hideActionBar() {
+    if (actionBar) actionBar.style.display = 'none';
+  }
+
+  /** Clear the pending state without triggering OCR */
+  function dismissPending() {
+    pendingRect = null;
+    hideActionBar();
+    setHint('Draw over the text on the active image to extract it', false);
+  }
+
+  /* ── Hit-test: is the pointer inside the pending rect?
+     Uses a generous 20px padding so fat fingers can grab it ── */
+  const HIT_PAD = 20;
+  function insidePending(px, py) {
+    if (!pendingRect) return false;
+    return (
+      px >= pendingRect.x - HIT_PAD &&
+      px <= pendingRect.x + pendingRect.w + HIT_PAD &&
+      py >= pendingRect.y - HIT_PAD &&
+      py <= pendingRect.y + pendingRect.h + HIT_PAD
+    );
+  }
+
   function initOcrSelection() {
     if (!dom.ocrCanvas) return;
 
     const canvas = dom.ocrCanvas;
     const isTouch = isTouchDevice();
+    const isDesktop = isDesktopPointer();
 
     // Create touch indicator for tablet feedback
     if (isTouch) {
@@ -427,16 +560,39 @@
     let hasMoved = false;
 
     canvas.addEventListener('pointerdown', e => {
+      const rect = canvas.getBoundingClientRect();
+      const px = clamp(e.clientX - rect.left, 0, canvas.width);
+      const py = clamp(e.clientY - rect.top, 0, canvas.height);
+
+      /* ── Touch: if tapping inside the pending rect → start drag ── */
+      if (!isDesktop && pendingRect && insidePending(px, py)) {
+        draggingRect = true;
+        dragOffsetX = px - pendingRect.x;
+        dragOffsetY = py - pendingRect.y;
+        canvas.setPointerCapture(e.pointerId);
+        e.preventDefault();
+        return;
+      }
+
+      /* ── Tapping OUTSIDE the pending rect → discard it first ── */
+      if (pendingRect) {
+        dismissPending();
+        // Clear canvas so user sees a clean slate
+        const ctx = getSelectionCtx();
+        if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+        currentRect = null;
+      }
+
+      /* ── New draw ── */
       drawing = true;
       hasMoved = false;
       pointerStartTime = Date.now();
 
-      const rect = canvas.getBoundingClientRect();
-      startX = clamp(e.clientX - rect.left, 0, canvas.width);
-      startY = clamp(e.clientY - rect.top, 0, canvas.height);
+      startX = px;
+      startY = py;
 
       currentRect = { x: startX, y: startY, w: 0, h: 0 };
-      drawSelection(currentRect);
+      drawSelection(currentRect, false);
 
       // Visual feedback for touch
       if (isTouch || e.pointerType === 'touch') {
@@ -449,11 +605,22 @@
     });
 
     canvas.addEventListener('pointermove', e => {
-      if (!drawing) return;
-
       const rect = canvas.getBoundingClientRect();
       const cx = clamp(e.clientX - rect.left, 0, canvas.width);
       const cy = clamp(e.clientY - rect.top, 0, canvas.height);
+
+      /* ── Dragging the pending rectangle (touch) ── */
+      if (draggingRect && pendingRect) {
+        const maxX = Math.max(0, canvas.width  - pendingRect.w);
+        const maxY = Math.max(0, canvas.height - pendingRect.h);
+        pendingRect.x = clamp(cx - dragOffsetX, 0, maxX);
+        pendingRect.y = clamp(cy - dragOffsetY, 0, maxY);
+        currentRect = pendingRect;
+        drawSelection(currentRect, true);
+        return;
+      }
+
+      if (!drawing) return;
 
       // Detect if user is dragging vs tapping
       const dx = Math.abs(cx - startX);
@@ -470,10 +637,16 @@
         h: Math.abs(cy - startY),
       });
 
-      drawSelection(currentRect);
+      drawSelection(currentRect, false);
     });
 
     canvas.addEventListener('pointerup', async e => {
+      /* ── Finish drag-move (touch) ── */
+      if (draggingRect) {
+        draggingRect = false;
+        return;
+      }
+
       if (!drawing) return;
       drawing = false;
 
@@ -496,7 +669,7 @@
       // Smart tap: if it was a tap or small selection, use assisted rectangle
       if (isTapGesture || shouldUseSmartTap(currentRect)) {
         currentRect = buildSmartTapRect(cx, cy);
-        drawSelection(currentRect);
+        drawSelection(currentRect, false);
 
         // Show expanding indicator for tap feedback
         if (isTouch || e.pointerType === 'touch') {
@@ -512,24 +685,33 @@
         return;
       }
 
-      const naturalRect = rectCanvasToNatural(currentRect);
-
-      if (!naturalRect) {
-        clearSelection();
-        toast('Image area not ready.');
-        return;
+      /* ── BRANCH: Desktop → instant OCR · Touch → confirm first ── */
+      if (isDesktop) {
+        const naturalRect = rectCanvasToNatural(currentRect);
+        if (!naturalRect) {
+          clearSelection();
+          toast('Image area not ready.');
+          return;
+        }
+        setTimeout(() => clearSelection(), 80);
+        await performOCR(naturalRect);
+      } else {
+        // Touch/tablet: keep the rectangle visible + draggable,
+        // show action bar in the footer with Scan / Discard
+        pendingRect = currentRect;
+        drawSelection(pendingRect, true);
+        showActionBar();
       }
-
-      setTimeout(() => clearSelection(), 80);
-      await performOCR(naturalRect);
     });
 
     // Handle pointer cancel (finger lifted off screen edge, etc.)
     canvas.addEventListener('pointercancel', () => {
       drawing = false;
+      draggingRect = false;
       hasMoved = false;
       canvas.classList.remove('is-drawing');
       hideTouchIndicator();
+      dismissPending();
       clearSelection();
     });
   }
@@ -1583,6 +1765,13 @@
 
       if (dom.eyeOverlay && dom.eyeOverlay.style.display !== 'none') {
         if (typeof root.closeEyePreview === 'function') root.closeEyePreview();
+        return;
+      }
+
+      // Dismiss pending touch selection on Escape
+      if (pendingRect) {
+        dismissPending();
+        clearSelection();
         return;
       }
 
