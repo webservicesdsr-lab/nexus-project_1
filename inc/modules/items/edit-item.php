@@ -124,6 +124,10 @@ add_shortcode('knx_edit_item', function () {
 </div>
 
 <script src="<?php echo esc_url(KNX_URL . 'inc/modules/items/edit-item.js?v=' . KNX_VERSION); ?>"></script>
+
+<!-- Price Calculator bubble widget -->
+<link rel="stylesheet" href="<?php echo esc_url(KNX_URL . 'inc/modules/core/resources/knx-price-calc.css?v=' . KNX_VERSION); ?>">
+<script src="<?php echo esc_url(KNX_URL . 'inc/modules/core/resources/knx-price-calc.js?v=' . KNX_VERSION); ?>"></script>
 <?php
   return ob_get_clean();
 });

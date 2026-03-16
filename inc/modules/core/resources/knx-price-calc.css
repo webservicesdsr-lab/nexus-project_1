@@ -1,0 +1,465 @@
+/* ============================================================
+   KNX Price Calculator — Floating Bubble Widget
+   Standalone · works in any KNX page
+   ============================================================ */
+
+/* ── Bubble container (fixed, z above everything) ─────────── */
+.knx-pcalc {
+  position: fixed;
+  z-index: 99999;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+               Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Mini: floating circle ────────────────────────────── */
+.knx-pcalc__mini {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0b793a 0%, #0a9344 100%);
+  color: #ffffff;
+  border: 3px solid #ffffff;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  font-size: 1.15rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.knx-pcalc__mini:hover {
+  transform: scale(1.08);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+}
+
+.knx-pcalc__mini:active {
+  cursor: grabbing;
+  transform: scale(0.96);
+}
+
+/* ── Panel: expanded popover ──────────────────────────── */
+.knx-pcalc__panel {
+  position: absolute;
+  width: 300px;
+  max-height: 480px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18),
+              0 0 0 1px rgba(0, 0, 0, 0.04);
+  opacity: 0;
+  transform: scale(0.85);
+  transform-origin: bottom right;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.knx-pcalc__panel.is-open {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+/* Panel arrow nub — small triangle pointing to bubble */
+.knx-pcalc__panel::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: #ffffff;
+  border-radius: 2px;
+  transform: rotate(45deg);
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+/* Arrow positioning classes */
+.knx-pcalc__panel--anchor-br::after {
+  bottom: -6px;
+  right: 20px;
+}
+
+.knx-pcalc__panel--anchor-bl::after {
+  bottom: -6px;
+  left: 20px;
+}
+
+.knx-pcalc__panel--anchor-tr::after {
+  top: -6px;
+  right: 20px;
+}
+
+.knx-pcalc__panel--anchor-tl::after {
+  top: -6px;
+  left: 20px;
+}
+
+/* ── Panel header ─────────────────────────────────────── */
+.knx-pcalc__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.knx-pcalc__title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #0b793a;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.knx-pcalc__close {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.05);
+  color: #6b7280;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: 0.15s ease;
+  line-height: 1;
+}
+
+.knx-pcalc__close:hover {
+  background: rgba(0, 0, 0, 0.10);
+  color: #111827;
+}
+
+/* ── Panel body ───────────────────────────────────────── */
+.knx-pcalc__body {
+  padding: 14px 16px 16px;
+  overflow-y: auto;
+  max-height: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Percentage row ───────────────────────────────────── */
+.knx-pcalc__pct-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.knx-pcalc__label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.knx-pcalc__pct-input {
+  width: 64px;
+  height: 36px;
+  padding: 0 8px;
+  border: 1.5px solid rgba(0, 0, 0, 0.12);
+  border-radius: 10px;
+  background: #f9fafb;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #111827;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.knx-pcalc__pct-input:focus {
+  border-color: #0b793a;
+  background: #ffffff;
+}
+
+.knx-pcalc__pct-suffix {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #6b7280;
+}
+
+/* ── Base price row ───────────────────────────────────── */
+.knx-pcalc__base-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.knx-pcalc__field-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.knx-pcalc__price-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.knx-pcalc__dollar {
+  position: absolute;
+  left: 10px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+.knx-pcalc__price-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 10px 0 24px;
+  border: 1.5px solid rgba(0, 0, 0, 0.12);
+  border-radius: 12px;
+  background: #f9fafb;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #111827;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.knx-pcalc__price-input:focus {
+  border-color: #0b793a;
+  background: #ffffff;
+}
+
+/* ── Base result pill ─────────────────────────────────── */
+.knx-pcalc__base-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(11, 121, 58, 0.07);
+}
+
+.knx-pcalc__base-result-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #0b793a;
+}
+
+.knx-pcalc__base-result-value {
+  font-size: 1rem;
+  font-weight: 900;
+  color: #0b793a;
+}
+
+/* ── Divider ──────────────────────────────────────────── */
+.knx-pcalc__divider {
+  width: 100%;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.06);
+  margin: 2px 0;
+}
+
+/* ── Comparison items ─────────────────────────────────── */
+.knx-pcalc__compare-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.knx-pcalc__compare-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.knx-pcalc__compare-title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.knx-pcalc__add-btn {
+  width: 30px;
+  height: 30px;
+  border: 1.5px dashed rgba(0, 0, 0, 0.16);
+  border-radius: 10px;
+  background: transparent;
+  color: #0b793a;
+  font-size: 1.1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: 0.15s ease;
+  line-height: 1;
+}
+
+.knx-pcalc__add-btn:hover {
+  background: rgba(11, 121, 58, 0.07);
+  border-color: #0b793a;
+}
+
+.knx-pcalc__add-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* ── Single comparison item ───────────────────────────── */
+.knx-pcalc__compare-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #f9fafb;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  position: relative;
+  animation: knxPcFadeIn 0.2s ease both;
+}
+
+@keyframes knxPcFadeIn {
+  0%   { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.knx-pcalc__compare-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.knx-pcalc__compare-item-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #9ca3af;
+}
+
+.knx-pcalc__remove-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #d1d5db;
+  font-size: 0.88rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: 0.12s ease;
+  line-height: 1;
+}
+
+.knx-pcalc__remove-btn:hover {
+  background: rgba(220, 38, 38, 0.08);
+  color: #dc2626;
+}
+
+.knx-pcalc__compare-results {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.knx-pcalc__result-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.knx-pcalc__result-chip--final {
+  background: rgba(0, 0, 0, 0.05);
+  color: #374151;
+}
+
+.knx-pcalc__result-chip--diff {
+  background: rgba(249, 115, 22, 0.10);
+  color: #ea580c;
+}
+
+.knx-pcalc__result-chip--rec {
+  background: rgba(11, 121, 58, 0.08);
+  color: #0b793a;
+}
+
+/* ── Recommended price (round-to-9) ───────────────────── */
+.knx-pcalc__rec-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0 0;
+}
+
+.knx-pcalc__rec-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #9ca3af;
+}
+
+.knx-pcalc__rec-value {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #0b793a;
+}
+
+/* ── Snap animation for the bubble ────────────────────── */
+.knx-pcalc--snapping .knx-pcalc__mini {
+  transition: none;
+}
+
+.knx-pcalc--snap-animate {
+  transition: left 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+              top 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── Toast (optional, only if host page doesn't have one) */
+.knx-pcalc__toast {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%) translateY(60px);
+  z-index: 10000;
+  opacity: 0;
+  pointer-events: none;
+  padding: 8px 20px;
+  border-radius: 999px;
+  background: #111827;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  transition: 0.25s ease;
+  white-space: nowrap;
+}
+
+.knx-pcalc__toast.is-visible {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+/* ── Responsive: smaller screens ──────────────────────── */
+@media (max-width: 420px) {
+  .knx-pcalc__panel {
+    width: calc(100vw - 24px);
+    max-width: 320px;
+  }
+}

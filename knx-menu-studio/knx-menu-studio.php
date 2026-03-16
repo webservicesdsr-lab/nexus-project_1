@@ -500,6 +500,10 @@ function knx_studio_render_capture( $session ) {
     <script src="<?php echo esc_url( KNX_STUDIO_URL . 'assets/migration-ocr.js?v=' . knx_studio_asset_ver( 'assets/migration-ocr.js' ) ); ?>"></script>
     <script src="<?php echo esc_url( KNX_STUDIO_URL . 'assets/migration-capture.js?v=' . knx_studio_asset_ver( 'assets/migration-capture.js' ) ); ?>"></script>
     <script src="<?php echo esc_url( KNX_STUDIO_URL . 'assets/tablet-app-mode.js?v=' . knx_studio_asset_ver( 'assets/tablet-app-mode.js' ) ); ?>"></script>
+
+    <!-- Price Calculator bubble widget -->
+    <link rel="stylesheet" href="<?php echo esc_url( KNX_URL . 'inc/modules/core/resources/knx-price-calc.css?v=' . KNX_VERSION ); ?>">
+    <script src="<?php echo esc_url( KNX_URL . 'inc/modules/core/resources/knx-price-calc.js?v=' . KNX_VERSION ); ?>"></script>
     <?php
 }
 
