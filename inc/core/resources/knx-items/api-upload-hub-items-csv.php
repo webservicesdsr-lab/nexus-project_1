@@ -85,6 +85,12 @@ function knx_api_upload_hub_items_csv(WP_REST_Request $r) {
         return knx_rest_response(false, 'empty_csv', null, 400);
     }
 
+    // Strip UTF-8 BOM from first column if present (KNX Studio exports with BOM)
+    if (!empty($header[0])) {
+        $header[0] = preg_replace('/^\x{FEFF}/u', '', $header[0]);
+        $header[0] = preg_replace('/^\xEF\xBB\xBF/', '', $header[0]);
+    }
+
     // Normalize headers
     $cols = array_map(function($h) { return mb_strtolower(trim($h)); }, $header);
 
@@ -333,7 +339,7 @@ function knx_csv_import_studio($wpdb, $hub_id, $raw_rows, $conflict_mode) {
                     ];
                     $update_fmt = ['%s','%s','%s'];
 
-                    if ($category_id) {
+                    if ($category_id > 0) {
                         $update_data['category_id'] = $category_id;
                         $update_fmt[] = '%d';
                     }
@@ -368,7 +374,7 @@ function knx_csv_import_studio($wpdb, $hub_id, $raw_rows, $conflict_mode) {
                 // ── Insert new item ──
                 $ok = $wpdb->insert($table_items, [
                     'hub_id'      => $hub_id,
-                    'category_id' => $category_id ?: null,
+                    'category_id' => ($category_id > 0) ? $category_id : null,
                     'name'        => $item_name,
                     'description' => $item_data['description'],
                     'price'       => $base_price,
@@ -518,7 +524,7 @@ function knx_csv_resolve_category_by_name($wpdb, $hub_id, $cat_name, &$stats) {
     )));
 
     $now = current_time('mysql');
-    $wpdb->insert($table_cats, [
+    $insert_result = $wpdb->insert($table_cats, [
         'hub_id'     => $hub_id,
         'name'       => $cat_name,
         'sort_order' => $max_sort + 1,
@@ -527,6 +533,12 @@ function knx_csv_resolve_category_by_name($wpdb, $hub_id, $cat_name, &$stats) {
         'updated_at' => $now,
     ], ['%d','%s','%d','%s','%s','%s']);
 
+    if ($insert_result === false) {
+        $stats['errors'][] = ['error' => 'category_insert_failed', 'category' => $cat_name, 'db_error' => $wpdb->last_error];
+        return 0;
+    }
+
+    $new_id = intval($wpdb->insert_id);
     $stats['categories_created']++;
-    return intval($wpdb->insert_id);
+    return $new_id;
 }

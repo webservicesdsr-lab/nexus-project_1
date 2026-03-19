@@ -396,6 +396,7 @@
 
     state.sessionItems.forEach(item => {
       if (!item.groups.length) {
+        // Item without groups → single row with basePrice
         rows.push({
           category_name: item.category,
           item_name: item.name,
@@ -408,12 +409,26 @@
           option_action: '',
         });
       } else {
+        // Item with groups → first add base price row, then modifier rows
+        rows.push({
+          category_name: item.category,
+          item_name: item.name,
+          item_description: item.description || '',
+          group_name: '',
+          group_required: '',
+          group_type: '',
+          option_name: '',
+          option_price: item.basePrice,
+          option_action: '',
+        });
+
+        // Then add all modifier options
         item.groups.forEach(group => {
           group.options.forEach(opt => {
             rows.push({
               category_name: item.category,
               item_name: item.name,
-              item_description: item.description || '',
+              item_description: '', // Description only on first row
               group_name: group.name,
               group_required: group.required,
               group_type: group.type,
