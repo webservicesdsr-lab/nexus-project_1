@@ -24,10 +24,16 @@ function knx_create_email_verification_token($user_id, $ttl_seconds = 86400) {
     }
     $hash = hash('sha256', $raw);
 
-    // Invalidate any previous active tokens for this user
-    $wpdb->update($table, ['used_at' => current_time('mysql')], ['user_id' => $user_id, 'used_at' => null], ['%s'], ['%d','%s']);
+    // Invalidate any previous active tokens for this user.
+    // Raw SQL required: $wpdb->update() with null in WHERE generates
+    // "used_at = ''" instead of "used_at IS NULL", which never matches.
+    $wpdb->query($wpdb->prepare(
+        "UPDATE {$table} SET used_at = %s WHERE user_id = %d AND used_at IS NULL",
+        current_time('mysql'),
+        $user_id
+    ));
 
-    $expires = date('Y-m-d H:i:s', time() + intval($ttl_seconds));
+    $expires = gmdate('Y-m-d H:i:s', time() + intval($ttl_seconds));
 
     $inserted = $wpdb->insert($table, [
         'user_id'   => $user_id,

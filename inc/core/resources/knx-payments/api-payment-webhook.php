@@ -539,6 +539,11 @@ if (!function_exists('knx_api_payment_webhook')) {
                 }
             }
 
+            // Driver notification broadcast (non-blocking, city-scoped)
+            if ($event->type === 'payment_intent.succeeded') {
+                do_action('knx_order_confirmed', (int) $order->id);
+            }
+
             if (function_exists('knx_stripe_authority_log')) {
                 knx_stripe_authority_log('info', 'webhook_processed', 'Webhook processed', [
                     'event_id'   => (string) $event->id,

@@ -12,10 +12,8 @@ function knx_render_reset_password_shortcode($atts = []) {
     $valid = false;
 
     if ($token && preg_match('/^[0-9a-f]{64}$/i', $token)) {
-        if (function_exists('knx_get_password_reset_by_token')) {
-            $row = knx_get_password_reset_by_token($token);
-            if ($row) $valid = true;
-        }
+        $row = knx_get_password_reset_by_token($token);
+        if ($row) $valid = true;
     }
 
     ob_start();

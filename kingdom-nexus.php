@@ -317,6 +317,16 @@ add_action('plugins_loaded', function() {
     knx_require('inc/modules/drivers/drivers-shortcode.php');
 
     /* ======================================================
+     * MODULES — DRIVER NOTIFICATIONS (City Broadcast v1)
+     * ====================================================== */
+    knx_require('inc/modules/driver-notifications/driver-notifications-bootstrap.php');
+
+    /* ======================================================
+     * MODULES — SYSTEM EMAILS (KNX-Controlled Templates)
+     * ====================================================== */
+    knx_require('inc/modules/system-emails/system-emails-bootstrap.php');
+
+    /* ======================================================
      * RESOURCES — KNX COUPONS
      * ====================================================== */
     knx_require('inc/core/resources/knx-coupons/api-coupons-crud.php');
@@ -357,6 +367,7 @@ add_action('plugins_loaded', function() {
     knx_require('inc/public/navigation/corporate-sidebar.php');   // Corporate: Admin/Staff fixed sidebar
 
     knx_require('inc/modules/auth/auth-shortcode.php');
+    knx_require('inc/modules/auth/reset-shortcode.php');
     knx_require('inc/modules/auth/auth-handler.php');
     knx_require('inc/modules/auth/auth-redirects.php');
 

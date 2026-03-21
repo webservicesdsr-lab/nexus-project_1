@@ -1031,6 +1031,30 @@ CREATE TABLE `y05_knx_push_subscriptions` (
   CONSTRAINT `fk_push_subscriptions_user` FOREIGN KEY (`user_id`) REFERENCES `y05_knx_users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+
+-- =========================================================
+-- Driver Notifications
+-- =========================================================
+DROP TABLE IF EXISTS `y05_knx_driver_notifications`;
+CREATE TABLE `y05_knx_driver_notifications` (
+  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
+  `order_id` bigint UNSIGNED NOT NULL,
+  `driver_id` bigint UNSIGNED NOT NULL,
+  `city_id` bigint UNSIGNED NOT NULL,
+  `event_type` varchar(50) NOT NULL,
+  `channel` varchar(30) NOT NULL DEFAULT 'email',
+  `payload_json` text NOT NULL,
+  `status` varchar(20) NOT NULL DEFAULT 'pending',
+  `attempts` int UNSIGNED NOT NULL DEFAULT 0,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `sent_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_order_driver_event` (`order_id`,`driver_id`,`event_type`),
+  KEY `idx_city_id` (`city_id`),
+  KEY `idx_status` (`status`),
+  KEY `idx_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 /* =========================================================
    PASSWORD RESETS + EMAIL VERIFICATIONS
    ========================================================= */

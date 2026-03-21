@@ -79,6 +79,24 @@ function knx_password_resets_table() {
 }
 
 /**
+ * Internal: robust table existence check for password reset table.
+ * Fail-closed: returns false if table not found.
+ *
+ * We avoid esc_like() here because some MySQL configurations (e.g. NO_BACKSLASH_ESCAPES)
+ * can make LIKE + backslash escaping behave unexpectedly, causing false negatives.
+ *
+ * @param string $table Fully prefixed table name
+ * @return bool
+ */
+function knx_password_resets_table_exists($table) {
+    global $wpdb;
+    $table = (string) $table;
+    if ($table === '') return false;
+    $tables = $wpdb->get_col("SHOW TABLES");
+    return in_array($table, $tables, true);
+}
+
+/**
  * Create a password reset record and return the raw token (plain) or false.
  * The token is stored hashed (sha256) in the DB.
  */
@@ -86,12 +104,18 @@ function knx_create_password_reset(int $user_id, string $ip = '') {
     global $wpdb;
     $table = knx_password_resets_table();
 
-    // Fail closed if table doesn't exist
-    $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
-    if (!$exists) return false;
+    // Fail closed if table doesn't exist (robust guard)
+    if (!knx_password_resets_table_exists($table)) return false;
 
-    // Invalidate any previous active tokens for this user
-    $wpdb->update($table, ['used_at' => current_time('mysql')], ['user_id' => $user_id, 'used_at' => null], ['%s'], ['%d', '%s']);
+    // Invalidate any previous active tokens for this user.
+    // Must use raw SQL: $wpdb->update() with null in WHERE generates
+    // "used_at = ''" which is invalid for datetime and poisons $wpdb->last_error,
+    // causing the subsequent INSERT to fail on strict MySQL servers.
+    $wpdb->query($wpdb->prepare(
+        "UPDATE {$table} SET used_at = %s WHERE user_id = %d AND used_at IS NULL",
+        current_time('mysql'),
+        $user_id
+    ));
 
     // Generate secure random token and hash it
     try {
@@ -102,7 +126,7 @@ function knx_create_password_reset(int $user_id, string $ip = '') {
     $token_hash = hash('sha256', $token);
 
     $now = current_time('mysql');
-    $expires = date('Y-m-d H:i:s', time() + 60 * MINUTE_IN_SECONDS);
+    $expires = gmdate('Y-m-d H:i:s', time() + 60 * MINUTE_IN_SECONDS);
 
     $inserted = $wpdb->insert($table, [
         'user_id'    => $user_id,
@@ -123,8 +147,7 @@ function knx_get_password_reset_by_token(string $token) {
     global $wpdb;
     $table = knx_password_resets_table();
 
-    $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
-    if (!$exists) return false;
+    if (!knx_password_resets_table_exists($table)) return false;
 
     $token_hash = hash('sha256', $token);
 
@@ -144,8 +167,9 @@ function knx_get_password_reset_by_token(string $token) {
 function knx_mark_password_reset_used(int $id) {
     global $wpdb;
     $table = knx_password_resets_table();
-    $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
-    if (!$exists) return false;
+
+    if (!knx_password_resets_table_exists($table)) return false;
+
     return $wpdb->update($table, ['used_at' => current_time('mysql')], ['id' => $id], ['%s'], ['%d']);
 }
 
@@ -155,9 +179,14 @@ function knx_mark_password_reset_used(int $id) {
 function knx_invalidate_password_resets_for_user(int $user_id) {
     global $wpdb;
     $table = knx_password_resets_table();
-    $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
-    if (!$exists) return false;
-    return $wpdb->update($table, ['used_at' => current_time('mysql')], ['user_id' => $user_id, 'used_at' => null], ['%s'], ['%d', '%s']);
+
+    if (!knx_password_resets_table_exists($table)) return false;
+
+    return $wpdb->query($wpdb->prepare(
+        "UPDATE {$table} SET used_at = %s WHERE user_id = %d AND used_at IS NULL",
+        current_time('mysql'),
+        $user_id
+    ));
 }
 
 /**

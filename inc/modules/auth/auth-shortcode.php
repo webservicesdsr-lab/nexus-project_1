@@ -176,6 +176,12 @@ add_shortcode('knx_auth', function () {
 
                 <form method="post">
                     <?php knx_nonce_field('forgot'); ?>
+
+                    <div class="knx-hp">
+                        <input type="text" name="knx_hp">
+                        <input type="hidden" name="knx_hp_ts" value="<?php echo time(); ?>">
+                    </div>
+
                     <label>Email</label>
                     <input type="email" name="knx_forgot_email" required>
 

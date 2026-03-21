@@ -12,6 +12,10 @@ if (file_exists(__DIR__ . '/email-verification.php')) {
     require_once __DIR__ . '/email-verification.php';
 }
 
+if (file_exists(__DIR__ . '/auth-emails.php')) {
+    require_once __DIR__ . '/auth-emails.php';
+}
+
 // Simple mail queue + redirect queue for late delivery on shutdown
 if (!function_exists('knx_queue_mail')) {
     global $knx_mail_queue;
@@ -121,7 +125,7 @@ add_action('init', function () {
 
         $ip = knx_get_client_ip();
 
-        if ((isset($_POST['knx_hp']) || isset($_POST['knx_hp_ts'])) && !knx_check_honeypot($_POST)) {
+        if (!knx_check_honeypot($_POST)) {
             KNX_Auth_Toast::push('error', 'auth_failed');
             wp_safe_redirect(site_url('/login'));
             exit;
@@ -140,13 +144,12 @@ add_action('init', function () {
                 $email
             ));
 
-            if ($user && function_exists('knx_create_password_reset')) {
+            if ($user) {
                 $raw = knx_create_password_reset((int)$user->id, $ip);
-                if ($raw && function_exists('knx_get_password_reset_email')) {
+                if ($raw) {
                     $reset_url = site_url('/reset-password?token=' . urlencode($raw));
                     $mail = knx_get_password_reset_email($reset_url);
                     $headers = ['Content-Type: text/html; charset=UTF-8'];
-                    // queue mail to be sent on shutdown
                     knx_queue_mail($email, $mail['subject'], $mail['html'], $headers);
                 }
             }
@@ -163,7 +166,7 @@ add_action('init', function () {
     // =====================================================
     if (isset($_POST['knx_reset_btn'])) {
 
-        if ((isset($_POST['knx_hp']) || isset($_POST['knx_hp_ts'])) && !knx_check_honeypot($_POST)) {
+        if (!knx_check_honeypot($_POST)) {
             KNX_Auth_Toast::push('error', 'auth_failed');
             wp_safe_redirect(site_url('/login'));
             exit;
@@ -327,13 +330,17 @@ add_action('init', function () {
         if ($raw) {
             $url = site_url('/verify-email?token=' . urlencode($raw));
             $headers = ['Content-Type: text/html; charset=UTF-8'];
+            // Build branded activation email
+            if (function_exists('knx_get_account_activation_email')) {
+                $mail = knx_get_account_activation_email($url, $email);
+            } else {
+                $mail = [
+                    'subject' => 'Verify your account',
+                    'html'    => '<p><a href="' . esc_url($url) . '">Activate your account</a></p>',
+                ];
+            }
             // queue verification mail to be sent on shutdown
-            knx_queue_mail(
-                $email,
-                'Verify your account',
-                '<p><a href="' . esc_url($url) . '">Activate your account</a></p>',
-                $headers
-            );
+            knx_queue_mail($email, $mail['subject'], $mail['html'], $headers);
             KNX_Auth_Toast::push('success', 'verify_sent');
         } else {
             KNX_Auth_Toast::push('error', 'verify_send_failed');
