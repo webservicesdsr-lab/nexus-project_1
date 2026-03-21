@@ -98,6 +98,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['knx_ui_theme_submit']
                      style="width:100%;padding:8px;border-radius:6px;border:1px solid #ccc;">
           </div>
 
+          <div style="margin-top:12px;">
+              <label for="knx_require_email_verification"><strong>Require email verification on registration</strong></label><br>
+              <?php $req = get_option('knx_require_email_verification', '1'); ?>
+              <input type="checkbox" id="knx_require_email_verification" name="knx_require_email_verification" value="1" <?php checked($req, '1'); ?>>
+              <div style="font-size:13px;color:#555;margin-top:6px;">When enabled, new users must verify their email before logging in. Disable to allow instant active accounts.</div>
+          </div>
+
           <p style="display:flex;gap:10px;margin-top:15px;">
               <button type="submit" class="button button-primary">
                   <i class="dashicons dashicons-yes-alt"></i> Save API Key

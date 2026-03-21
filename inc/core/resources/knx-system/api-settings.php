@@ -43,6 +43,17 @@ function knx_api_update_settings(WP_REST_Request $r) {
 
     $google_maps_api = sanitize_text_field($r['google_maps_api']);
 
+    // Optional: require_email_verification flag - coerce to boolean-like and persist as '1'/'0'
+    if (isset($r['require_email_verification'])) {
+        $raw_flag = $r['require_email_verification'];
+        $flag = filter_var($raw_flag, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        // if null (unrecognized), default to true; otherwise store '1' or '0'
+        if ($flag === null) {
+            $flag = true;
+        }
+        update_option('knx_require_email_verification', $flag ? '1' : '0');
+    }
+
     // Update or clear the option
     if (empty($google_maps_api)) {
         // Clear the key - delete from wp_options
@@ -51,7 +62,8 @@ function knx_api_update_settings(WP_REST_Request $r) {
         return new WP_REST_Response([
             'success' => true,
             'message' => 'API key cleared. System will use OpenStreetMap (Leaflet).',
-            'google_maps_api' => ''
+            'google_maps_api' => '',
+            'require_email_verification' => get_option('knx_require_email_verification', '1')
         ], 200);
     } else {
         // Save the key
@@ -60,7 +72,8 @@ function knx_api_update_settings(WP_REST_Request $r) {
         return new WP_REST_Response([
             'success' => true,
             'message' => 'Google Maps API key saved successfully.',
-            'google_maps_api' => $google_maps_api
+            'google_maps_api' => $google_maps_api,
+            'require_email_verification' => get_option('knx_require_email_verification', '1')
         ], 200);
     }
 }

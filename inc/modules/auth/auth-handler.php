@@ -316,34 +316,43 @@ add_action('init', function () {
             exit;
         }
 
+        // Check admin-configured requirement for email verification
+        $require_verification = get_option('knx_require_email_verification', '1');
+
         $wpdb->insert($users_table, [
             'username' => $email,
             'email'    => $email,
             'password' => password_hash($pass, PASSWORD_DEFAULT),
             'role'     => 'customer',
-            'status'   => 'inactive'
+            'status'   => ($require_verification === '1') ? 'inactive' : 'active'
         ]);
 
         $user_id = (int)$wpdb->insert_id;
-        $raw = knx_create_email_verification_token($user_id);
 
-        if ($raw) {
-            $url = site_url('/verify-email?token=' . urlencode($raw));
-            $headers = ['Content-Type: text/html; charset=UTF-8'];
-            // Build branded activation email
-            if (function_exists('knx_get_account_activation_email')) {
-                $mail = knx_get_account_activation_email($url, $email);
+        if ($require_verification === '1') {
+            $raw = knx_create_email_verification_token($user_id);
+
+            if ($raw) {
+                $url = site_url('/verify-email?token=' . urlencode($raw));
+                $headers = ['Content-Type: text/html; charset=UTF-8'];
+                // Build branded activation email
+                if (function_exists('knx_get_account_activation_email')) {
+                    $mail = knx_get_account_activation_email($url, $email);
+                } else {
+                    $mail = [
+                        'subject' => 'Verify your account',
+                        'html'    => '<p><a href="' . esc_url($url) . '">Activate your account</a></p>',
+                    ];
+                }
+                // queue verification mail to be sent on shutdown
+                knx_queue_mail($email, $mail['subject'], $mail['html'], $headers);
+                KNX_Auth_Toast::push('success', 'verify_sent');
             } else {
-                $mail = [
-                    'subject' => 'Verify your account',
-                    'html'    => '<p><a href="' . esc_url($url) . '">Activate your account</a></p>',
-                ];
+                KNX_Auth_Toast::push('error', 'verify_send_failed');
             }
-            // queue verification mail to be sent on shutdown
-            knx_queue_mail($email, $mail['subject'], $mail['html'], $headers);
-            KNX_Auth_Toast::push('success', 'verify_sent');
         } else {
-            KNX_Auth_Toast::push('error', 'verify_send_failed');
+            // Verification disabled: activate account immediately
+            KNX_Auth_Toast::push('success', 'verify_success');
         }
 
         // queue redirect so mail is sent first on shutdown
