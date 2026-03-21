@@ -6,6 +6,11 @@ if (!defined('KNX_ORDER_SNAPSHOT_VERSION')) {
     define('KNX_ORDER_SNAPSHOT_VERSION', 'v5');
 }
 
+// Time slot grace window (seconds). Tunable constant used by the slot validator.
+if (!defined('KNX_TIME_SLOT_GRACE_SECONDS')) {
+    define('KNX_TIME_SLOT_GRACE_SECONDS', 4800); // 4800s = 8 minutes
+}
+
 if (!function_exists('knx_debug_log')) {
     function knx_debug_log($msg) {
         if (defined('KNX_DEBUG') && KNX_DEBUG) {
@@ -489,8 +494,8 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
                     $slot_valid = true;
                 }
 
-                // 2) Grace window: allow near-equal generated slot within +/-10 minutes
-                // or accept selected slot if it already started within the last 10 minutes.
+                // 2) Grace window: allow near-equal generated slot within +/-8 minutes
+                // or accept selected slot if it already started within the last 8 minutes.
                 if (!$slot_valid) {
                     // parse submitted slot in hub tz
                     $selected_dt = DateTime::createFromFormat('Y-m-d H:i', $today_hub . ' ' . $delivery_time, $hub_tz);
@@ -502,7 +507,7 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
                         // Accept if selected slot already started but not more than 10 minutes ago
                         if ($selected_ts <= $now_ts) {
                             $seconds_since_slot_start = $now_ts - $selected_ts;
-                            if ($seconds_since_slot_start <= 600) {
+                            if ($seconds_since_slot_start <= KNX_TIME_SLOT_GRACE_SECONDS) {
                                 $slot_valid = true;
                             }
                         }
@@ -515,7 +520,7 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
                                     $vs_dt = DateTime::createFromFormat('Y-m-d H:i', $today_hub . ' ' . $vs['value'], $hub_tz);
                                     if ($vs_dt instanceof DateTime) {
                                         $diff = (int) abs($vs_dt->getTimestamp() - $selected_dt->getTimestamp());
-                                        if ($diff <= 600) { // within 10 minutes
+                                        if ($diff <= KNX_TIME_SLOT_GRACE_SECONDS) {
                                             $slot_valid = true;
                                             break;
                                         }
