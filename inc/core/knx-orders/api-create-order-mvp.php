@@ -233,7 +233,7 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
 
     // Include phone/email/logo_url so snapshot can carry full hub context.
     $hub = $wpdb->get_row($wpdb->prepare(
-        "SELECT id, name, city_id, status, address, latitude, longitude, phone, email, logo_url
+        "SELECT id, name, city_id, status, address, latitude, longitude, phone, email, logo_url, timezone
          FROM {$table_hubs}
          WHERE id = %d
          LIMIT 1",
@@ -454,7 +454,8 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
         }
 
         // Delivery time is always an explicit HH:MM slot (no ASAP fallback).
-        // Validate it exists in today's generated slots for this hub.
+        // Validate against current generated slots, but allow a 10-minute grace
+        // window for small timing/rounding differences between client render and server validation.
         if (!empty($delivery_time) && preg_match('/^\d{2}:\d{2}$/', $delivery_time)) {
             try {
                 $eta_from_snap = isset($delivery_snapshot_v46['distance']['eta_minutes'])
@@ -462,10 +463,23 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
                     : 0;
 
                 $slot_valid = false;
+
+                $hub_timezone_name = !empty($hub->timezone) ? trim((string) $hub->timezone) : 'America/Chicago';
+                try {
+                    $hub_tz = new DateTimeZone($hub_timezone_name);
+                } catch (Exception $e) {
+                    $hub_tz = new DateTimeZone('America/Chicago');
+                }
+
+                $now_hub = new DateTime('now', $hub_tz);
+                $today_hub = $now_hub->format('Y-m-d');
+
+                $valid_slots = [];
+                // 1) Exact-match authority from current slot generator
                 if (function_exists('knx_hours_generate_time_slots')) {
                     $valid_slots = knx_hours_generate_time_slots($hub_id, $eta_from_snap);
                     foreach ($valid_slots as $vs) {
-                        if ($vs['value'] === $delivery_time) {
+                        if (!empty($vs['value']) && (string)$vs['value'] === $delivery_time) {
                             $slot_valid = true;
                             break;
                         }
@@ -473,6 +487,45 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
                 } else {
                     // Hours engine missing — accept any future HH:MM (backwards compat)
                     $slot_valid = true;
+                }
+
+                // 2) Grace window: allow near-equal generated slot within +/-10 minutes
+                // or accept selected slot if it already started within the last 10 minutes.
+                if (!$slot_valid) {
+                    // parse submitted slot in hub tz
+                    $selected_dt = DateTime::createFromFormat('Y-m-d H:i', $today_hub . ' ' . $delivery_time, $hub_tz);
+
+                    if ($selected_dt instanceof DateTime) {
+                        $selected_ts = $selected_dt->getTimestamp();
+                        $now_ts = $now_hub->getTimestamp();
+
+                        // Accept if selected slot already started but not more than 10 minutes ago
+                        if ($selected_ts <= $now_ts) {
+                            $seconds_since_slot_start = $now_ts - $selected_ts;
+                            if ($seconds_since_slot_start <= 600) {
+                                $slot_valid = true;
+                            }
+                        }
+
+                        // Also accept if any freshly generated slot is within +/-10 minutes
+                        if (!$slot_valid && !empty($valid_slots) && is_array($valid_slots)) {
+                            foreach ($valid_slots as $vs) {
+                                if (empty($vs['value'])) continue;
+                                try {
+                                    $vs_dt = DateTime::createFromFormat('Y-m-d H:i', $today_hub . ' ' . $vs['value'], $hub_tz);
+                                    if ($vs_dt instanceof DateTime) {
+                                        $diff = (int) abs($vs_dt->getTimestamp() - $selected_dt->getTimestamp());
+                                        if ($diff <= 600) { // within 10 minutes
+                                            $slot_valid = true;
+                                            break;
+                                        }
+                                    }
+                                } catch (Exception $e) {
+                                    continue;
+                                }
+                            }
+                        }
+                    }
                 }
 
                 if (!$slot_valid) {
@@ -484,8 +537,11 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
                 }
 
                 // Slot is valid — set estimated_delivery_at to the chosen slot time
-                $today  = (new DateTime())->format('Y-m-d');
-                $parsed = new DateTime($today . ' ' . $delivery_time);
+                $parsed = DateTime::createFromFormat('Y-m-d H:i', $today_hub . ' ' . $delivery_time, $hub_tz);
+                if (!$parsed) {
+                    throw new Exception('TIME_PARSE_FAILED');
+                }
+
                 $estimated_delivery_at = $parsed->format('Y-m-d H:i:s');
 
             } catch (Exception $e) {

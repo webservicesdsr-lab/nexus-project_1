@@ -538,12 +538,18 @@ function knx_hours_generate_time_slots($hub_id, $eta_minutes = 0) {
         $open  = $intv['open'];
         $close = $intv['close'];
 
-        // Reject overnight
-        if ($close <= $open) continue;
+        if (empty($open) || empty($close)) {
+            continue;
+        }
 
         try {
             $open_dt  = new DateTime($today_str . ' ' . $open, $tz);
             $close_dt = new DateTime($today_str . ' ' . $close, $tz);
+
+            // Support overnight intervals
+            if ($close <= $open) {
+                $close_dt->modify('+1 day');
+            }
         } catch (Exception $e) {
             continue;
         }
@@ -552,12 +558,12 @@ function knx_hours_generate_time_slots($hub_id, $eta_minutes = 0) {
         $last_slot_end = clone $close_dt;
         $last_slot_end->modify("-{$cutoff} minutes");
 
-        // Walk through 30-min slots within this interval
-        $cursor = clone $open_dt;
+        // Start cursor at the later of interval open or earliest allowed time
+        $cursor = ($earliest > $open_dt) ? clone $earliest : clone $open_dt;
 
-        // Advance cursor to the earliest allowed slot if needed
-        if ($cursor < $earliest) {
-            $cursor = clone $earliest;
+        // If we're already outside allowed window, skip interval
+        if ($cursor >= $last_slot_end) {
+            continue;
         }
 
         while (true) {

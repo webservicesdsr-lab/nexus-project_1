@@ -160,6 +160,58 @@
       }
     }
 
+    // ----------------------------
+    // Time slots refresh (align UI with quote's ETA)
+    // ----------------------------
+    async function updateTimeSlots(etaMinutes) {
+      try {
+        if (typeof window === 'undefined') return;
+        var cfg = window.KNX_CHECKOUT_CONFIG || null;
+        if (!cfg || !cfg.timeSlotsUrl) return;
+
+        var url = cfg.timeSlotsUrl;
+        // Append eta_minutes param safely
+        var sep = url.indexOf('?') === -1 ? '?' : '&';
+        url = url + sep + 'eta_minutes=' + encodeURIComponent(Number(etaMinutes || 0));
+
+        var res = await fetch(url, { method: 'GET', credentials: 'include' });
+        var json = await res.json();
+        if (!json || !json.slots || !Array.isArray(json.slots)) return;
+
+        var selectEl = document.getElementById('knxDeliveryTime');
+        if (!selectEl) return;
+
+        var prev = selectEl.value || null;
+
+        // Build options
+        var frag = document.createDocumentFragment();
+        var firstVal = null;
+        json.slots.forEach(function (s, i) {
+          if (!s || !s.value) return;
+          var opt = document.createElement('option');
+          opt.value = String(s.value);
+          opt.textContent = String(s.label || s.value);
+          if (i === 0) firstVal = opt.value;
+          frag.appendChild(opt);
+        });
+
+        // Replace options while preserving selection when possible
+        selectEl.innerHTML = '';
+        selectEl.appendChild(frag);
+
+        // Try to restore previous selection, or default to first
+        if (prev && selectEl.querySelector('option[value="' + prev + '"]')) {
+          selectEl.value = prev;
+        } else if (firstVal) {
+          selectEl.value = firstVal;
+        }
+
+      } catch (e) {
+        // Best-effort: do not block checkout on slots refresh failures
+        return;
+      }
+    }
+
     async function fetchQuote() {
       if (!summaryBody) return;
 
@@ -272,6 +324,22 @@
 
       // Mirrors
       updateTotalsMirrors(b.total, (b.tip || 0));
+
+      // Refresh time slots to align with server-calculated ETA (best-effort)
+      try {
+        var eta = 0;
+        if (data && data.delivery) {
+          // Prefer sealed snapshot path
+          if (data.delivery.delivery_snapshot_v46 && data.delivery.delivery_snapshot_v46.distance) {
+            eta = Number(data.delivery.delivery_snapshot_v46.distance.eta_minutes || 0);
+          } else if (typeof data.delivery.eta_minutes !== 'undefined') {
+            eta = Number(data.delivery.eta_minutes || 0);
+          }
+        }
+        updateTimeSlots(eta);
+      } catch (e) {
+        // ignore
+      }
 
       // Coupon UI feedback (best-effort)
       var currentCode = couponHidden ? String(couponHidden.value || '') : '';
