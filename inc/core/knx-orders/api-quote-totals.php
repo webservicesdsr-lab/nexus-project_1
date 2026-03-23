@@ -610,21 +610,81 @@ function knx_api_quote_totals_handler(WP_REST_Request $req) {
     }
 
     /* ======================================================
-     * DISCOUNTS (Coupon) — lock=false (quote is read-only)
+     * TAX — HUB SSOT (FAIL-CLOSED)
+     * IMPORTANT: Tax base excludes fees + tip.
+     * Tax base = subtotal - discounts
+     * ====================================================== */
+
+    /* ======================================================
+     * TAX — HUB SSOT (FAIL-CLOSED)
+     * IMPORTANT: Tax base excludes fees + tip.
+     * Tax base = subtotal - discounts
+     * ====================================================== */
+    if (!function_exists('knx_resolve_tax')) {
+        return new WP_REST_Response([
+            'success' => false,
+            'reason'  => 'TAX_ENGINE_MISSING',
+            'message' => 'Tax system unavailable.',
+        ], 503);
+    }
+
+    // For new coupon semantics: taxes are computed on the product subtotal (coupons do not reduce tax base).
+    // Coupon will be applied to the total (including taxes and fees) but TIP is excluded from discount calculation.
+    $tax_base = round($subtotal, 2);
+    if ($tax_base < 0) $tax_base = 0.00;
+
+    $tax_details = [
+        'amount' => 0.00,
+        'rate'   => 0.00,
+        'source' => 'hub_setting',
+        'hub_id' => $hub_id,
+    ];
+    $tax_amount = 0.00;
+
+    $tax_result = knx_resolve_tax($tax_base, $hub_id);
+
+    if (is_array($tax_result) && !empty($tax_result['applied'])) {
+        $tax_amount = round((float) ($tax_result['amount'] ?? 0.00), 2);
+
+        if ($tax_amount < 0) {
+            knx_debug_log(sprintf('[KNX-A3.4] ABORT: Negative tax_amount=%.2f hub_id=%d', $tax_amount, $hub_id));
+            return new WP_REST_Response([
+                'success' => false,
+                'reason'  => 'TAX_CALCULATION_INVALID',
+                'message' => 'Unable to calculate taxes at this time.',
+            ], 500);
+        }
+
+        $tax_details = [
+            'amount' => $tax_amount,
+            'rate'   => round((float) ($tax_result['rate'] ?? 0.00), 2),
+            'source' => (string) ($tax_result['source'] ?? 'hub_setting'),
+            'hub_id' => (int) ($tax_result['hub_id'] ?? $hub_id),
+        ];
+    }
+
+    /* ======================================================
+     * DISCOUNTS (Coupon) — compute against total excluding tip
+     * Coupon calculation uses product subtotal for min_subtotal checks.
      * ====================================================== */
     $discounts = [];
     $discounts_total = 0.00;
     $coupon_info_for_response = null;
 
     if ($coupon_code !== '' && function_exists('knx_resolve_coupon')) {
-        $coupon_result = knx_resolve_coupon($coupon_code, $subtotal, false);
+        // Base for coupon calculation: subtotal + fees + tax (explicitly exclude tip)
+        $calculation_base = round($subtotal + $fees_total + $tax_amount, 2);
+        if ($calculation_base < 0) $calculation_base = 0.00;
+
+        // Pass product subtotal as the fourth parameter to preserve min_subtotal checks
+        $coupon_result = knx_resolve_coupon($coupon_code, $calculation_base, false, $subtotal);
 
         if (is_array($coupon_result) && !empty($coupon_result['valid'])) {
             $snap = is_array($coupon_result['snapshot'] ?? null) ? $coupon_result['snapshot'] : null;
 
             $discount_amount = round((float) ($coupon_result['discount_amount'] ?? 0.00), 2);
             if ($discount_amount < 0) $discount_amount = 0.00;
-            if ($discount_amount > $subtotal) $discount_amount = $subtotal;
+            if ($discount_amount > $calculation_base) $discount_amount = $calculation_base;
 
             if ($snap && $discount_amount > 0) {
                 $discounts[] = [
@@ -662,56 +722,10 @@ function knx_api_quote_totals_handler(WP_REST_Request $req) {
     }
 
     /* ======================================================
-     * TAX — HUB SSOT (FAIL-CLOSED)
-     * IMPORTANT: Tax base excludes fees + tip.
-     * Tax base = subtotal - discounts
-     * ====================================================== */
-    if (!function_exists('knx_resolve_tax')) {
-        return new WP_REST_Response([
-            'success' => false,
-            'reason'  => 'TAX_ENGINE_MISSING',
-            'message' => 'Tax system unavailable.',
-        ], 503);
-    }
-
-    $tax_base = round($subtotal - $discounts_total, 2);
-    if ($tax_base < 0) $tax_base = 0.00;
-
-    $tax_details = [
-        'amount' => 0.00,
-        'rate'   => 0.00,
-        'source' => 'hub_setting',
-        'hub_id' => $hub_id,
-    ];
-    $tax_amount = 0.00;
-
-    $tax_result = knx_resolve_tax($tax_base, $hub_id);
-
-    if (is_array($tax_result) && !empty($tax_result['applied'])) {
-        $tax_amount = round((float) ($tax_result['amount'] ?? 0.00), 2);
-
-        if ($tax_amount < 0) {
-            knx_debug_log(sprintf('[KNX-A3.4] ABORT: Negative tax_amount=%.2f hub_id=%d', $tax_amount, $hub_id));
-            return new WP_REST_Response([
-                'success' => false,
-                'reason'  => 'TAX_CALCULATION_INVALID',
-                'message' => 'Unable to calculate taxes at this time.',
-            ], 500);
-        }
-
-        $tax_details = [
-            'amount' => $tax_amount,
-            'rate'   => round((float) ($tax_result['rate'] ?? 0.00), 2),
-            'source' => (string) ($tax_result['source'] ?? 'hub_setting'),
-            'hub_id' => (int) ($tax_result['hub_id'] ?? $hub_id),
-        ];
-    }
-
-    /* ======================================================
      * TOTAL
-     * total = subtotal + fees - discounts + tip + tax
+     * total = (subtotal + fees + tax) - discounts + tip
      * ====================================================== */
-    $total = round($subtotal + $fees_total - $discounts_total + $tip_amount + $tax_amount, 2);
+    $total = round(($subtotal + $fees_total + $tax_amount) - $discounts_total + $tip_amount, 2);
     if ($total < 0) $total = 0.00;
 
     $breakdown_v5 = [

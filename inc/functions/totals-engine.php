@@ -109,11 +109,12 @@ if (!function_exists('knx_resolve_software_fee')) {
  * ==========================================================
  */
 if (!function_exists('knx_resolve_coupon')) {
-    function knx_resolve_coupon($code, $subtotal = 0.00, $lock = false) {
+    function knx_resolve_coupon($code, $calculation_base = 0.00, $lock = false, $product_subtotal_for_min_check = null) {
         global $wpdb;
 
-        $code     = strtoupper(trim((string) $code));
-        $subtotal = max(0.00, (float) $subtotal);
+        $code = strtoupper(trim((string) $code));
+        $calculation_base = max(0.00, (float) $calculation_base);
+        $product_subtotal_for_min_check = $product_subtotal_for_min_check !== null ? max(0.00, (float) $product_subtotal_for_min_check) : null;
 
         if ($code === '') {
             return [
@@ -197,7 +198,10 @@ if (!function_exists('knx_resolve_coupon')) {
             ];
         }
 
-        if ($coupon->min_subtotal !== null && $subtotal < (float) $coupon->min_subtotal) {
+        // min_subtotal check should be evaluated against the product subtotal when provided,
+        // otherwise fall back to the calculation base for backward compatibility.
+        $min_check_value = $product_subtotal_for_min_check !== null ? $product_subtotal_for_min_check : $calculation_base;
+        if ($coupon->min_subtotal !== null && $min_check_value < (float) $coupon->min_subtotal) {
             return [
                 'valid'           => false,
                 'reason'          => 'min_subtotal',
@@ -225,12 +229,13 @@ if (!function_exists('knx_resolve_coupon')) {
 
         $discount_amount = 0.00;
         if ($type === 'percent') {
-            $discount_amount = round(($subtotal * $value) / 100, 2);
+            $discount_amount = round(($calculation_base * $value) / 100, 2);
         } else {
             $discount_amount = round($value, 2);
         }
 
-        $discount_amount = min($discount_amount, $subtotal);
+        // Cap discount to the calculation base (prevents negative totals)
+        $discount_amount = min($discount_amount, $calculation_base);
         $discount_amount = max(0.00, $discount_amount);
 
         $snapshot = [
