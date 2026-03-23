@@ -195,7 +195,9 @@ function knx_invalidate_password_resets_for_user(int $user_id) {
  */
 function knx_is_ip_blocked($ip) {
     $block_key = 'knx_login_block_ip_' . md5($ip);
-    return get_transient($block_key) ? true : false;
+    $remaining = (int) get_transient($block_key);
+    // transient stores expiry timestamp (int). Return true when still in the future.
+    return ($remaining && $remaining > time());
 }
 
 /**
@@ -224,6 +226,19 @@ function knx_record_failed_login(string $ip, string $login = ''): array {
     $ip_key = 'knx_login_attempts_ip_' . md5($ip);
     $user_key = $login !== '' ? 'knx_login_attempts_user_' . md5(strtolower($login)) : null;
 
+    // If already blocked, do not increment counters or extend blocks.
+    $blocked_ip_now = knx_get_block_remaining_seconds_for_ip($ip) > 0;
+    $blocked_user_now = ($user_key && knx_get_block_remaining_seconds_for_user($login) > 0);
+
+    if ($blocked_ip_now || $blocked_user_now) {
+        return [
+            'ip_attempts' => (int) get_transient($ip_key),
+            'user_attempts' => $user_key ? (int) get_transient($user_key) : 0,
+            'blocked_ip' => $blocked_ip_now,
+            'blocked_user' => $blocked_user_now
+        ];
+    }
+
     $ip_attempts = (int) get_transient($ip_key);
     $ip_attempts++;
     set_transient($ip_key, $ip_attempts, 15 * MINUTE_IN_SECONDS);
@@ -238,15 +253,18 @@ function knx_record_failed_login(string $ip, string $login = ''): array {
     $blocked_ip = false;
     $blocked_user = false;
 
-    // Threshold reached -> set block transients
-    if ($ip_attempts >= 5) {
+    // Compute and apply blocks based on escalating policy
+    // If attempts reach threshold, set an expiry timestamp in the block transient.
+    if ($ip_attempts >= 12) {
+        $seconds = knx_compute_block_seconds($ip_attempts);
         $blocked_ip = true;
-        set_transient('knx_login_block_ip_' . md5($ip), 1, HOUR_IN_SECONDS);
+        knx_set_block('knx_login_block_ip_' . md5($ip), $seconds);
     }
 
-    if ($user_key && $user_attempts >= 5) {
+    if ($user_key && $user_attempts >= 12) {
+        $seconds = knx_compute_block_seconds($user_attempts);
         $blocked_user = true;
-        set_transient('knx_login_block_user_' . md5(strtolower($login)), 1, HOUR_IN_SECONDS);
+        knx_set_block('knx_login_block_user_' . md5(strtolower($login)), $seconds);
     }
 
     return [
@@ -276,14 +294,69 @@ function knx_get_login_attempts(string $ip, string $login = ''): array {
 function knx_is_user_blocked(string $login): bool {
     if (empty($login)) return false;
     $block_key = 'knx_login_block_user_' . md5(strtolower($login));
-    return get_transient($block_key) ? true : false;
+    $remaining = (int) get_transient($block_key);
+    return ($remaining && $remaining > time());
 }
 
 /**
  * Explicitly block an IP for a duration (seconds).
  */
 function knx_block_ip(string $ip, int $duration_seconds = HOUR_IN_SECONDS): void {
-    set_transient('knx_login_block_ip_' . md5($ip), 1, $duration_seconds);
+    knx_set_block('knx_login_block_ip_' . md5($ip), $duration_seconds);
+}
+
+/**
+ * Helper: set a block transient storing the expiry timestamp (int).
+ */
+function knx_set_block(string $block_key, int $duration_seconds): void {
+    $expiry = time() + $duration_seconds;
+    // store expiry timestamp as transient value and set TTL to duration
+    set_transient($block_key, $expiry, $duration_seconds);
+}
+
+/**
+ * Helper: return remaining seconds for a stored block transient keyed by block_key.
+ * Returns 0 when not blocked or expired.
+ */
+function knx_get_block_remaining_seconds_by_key(string $block_key): int {
+    $val = get_transient($block_key);
+    if (!$val) return 0;
+    $expiry = (int) $val;
+    $remaining = $expiry - time();
+    return $remaining > 0 ? $remaining : 0;
+}
+
+function knx_get_block_remaining_seconds_for_ip(string $ip): int {
+    $block_key = 'knx_login_block_ip_' . md5($ip);
+    return knx_get_block_remaining_seconds_by_key($block_key);
+}
+
+function knx_get_block_remaining_seconds_for_user(string $login): int {
+    if (empty($login)) return 0;
+    $block_key = 'knx_login_block_user_' . md5(strtolower($login));
+    return knx_get_block_remaining_seconds_by_key($block_key);
+}
+
+/**
+ * Compute block duration (seconds) for given attempts using the escalating policy:
+ * - 12 attempts -> 5 minutes
+ * - 17 attempts -> 10 minutes
+ * - 20 attempts -> 15 minutes
+ * - For each additional 3 attempts beyond 20, increase by 5 minutes
+ */
+function knx_compute_block_seconds(int $attempts): int {
+    if ($attempts < 12) return 0;
+    // base thresholds
+    if ($attempts >= 12 && $attempts < 17) return 5 * MINUTE_IN_SECONDS;
+    if ($attempts >= 17 && $attempts < 20) return 10 * MINUTE_IN_SECONDS;
+    // attempts >= 20
+    $base = 15; // minutes for 20 attempts
+    $extra_groups = intdiv(max(0, $attempts - 20), 3);
+    $minutes = $base + ($extra_groups * 5);
+    // optional cap: 4 hours (240 minutes)
+    $cap_minutes = 240;
+    if ($minutes > $cap_minutes) $minutes = $cap_minutes;
+    return $minutes * MINUTE_IN_SECONDS;
 }
 
 /**

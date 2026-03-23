@@ -150,14 +150,37 @@ add_shortcode('knx_auth', function () {
 
                 <form method="post">
                     <?php knx_nonce_field('register', 'knx_register_nonce'); ?>
+
+                    <div class="knx-hp">
+                        <input type="text" name="knx_hp">
+                        <input type="hidden" name="knx_hp_ts" value="<?php echo time(); ?>">
+                    </div>
+
+                    <label>Username</label>
+                    <input type="text" name="knx_register_fullname" required autofocus placeholder="your.username">
+                    <div style="font-size:12px;color:#666;margin-top:6px;">Allowed characters: letters, numbers, dot, underscore and hyphen. No spaces.</div>
+
                     <label>Email</label>
                     <input type="email" name="knx_register_email" required>
 
+                    <label>Phone</label>
+                    <input type="text" name="knx_register_phone" required>
+
                     <label>Password</label>
-                    <input type="password" name="knx_register_password" required>
+                    <div class="knx-password-wrap">
+                        <input type="password" name="knx_register_password" required>
+                        <button type="button" class="knx-pass-toggle" aria-label="Toggle password">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
 
                     <label>Confirm Password</label>
-                    <input type="password" name="knx_register_password_confirm" required>
+                    <div class="knx-password-wrap">
+                        <input type="password" name="knx_register_password_confirm" required>
+                        <button type="button" class="knx-pass-toggle" aria-label="Toggle password">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
 
                     <button class="knx-btn-primary" name="knx_register_btn">
                         Create Account
@@ -223,6 +246,29 @@ add_shortcode('knx_auth', function () {
                 }
             }
         });
+        
+            // Username input sanitization for registration (client-side):
+            // Allowed chars: letters, numbers, dot, underscore, hyphen. No spaces.
+            try {
+                const usernameInput = document.querySelector('input[name="knx_register_fullname"]');
+                if (usernameInput) {
+                    usernameInput.addEventListener('input', function (e) {
+                        const before = this.value;
+                        // remove any character not in allowed set and remove spaces
+                        let cleaned = before.replace(/[^A-Za-z0-9._-]/g, '');
+                        // collapse multiple dots/hyphens/underscores? keep as-is
+                        // lowercase to keep server-side expectations consistent
+                        cleaned = cleaned.toLowerCase();
+                        if (cleaned !== before) {
+                            const pos = this.selectionStart - (before.length - cleaned.length);
+                            this.value = cleaned;
+                            try { this.setSelectionRange(pos, pos); } catch (err) {}
+                        }
+                    }, { passive: true });
+                }
+            } catch (e) {
+                // noop
+            }
     })();
     </script>
 

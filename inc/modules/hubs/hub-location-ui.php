@@ -484,7 +484,21 @@ window.KNX_MAPS_CONFIG = {
 <?php
 // Location provider configuration (server-driven default)
 // Possible values: 'nominatim' (default), 'google'
-$location_provider = defined('KNX_LOCATION_PROVIDER') ? KNX_LOCATION_PROVIDER : get_option('knx_location_provider', 'nominatim');
+// Resolve location provider with sensible defaults:
+// 1) If constant `KNX_LOCATION_PROVIDER` defined, respect it (hard override)
+// 2) Else use saved option `knx_location_provider` if present
+// 3) Else, if a Google Maps key exists, prefer 'google'
+// 4) Otherwise fall back to 'nominatim'
+$opt_provider = get_option('knx_location_provider', '');
+if (defined('KNX_LOCATION_PROVIDER')) {
+  $location_provider = KNX_LOCATION_PROVIDER;
+} elseif (!empty($opt_provider)) {
+  $location_provider = $opt_provider;
+} elseif (!empty($maps_key)) {
+  $location_provider = 'google';
+} else {
+  $location_provider = 'nominatim';
+}
 ?>
 <script>
   window.KNX_LOCATION_PROVIDER = "<?php echo esc_js($location_provider); ?>";

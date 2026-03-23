@@ -128,120 +128,26 @@ add_shortcode('knx_my_addresses', function () {
     </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════
-     MODAL (bottom-sheet on mobile, centered on desktop)
-     ═══════════════════════════════════════════════════════════════ -->
-<div class="knx-addr-modal" id="knxAddrModal" aria-hidden="true">
-    <div class="knx-addr-modal__backdrop" id="knxAddrModalBG"></div>
-    <div class="knx-addr-modal__sheet" role="dialog" aria-modal="true" aria-labelledby="knxAddrModalTitle">
-        <header class="knx-addr-modal__header">
-            <h2 id="knxAddrModalTitle">Add Address</h2>
-            <button type="button" class="knx-addr-modal__close" id="knxAddrModalClose" aria-label="Close">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-        </header>
+<?php include __DIR__ . '/addresses-modal-partial.php'; ?>
 
-        <form id="knxAddrForm" class="knx-addr-modal__body" autocomplete="off">
-            <input type="hidden" id="knxAddrId" value="">
-
-            <!-- Search -->
-            <div class="knx-addr-form__group">
-                <label for="knxAddrSearch">Search address</label>
-                <div class="knx-addr-form__search-wrap">
-                    <svg class="knx-addr-form__search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                    <input type="text" id="knxAddrSearch" placeholder="Type an address, e.g. 123 Main St…" autocomplete="off">
-                </div>
-                <ul class="knx-addr-form__suggestions" id="knxAddrSuggestions"></ul>
-            </div>
-
-            <!-- Label -->
-            <div class="knx-addr-form__group">
-                <label for="knxAddrLabel">Label <span class="knx-addr-form__req">*</span></label>
-                <div class="knx-addr-form__chips" id="knxAddrLabelChips">
-                    <button type="button" class="knx-addr-form__chip" data-label="Home">🏠 Home</button>
-                    <button type="button" class="knx-addr-form__chip" data-label="Work">💼 Work</button>
-                    <button type="button" class="knx-addr-form__chip" data-label="Other">📍 Other</button>
-                </div>
-                <input type="text" id="knxAddrLabel" placeholder="Home, Work, Mom's…" required maxlength="100">
-            </div>
-
-            <!-- Street -->
-            <div class="knx-addr-form__group">
-                <label for="knxAddrLine1">Street Address <span class="knx-addr-form__req">*</span></label>
-                <input type="text" id="knxAddrLine1" placeholder="123 Main St" required maxlength="255">
-            </div>
-
-            <!-- Apt toggle -->
-            <div class="knx-addr-form__group">
-                <button type="button" class="knx-addr-form__apt-toggle" id="knxAddrAptToggle">+ Add apt, suite, unit</button>
-                <div class="knx-addr-form__apt-wrap" id="knxAddrAptWrap" style="display:none;">
-                    <input type="text" id="knxAddrLine2" placeholder="Apt 4B, Suite 200…" maxlength="255">
-                </div>
-            </div>
-
-            <!-- City + State -->
-            <div class="knx-addr-form__row">
-                <div class="knx-addr-form__group">
-                    <label for="knxAddrCity">City <span class="knx-addr-form__req">*</span></label>
-                    <input type="text" id="knxAddrCity" placeholder="Chicago" required maxlength="100">
-                </div>
-                <div class="knx-addr-form__group">
-                    <label for="knxAddrState">State</label>
-                    <input type="text" id="knxAddrState" placeholder="IL" maxlength="50">
-                </div>
-            </div>
-
-            <!-- Zip + Country -->
-            <div class="knx-addr-form__row">
-                <div class="knx-addr-form__group">
-                    <label for="knxAddrZip">Zip Code</label>
-                    <input type="text" id="knxAddrZip" placeholder="60601" maxlength="20">
-                </div>
-                <div class="knx-addr-form__group">
-                    <label for="knxAddrCountry">Country</label>
-                    <input type="text" id="knxAddrCountry" value="USA" maxlength="100">
-                </div>
-            </div>
-
-            <!-- Map -->
-            <div class="knx-addr-form__group">
-                <label>Pin Location <span class="knx-addr-form__req">*</span></label>
-                <div class="knx-addr-form__map-bar">
-                    <button type="button" class="knx-addr-form__map-btn" id="knxAddrGeoBtn">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>
-                        Use my location
-                    </button>
-                    <button type="button" class="knx-addr-form__map-btn" id="knxAddrSearchMapBtn">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                        Find on map
-                    </button>
-                </div>
-                <div id="knxAddrMap" class="knx-addr-form__map"></div>
-                <p class="knx-addr-form__hint" id="knxAddrMapHint">Click the map or drag the pin to set exact location</p>
-            </div>
-
-            <input type="hidden" id="knxAddrLat" value="">
-            <input type="hidden" id="knxAddrLng" value="">
-
-            <!-- Actions -->
-            <div class="knx-addr-modal__actions">
-                <button type="button" class="knx-addr-modal__cancel" id="knxAddrCancelBtn">Cancel</button>
-                <button type="submit" class="knx-addr-modal__save" id="knxAddrSaveBtn">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                    Save Address
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Toast container -->
-<div class="knx-addr-toast" id="knxAddrToast" aria-live="polite"></div>
-
+<!-- Leaflet JS and client config remain (assets and script left in place) -->
 <!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
         crossorigin=""></script>
+<script>
+// Expose location provider and Google Maps key to the page so client scripts
+// can automatically prefer Google Places for autocomplete when configured.
+window.KNX_LOCATION_PROVIDER = (function(){
+    try {
+        var key = <?php echo json_encode(function_exists('knx_get_google_maps_key') ? knx_get_google_maps_key() : get_option('knx_google_maps_key','')); ?>;
+        window.KNX_MAPS_CONFIG = window.KNX_MAPS_CONFIG || {};
+        window.KNX_MAPS_CONFIG.key = key && key !== '' ? key : null;
+        return (key && key !== '') ? 'google' : 'nominatim';
+    } catch (e) { return 'nominatim'; }
+})();
+window.KNX_GEOCODE_API = window.KNX_GEOCODE_API || "<?php echo esc_js(rest_url('knx/v1/geocode-search')); ?>";
+</script>
 <script src="<?php echo esc_url($js_url); ?>"></script>
 <?php
     return ob_get_clean();

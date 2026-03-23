@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const api = document.querySelector("#knxApiUrl").value;
     const nonce = document.querySelector("#knxNonce").value;
     const google_maps_key = document.querySelector("#google_maps_key").value.trim();
-    const requireVerification = !!document.querySelector('#knx_require_email_verification')?.checked;
+    const location_provider = document.querySelector("#knx_location_provider")?.value || 'auto';
 
 
     try {
@@ -36,7 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
           "Content-Type": "application/json",
           "X-WP-Nonce": nonce
         },
-        body: JSON.stringify({ google_maps_api: google_maps_key, require_email_verification: requireVerification }),
+        body: JSON.stringify({ google_maps_api: google_maps_key, location_provider: location_provider }),
       });
 
       const data = await res.json();
@@ -62,7 +62,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const api = document.querySelector("#knxApiUrl").value;
       const nonce = document.querySelector("#knxNonce").value;
-      const requireVerification = !!document.querySelector('#knx_require_email_verification')?.checked;
+      const location_provider = document.querySelector("#knx_location_provider")?.value || 'auto';
 
       try {
         const res = await fetch(api, {
@@ -71,7 +71,7 @@ document.addEventListener("DOMContentLoaded", () => {
             "Content-Type": "application/json",
             "X-WP-Nonce": nonce
           },
-          body: JSON.stringify({ google_maps_api: "", require_email_verification: requireVerification }), // Empty string clears key
+          body: JSON.stringify({ google_maps_api: "", location_provider: location_provider }), // Empty string clears key
         });
 
         const data = await res.json();

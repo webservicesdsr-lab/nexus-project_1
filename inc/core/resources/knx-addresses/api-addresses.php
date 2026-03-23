@@ -231,10 +231,8 @@ function knx_api_addresses_add($request) {
 
     $table = knx_addresses_table();
 
-    // Transaction
-    $wpdb->query('START TRANSACTION');
-
-    $inserted = $wpdb->insert($table, [
+    // Build insert data conditionally based on available columns (schema-flexible)
+    $insert_data = [
         'customer_id'  => $customer_id,
         'label'        => $label,
         'line1'        => $line1,
@@ -245,12 +243,63 @@ function knx_api_addresses_add($request) {
         'country'      => $country,
         'latitude'     => $lat,
         'longitude'    => $lng,
-        'is_default'   => 0,
+        // New addresses should be marked default so they become the canonical default
+        // and the UI can auto-select them (SSOT fallback). Selection for checkout
+        // still goes through the select endpoint which enforces coverage.
+        'is_default'   => 1,
         'created_at'   => knx_addresses_now_mysql(),
         'updated_at'   => knx_addresses_now_mysql(),
-    ], [
-        '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%f', '%f', '%d', '%s', '%s'
-    ]);
+    ];
+
+    $formats = [];
+    // Build formats in the same order as insert_data
+    $formats[] = '%d'; // customer_id
+    $formats[] = '%s'; // label
+    $formats[] = '%s'; // line1
+    $formats[] = '%s'; // line2
+    $formats[] = '%s'; // city
+    $formats[] = '%s'; // state
+    $formats[] = '%s'; // postal_code
+    $formats[] = '%s'; // country
+    $formats[] = '%f'; // latitude
+    $formats[] = '%f'; // longitude
+
+    // Optional schema-aware fields
+    if (function_exists('knx_addresses_has_col') && knx_addresses_has_col('reference_notes')) {
+        $insert_data['reference_notes'] = knx_addresses_trim($body['reference_notes'] ?? '', 255);
+        $formats[] = '%s';
+    }
+    if (function_exists('knx_addresses_has_col') && knx_addresses_has_col('place_provider')) {
+        $insert_data['place_provider'] = knx_addresses_trim($body['place_provider'] ?? '', 32);
+        $formats[] = '%s';
+    }
+    if (function_exists('knx_addresses_has_col') && knx_addresses_has_col('place_id')) {
+        $insert_data['place_id'] = knx_addresses_trim($body['place_id'] ?? '', 191);
+        $formats[] = '%s';
+    }
+    if (function_exists('knx_addresses_has_col') && knx_addresses_has_col('address_components')) {
+        // Store raw JSON (string) if provided; otherwise null
+        $ac = null;
+        if (!empty($body['address_components'])) {
+            if (is_array($body['address_components'])) {
+                $ac = wp_json_encode($body['address_components']);
+            } else {
+                $ac = knx_addresses_trim($body['address_components'], 0);
+            }
+        }
+        $insert_data['address_components'] = $ac;
+        $formats[] = '%s';
+    }
+
+    // Always include default and timestamps formats
+    $formats[] = '%d'; // is_default
+    $formats[] = '%s'; // created_at
+    $formats[] = '%s'; // updated_at
+
+    // Transaction
+    $wpdb->query('START TRANSACTION');
+
+    $inserted = $wpdb->insert($table, $insert_data, $formats);
 
     if ($inserted === false) {
         $wpdb->query('ROLLBACK');
@@ -358,25 +407,63 @@ function knx_api_addresses_update($request) {
     // Transaction
     $wpdb->query('START TRANSACTION');
 
-    $updated = $wpdb->update($table, [
-        'label'        => $label,
-        'line1'        => $line1,
-        'line2'        => $line2,
-        'city'         => $city,
-        'state'        => $state,
-        'postal_code'  => $postal_code,
-        'country'      => $country,
-        'latitude'     => $lat,
-        'longitude'    => $lng,
-        'updated_at'   => knx_addresses_now_mysql(),
-    ], [
+    // Build update array schema-aware
+    $update_data = [
+        'label'      => $label,
+        'line1'      => $line1,
+        'line2'      => $line2,
+        'city'       => $city,
+        'state'      => $state,
+        'postal_code'=> $postal_code,
+        'country'    => $country,
+        'latitude'   => $lat,
+        'longitude'  => $lng,
+        'updated_at' => knx_addresses_now_mysql(),
+    ];
+
+    $formats = [
+        '%s', // label
+        '%s', // line1
+        '%s', // line2
+        '%s', // city
+        '%s', // state
+        '%s', // postal_code
+        '%s', // country
+        '%f', // latitude
+        '%f', // longitude
+        '%s', // updated_at
+    ];
+
+    // Optional schema-aware fields
+    if (function_exists('knx_addresses_has_col') && knx_addresses_has_col('reference_notes') && array_key_exists('reference_notes', $body)) {
+        $update_data['reference_notes'] = knx_addresses_trim($body['reference_notes'] ?? '', 255);
+        $formats[] = '%s';
+    }
+    if (function_exists('knx_addresses_has_col') && knx_addresses_has_col('place_provider') && array_key_exists('place_provider', $body)) {
+        $update_data['place_provider'] = knx_addresses_trim($body['place_provider'] ?? '', 32);
+        $formats[] = '%s';
+    }
+    if (function_exists('knx_addresses_has_col') && knx_addresses_has_col('place_id') && array_key_exists('place_id', $body)) {
+        $update_data['place_id'] = knx_addresses_trim($body['place_id'] ?? '', 191);
+        $formats[] = '%s';
+    }
+    if (function_exists('knx_addresses_has_col') && knx_addresses_has_col('address_components') && array_key_exists('address_components', $body)) {
+        $ac = null;
+        if (!empty($body['address_components'])) {
+            if (is_array($body['address_components'])) {
+                $ac = wp_json_encode($body['address_components']);
+            } else {
+                $ac = knx_addresses_trim($body['address_components'], 0);
+            }
+        }
+        $update_data['address_components'] = $ac;
+        $formats[] = '%s';
+    }
+
+    $updated = $wpdb->update($table, $update_data, [
         'id'          => $address_id,
         'customer_id' => $customer_id,
-    ], [
-        '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%f', '%f', '%s'
-    ], [
-        '%d', '%d'
-    ]);
+    ], $formats, ['%d', '%d']);
 
     if ($updated === false) {
         $wpdb->query('ROLLBACK');

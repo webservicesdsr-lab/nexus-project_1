@@ -236,8 +236,14 @@ add_action('init', function () {
             exit;
         }
 
-        if (knx_is_ip_blocked($ip) || knx_is_user_blocked($login)) {
-            KNX_Auth_Toast::push('error', 'locked');
+        // Check for active blocks and show remaining minutes in toast when blocked.
+        $ip_remaining = function_exists('knx_get_block_remaining_seconds_for_ip') ? knx_get_block_remaining_seconds_for_ip($ip) : 0;
+        $user_remaining = function_exists('knx_get_block_remaining_seconds_for_user') ? knx_get_block_remaining_seconds_for_user($login) : 0;
+        $remaining = max($ip_remaining, $user_remaining);
+        if ($remaining > 0) {
+            $minutes = (int) ceil($remaining / MINUTE_IN_SECONDS);
+            $msg = 'Too many attempts. Try again in ' . $minutes . ' minute' . ($minutes > 1 ? 's' : '') . '.';
+            KNX_Auth_Toast::push('error', 'locked', $msg);
             wp_safe_redirect(site_url('/login'));
             exit;
         }
@@ -291,22 +297,45 @@ add_action('init', function () {
     // =====================================================
     if (isset($_POST['knx_register_btn'])) {
 
+        // Honeypot check (reject early to block bots)
+        if (!knx_check_honeypot($_POST)) {
+            KNX_Auth_Toast::push('error', 'auth_failed');
+            wp_safe_redirect(site_url('/login'));
+            exit;
+        }
+
         if (!isset($_POST['knx_register_nonce']) || !knx_verify_nonce($_POST['knx_register_nonce'], 'register')) {
             KNX_Auth_Toast::push('error', 'auth_failed');
             wp_safe_redirect(site_url('/login'));
             exit;
         }
 
-        $email = sanitize_email($_POST['knx_register_email'] ?? '');
-        $pass  = $_POST['knx_register_password'] ?? '';
-        $pass2 = $_POST['knx_register_password_confirm'] ?? '';
+        // Read and sanitize inputs
+        $fullname = sanitize_text_field($_POST['knx_register_fullname'] ?? '');
+        $email    = sanitize_email($_POST['knx_register_email'] ?? '');
+        $phone_raw = sanitize_text_field($_POST['knx_register_phone'] ?? '');
+        $pass     = $_POST['knx_register_password'] ?? '';
+        $pass2    = $_POST['knx_register_password_confirm'] ?? '';
 
+        // Normalize phone: keep digits and optional leading +
+        $phone = preg_replace('/[^0-9+]/', '', $phone_raw);
+        $phone_digits = preg_replace('/[^0-9]/', '', $phone);
+
+        // Validate full name: at least 2 chars
+        if (strlen($fullname) < 2) {
+            KNX_Auth_Toast::push('error', 'auth_failed');
+            wp_safe_redirect(site_url('/login'));
+            exit;
+        }
+
+        // Basic validation for email/password
         if (!is_email($email) || $pass !== $pass2 || strlen($pass) < 8) {
             KNX_Auth_Toast::push('error', 'auth_failed');
             wp_safe_redirect(site_url('/login'));
             exit;
         }
 
+        // Ensure email uniqueness
         if ($wpdb->get_var($wpdb->prepare(
             "SELECT id FROM {$users_table} WHERE email = %s LIMIT 1",
             $email
@@ -316,16 +345,61 @@ add_action('init', function () {
             exit;
         }
 
+        // No separate username input: keep username column as email to preserve login behavior
+
+        // Validate phone: at least 7 digits
+        if (strlen($phone_digits) < 7) {
+            KNX_Auth_Toast::push('error', 'auth_failed');
+            wp_safe_redirect(site_url('/login'));
+            exit;
+        }
+
         // Check admin-configured requirement for email verification
         $require_verification = get_option('knx_require_email_verification', '1');
 
-        $wpdb->insert($users_table, [
-            'username' => $email,
+        // Build username from full name: normalize to allowed chars and ensure uniqueness
+        $candidate = strtolower(trim($fullname));
+        // replace spaces with dot
+        $candidate = preg_replace('/\s+/', '.', $candidate);
+        // remove disallowed characters, keep a-z0-9._-
+        $candidate = preg_replace('/[^a-z0-9._-]/', '', $candidate);
+        if (strlen($candidate) < 3) {
+            // fallback to email local part
+            $local = strtolower(preg_replace('/[^a-z0-9._-]/', '', strstr($email, '@', true)));
+            $candidate = $local ?: 'user' . rand(1000,9999);
+        }
+
+        // ensure uniqueness by appending suffix when needed
+        $base = $candidate;
+        $i = 0;
+        while ($wpdb->get_var($wpdb->prepare("SELECT id FROM {$users_table} WHERE username = %s LIMIT 1", $candidate))) {
+            $i++;
+            $candidate = substr($base, 0, 45) . '-' . $i; // keep within reasonable length
+        }
+
+        $username = $candidate;
+
+        // Build insert array; store username=username and store full name into available column
+        $insert = [
+            'username' => $username,
             'email'    => $email,
             'password' => password_hash($pass, PASSWORD_DEFAULT),
             'role'     => 'customer',
             'status'   => ($require_verification === '1') ? 'inactive' : 'active'
-        ]);
+        ];
+
+        if (function_exists('knx_db_column_exists')) {
+            if (knx_db_column_exists($users_table, 'name')) {
+                $insert['name'] = $fullname;
+            } elseif (knx_db_column_exists($users_table, 'full_name')) {
+                $insert['full_name'] = $fullname;
+            }
+            if (knx_db_column_exists($users_table, 'phone')) {
+                $insert['phone'] = $phone;
+            }
+        }
+
+        $wpdb->insert($users_table, $insert);
 
         $user_id = (int)$wpdb->insert_id;
 

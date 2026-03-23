@@ -58,6 +58,13 @@ function knx_api_update_settings(WP_REST_Request $r) {
     if (empty($google_maps_api)) {
         // Clear the key - delete from wp_options
         delete_option('knx_google_maps_key');
+        // Optionally clear or set provider if passed
+        if (isset($r['location_provider'])) {
+            $lp = sanitize_text_field($r['location_provider']);
+            $allowed = ['auto','google','nominatim'];
+            if (!in_array($lp, $allowed, true)) $lp = 'auto';
+            update_option('knx_location_provider', $lp);
+        }
         
         return new WP_REST_Response([
             'success' => true,
@@ -68,6 +75,13 @@ function knx_api_update_settings(WP_REST_Request $r) {
     } else {
         // Save the key
         update_option('knx_google_maps_key', $google_maps_api);
+        // Optionally save provider
+        if (isset($r['location_provider'])) {
+            $lp = sanitize_text_field($r['location_provider']);
+            $allowed = ['auto','google','nominatim'];
+            if (!in_array($lp, $allowed, true)) $lp = 'auto';
+            update_option('knx_location_provider', $lp);
+        }
         
         return new WP_REST_Response([
             'success' => true,

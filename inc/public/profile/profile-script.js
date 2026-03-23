@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const saveBtn = document.getElementById('knxProfileSaveBtn');
     
     const nameInput = document.getElementById('knx-name');
+    const usernameInput = document.getElementById('knx-username');
     const phoneInput = document.getElementById('knx-phone');
     const emailInput = document.getElementById('knx-email');
 
@@ -54,6 +55,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.success && data.data) {
                 const profile = data.data;
                 nameInput.value = profile.name || '';
+                usernameInput.value = profile.username || '';
                 phoneInput.value = profile.phone || '';
                 emailInput.value = profile.email || '';
 
@@ -78,6 +80,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const email = emailInput.value.trim();
 
         // Validation
+        // Username validation: 3-50 chars, only letters/numbers/dot/underscore/hyphen
+        const username = usernameInput.value.trim();
+        if (!/^[A-Za-z0-9._-]{3,50}$/.test(username)) {
+            showMessage('Username must be 3-50 characters and may contain letters, numbers, dot, underscore or hyphen.', 'error');
+            return;
+        }
+
         if (!name || !phone) {
             showMessage('Name and phone are required.', 'error');
             return;
@@ -88,6 +97,7 @@ document.addEventListener('DOMContentLoaded', function() {
         showButtonLoading(true);
 
         const payload = {
+            username: username,
             name: name,
             phone: phone,
             email: email,
@@ -154,6 +164,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function enableForm(enable) {
         nameInput.disabled = !enable;
+        usernameInput.disabled = !enable;
         phoneInput.disabled = !enable;
         emailInput.disabled = !enable;
         saveBtn.disabled = !enable;

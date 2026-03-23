@@ -22,6 +22,23 @@ document.addEventListener("DOMContentLoaded", () => {
   let debounceTimer = null;
   let isLoading = false;
 
+  // If configured to use Google Places, load the Places library and wire Autocomplete.
+  if (typeof window.KNX_LOCATION_PROVIDER !== 'undefined' && window.KNX_LOCATION_PROVIDER === 'google') {
+    const apiKey = window.KNX_MAPS_CONFIG && window.KNX_MAPS_CONFIG.key ? window.KNX_MAPS_CONFIG.key : null;
+    if (apiKey) {
+      (async function() {
+        try {
+          await loadGooglePlaces(apiKey);
+          setupGoogleAutocomplete(input);
+        } catch (err) {
+          console.warn('Google Places failed, falling back to Nominatim', err);
+        }
+      })();
+      // Do not bind Nominatim handlers below when Google is primary
+      return;
+    }
+  }
+
   // ========= Utils =========
   const showStatus = (msg, type = "info", autohide = true) => {
     if (!statusDiv) return;
@@ -227,4 +244,42 @@ document.addEventListener("DOMContentLoaded", () => {
     if (v) redirectToExplore(v);
     else showStatus("Please enter a city or address", "error");
   });
+
+
+  // ---- Google Places helpers ----
+  function loadGooglePlaces(apiKey) {
+    return new Promise((resolve, reject) => {
+      if (window.google && window.google.maps && window.google.maps.places) return resolve();
+      const callbackName = 'knx_init_places_cb_' + Math.floor(Math.random()*1000000);
+      window[callbackName] = function() { resolve(); delete window[callbackName]; };
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places&callback=${callbackName}`;
+      script.async = true;
+      script.onerror = function(e) { reject(new Error('Failed to load Google Maps JS')); };
+      document.head.appendChild(script);
+    });
+  }
+
+  function setupGoogleAutocomplete(el) {
+    try {
+      const ac = new google.maps.places.Autocomplete(el, { types: ['geocode'] });
+      ac.setFields(['formatted_address','address_components','geometry']);
+      ac.addListener('place_changed', function() {
+        const place = ac.getPlace();
+        if (!place || !place.geometry) return showStatus('No location found for that address', 'warning');
+        // Try to build a friendly city,state label for exploration
+        const comps = place.address_components || [];
+        let city = '', state = '';
+        comps.forEach(c => {
+          if (c.types && c.types.indexOf('locality') !== -1) city = c.long_name;
+          if (c.types && c.types.indexOf('administrative_area_level_1') !== -1) state = c.short_name || c.long_name;
+        });
+        const display = (city && state) ? (city + ', ' + state) : (place.formatted_address || el.value);
+        el.value = display;
+        redirectToExplore(display);
+      });
+    } catch (err) {
+      console.warn('setupGoogleAutocomplete error', err);
+    }
+  }
 });

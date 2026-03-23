@@ -1,0 +1,10 @@
+/* Minimal styles for checkout addresses block */
+.knx-co-addresses { font-family: inherit; }
+.knx-co-address-row { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #eef2f7; }
+.knx-co-address-row__left { flex:1; padding-right:12px; }
+.knx-co-address-row__title { font-weight:700; color:#111827; margin-bottom:4px; }
+.knx-co-address-row__line { color:#6b7280; font-size:13px; }
+.knx-co-address-row__right { flex:0 0 auto; }
+.knx-co-address-row button { min-width:72px; }
+.knx-addr__loading { color:#6b7280; font-size:14px; }
+.knx-addr__empty { color:#6b7280; }

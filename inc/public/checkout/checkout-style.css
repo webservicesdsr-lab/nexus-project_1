@@ -316,11 +316,9 @@
 @keyframes cardFadeIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -1082,8 +1080,8 @@
 
 /* Micro animation */
 @keyframes knxFadeUp {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 .knx-co-card { animation: knxFadeUp 0.22s ease-out; }
 

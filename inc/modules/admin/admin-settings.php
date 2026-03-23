@@ -10,6 +10,8 @@ if (!defined('ABSPATH')) exit;
 
 // Get saved key from WordPress options
 $google_key = get_option('knx_google_maps_key', '');
+// Get saved location provider (auto|google|nominatim)
+$location_provider = get_option('knx_location_provider', 'auto');
 // Load existing UI theme settings
 $knx_ui_theme = get_option('knx_ui_theme', null);
 
@@ -58,6 +60,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['knx_ui_theme_submit']
     wp_safe_redirect(add_query_arg('knx_ui_theme_saved', '1'));
     exit;
 }
+
+// Handle separate Email Verification setting (separated from API key)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['knx_email_ver_submit'])) {
+    if (!isset($_POST['_knx_email_ver_nonce']) || !wp_verify_nonce($_POST['_knx_email_ver_nonce'], 'knx_email_ver_action')) {
+        wp_die('Security check failed.');
+    }
+
+    if (!current_user_can('manage_options')) {
+        wp_die('Unauthorized');
+    }
+
+    $req_flag = isset($_POST['knx_require_email_verification']) ? '1' : '0';
+    update_option('knx_require_email_verification', $req_flag);
+    wp_safe_redirect(add_query_arg('knx_email_ver_saved', '1'));
+    exit;
+}
 ?>
 
 <div class="knx-admin-wrap">
@@ -99,11 +117,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['knx_ui_theme_submit']
           </div>
 
           <div style="margin-top:12px;">
-              <label for="knx_require_email_verification"><strong>Require email verification on registration</strong></label><br>
-              <?php $req = get_option('knx_require_email_verification', '1'); ?>
-              <input type="checkbox" id="knx_require_email_verification" name="knx_require_email_verification" value="1" <?php checked($req, '1'); ?>>
-              <div style="font-size:13px;color:#555;margin-top:6px;">When enabled, new users must verify their email before logging in. Disable to allow instant active accounts.</div>
+              <label for="knx_location_provider"><strong>Location Provider</strong></label><br>
+              <select id="knx_location_provider" name="knx_location_provider" style="width:220px;padding:8px;border-radius:6px;border:1px solid #ccc;">
+                  <option value="auto" <?php selected($location_provider, 'auto'); ?>>Auto (prefer Google when key present)</option>
+                  <option value="google" <?php selected($location_provider, 'google'); ?>>Google (Places)</option>
+                  <option value="nominatim" <?php selected($location_provider, 'nominatim'); ?>>OpenStreetMap (Nominatim)</option>
+              </select>
+              <div style="font-size:13px;color:#555;margin-top:6px;max-width:640px;">Choose the autocomplete provider. <strong>Auto</strong> will prefer Google if an API key is configured; select <strong>Nominatim</strong> to force the OpenStreetMap fallback even when a key exists.</div>
           </div>
+
+          <!-- Email verification setting moved to its own form (see below) -->
 
           <p style="display:flex;gap:10px;margin-top:15px;">
               <button type="submit" class="button button-primary">
@@ -179,6 +202,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['knx_ui_theme_submit']
         - The map preview below confirms your key is valid.
       </p>
   </div>
+</div>
+
+<!-- Separate Email Verification Card -->
+<div class="knx-admin-wrap" style="margin-top:18px;">
+    <div class="knx-card">
+        <h2><i class="dashicons dashicons-email"></i> Email Verification</h2>
+        <?php if (isset($_GET['knx_email_ver_saved'])): ?>
+            <div style="background:#ecfdf5;padding:12px;border-radius:6px;margin:12px 0;border-left:4px solid #065f46;color:#065f46;">Saved email verification setting.</div>
+        <?php endif; ?>
+
+        <form method="post" style="margin-top:12px;">
+            <?php wp_nonce_field('knx_email_ver_action', '_knx_email_ver_nonce'); ?>
+            <?php $req_flag = get_option('knx_require_email_verification', '1'); ?>
+            <label style="display:inline-flex;align-items:center;gap:8px;">
+                <input type="checkbox" name="knx_require_email_verification" value="1" <?php checked($req_flag, '1'); ?> />
+                <span>Require email verification on registration</span>
+            </label>
+
+            <p style="margin-top:12px;">
+                <button type="submit" name="knx_email_ver_submit" class="button button-primary">Save Email Verification</button>
+            </p>
+        </form>
+    </div>
 </div>
 
 <?php

@@ -175,6 +175,20 @@ function knx_home_shortcode() {
         window.knxHome = window.knxHome || {};
         window.knxHome.exploreUrl = <?php echo json_encode($explore_url); ?>;
     </script>
+    <script>
+        // Expose provider + maps key so home autocomplete can prefer Google Places
+        (function(){
+            try {
+                var key = <?php echo json_encode(function_exists('knx_get_google_maps_key') ? knx_get_google_maps_key() : get_option('knx_google_maps_key','')); ?>;
+                window.KNX_MAPS_CONFIG = window.KNX_MAPS_CONFIG || {};
+                window.KNX_MAPS_CONFIG.key = key && key !== '' ? key : null;
+                window.KNX_LOCATION_PROVIDER = (key && key !== '') ? 'google' : 'nominatim';
+                window.KNX_GEOCODE_API = window.KNX_GEOCODE_API || "<?php echo esc_js(rest_url('knx/v1/geocode-search')); ?>";
+            } catch (e) {
+                window.KNX_LOCATION_PROVIDER = 'nominatim';
+            }
+        })();
+    </script>
 
 </section>
 <?php

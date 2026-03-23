@@ -674,7 +674,35 @@ if (!function_exists('knx_create_address')) {
             'updated_at' => knx_addresses_now_mysql()
         ];
 
-        $formats = ['%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%f', '%f', '%d', '%s', '%s'];
+        // Build formats array in same order
+        $formats = ['%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%f', '%f'];
+
+        // Optional schema-aware fields
+        if (function_exists('knx_addresses_has_col') && knx_addresses_has_col('reference_notes') && isset($data['reference_notes'])) {
+            $insert_data['reference_notes'] = knx_addresses_trim($data['reference_notes']);
+            $formats[] = '%s';
+        }
+        if (function_exists('knx_addresses_has_col') && knx_addresses_has_col('place_provider') && isset($data['place_provider'])) {
+            $insert_data['place_provider'] = knx_addresses_trim($data['place_provider']);
+            $formats[] = '%s';
+        }
+        if (function_exists('knx_addresses_has_col') && knx_addresses_has_col('place_id') && isset($data['place_id'])) {
+            $insert_data['place_id'] = knx_addresses_trim($data['place_id']);
+            $formats[] = '%s';
+        }
+        if (function_exists('knx_addresses_has_col') && knx_addresses_has_col('address_components') && isset($data['address_components'])) {
+            if (is_array($data['address_components'])) {
+                $insert_data['address_components'] = wp_json_encode($data['address_components']);
+            } else {
+                $insert_data['address_components'] = knx_addresses_trim($data['address_components']);
+            }
+            $formats[] = '%s';
+        }
+
+        // Add is_default and timestamps formats
+        $formats[] = '%d'; // is_default
+        $formats[] = '%s'; // created_at
+        $formats[] = '%s'; // updated_at
 
         // If setting as default, clear other defaults first
         if ($insert_data['is_default'] === 1) {
@@ -791,6 +819,28 @@ if (!function_exists('knx_update_address')) {
             
             $update_data['is_default'] = $new_default;
             $formats[] = '%d';
+        }
+
+        // Optional metadata fields (schema-aware)
+        if (function_exists('knx_addresses_has_col') && knx_addresses_has_col('reference_notes') && isset($data['reference_notes'])) {
+            $update_data['reference_notes'] = knx_addresses_trim($data['reference_notes']);
+            $formats[] = '%s';
+        }
+        if (function_exists('knx_addresses_has_col') && knx_addresses_has_col('place_provider') && isset($data['place_provider'])) {
+            $update_data['place_provider'] = knx_addresses_trim($data['place_provider']);
+            $formats[] = '%s';
+        }
+        if (function_exists('knx_addresses_has_col') && knx_addresses_has_col('place_id') && isset($data['place_id'])) {
+            $update_data['place_id'] = knx_addresses_trim($data['place_id']);
+            $formats[] = '%s';
+        }
+        if (function_exists('knx_addresses_has_col') && knx_addresses_has_col('address_components') && isset($data['address_components'])) {
+            if (is_array($data['address_components'])) {
+                $update_data['address_components'] = wp_json_encode($data['address_components']);
+            } else {
+                $update_data['address_components'] = knx_addresses_trim($data['address_components']);
+            }
+            $formats[] = '%s';
         }
 
         $table = knx_addresses_table();

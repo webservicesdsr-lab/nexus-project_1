@@ -612,6 +612,42 @@
         });
       });
     }
+
+    // Listen for address selection/changes from the checkout addresses module.
+    document.addEventListener('knx:address:changed', function (e) {
+      try {
+        var addrId = e && e.detail && e.detail.address_id ? Number(e.detail.address_id) : 0;
+        if (!addrId) return;
+        var rootEl = document.getElementById('knx-checkout');
+        if (!rootEl) return;
+        rootEl.setAttribute('data-selected-address-id', String(addrId));
+        rootEl.setAttribute('data-fulfillment', 'delivery');
+        // Ensure delivery cards visible
+        var deliveryCards = document.getElementById('knxDeliveryCards');
+        if (deliveryCards) deliveryCards.removeAttribute('hidden');
+        // Refresh the quote to update totals and timeslots
+        if (typeof fetchQuote === 'function') fetchQuote();
+      } catch (err) {
+        // ignore
+      }
+    });
+
+    // Back-compat: also listen to older event name
+    document.addEventListener('knx:address:selected', function (e) {
+      try {
+        var addrId = e && e.detail && e.detail.address_id ? Number(e.detail.address_id) : 0;
+        if (!addrId) return;
+        var rootEl = document.getElementById('knx-checkout');
+        if (!rootEl) return;
+        rootEl.setAttribute('data-selected-address-id', String(addrId));
+        rootEl.setAttribute('data-fulfillment', 'delivery');
+        var deliveryCards = document.getElementById('knxDeliveryCards');
+        if (deliveryCards) deliveryCards.removeAttribute('hidden');
+        if (typeof fetchQuote === 'function') fetchQuote();
+      } catch (err) {
+        // ignore
+      }
+    });
   });
 })();
 

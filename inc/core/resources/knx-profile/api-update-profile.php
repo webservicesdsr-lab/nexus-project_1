@@ -77,6 +77,26 @@ function knx_v2_update_my_profile(WP_REST_Request $request) {
 
     // Optional fields
     $email = sanitize_email($request->get_param('email'));
+    $username = $request->get_param('username');
+    if (!is_null($username)) {
+        $username = sanitize_text_field($username);
+        // Normalize to lowercase and validate allowed chars
+        $username_norm = strtolower($username);
+        if (!preg_match('/^[a-z0-9._-]{3,50}$/', $username_norm)) {
+            return knx_rest_error('Invalid username format', 422);
+        }
+
+        // Username uniqueness check
+        $username_exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$users_table} WHERE username = %s AND id != %d",
+            $username_norm,
+            $session->user_id
+        ));
+
+        if ((int)$username_exists > 0) {
+            return knx_rest_error('Username already in use by another account', 409);
+        }
+    }
 
     // Email conflict check (unique constraint)
     if (!empty($email)) {
@@ -99,6 +119,12 @@ function knx_v2_update_my_profile(WP_REST_Request $request) {
 
     if (!empty($email)) {
         $update_data['email'] = $email;
+        $update_format[] = '%s';
+    }
+
+    if (!empty($username)) {
+        // store normalized username
+        $update_data['username'] = strtolower($username);
         $update_format[] = '%s';
     }
 

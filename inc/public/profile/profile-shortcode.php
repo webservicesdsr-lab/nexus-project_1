@@ -65,6 +65,19 @@ function knx_render_profile_page() {
                     </div>
 
                     <div class="knx-form-field">
+                        <label for="knx-username">
+                            Username <span class="required">*</span>
+                        </label>
+                        <input type="text"
+                               id="knx-username"
+                               name="username"
+                               required
+                               placeholder="your.username"
+                               disabled>
+                        <div style="font-size:12px;color:#666;margin-top:6px;">Allowed characters: letters, numbers, dot, underscore and hyphen. No spaces.</div>
+                    </div>
+
+                    <div class="knx-form-field">
                         <label for="knx-phone">
                             Phone Number <span class="required">*</span>
                         </label>

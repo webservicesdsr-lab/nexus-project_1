@@ -213,6 +213,8 @@ function knx_render_checkout_page() {
 
 <link rel="stylesheet"
       href="<?php echo esc_url(KNX_URL . 'inc/public/checkout/checkout-style.css?v=' . KNX_VERSION); ?>">
+<link rel="stylesheet"
+    href="<?php echo esc_url(KNX_URL . 'inc/public/checkout/checkout-addresses-style.css?v=' . KNX_VERSION); ?>">
 <link rel="stylesheet" 
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" 
       integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" 
@@ -442,48 +444,55 @@ function knx_render_checkout_page() {
 
             <!-- DELIVERY ADDRESS CARD (Phase 4.2 Address Book Integration) -->
             <?php
-            // Variables already resolved at top of function (A2.9.1)
-            if ($selected_address && function_exists('knx_addresses_format_one_line')) {
-                $address_line = knx_addresses_format_one_line($selected_address);
-                $address_label = isset($selected_address->label) ? $selected_address->label : 'Delivery Address';
-                ?>
-                <div class="knx-co-card knx-co-card--address">
-                    <div class="knx-co-card__head">
-                        <div class="knx-co-card__headleft">
-                            <span class="knx-co-iconpin" aria-hidden="true">📍</span>
-                            <h2><?php echo esc_html($address_label); ?></h2>
-                        </div>
-                        <a href="<?php echo esc_url(site_url('/my-addresses')); ?>" class="knx-co-link">Change</a>
-                    </div>
-
-                    <div class="knx-co-card__body">
-                        <div class="knx-co-softsuccess">
-                            <div class="knx-co-softsuccess__title">Delivering to</div>
-                            <div class="knx-co-softsuccess__line"><?php echo esc_html($address_line); ?></div>
-                        </div>
-                    </div>
-                </div>
-                <?php
+            // Render an inline, checkout-scoped addresses CRUD partial.
+            // The partial will use the same REST endpoints and nonce used by the full addresses page.
+            $partial = __DIR__ . '/checkout-addresses-partial.php';
+            if (file_exists($partial)) {
+                include $partial;
             } else {
-                ?>
-                <div class="knx-co-card knx-co-card--address">
-                    <div class="knx-co-card__head">
-                        <div class="knx-co-card__headleft">
-                            <span class="knx-co-iconpin knx-co-iconpin--warn" aria-hidden="true">📍</span>
-                            <h2>Delivery Address</h2>
+                // Fallback: simple link to full addresses page
+                if ($selected_address && function_exists('knx_addresses_format_one_line')) {
+                    $address_line = knx_addresses_format_one_line($selected_address);
+                    $address_label = isset($selected_address->label) ? $selected_address->label : 'Delivery Address';
+                    ?>
+                    <div class="knx-co-card knx-co-card--address">
+                        <div class="knx-co-card__head">
+                            <div class="knx-co-card__headleft">
+                                <span class="knx-co-iconpin" aria-hidden="true">📍</span>
+                                <h2><?php echo esc_html($address_label); ?></h2>
+                            </div>
+                            <a href="<?php echo esc_url(site_url('/my-addresses')); ?>" class="knx-co-link">Change</a>
+                        </div>
+
+                        <div class="knx-co-card__body">
+                            <div class="knx-co-softsuccess">
+                                <div class="knx-co-softsuccess__title">Delivering to</div>
+                                <div class="knx-co-softsuccess__line"><?php echo esc_html($address_line); ?></div>
+                            </div>
                         </div>
                     </div>
-                    <div class="knx-co-card__body">
-                        <div class="knx-co-softwarn">
-                            <div class="knx-co-softwarn__title">No delivery address selected</div>
-                            <div class="knx-co-softwarn__text">Please add or select a delivery address to continue.</div>
-                            <a href="<?php echo esc_url(site_url('/my-addresses')); ?>" class="knx-co-btn knx-co-btn--primary">
-                                Add Address
-                            </a>
+                    <?php
+                } else {
+                    ?>
+                    <div class="knx-co-card knx-co-card--address">
+                        <div class="knx-co-card__head">
+                            <div class="knx-co-card__headleft">
+                                <span class="knx-co-iconpin knx-co-iconpin--warn" aria-hidden="true">📍</span>
+                                <h2>Delivery Address</h2>
+                            </div>
+                        </div>
+                        <div class="knx-co-card__body">
+                            <div class="knx-co-softwarn">
+                                <div class="knx-co-softwarn__title">No delivery address selected</div>
+                                <div class="knx-co-softwarn__text">Please add or select a delivery address to continue.</div>
+                                <a href="<?php echo esc_url(site_url('/my-addresses')); ?>" class="knx-co-btn knx-co-btn--primary">
+                                    Add Address
+                                </a>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <?php
+                    <?php
+                }
             }
             ?>
 
