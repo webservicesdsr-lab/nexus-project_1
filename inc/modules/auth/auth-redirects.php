@@ -36,6 +36,9 @@ add_action('template_redirect', function() {
         $role = $session->role ?? '';
         if (in_array($role, ['super_admin', 'manager'], true)) {
             wp_safe_redirect(site_url('/knx-dashboard'));
+        } elseif ($role === 'driver') {
+            // Drivers should land on the driver-ops screen after login
+            wp_safe_redirect(site_url('/driver-ops'));
         } else {
             wp_safe_redirect(site_url('/cart'));
         }
@@ -72,7 +75,8 @@ add_action('template_redirect', function() {
 
         // Drivers cannot access hubs or admin dashboards
         if ($role === 'driver' && in_array($slug, ['hubs', 'customers', 'cities', 'advanced-dashboard'])) {
-            wp_safe_redirect(site_url('/driver-dashboard'));
+            // Redirect drivers to the ops screen
+            wp_safe_redirect(site_url('/driver-ops'));
             exit;
         }
 
