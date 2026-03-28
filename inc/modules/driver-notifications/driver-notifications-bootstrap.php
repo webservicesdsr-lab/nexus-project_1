@@ -24,6 +24,8 @@ $knx_dn_dir = __DIR__ . '/';
 require_once $knx_dn_dir . 'driver-notification-db-core.php';
 require_once $knx_dn_dir . 'driver-notification-template.php';
 require_once $knx_dn_dir . 'driver-notification-provider-email.php';
+// Soft-push helper (queue insertion for local polling channel)
+require_once $knx_dn_dir . 'driver-notification-push.php';
 require_once $knx_dn_dir . 'driver-notification-engine.php';
 require_once $knx_dn_dir . 'driver-notification-hooks.php';
 require_once $knx_dn_dir . 'driver-notification-rest.php';

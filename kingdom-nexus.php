@@ -53,6 +53,24 @@ function knx_activate_plugin() {
     if (function_exists('knx_install_pages')) {
         knx_install_pages();
     }
+
+    // Ensure default worker config exists
+    if (get_option('knx_dn_max_attempts') === false) {
+        add_option('knx_dn_max_attempts', 3);
+    }
+    if (get_option('knx_dn_backoff_base_seconds') === false) {
+        add_option('knx_dn_backoff_base_seconds', 30);
+    }
+    if (get_option('knx_dn_backoff_max_seconds') === false) {
+        add_option('knx_dn_backoff_max_seconds', 3600);
+    }
+    if (get_option('knx_dn_failed_retention_days') === false) {
+        add_option('knx_dn_failed_retention_days', 30);
+    }
+    if (get_option('knx_dn_delivered_retention_days') === false) {
+        add_option('knx_dn_delivered_retention_days', 90);
+    }
+
     flush_rewrite_rules();
 }
 register_activation_hook(__FILE__, 'knx_activate_plugin');
@@ -65,52 +83,43 @@ add_action('plugins_loaded', function() {
     knx_require('inc/functions/helpers.php');
     knx_require('inc/functions/security.php');
 
-    // PWA (Driver) — Phase 6.1 (removed in PHASE 13.CLEAN)
-
     knx_require('inc/functions/customer-helpers.php');
-    knx_require('inc/functions/order-helpers.php');          // KNX-A0.9.2: Order SSOT helpers
-    knx_require('inc/functions/payment-helpers.php');        // KNX-A1.1: Payment State Authority
+    knx_require('inc/functions/order-helpers.php');
+    knx_require('inc/functions/payment-helpers.php');
 
     /* ======================================================
-     * STRIPE (SSOT SEALED) — Load BEFORE any payment handlers
-     * ======================================================
-     * SEALED ORDER:
-     * 1) stripe-logger.php     — storage + redact rules
-     * 2) stripe-authority.php  — SSOT: mode + keys + sdk boot + init
-     * 3) stripe-helpers.php    — legacy wrappers ONLY (no SSOT functions)
+     * STRIPE (SSOT SEALED)
      * ====================================================== */
-    knx_require('inc/functions/stripe-logger.php');                          // 1) Logger first
-    knx_require('inc/core/resources/knx-payments/stripe-authority.php');     // 2) SSOT authority
-    knx_require('inc/functions/stripe-helpers.php');                         // 3) Legacy wrappers
+    knx_require('inc/functions/stripe-logger.php');
+    knx_require('inc/core/resources/knx-payments/stripe-authority.php');
+    knx_require('inc/functions/stripe-helpers.php');
 
-    // Addresses (NEXUS 4.D)
+    // Addresses
     knx_require('inc/functions/address-helper.php');
 
     // Geo + delivery engines
-    knx_require('inc/functions/geo-engine.php');               // FIRST: Pure math helpers
-    knx_require('inc/functions/coverage-parser-internal.php'); // Internal: Polygon parsers (salvaged from legacy)
-    knx_require('inc/functions/coverage-engine.php');          // KNX-A4.3: Polygon Coverage SSOT
-    knx_require('inc/functions/distance-calculator.php');      // KNX-A4.4: Distance Calculator (Haversine)
-    knx_require('inc/functions/delivery-fee-engine.php');      // KNX-A4.5: Delivery Fee Engine
+    knx_require('inc/functions/geo-engine.php');
+    knx_require('inc/functions/coverage-parser-internal.php');
+    knx_require('inc/functions/coverage-engine.php');
+    knx_require('inc/functions/distance-calculator.php');
+    knx_require('inc/functions/delivery-fee-engine.php');
     knx_require('inc/functions/hours-engine.php');
     knx_require('inc/functions/availability-engine.php');
-    knx_require('inc/functions/totals-engine.php');            // depends on distance + fee helpers
-    knx_require('inc/functions/taxes-engine.php');             // Phase 4: Taxes Engine (mock)
+    knx_require('inc/functions/totals-engine.php');
+    knx_require('inc/functions/taxes-engine.php');
 
-    // Navigation (Phase 3.6)
-    knx_require('inc/functions/navigation-engine.php');        // Navigation SSOT Authority
+    // Navigation
+    knx_require('inc/functions/navigation-engine.php');
 
     /* ======================================================
-     * REST INFRASTRUCTURE (PHASE 1)
+     * REST INFRASTRUCTURE
      * ====================================================== */
     knx_require('inc/core/rest/knx-rest-response.php');
     knx_require('inc/core/rest/knx-rest-guard.php');
     knx_require('inc/core/rest/knx-rest-wrapper.php');
 
-    // PWA Router (serves manifest + service worker) removed
-
     /* ======================================================
-     * CORE (LEGACY - STABLE)
+     * CORE
      * ====================================================== */
     knx_require('inc/core/pages-installer.php');
     knx_require('inc/core/session-cleaner.php');
@@ -135,7 +144,6 @@ add_action('plugins_loaded', function() {
     knx_require('inc/core/resources/knx-hubs/api-delete-hub.php');
     knx_require('inc/core/resources/knx-hubs/api-update-settings.php');
     knx_require('inc/core/resources/knx-hubs/api-time-slots.php');
-    // Branding API (upload + register branding images)
     knx_require('inc/core/resources/knx-settings/api-brand-logo-upload.php');
 
     /* ======================================================
@@ -144,55 +152,51 @@ add_action('plugins_loaded', function() {
     knx_require('inc/core/resources/knx-cart/api-cart.php');
 
     /* ======================================================
-     * RESOURCES — KNX ADDRESSES (NEXUS 4.D)
+     * RESOURCES — KNX ADDRESSES
      * ====================================================== */
     knx_require('inc/core/resources/knx-addresses/api-addresses.php');
 
     /* ======================================================
-     * RESOURCES — KNX PROFILE (PHASE 2.BETA+)
+     * RESOURCES — KNX PROFILE
      * ====================================================== */
     knx_require('inc/core/resources/knx-profile/api-get-profile.php');
     knx_require('inc/core/resources/knx-profile/api-update-profile.php');
     knx_require('inc/core/resources/knx-profile/api-change-password.php');
 
     /* ======================================================
-     * RESOURCES — KNX CUSTOMERS (PHASE 2.BETA+)
+     * RESOURCES — KNX CUSTOMERS
      * ====================================================== */
     knx_require('inc/core/resources/knx-customers/api-list-customers.php');
 
     /* ======================================================
-     * RESOURCES — KNX ORDERS (MVP CANONICAL)
+     * RESOURCES — KNX ORDERS
      * ====================================================== */
-    knx_require('inc/core/knx-orders/api-create-order-mvp.php'); // MVP canonical
-    knx_require('inc/core/knx-orders/api-quote-totals.php');     // read-only quote
+    knx_require('inc/core/knx-orders/api-create-order-mvp.php');
+    knx_require('inc/core/knx-orders/api-quote-totals.php');
     knx_require('inc/core/knx-orders/api-get-order.php');
     knx_require('inc/core/knx-orders/api-list-orders.php');
     knx_require('inc/core/knx-orders/api-update-order-status.php');
-    knx_require('inc/core/knx-orders/api-order-messages.php');   // Driver ↔ Customer chat
+    knx_require('inc/core/knx-orders/api-order-messages.php');
 
     /* ======================================================
-     * RESOURCES — KNX PAYMENTS (A1.0-A1.3)
-     * ======================================================
-     * Stripe SDK + keys are managed ONLY by stripe-authority.php (SSOT).
+     * RESOURCES — KNX PAYMENTS
      * ====================================================== */
-    knx_require('inc/core/resources/knx-payments/api-create-payment-intent.php'); // A1.0: Intent creation
-    knx_require('inc/core/resources/knx-payments/api-payment-webhook.php');       // A1.2: Webhook handler
-    knx_require('inc/core/resources/knx-payments/api-payment-status.php');        // A1.1: Status polling (read-only)
+    knx_require('inc/core/resources/knx-payments/api-create-payment-intent.php');
+    knx_require('inc/core/resources/knx-payments/api-payment-webhook.php');
+    knx_require('inc/core/resources/knx-payments/api-payment-status.php');
 
     /* ======================================================
      * RESOURCES — KNX CHECKOUT
      * ====================================================== */
     knx_require('inc/core/resources/knx-checkout/api-checkout-prevalidate.php');
-    knx_require('inc/core/resources/knx-checkout/api-checkout-quote.php'); // MVP canonical
+    knx_require('inc/core/resources/knx-checkout/api-checkout-quote.php');
 
     /* ======================================================
      * RESOURCES — KNX LOCATION
      * ====================================================== */
     knx_require('inc/core/resources/knx-location/api-check-coverage.php');
     knx_require('inc/core/resources/knx-location/api-location-search.php');
-    // Nominatim geocode endpoint (server-side): returns normalized items for autocomplete
     knx_require('inc/core/resources/knx-geocode-search.php');
-    // Software fees REST resource (admin UI + resolution)
     knx_require('inc/core/resources/knx-fees/api-software-fees.php');
 
     /* ======================================================
@@ -224,7 +228,7 @@ add_action('plugins_loaded', function() {
     knx_require('inc/core/resources/knx-items/api-modifiers.php');
 
     /* ======================================================
-     * RESOURCES — KNX CITIES (SEALED)
+     * RESOURCES — KNX CITIES
      * ====================================================== */
     knx_require('inc/core/resources/knx-cities/api-edit-city.php');
     knx_require('inc/core/resources/knx-cities/get-cities.php');
@@ -236,9 +240,8 @@ add_action('plugins_loaded', function() {
     knx_require('inc/core/resources/knx-cities/api-city-branding.php');
 
     /* ======================================================
-     * RESOURCES — MVP DELIVERY (PHASE 3)
+     * RESOURCES — MVP DELIVERY
      * ====================================================== */
-    // OPS Live Orders (push endpoint removed)
     knx_require('inc/core/resources/knx-ops/api-live-orders.php');
     knx_require('inc/core/resources/knx-ops/api-all-orders.php');
     knx_require('inc/core/resources/knx-ops/api-dashboard.php');
@@ -247,20 +250,24 @@ add_action('plugins_loaded', function() {
     knx_require('inc/core/resources/knx-ops/api-assign-driver.php');
     knx_require('inc/core/resources/knx-ops/api-update-status.php');
     knx_require('inc/core/resources/knx-ops/api-unassign-driver.php');
-    // Driver-facing OPS endpoints (legacy)
     knx_require('inc/core/resources/knx-ops/api-driver-available-orders.php');
     knx_require('inc/core/resources/knx-ops/api-driver-active-orders.php');
     knx_require('inc/core/resources/knx-ops/api-driver-self-assign.php');
-    // Canonical availability engine for OPS/DRIVER
     knx_require('inc/core/resources/knx-ops/knx-ops-availability.php');
-    // Canonical v2 driver orders API
     knx_require('inc/core/resources/knx-ops/api-driver-orders.php');
 
     /* ======================================================
-     * RESOURCES — KNX DRIVERS (Driver App MVP)
+     * PUSH / NOTIFICATIONS
      * ====================================================== */
-    // Runtime APIs removed in PHASE 13/14 CLEAN (deleted)
-    // Administrative drivers endpoints (CRUD) remain loaded.
+    knx_require('inc/core/resources/knx-push/driver-soft-push-routes.php');
+    knx_require('inc/core/resources/knx-push/push-sender.php');
+    knx_require('inc/core/resources/knx-push/ntfy-sender.php');
+    knx_require('inc/core/resources/knx-push/worker.php');
+    knx_require('inc/core/resources/knx-push/cli-worker.php');
+
+    /* ======================================================
+     * RESOURCES — KNX DRIVERS
+     * ====================================================== */
     knx_require('inc/core/resources/knx-drivers/api-drivers-crud.php');
 
     /* ======================================================
@@ -279,50 +286,36 @@ add_action('plugins_loaded', function() {
     knx_require('inc/modules/customers/customers-shortcode.php');
 
     /* ======================================================
-     * MODULES — OPS ORDERS (Admin / Manager)
-     * NOTE: legacy OPS UI removed in PHASE 13.CLEAN — UI modules are deleted
+     * MODULES — OPS
      * ====================================================== */
-    /* Live Orders (OPS) — scaffolded module */
     knx_require('inc/modules/ops/live-orders/live-orders-shortcode.php');
     knx_require('inc/modules/ops/all-orders/all-orders-shortcode.php');
     knx_require('inc/modules/ops/dashboard/dashboard-shortcode.php');
     knx_require('inc/modules/ops/view-order/view-order-shortcode.php');
-    // Driver Ops UI
     knx_require('inc/modules/ops/driver-ops/driver-ops-shortcode.php');
     knx_require('inc/modules/ops/driver-notifier-shortcode.php');
     knx_require('inc/modules/ops/driver-live-orders/driver-live-orders-shortcode.php');
-    // Driver Active Orders (execution-focused)
     knx_require('inc/modules/ops/driver-active-orders/driver-active-orders-shortcode.php');
 
     /* ======================================================
-     * MODULES — DRIVERS (DB-canon Dashboards)
-     * Driver dashboards using ONLY knx_orders.status (8 DB-canon statuses).
-     * Cloned from manager patterns (fail-closed scope, inline assets, Nexus shell).
+     * MODULES — DRIVERS
      * ====================================================== */
     knx_require('inc/modules/drivers/active-orders/driver-active-orders-shortcode.php');
     knx_require('inc/modules/ops/driver-view-order/driver-view-order-shortcode.php');
 
-    /* Driver quick menu + profile (mobile driver UX) */
     knx_require('inc/modules/ops/driver-quick-menu/driver-quick-menu-shortcode.php');
     knx_require('inc/modules/ops/driver-profile/driver-profile-shortcode.php');
-    // Driver bottom navbar (global driver UI)
     knx_require('inc/modules/ops/driver-bottom-nav/driver-bottom-nav.php');
 
-    /* ======================================================
-     * MODULES — DRIVERS (Driver Dashboard)
-     * NOTE: drivers UI removed in PHASE 13.CLEAN — UI modules are deleted
-     * Backend driver resources were reviewed and ops backend removed.
-     * ====================================================== */
-    // Drivers admin UI (plugin-first) — restore admin module
     knx_require('inc/modules/drivers/drivers-shortcode.php');
 
     /* ======================================================
-     * MODULES — DRIVER NOTIFICATIONS (City Broadcast v1)
+     * MODULES — DRIVER NOTIFICATIONS
      * ====================================================== */
     knx_require('inc/modules/driver-notifications/driver-notifications-bootstrap.php');
 
     /* ======================================================
-     * MODULES — SYSTEM EMAILS (KNX-Controlled Templates)
+     * MODULES — SYSTEM EMAILS
      * ====================================================== */
     knx_require('inc/modules/system-emails/system-emails-bootstrap.php');
 
@@ -338,7 +331,7 @@ add_action('plugins_loaded', function() {
     knx_require('inc/modules/coupons/coupons-shortcode.php');
 
     /* ======================================================
-     * MODULES — KNX CITIES (NEW UI)
+     * MODULES — KNX CITIES
      * ====================================================== */
     knx_require('inc/modules/knx-cities/knx-cities-shortcode.php');
     knx_require('inc/modules/knx-cities/knx-edit-city.php');
@@ -362,9 +355,11 @@ add_action('plugins_loaded', function() {
     knx_require('inc/modules/items/edit-item-categories.php');
     knx_require('inc/modules/items/edit-item.php');
 
-    // Navigation (Phase 3.6 — NAVIGATION CANON)
-    knx_require('inc/public/navigation/navbar.php');              // Navbar: Public/Customer top nav
-    knx_require('inc/public/navigation/corporate-sidebar.php');   // Corporate: Admin/Staff fixed sidebar
+    /* ======================================================
+     * NAVIGATION
+     * ====================================================== */
+    knx_require('inc/public/navigation/navbar.php');
+    knx_require('inc/public/navigation/corporate-sidebar.php');
 
     knx_require('inc/modules/auth/auth-shortcode.php');
     knx_require('inc/modules/auth/reset-shortcode.php');
@@ -372,7 +367,6 @@ add_action('plugins_loaded', function() {
     knx_require('inc/modules/auth/auth-redirects.php');
 
     knx_require('inc/modules/admin/admin-menu.php');
-    // Settings module: site branding editable by admin (logo upload)
     knx_require('inc/modules/settings/settings-shortcode.php');
 
     /* ======================================================
@@ -391,7 +385,7 @@ add_action('plugins_loaded', function() {
 });
 
 /**
- * Initialize Stripe logger (no helpers boot here; SSOT boots on-demand).
+ * Initialize Stripe logger.
  */
 add_action('plugins_loaded', 'knx_init_stripe_logging', 20);
 function knx_init_stripe_logging() {
@@ -405,13 +399,123 @@ if (!wp_next_scheduled('knx_hourly_cleanup')) {
 }
 add_action('knx_hourly_cleanup', 'knx_cleanup_sessions');
 
+// Add a short cron schedule for worker runs (fallback). Adds a 1-minute interval.
+add_filter('cron_schedules', function($schedules){
+    if (!isset($schedules['every_minute'])) {
+        $schedules['every_minute'] = ['interval' => 60, 'display' => 'Every Minute'];
+    }
+    return $schedules;
+});
+
+if (!wp_next_scheduled('knx_dn_worker_cron')) {
+    wp_schedule_event(time(), 'every_minute', 'knx_dn_worker_cron');
+}
+
+/**
+ * Return true when the current frontend session belongs to a driver.
+ *
+ * @return bool
+ */
+function knx_is_driver_session_active() {
+    if (!function_exists('knx_get_driver_context')) {
+        return false;
+    }
+
+    $ctx = knx_get_driver_context();
+    if (!$ctx || empty($ctx->session) || !is_object($ctx->session)) {
+        return false;
+    }
+
+    return !empty($ctx->session->user_id) && ((string)($ctx->session->role ?? '') === 'driver');
+}
+
+/**
+ * Render the canonical browser push bootstrap for any authenticated driver session.
+ * This is the single global authority for:
+ * - config exposure
+ * - service worker registration
+ * - soft-push client loading
+ *
+ * Browser push now respects the dedicated browser switch.
+ */
+function knx_render_driver_soft_push_bootstrap() {
+    if (is_admin()) {
+        return;
+    }
+
+    if (!knx_is_driver_session_active()) {
+        return;
+    }
+
+    $ctx = function_exists('knx_get_driver_context') ? knx_get_driver_context() : null;
+    $uid = ($ctx && !empty($ctx->session->user_id)) ? (int)$ctx->session->user_id : 0;
+    if ($uid <= 0) {
+        return;
+    }
+
+    $browser_enabled = get_user_meta($uid, 'knx_browser_push_enabled', true);
+    $browser_enabled = ($browser_enabled === '' || is_null($browser_enabled)) ? '1' : ($browser_enabled ? '1' : '0');
+
+    if ($browser_enabled !== '1') {
+        return;
+    }
+
+    $config = [
+        'softPushPoll'    => rest_url('knx/v1/driver-soft-push/poll'),
+        'prefsUrl'        => rest_url('knx/v1/driver-soft-push/prefs'),
+        'ackUrl'          => rest_url('knx/v1/driver-soft-push/ack'),
+        'testUrl'         => rest_url('knx/v1/driver-soft-push/test-ntfy'),
+        'activeOrdersUrl' => site_url('/driver-active-orders'),
+        'swUrl'           => KNX_URL . 'inc/core/pwa/knx-ops-sw.js',
+        'pollVisibleMs'   => 9000,
+        'pollHiddenMs'    => 25000,
+        'debug'           => (defined('WP_DEBUG') && WP_DEBUG),
+    ];
+    ?>
+    <script>
+    (function () {
+        window.KNX_DRIVER_OPS_CONFIG = window.KNX_DRIVER_OPS_CONFIG || {};
+        var incoming = <?php echo wp_json_encode($config); ?>;
+        for (var key in incoming) {
+            if (Object.prototype.hasOwnProperty.call(incoming, key)) {
+                window.KNX_DRIVER_OPS_CONFIG[key] = incoming[key];
+            }
+        }
+
+        if (window.__KNX_DRIVER_SOFT_PUSH_SW_REGISTERED__) {
+            return;
+        }
+        window.__KNX_DRIVER_SOFT_PUSH_SW_REGISTERED__ = true;
+
+        if (!('serviceWorker' in navigator)) {
+            return;
+        }
+
+        try {
+            var swUrl = window.KNX_DRIVER_OPS_CONFIG.swUrl;
+            if (!swUrl) {
+                return;
+            }
+
+            navigator.serviceWorker.register(swUrl).catch(function (err) {
+                try { console.warn('KNX: service worker registration failed.', err); } catch (e) {}
+            });
+        } catch (err) {
+            try { console.warn('KNX: service worker bootstrap failed.', err); } catch (e) {}
+        }
+    })();
+    </script>
+    <script src="<?php echo esc_url(KNX_URL . 'inc/modules/ops/driver-ops/driver-soft-push-client.js?v=' . KNX_VERSION); ?>" defer></script>
+    <?php
+}
+
 // Force FontAwesome and core assets on ALL pages with high priority
 add_action('wp_enqueue_scripts', 'knx_enqueue_public_assets', 5);
 add_action('admin_enqueue_scripts', 'knx_enqueue_public_assets', 5);
 add_action('wp_head', 'knx_force_fontawesome_head', 1);
+add_action('wp_head', 'knx_render_driver_soft_push_bootstrap', 2);
 
 function knx_enqueue_public_assets() {
-    // FontAwesome 6.5.1
     wp_enqueue_style(
         'knx-fontawesome',
         'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css',
@@ -419,7 +523,6 @@ function knx_enqueue_public_assets() {
         '6.5.1'
     );
 
-    // Toast notifications
     wp_enqueue_style(
         'knx-toast',
         KNX_URL . 'inc/modules/core/knx-toast.css',
@@ -435,7 +538,6 @@ function knx_enqueue_public_assets() {
         true
     );
 
-    // Choices.js
     wp_enqueue_style(
         'choices-js',
         'https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css'

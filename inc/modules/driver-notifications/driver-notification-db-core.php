@@ -95,3 +95,39 @@ function knx_dn_increment_attempts($notification_id) {
         (int)$notification_id
     )) !== false);
 }
+
+function knx_dn_get_attempts($notification_id) {
+    global $wpdb;
+    $table = knx_dn_table_name();
+    $v = $wpdb->get_var($wpdb->prepare("SELECT attempts FROM {$table} WHERE id = %d LIMIT 1", (int)$notification_id));
+    return ($v === null) ? 0 : (int)$v;
+}
+
+function knx_dn_set_last_error($notification_id, $error_text) {
+    global $wpdb;
+    $table = knx_dn_table_name();
+    return ($wpdb->query($wpdb->prepare(
+        "UPDATE {$table} SET last_error = %s WHERE id = %d",
+        (string)$error_text,
+        (int)$notification_id
+    )) !== false);
+}
+
+function knx_dn_set_available_at($notification_id, $datetime_mysql) {
+    global $wpdb;
+    $table = knx_dn_table_name();
+    return ($wpdb->query($wpdb->prepare(
+        "UPDATE {$table} SET available_at = %s WHERE id = %d",
+        (string)$datetime_mysql,
+        (int)$notification_id
+    )) !== false);
+}
+
+function knx_dn_clear_available_at($notification_id) {
+    global $wpdb;
+    $table = knx_dn_table_name();
+    return ($wpdb->query($wpdb->prepare(
+        "UPDATE {$table} SET available_at = NULL WHERE id = %d",
+        (int)$notification_id
+    )) !== false);
+}

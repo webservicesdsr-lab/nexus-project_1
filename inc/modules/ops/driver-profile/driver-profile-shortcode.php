@@ -20,22 +20,20 @@ add_shortcode('knx_driver_profile', function() {
     $name = !empty($session->display_name) ? (string)$session->display_name : 'Driver';
     $email = !empty($session->user_email) ? (string)$session->user_email : '';
     $phone = '';
-    if (!empty($ctx->profile) && !empty($ctx->profile->phone)) $phone = (string)$ctx->profile->phone;
+    if (!empty($ctx->profile) && !empty($ctx->profile->phone)) {
+        $phone = (string)$ctx->profile->phone;
+    }
 
     $logout_url = wp_logout_url(home_url('/'));
 
-    // Generate nonces
     $knx_nonce = wp_create_nonce('knx_nonce');
     $wp_rest_nonce = wp_create_nonce('wp_rest');
-
-    // API endpoint
     $change_password_url = esc_url(rest_url('knx/v2/profile/change-password'));
 
-    // Inject styles + script
     $css = __DIR__ . '/driver-profile-style.css';
-    if (file_exists($css)) echo '<style>' . file_get_contents($css) . '</style>';
-    $js = __DIR__ . '/driver-profile-script.js';
-    if (file_exists($js)) echo '<script>' . file_get_contents($js) . '</script>';
+    if (file_exists($css)) {
+        echo '<style>' . file_get_contents($css) . '</style>';
+    }
 
     ob_start();
     ?>
@@ -46,11 +44,10 @@ add_shortcode('knx_driver_profile', function() {
         </div>
         <div class="knx-profile__meta">
           <div class="knx-profile__name"><?php echo esc_html($name); ?></div>
-          <div class="knx-profile__contact"><?php echo esc_html($email); ?><?php if($phone) echo ' • ' . esc_html($phone); ?></div>
+          <div class="knx-profile__contact"><?php echo esc_html($email); ?><?php if ($phone) echo ' • ' . esc_html($phone); ?></div>
         </div>
       </div>
 
-      <!-- Change Password Section -->
       <div class="knx-profile__section">
         <h3 class="knx-profile__section-title">Change Password</h3>
         <form id="knxChangePasswordForm" class="knx-profile__form">
@@ -74,20 +71,81 @@ add_shortcode('knx_driver_profile', function() {
         </form>
       </div>
 
+      <div class="knx-profile__section">
+        <h3 class="knx-profile__section-title">Notifications</h3>
+
+        <div class="knx-profile__switch-list">
+          <label class="knx-profile__switch-row" for="knx_browser_push_enabled">
+            <div class="knx-profile__switch-copy">
+              <div class="knx-profile__switch-title">Browser notifications</div>
+              <div class="knx-profile__switch-desc">Alerts in this browser when available.</div>
+            </div>
+            <span class="knx-switch">
+              <input id="knx_browser_push_enabled" type="checkbox">
+              <span class="knx-slider"></span>
+            </span>
+          </label>
+
+          <label class="knx-profile__switch-row" for="knx_ntfy_enabled">
+            <div class="knx-profile__switch-copy">
+              <div class="knx-profile__switch-title">Phone notifications</div>
+              <div class="knx-profile__switch-desc">Send alerts to the ntfy app on your phone.</div>
+            </div>
+            <span class="knx-switch">
+              <input id="knx_ntfy_enabled" type="checkbox">
+              <span class="knx-slider"></span>
+            </span>
+          </label>
+
+          <label class="knx-profile__switch-row" for="knx_email_enabled">
+            <div class="knx-profile__switch-copy">
+              <div class="knx-profile__switch-title">Email notifications</div>
+              <div class="knx-profile__switch-desc">Also send alerts to your email.</div>
+            </div>
+            <span class="knx-switch">
+              <input id="knx_email_enabled" type="checkbox">
+              <span class="knx-slider"></span>
+            </span>
+          </label>
+        </div>
+
+        <div class="knx-form-field" id="knxNtfyFieldWrap">
+          <label for="knx_ntfy_id">ntfy topic</label>
+          <input type="text" id="knx_ntfy_id" placeholder="e.g. localbites-delivery-driver26" style="width:100%;">
+          <small class="knx-form-hint">Example: localbites-delivery-driver26</small>
+        </div>
+
+        <div class="knx-profile__notif-actions">
+          <button id="knxSaveNotifPrefs" class="knx-profile__btn knx-profile__btn--primary" type="button">Save Notification Settings</button>
+          <button id="knxTestNtfyBtn" class="knx-profile__btn knx-profile__btn--ghost" type="button">Send Test Phone Notification</button>
+          <span id="knxSaveNotifMsg" class="knx-profile__inline-message" style="display:none;"></span>
+        </div>
+      </div>
+
       <div class="knx-profile__actions">
         <a class="knx-profile__btn knx-profile__btn--ghost" href="<?php echo esc_attr($logout_url); ?>">Logout</a>
       </div>
 
       <script>
         window.knxDriverProfile = {
-          changePasswordUrl: <?php echo json_encode($change_password_url); ?>,
-          knxNonce: <?php echo json_encode($knx_nonce); ?>,
-          wpRestNonce: <?php echo json_encode($wp_rest_nonce); ?>
+          changePasswordUrl: <?php echo wp_json_encode($change_password_url); ?>,
+          knxNonce: <?php echo wp_json_encode($knx_nonce); ?>,
+          wpRestNonce: <?php echo wp_json_encode($wp_rest_nonce); ?>,
+          notificationPrefsUrl: <?php echo wp_json_encode(rest_url('knx/v1/driver-soft-push/prefs')); ?>,
+          notificationTestUrl: <?php echo wp_json_encode(rest_url('knx/v1/driver-soft-push/test-ntfy')); ?>
         };
       </script>
 
+      <script>
       <?php
-        // Render bottom navbar (driver) if available
+        $js = __DIR__ . '/driver-profile-script.js';
+        if (file_exists($js)) {
+            echo file_get_contents($js);
+        }
+      ?>
+      </script>
+
+      <?php
         if (function_exists('knx_driver_bottom_nav_render')) {
             knx_driver_bottom_nav_render(array('current' => 'profile'));
         }

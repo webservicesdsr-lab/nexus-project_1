@@ -3,15 +3,16 @@ if (!defined('ABSPATH')) exit;
 
 /**
  * ==========================================================
- * Kingdom Nexus â€” Driver OPS Dashboard (Shortcode) (v1.1 SEALED)
+ * Kingdom Nexus — Driver OPS Dashboard (Shortcode) (v1.1 SEALED)
  * Shortcode: [knx_driver_ops_dashboard]
  * ----------------------------------------------------------
  * Notes:
  * - Assets injected via <link>/<script> (no wp_footer, no enqueue).
  * - UI is NON-authoritative; all actions via REST.
  * - Uses:
- *   GET  /knx/v1/ops/driver-available-orders (snapshot-sealed pickup addresses)
+ *   GET  /knx/v2/driver/orders/available
  *   POST /knx/v2/driver/orders/{id}/assign
+ * - Soft-push runtime is owned globally by kingdom-nexus.php
  * ==========================================================
  */
 
@@ -27,17 +28,17 @@ add_shortcode('knx_driver_ops', function () {
             wp_safe_redirect(site_url('/login'));
             exit;
         }
-        // Strict driver-only (fail closed)
+
         $role = isset($ctx->session->role) ? (string)$ctx->session->role : '';
         if ($role !== 'driver') {
             wp_safe_redirect(site_url('/login'));
             exit;
         }
     } else {
-        // Fallback to session role check (best-effort)
         if (!function_exists('knx_get_session')) {
             return '<div class="knx-drivers-err">Session unavailable.</div>';
         }
+
         $session = knx_get_session();
         $role = $session && isset($session->role) ? (string)$session->role : '';
         if (!$session || $role !== 'driver') {
@@ -46,7 +47,6 @@ add_shortcode('knx_driver_ops', function () {
         }
     }
 
-    // Get driver name for personalized greeting (safe)
     $driver_name = '';
     if ($ctx && isset($ctx->session->username)) {
         $driver_name = (string)$ctx->session->username;
@@ -54,37 +54,24 @@ add_shortcode('knx_driver_ops', function () {
         $driver_name = (string)$session->username;
     }
 
-    // Nonces
     $knx_nonce     = wp_create_nonce('knx_nonce');
     $wp_rest_nonce = wp_create_nonce('wp_rest');
 
-    // API URLs (v2 = canon DB statuses)
     $api_available = rest_url('knx/v2/driver/orders/available');
-    $api_base      = rest_url('knx/v2/driver/orders/'); // {base}{id}/assign
-
-    // Page URLs (canonical)
+    $api_base      = rest_url('knx/v2/driver/orders/');
     $active_orders_url = site_url('/driver-active-orders');
-    $past_orders_url   = site_url('/driver-active-orders?include_terminal=1'); // adjust later if needed
+    $past_orders_url   = site_url('/driver-active-orders?include_terminal=1');
 
-    // Asset URLs (stable)
     $ver = defined('KNX_VERSION') ? KNX_VERSION : '1.0';
 
-    // Prefer KNX_URL; fallback to plugin_dir_url(__DIR__) and walk up safely
     $base_url = defined('KNX_URL') ? KNX_URL : plugin_dir_url(__DIR__);
-    // __DIR__ is .../inc/modules/ops/driver-ops, so we need to reach plugin root:
-    // driver-ops -> ops -> modules -> inc -> plugin root
-    // plugin_dir_url(__DIR__) gives .../inc/modules/ops/driver-ops/
-    // We trim to site path by using KNX_URL when available (preferred).
-    // If KNX_URL missing, we still can build relative paths from this module:
-    // We'll use "../../.." relative within the same plugin URL.
     if (!defined('KNX_URL')) {
-        $base_url = trailingslashit(plugins_url('/', dirname(__FILE__, 4))); // plugin root URL
+        $base_url = trailingslashit(plugins_url('/', dirname(__FILE__, 4)));
     }
 
     $css_url = esc_url($base_url . 'inc/modules/ops/driver-ops/driver-ops-style.css?v=' . $ver);
     $js_url  = esc_url($base_url . 'inc/modules/ops/driver-ops/driver-ops-script.js?v=' . $ver);
 
-    // Global toast system (shared UI component)
     $toast_css_url = esc_url($base_url . 'inc/modules/core/knx-toast.css?v=' . $ver);
     $toast_js_url  = esc_url($base_url . 'inc/modules/core/knx-toast.js?v=' . $ver);
 
@@ -132,7 +119,7 @@ add_shortcode('knx_driver_ops', function () {
         <div class="knx-search-container" id="knxSearchContainer" style="display:none;">
             <label class="sr-only" for="knxDriverOpsSearch">Search</label>
             <input id="knxDriverOpsSearch" class="knx-input" type="text" inputmode="search"
-                   placeholder="Search by order # or addressâ€¦" autocomplete="off">
+                   placeholder="Search by order # or address…" autocomplete="off">
         </div>
 
         <button type="button" class="knx-today-orders-bar" id="knxViewPastOrders">
@@ -140,11 +127,10 @@ add_shortcode('knx_driver_ops', function () {
         </button>
 
         <div id="knxDriverOpsList" class="knx-driver-ops-list" aria-label="Available orders list">
-            <div class="knx-empty">Loading available ordersâ€¦</div>
+            <div class="knx-empty">Loading available orders…</div>
         </div>
     </div>
 
-    <!-- Order Details Modal (canon) -->
     <div id="knxDriverOpsOrderModal" class="knx-modal" aria-hidden="true">
         <div class="knx-modal-content" role="dialog" aria-modal="true" aria-labelledby="knxDriverOpsOrderTitle">
             <div class="knx-modal-head">
@@ -161,7 +147,6 @@ add_shortcode('knx_driver_ops', function () {
         </div>
     </div>
 
-    <!-- Confirm Accept Modal (present but optional) -->
     <div id="knxDriverOpsConfirm" class="knx-modal" aria-hidden="true">
         <div class="knx-modal-content knx-confirm" role="dialog" aria-modal="true" aria-labelledby="knxDriverOpsConfirmTitle">
             <div class="knx-modal-head">
@@ -176,7 +161,6 @@ add_shortcode('knx_driver_ops', function () {
         </div>
     </div>
 
-    <!-- Map Modal (canon) -->
     <div id="knxDriverOpsMapModal" class="knx-modal" aria-hidden="true">
         <div class="knx-modal-content knx-map-modal" role="dialog" aria-modal="true" aria-labelledby="knxDriverOpsMapTitle">
             <div class="knx-modal-head">
@@ -210,15 +194,13 @@ add_shortcode('knx_driver_ops', function () {
     </div>
 
     <script>
-      window.KNX_DRIVER_OPS_CONFIG = {
-        apiAvailable: <?php echo wp_json_encode($api_available); ?>,
-        apiBase: <?php echo wp_json_encode($api_base); ?>,
-        knxNonce: <?php echo wp_json_encode($knx_nonce); ?>,
-        wpRestNonce: <?php echo wp_json_encode($wp_rest_nonce); ?>,
-        activeOrdersUrl: <?php echo wp_json_encode($active_orders_url); ?>,
-        pastOrdersUrl: <?php echo wp_json_encode($past_orders_url); ?>,
-        pollMs: 15000
-      };
+      window.KNX_DRIVER_OPS_CONFIG = window.KNX_DRIVER_OPS_CONFIG || {};
+      window.KNX_DRIVER_OPS_CONFIG.apiAvailable = <?php echo wp_json_encode($api_available); ?>;
+      window.KNX_DRIVER_OPS_CONFIG.apiBase = <?php echo wp_json_encode($api_base); ?>;
+      window.KNX_DRIVER_OPS_CONFIG.knxNonce = <?php echo wp_json_encode($knx_nonce); ?>;
+      window.KNX_DRIVER_OPS_CONFIG.wpRestNonce = <?php echo wp_json_encode($wp_rest_nonce); ?>;
+      window.KNX_DRIVER_OPS_CONFIG.activeOrdersUrl = <?php echo wp_json_encode($active_orders_url); ?>;
+      window.KNX_DRIVER_OPS_CONFIG.pastOrdersUrl = <?php echo wp_json_encode($past_orders_url); ?>;
     </script>
 
     <script src="<?php echo $toast_js_url; ?>"></script>

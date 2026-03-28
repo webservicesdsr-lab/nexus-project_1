@@ -1,33 +1,270 @@
-/* KNX — Driver Profile styles */
-.knx-profile{max-width:720px;margin:16px auto;padding:18px;background:var(--nxs-bg,#f6f7f9);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--nxs-text,#0b1220)}
-.knx-profile__card{display:flex;align-items:center;gap:16px;background:var(--nxs-card,#ffffff);padding:14px;border-radius:12px;box-shadow:0 12px 30px rgba(11,18,32,0.06)}
-.knx-profile__avatar{width:64px;height:64px;border-radius:12px;background:var(--nxs-primary,#0b793a);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:22px}
-.knx-profile__name{font-size:18px;font-weight:900}
-.knx-profile__contact{font-size:13px;color:var(--nxs-muted,#6b7280);margin-top:4px}
+.knx-profile {
+  padding: 16px 16px 110px;
+  max-width: 760px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
 
-/* Section */
-.knx-profile__section{background:var(--nxs-card,#ffffff);padding:20px;border-radius:12px;margin-top:16px;box-shadow:0 12px 30px rgba(11,18,32,0.06)}
-.knx-profile__section-title{font-size:18px;font-weight:900;margin:0 0 16px 0;color:var(--nxs-text,#0b1220)}
+.knx-profile__card,
+.knx-profile__section {
+  background: #fff;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  border-radius: 18px;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.05);
+}
 
-/* Form */
-.knx-profile__form{display:flex;flex-direction:column;gap:16px}
-.knx-form-field{display:flex;flex-direction:column;gap:6px}
-.knx-form-field label{font-weight:700;font-size:14px;color:var(--nxs-text,#0b1220)}
-.knx-form-field label .required{color:#dc2626}
-.knx-form-field input{padding:10px 14px;border:1px solid rgba(11,18,32,0.1);border-radius:8px;font-size:15px;font-family:inherit;transition:all 0.2s}
-.knx-form-field input:focus{outline:none;border-color:var(--nxs-primary,#0b793a);box-shadow:0 0 0 3px rgba(11,121,58,0.1)}
-.knx-form-hint{font-size:12px;color:var(--nxs-muted,#6b7280)}
+.knx-profile__card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  margin-bottom: 16px;
+}
 
-/* Message */
-.knx-profile__message{padding:12px 16px;border-radius:8px;font-size:14px;font-weight:600;margin-top:8px}
-.knx-profile__message--success{background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0}
-.knx-profile__message--error{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+.knx-profile__avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 999px;
+  background: #0b793a;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 20px;
+  flex: 0 0 auto;
+}
 
-/* Actions */
-.knx-profile__actions{display:flex;gap:10px;margin-top:16px}
-.knx-profile__btn{padding:10px 12px;border-radius:10px;background:var(--nxs-primary,#0b793a);color:#fff;text-decoration:none;font-weight:800;border:none;cursor:pointer;font-family:inherit;font-size:15px;transition:all 0.2s}
-.knx-profile__btn:hover{opacity:0.9}
-.knx-profile__btn:disabled{opacity:0.6;cursor:not-allowed}
-.knx-profile__btn--primary{background:var(--nxs-primary,#0b793a)}
-.knx-profile__btn--ghost{background:transparent;border:1px solid rgba(11,18,32,0.06);color:var(--nxs-text,#0b1220)}
+.knx-profile__meta {
+  min-width: 0;
+}
 
+.knx-profile__name {
+  font-size: 18px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.knx-profile__contact {
+  margin-top: 4px;
+  color: #6b7280;
+  font-size: 14px;
+  word-break: break-word;
+}
+
+.knx-profile__section {
+  padding: 18px;
+  margin-bottom: 16px;
+}
+
+.knx-profile__section-title {
+  margin: 0 0 14px;
+  font-size: 18px;
+  line-height: 1.2;
+  color: #111827;
+}
+
+.knx-profile__form {
+  display: grid;
+  gap: 14px;
+}
+
+.knx-form-field {
+  display: grid;
+  gap: 6px;
+}
+
+.knx-form-field label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.knx-form-field input,
+.knx-form-field select {
+  width: 100%;
+  min-height: 46px;
+  border-radius: 12px;
+  border: 1px solid rgba(17, 24, 39, 0.12);
+  padding: 0 14px;
+  font-size: 15px;
+  box-sizing: border-box;
+  background: #fff;
+  color: #111827;
+}
+
+.knx-form-field input:focus,
+.knx-form-field select:focus {
+  outline: none;
+  border-color: #0b793a;
+  box-shadow: 0 0 0 4px rgba(11, 121, 58, 0.12);
+}
+
+.knx-form-hint {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.knx-profile__message {
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.knx-profile__btn {
+  appearance: none;
+  border: none;
+  border-radius: 14px;
+  min-height: 46px;
+  padding: 0 18px;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.knx-profile__btn:hover {
+  transform: translateY(-1px);
+}
+
+.knx-profile__btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.knx-profile__btn--primary {
+  background: #0b793a;
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(11, 121, 58, 0.2);
+}
+
+.knx-profile__btn--ghost {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.knx-profile__actions {
+  display: flex;
+  gap: 10px;
+}
+
+.knx-profile__switch-list {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.knx-profile__switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  border-radius: 14px;
+  background: #fafafa;
+}
+
+.knx-profile__switch-copy {
+  min-width: 0;
+}
+
+.knx-profile__switch-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.knx-profile__switch-desc {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.knx-profile__notif-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.knx-profile__inline-message {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.knx-switch {
+  position: relative;
+  display: inline-flex;
+  width: 54px;
+  height: 32px;
+  flex: 0 0 auto;
+}
+
+.knx-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.knx-slider {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: #d1d5db;
+  transition: 0.2s ease;
+  cursor: pointer;
+}
+
+.knx-slider::before {
+  content: "";
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  left: 4px;
+  top: 4px;
+  border-radius: 999px;
+  background: #fff;
+  transition: 0.2s ease;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.18);
+}
+
+.knx-switch input:checked + .knx-slider {
+  background: #0b793a;
+}
+
+.knx-switch input:checked + .knx-slider::before {
+  transform: translateX(22px);
+}
+
+.required {
+  color: #dc2626;
+}
+
+@media (max-width: 640px) {
+  .knx-profile {
+    padding: 12px 12px 108px;
+  }
+
+  .knx-profile__card,
+  .knx-profile__section {
+    border-radius: 16px;
+  }
+
+  .knx-profile__switch-row {
+    align-items: flex-start;
+  }
+
+  .knx-profile__notif-actions,
+  .knx-profile__actions {
+    display: grid;
+    gap: 10px;
+  }
+
+  .knx-profile__btn {
+    width: 100%;
+  }
+}

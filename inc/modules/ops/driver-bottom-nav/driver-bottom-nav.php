@@ -16,6 +16,7 @@ if (!defined('ABSPATH')) exit;
  * - Driver-only (auto-detects via session).
  * - Inline CSS/JS injected in wp_footer.
  * - Appears on ALL pages when driver is logged in.
+ * - Soft-push runtime is owned globally by kingdom-nexus.php
  * ==========================================================
  */
 
@@ -23,34 +24,34 @@ if (!defined('ABSPATH')) exit;
  * Auto-inject bottom navbar for drivers globally
  */
 add_action('wp_footer', function () {
-    // Only run if driver context is available
     if (!function_exists('knx_get_driver_context')) return;
-    
+
     $ctx = knx_get_driver_context();
     if (!$ctx || empty($ctx->session) || (string)($ctx->session->role ?? '') !== 'driver') return;
 
-    // Default URLs
     $home_url    = site_url('/driver-quick-menu');
     $catch_url   = site_url('/driver-ops');
     $orders_url  = site_url('/driver-active-orders');
     $profile_url = site_url('/driver-profile');
 
-    // Load assets
     $css = '';
     $js  = '';
 
     $css_path = __DIR__ . '/driver-bottom-nav-style.css';
-    if (file_exists($css_path)) $css = (string)file_get_contents($css_path);
+    if (file_exists($css_path)) {
+        $css = (string) file_get_contents($css_path);
+    }
 
     $js_path = __DIR__ . '/driver-bottom-navbar.js';
-    if (file_exists($js_path)) $js = (string)file_get_contents($js_path);
+    if (file_exists($js_path)) {
+        $js = (string) file_get_contents($js_path);
+    }
 
     ?>
     <?php if ($css !== ''): ?>
         <style data-knx="driver-bottom-nav-style"><?php echo $css; ?></style>
     <?php endif; ?>
 
-    <!-- Add body class for safe area padding -->
     <script>
         document.body.classList.add('knx-has-driver-nav');
     </script>
@@ -89,7 +90,5 @@ add_action('wp_footer', function () {
  * Legacy shortcode support (optional, for manual placement)
  */
 add_shortcode('knx_driver_bottom_nav', function () {
-    // Shortcode now does nothing (navbar auto-injects via wp_footer)
-    // Return empty to avoid duplicate navbars
     return '';
 });

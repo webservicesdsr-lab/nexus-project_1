@@ -710,6 +710,10 @@ CREATE TABLE `y05_knx_drivers` (
   `full_name` varchar(190) NOT NULL,
   `phone` varchar(50) NULL,
   `email` varchar(190) NULL,
+  `device_type` varchar(20) NOT NULL DEFAULT 'unknown',
+  `pref_channel` varchar(30) NOT NULL DEFAULT 'soft-push',
+  `ntfy_id` varchar(255) DEFAULT NULL,
+  `app_installed` tinyint(1) NOT NULL DEFAULT 0,
   `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `deleted_at` datetime NULL DEFAULT NULL,
   `deleted_by` bigint UNSIGNED NULL DEFAULT NULL,
@@ -718,6 +722,8 @@ CREATE TABLE `y05_knx_drivers` (
   `updated_at` datetime NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_user_id` (`user_id`),
+  KEY `idx_pref_channel` (`pref_channel`),
+  KEY `idx_device_type` (`device_type`),
   KEY `idx_active` (`is_active`),
   KEY `idx_deleted_at` (`deleted_at`),
   CONSTRAINT `fk_drivers_user` FOREIGN KEY (`user_id`) REFERENCES `y05_knx_users` (`id`) ON DELETE SET NULL,
@@ -1012,29 +1018,40 @@ CREATE TABLE `y05_knx_driver_ops` (
 
 /* =========================================================
    PUSH SUBSCRIPTIONS
+   Final audited version
    ========================================================= */
 DROP TABLE IF EXISTS `y05_knx_push_subscriptions`;
 CREATE TABLE `y05_knx_push_subscriptions` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `user_id` bigint UNSIGNED NOT NULL,
   `role` varchar(32) NOT NULL,
+  `platform` varchar(20) NOT NULL DEFAULT 'webpush',
   `endpoint` text NOT NULL,
-  `p256dh` varchar(255) NOT NULL,
-  `auth` varchar(255) NOT NULL,
+  `p256dh` varchar(255) DEFAULT NULL,
+  `auth` varchar(255) DEFAULT NULL,
+  `device_label` varchar(120) DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `last_seen_at` datetime DEFAULT NULL,
   `revoked_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_user_role` (`user_id`,`role`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_role` (`role`),
+  KEY `idx_platform` (`platform`),
   KEY `idx_revoked_at` (`revoked_at`),
-  CONSTRAINT `fk_push_subscriptions_user` FOREIGN KEY (`user_id`) REFERENCES `y05_knx_users` (`id`) ON DELETE CASCADE
+  KEY `idx_user_role_platform_revoked` (`user_id`,`role`,`platform`,`revoked_at`),
+  CONSTRAINT `fk_push_subscriptions_user`
+    FOREIGN KEY (`user_id`) REFERENCES `y05_knx_users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
--- =========================================================
--- Driver Notifications
--- =========================================================
+/* =========================================================
+   DRIVER NOTIFICATIONS
+   Canonical queue / ledger per driver + channel (final audited)
+   Improvements:
+   - `payload_json` as JSON type for validation & indexing
+   - `status` constrained to ENUM of expected states
+   - Foreign keys to orders/drivers/cities for referential integrity
+   ========================================================= */
 DROP TABLE IF EXISTS `y05_knx_driver_notifications`;
 CREATE TABLE `y05_knx_driver_notifications` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -1043,17 +1060,36 @@ CREATE TABLE `y05_knx_driver_notifications` (
   `city_id` bigint UNSIGNED NOT NULL,
   `event_type` varchar(50) NOT NULL,
   `channel` varchar(30) NOT NULL DEFAULT 'email',
-  `payload_json` text NOT NULL,
-  `status` varchar(20) NOT NULL DEFAULT 'pending',
+  `payload_json` JSON NOT NULL,
+  `status` enum('pending','processing','delivered','failed') NOT NULL DEFAULT 'pending',
   `attempts` int UNSIGNED NOT NULL DEFAULT 0,
+  `last_error` text DEFAULT NULL,
+  `available_at` datetime DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `sent_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_order_driver_event` (`order_id`,`driver_id`,`event_type`),
+
+  /* One row per order + driver + event + channel */
+  UNIQUE KEY `uk_order_driver_event_channel` (`order_id`,`driver_id`,`event_type`,`channel`),
+
+  /* Common lookups */
   KEY `idx_city_id` (`city_id`),
+  KEY `idx_driver_id` (`driver_id`),
+  KEY `idx_channel` (`channel`),
   KEY `idx_status` (`status`),
-  KEY `idx_created_at` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  KEY `idx_created_at` (`created_at`),
+  KEY `idx_available_at` (`available_at`),
+
+  /* Worker / poll friendly indexes */
+  KEY `idx_channel_status_created` (`channel`,`status`,`created_at`),
+  KEY `idx_driver_channel_status_created` (`driver_id`,`channel`,`status`,`created_at`),
+  KEY `idx_driver_channel_status_available` (`driver_id`,`channel`,`status`,`available_at`),
+
+  /* Referential integrity */
+  CONSTRAINT `fk_driver_notifications_order` FOREIGN KEY (`order_id`) REFERENCES `y05_knx_orders` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_driver_notifications_driver` FOREIGN KEY (`driver_id`) REFERENCES `y05_knx_drivers` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_driver_notifications_city` FOREIGN KEY (`city_id`) REFERENCES `y05_knx_cities` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 /* =========================================================
    PASSWORD RESETS + EMAIL VERIFICATIONS

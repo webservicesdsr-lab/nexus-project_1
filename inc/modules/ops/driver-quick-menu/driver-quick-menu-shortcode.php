@@ -4,11 +4,12 @@ if (!defined('ABSPATH')) exit;
 
 /**
  * ==========================================================
- * KNX — Driver Quick Menu — CANON v1.0
+ * KNX — Driver Quick Menu — CANON v1.1
  * Shortcode: [knx_driver_quick_menu]
  *
- * - Driver-only (fail-closed).
- * - Simple navigation tiles (no backend dependencies).
+ * - Driver-only (fail-closed)
+ * - Simple navigation tiles
+ * - Notification controls moved to Profile
  * ==========================================================
  */
 
@@ -51,11 +52,9 @@ add_shortcode('knx_driver_quick_menu', function ($atts = []) {
 
             <a class="knx-dqm__tile" href="<?php echo esc_url($profile_url); ?>">
                 <div class="knx-dqm__title">Profile</div>
-                <div class="knx-dqm__sub">Account</div>
+                <div class="knx-dqm__sub">Notifications & account</div>
             </a>
         </div>
-
-        <div class="knx-dqm__toast" id="knxDqmToast" aria-live="polite" aria-atomic="true"></div>
     </div>
     <?php
 

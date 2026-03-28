@@ -77,7 +77,7 @@ add_action('rest_api_init', function () {
 
 /**
  * Allowed statuses (targets) for DB-canon lifecycle.
- * pending_payment is not a target (webhook-only).
+ * pending_payment is not a direct target from public/admin UI flows.
  *
  * @return array
  */
@@ -136,14 +136,37 @@ function knx_orders_driver_profile_id_from_session($session) {
     $ctx = knx_get_driver_context();
     if (!$ctx || empty($ctx->session) || empty($ctx->session->user_id)) return 0;
 
-    // Strong preference: ctx->driver->id
     if (isset($ctx->driver) && is_object($ctx->driver) && isset($ctx->driver->id)) {
         $id = (int)$ctx->driver->id;
         return $id > 0 ? $id : 0;
     }
 
-    // Fail-closed: if driver profile isn't available, do not allow.
     return 0;
+}
+
+/**
+ * Emit canonical post-confirmation hook.
+ *
+ * @param int    $order_id
+ * @param string $from_status
+ * @param string $to_status
+ * @return void
+ */
+function knx_orders_maybe_fire_confirmed_hook($order_id, $from_status, $to_status) {
+    $order_id = (int)$order_id;
+    $from_status = (string)$from_status;
+    $to_status = (string)$to_status;
+
+    if ($order_id <= 0) return;
+    if ($to_status !== 'confirmed') return;
+    if ($from_status === 'confirmed') return;
+
+    try {
+        do_action('knx_order_confirmed', $order_id);
+    } catch (\Throwable $e) {
+        // Non-blocking by design.
+        return;
+    }
 }
 
 /**
@@ -164,21 +187,35 @@ function knx_ops_update_order_status_alias($request) {
  * - Transition matrix validation
  * - Orders update
  * - Status history insert
+ * - Canonical post-confirmation hook emission
  *
  * IMPORTANT:
  * - This function does NOT check role/scope.
  * - Callers MUST enforce authorization + scope first.
  *
+ * Options:
+ * - skip_transaction (bool): caller already owns transaction/locks
+ * - fire_confirmed_hook (bool): emit post-commit hook when entering confirmed
+ *
  * Returns:
  * - WP_Error on failure (with status code in data['status'])
- * - array on success: ['success','order_id','from_status','status']
+ * - array on success:
+ *   ['success','order_id','from_status','status','should_fire_confirmed_hook']
  * ==========================================================
  */
-function knx_orders_apply_status_change_db_canon($order_id, $new_status, $changed_by_user_id, $now_mysql = null) {
+function knx_orders_apply_status_change_db_canon($order_id, $new_status, $changed_by_user_id, $now_mysql = null, $options = []) {
     global $wpdb;
 
     $order_id = (int)$order_id;
     $changed_by_user_id = (int)$changed_by_user_id;
+
+    $options = wp_parse_args((array)$options, [
+        'skip_transaction'    => false,
+        'fire_confirmed_hook' => true,
+    ]);
+
+    $skip_transaction = !empty($options['skip_transaction']);
+    $fire_confirmed_hook = !empty($options['fire_confirmed_hook']);
 
     if ($order_id <= 0) {
         return new WP_Error('invalid-order-id', 'Invalid order_id', ['status' => 400]);
@@ -194,6 +231,7 @@ function knx_orders_apply_status_change_db_canon($order_id, $new_status, $change
     $table_status_history = $wpdb->prefix . 'knx_order_status_history';
 
     $allowed_transitions = [
+        'pending_payment'     => ['confirmed'],
         'confirmed'           => ['accepted_by_driver', 'cancelled'],
         'accepted_by_driver'  => ['accepted_by_hub', 'cancelled'],
         'accepted_by_hub'     => ['preparing', 'cancelled'],
@@ -204,7 +242,9 @@ function knx_orders_apply_status_change_db_canon($order_id, $new_status, $change
         'cancelled'           => [],
     ];
 
-    $wpdb->query('START TRANSACTION');
+    if (!$skip_transaction) {
+        $wpdb->query('START TRANSACTION');
+    }
 
     try {
         $order = $wpdb->get_row($wpdb->prepare(
@@ -216,36 +256,41 @@ function knx_orders_apply_status_change_db_canon($order_id, $new_status, $change
         ));
 
         if (!$order) {
-            $wpdb->query('ROLLBACK');
+            if (!$skip_transaction) {
+                $wpdb->query('ROLLBACK');
+            }
             return new WP_Error('order-not-found', 'Order not found', ['status' => 404]);
         }
 
         $current_status = (string)($order->status ?? '');
         $ps = strtolower((string)($order->payment_status ?? ''));
 
-        if ($current_status === 'pending_payment') {
-            $wpdb->query('ROLLBACK');
-            return new WP_Error('invalid-transition', 'Order is pending payment. Status changes are blocked until payment is confirmed.', ['status' => 409]);
-        }
-
         if ($ps !== 'paid') {
-            $wpdb->query('ROLLBACK');
+            if (!$skip_transaction) {
+                $wpdb->query('ROLLBACK');
+            }
             return new WP_Error('payment-not-paid', 'Order is not paid. Status changes are blocked.', ['status' => 409]);
         }
 
         if ($current_status === $new_status) {
-            $wpdb->query('ROLLBACK');
+            if (!$skip_transaction) {
+                $wpdb->query('ROLLBACK');
+            }
             return new WP_Error('status-already', 'Status is already ' . $current_status, ['status' => 400]);
         }
 
         if (!isset($allowed_transitions[$current_status])) {
-            $wpdb->query('ROLLBACK');
+            if (!$skip_transaction) {
+                $wpdb->query('ROLLBACK');
+            }
             return new WP_Error('invalid-current-status', 'Unknown current status: ' . $current_status, ['status' => 400]);
         }
 
         $allowed = $allowed_transitions[$current_status];
         if (!in_array($new_status, $allowed, true)) {
-            $wpdb->query('ROLLBACK');
+            if (!$skip_transaction) {
+                $wpdb->query('ROLLBACK');
+            }
             return new WP_Error('invalid-transition', sprintf(
                 'Cannot transition from %s to %s. Allowed: %s',
                 $current_status,
@@ -291,17 +336,28 @@ function knx_orders_apply_status_change_db_canon($order_id, $new_status, $change
             throw new Exception('Failed to insert status history');
         }
 
-        $wpdb->query('COMMIT');
+        $should_fire_confirmed_hook = ($new_status === 'confirmed' && $current_status !== 'confirmed');
+
+        if (!$skip_transaction) {
+            $wpdb->query('COMMIT');
+
+            if ($fire_confirmed_hook && $should_fire_confirmed_hook) {
+                knx_orders_maybe_fire_confirmed_hook($order_id, $current_status, $new_status);
+            }
+        }
 
         return [
-            'success'     => true,
-            'order_id'    => $order_id,
-            'from_status' => $current_status,
-            'status'      => $new_status,
+            'success'                    => true,
+            'order_id'                   => $order_id,
+            'from_status'                => $current_status,
+            'status'                     => $new_status,
+            'should_fire_confirmed_hook' => $should_fire_confirmed_hook,
         ];
 
     } catch (Exception $e) {
-        $wpdb->query('ROLLBACK');
+        if (!$skip_transaction) {
+            $wpdb->query('ROLLBACK');
+        }
         return new WP_Error('transaction-failed', 'Status update failed. Please try again.', ['status' => 500]);
     }
 }
@@ -330,8 +386,8 @@ function knx_update_order_status_handler($request) {
         ], 400);
     }
 
-    $prefix               = $wpdb->prefix;
-    $table_orders         = $prefix . 'knx_orders';
+    $prefix       = $wpdb->prefix;
+    $table_orders = $prefix . 'knx_orders';
 
     $order = $wpdb->get_row($wpdb->prepare(
         "SELECT id, city_id, status, payment_status, driver_id
@@ -358,7 +414,6 @@ function knx_update_order_status_handler($request) {
             return new WP_REST_Response(['error' => 'order-not-found'], 404);
         }
     } elseif ($role === 'driver') {
-        // Driver is authorized for all DB-canon statuses, but ONLY for assigned orders (driver_id match).
         $driver_profile_id = knx_orders_driver_profile_id_from_session($session);
         if ($driver_profile_id <= 0) return new WP_REST_Response(['error' => 'order-not-found'], 404);
 
@@ -370,8 +425,12 @@ function knx_update_order_status_handler($request) {
         return new WP_REST_Response(['error' => 'order-not-found'], 404);
     }
 
-    // Apply via SSOT
-    $res = knx_orders_apply_status_change_db_canon($order_id, $new_status, (int)$session->user_id, current_time('mysql'));
+    $res = knx_orders_apply_status_change_db_canon(
+        $order_id,
+        $new_status,
+        (int)$session->user_id,
+        current_time('mysql')
+    );
 
     if (is_wp_error($res)) {
         $status = (int)($res->get_error_data()['status'] ?? 400);

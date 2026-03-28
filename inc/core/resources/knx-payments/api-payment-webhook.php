@@ -34,7 +34,8 @@ if (!defined('ABSPATH')) exit;
  * - Dedup insert happens AFTER locks + validation gates.
  *
  * IMPORTANT:
- * - payment_intent.succeeded promotes order.status to 'confirmed' (NOT 'placed').
+ * - payment_intent.succeeded promotes order.status to 'confirmed'
+ *   through the canonical SSOT in api-update-order-status.php
  * ==========================================================
  */
 
@@ -238,7 +239,6 @@ if (!function_exists('knx_api_payment_webhook')) {
         $events_table   = $wpdb->prefix . 'knx_webhook_events';
         $payments_table = $wpdb->prefix . 'knx_payments';
         $orders_table   = $wpdb->prefix . 'knx_orders';
-        $history_table  = $wpdb->prefix . 'knx_order_status_history';
 
         $wpdb->query('START TRANSACTION');
 
@@ -271,7 +271,6 @@ if (!function_exists('knx_api_payment_webhook')) {
                     : new WP_REST_Response(['success' => false, 'message' => 'Order not found'], 503);
             }
 
-            // Currency mismatch guard (fail-closed)
             if (!empty($payment_locked->currency) && !empty($currency)) {
                 $db_currency = strtolower((string) $payment_locked->currency);
                 if ($db_currency !== (string) $currency) {
@@ -320,7 +319,6 @@ if (!function_exists('knx_api_payment_webhook')) {
 
             $payment_status_now       = strtolower((string) ($payment_locked->status ?? ''));
             $order_payment_status_now = strtolower((string) ($order->payment_status ?? ''));
-
             $paid_or_beyond = [
                 'confirmed',
                 'accepted_by_driver',
@@ -344,7 +342,6 @@ if (!function_exists('knx_api_payment_webhook')) {
                     : new WP_REST_Response(['success' => true, 'message' => 'Already processed'], 200);
             }
 
-            // Dedup insert AFTER locks + non-retryable validations.
             $insert_ok = $wpdb->insert(
                 $events_table,
                 [
@@ -374,9 +371,9 @@ if (!function_exists('knx_api_payment_webhook')) {
             }
 
             $event_row_id = (int) $wpdb->insert_id;
+            $confirmed_transition_result = null;
 
             if ($event->type === 'payment_intent.succeeded') {
-                // Only pending_payment is eligible for promotion by webhook.
                 $allowed_pre = ['pending_payment', ''];
                 if (!in_array((string) ($order->status ?? ''), $allowed_pre, true)) {
                     $wpdb->update(
@@ -395,7 +392,6 @@ if (!function_exists('knx_api_payment_webhook')) {
 
             if ($event->type === 'payment_intent.succeeded') {
 
-                // Payment -> paid
                 if (function_exists('knx_update_payment_status')) {
                     $ok = knx_update_payment_status((int) $payment_locked->id, 'paid');
                     if (!$ok) throw new Exception('PAYMENT_STATUS_UPDATE_FAILED');
@@ -410,37 +406,42 @@ if (!function_exists('knx_api_payment_webhook')) {
                     if ($u === false) throw new Exception('PAYMENT_STATUS_UPDATE_FAILED');
                 }
 
-                // Order -> confirmed + payment_status paid
-                $order_updated = $wpdb->update(
+                // Prepare order for canonical transition to confirmed.
+                $order_payment_update = $wpdb->update(
                     $orders_table,
                     [
-                        'status'                 => 'confirmed',
                         'payment_status'         => 'paid',
                         'payment_method'         => 'stripe',
                         'payment_transaction_id' => $intent_id,
                         'updated_at'             => current_time('mysql'),
                     ],
                     ['id' => (int) $order->id],
-                    ['%s','%s','%s','%s','%s'],
+                    ['%s','%s','%s','%s'],
                     ['%d']
                 );
-                if ($order_updated === false) throw new Exception('ORDER_UPDATE_FAILED');
+                if ($order_payment_update === false) throw new Exception('ORDER_PAYMENT_UPDATE_FAILED');
 
-                // History (append-only)
-                $history_ok = $wpdb->insert(
-                    $history_table,
+                if (!function_exists('knx_orders_apply_status_change_db_canon')) {
+                    throw new Exception('ORDER_SSOT_MISSING');
+                }
+
+                $confirmed_transition_result = knx_orders_apply_status_change_db_canon(
+                    (int) $order->id,
+                    'confirmed',
+                    0,
+                    current_time('mysql'),
                     [
-                        'order_id'   => (int) $order->id,
-                        'status'     => 'confirmed',
-                        'created_at' => current_time('mysql'),
-                    ],
-                    ['%d','%s','%s']
+                        'skip_transaction'    => true,
+                        'fire_confirmed_hook' => false,
+                    ]
                 );
-                if (!$history_ok) throw new Exception('HISTORY_INSERT_FAILED');
+
+                if (is_wp_error($confirmed_transition_result)) {
+                    throw new Exception('ORDER_CONFIRMATION_SSOT_FAILED');
+                }
 
             } else {
 
-                // payment_failed -> payment failed, order stays pending_payment but payment_status = failed
                 if (function_exists('knx_update_payment_status')) {
                     $ok = knx_update_payment_status((int) $payment_locked->id, 'failed');
                     if (!$ok) throw new Exception('PAYMENT_STATUS_UPDATE_FAILED');
@@ -470,7 +471,7 @@ if (!function_exists('knx_api_payment_webhook')) {
                 );
                 if ($order_updated === false) throw new Exception('ORDER_UPDATE_FAILED');
 
-                // History (append-only)
+                $history_table = $wpdb->prefix . 'knx_order_status_history';
                 $history_ok = $wpdb->insert(
                     $history_table,
                     [
@@ -483,7 +484,6 @@ if (!function_exists('knx_api_payment_webhook')) {
                 if (!$history_ok) throw new Exception('HISTORY_INSERT_FAILED');
             }
 
-            // Mark event processed
             $wpdb->update(
                 $events_table,
                 ['processed_at' => current_time('mysql'), 'order_id' => (int) $order->id],
@@ -494,17 +494,11 @@ if (!function_exists('knx_api_payment_webhook')) {
 
             $wpdb->query('COMMIT');
 
-            // ===================================================
-            // CART CLEANUP (deferred from order creation)
-            // Now that payment is confirmed, safely delete cart
-            // items. The cart row stays as 'converted' for audit.
-            // ===================================================
             if ($event->type === 'payment_intent.succeeded') {
                 try {
                     $cart_items_table = $wpdb->prefix . 'knx_cart_items';
                     $carts_table      = $wpdb->prefix . 'knx_carts';
 
-                    // Find the cart that was converted for this order
                     $order_session = isset($order->session_token) ? (string) $order->session_token : '';
                     $order_hub_id  = isset($order->hub_id) ? (int) $order->hub_id : 0;
 
@@ -529,7 +523,6 @@ if (!function_exists('knx_api_payment_webhook')) {
                         }
                     }
                 } catch (\Throwable $cleanup_err) {
-                    // Non-fatal: cart items will be cleaned up by cron eventually
                     if (function_exists('knx_stripe_authority_log')) {
                         knx_stripe_authority_log('warn', 'webhook_cart_cleanup_failed', 'Cart item cleanup failed (non-fatal)', [
                             'order_id' => (int) $order->id,
@@ -537,11 +530,14 @@ if (!function_exists('knx_api_payment_webhook')) {
                         ]);
                     }
                 }
-            }
 
-            // Driver notification broadcast (non-blocking, city-scoped)
-            if ($event->type === 'payment_intent.succeeded') {
-                do_action('knx_order_confirmed', (int) $order->id);
+                if (is_array($confirmed_transition_result) && !empty($confirmed_transition_result['should_fire_confirmed_hook'])) {
+                    knx_orders_maybe_fire_confirmed_hook(
+                        (int) $order->id,
+                        (string) ($confirmed_transition_result['from_status'] ?? ''),
+                        'confirmed'
+                    );
+                }
             }
 
             if (function_exists('knx_stripe_authority_log')) {
