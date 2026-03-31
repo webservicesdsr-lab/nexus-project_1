@@ -131,17 +131,9 @@ if (!function_exists('knx_render_corporate_sidebar')) {
                 <button id="knxExpandMobile" class="knx-expand-btn" aria-label="Toggle Sidebar">
                     <i class="fas fa-angles-right"></i>
                 </button>
-                <?php
-                    $site_name = get_bloginfo('name');
-                    $site_root = esc_url(home_url('/'));
-                    $site_logo = get_option('knx_site_logo', '');
-                ?>
-                <a href="<?php echo $site_root; ?>" class="knx-corporate-sidebar__logo" title="<?php echo esc_attr($site_name); ?>">
-                    <?php if (!empty($site_logo)): ?>
-                        <img src="<?php echo esc_url($site_logo); ?>" alt="<?php echo esc_attr($site_name); ?>" class="knx-corporate-sidebar__logo-img" />
-                    <?php else: ?>
-                        🍃
-                    <?php endif; ?>
+                <a href="<?php echo esc_url(home_url('/')); ?>" class="knx-corporate-sidebar__logo" title="Home">
+                    <i class="fas fa-home" aria-hidden="true"></i>
+                    <span class="screen-reader-text">Home</span>
                 </a>
             </div>
 
