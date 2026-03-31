@@ -19,6 +19,7 @@ add_shortcode('knx_driver_profile', function() {
     $session = $ctx->session;
     $name = !empty($session->display_name) ? (string)$session->display_name : 'Driver';
     $email = !empty($session->user_email) ? (string)$session->user_email : '';
+    $username = !empty($session->username) ? (string)$session->username : '';
     $phone = '';
     if (!empty($ctx->profile) && !empty($ctx->profile->phone)) {
         $phone = (string)$ctx->profile->phone;
@@ -68,6 +69,23 @@ add_shortcode('knx_driver_profile', function() {
           <button type="submit" class="knx-profile__btn knx-profile__btn--primary" id="knxChangePasswordBtn">
             Change Password
           </button>
+        </form>
+      </div>
+
+      <div class="knx-profile__section">
+        <h3 class="knx-profile__section-title">Change Username</h3>
+        <form id="knxChangeUsernameForm" class="knx-profile__form">
+          <div class="knx-form-field">
+            <label for="new_username">New Username <span class="required">*</span></label>
+            <input type="text" id="new_username" name="new_username" required minlength="3" value="<?php echo esc_attr($username); ?>" autocomplete="username">
+            <small class="knx-form-hint">Choose a unique username (letters, numbers, hyphen/underscore).</small>
+          </div>
+          <div class="knx-form-field">
+            <label for="username_current_password">Current Password <span class="required">*</span></label>
+            <input type="password" id="username_current_password" name="username_current_password" required autocomplete="current-password">
+          </div>
+          <div id="knxUsernameMessage" class="knx-profile__message" style="display:none;"></div>
+          <button type="submit" class="knx-profile__btn knx-profile__btn--primary" id="knxChangeUsernameBtn">Change Username</button>
         </form>
       </div>
 
@@ -131,6 +149,7 @@ add_shortcode('knx_driver_profile', function() {
           changePasswordUrl: <?php echo wp_json_encode($change_password_url); ?>,
           knxNonce: <?php echo wp_json_encode($knx_nonce); ?>,
           wpRestNonce: <?php echo wp_json_encode($wp_rest_nonce); ?>,
+          changeUsernameUrl: <?php echo wp_json_encode(rest_url('knx/v2/profile/change-username')); ?>,
           notificationPrefsUrl: <?php echo wp_json_encode(rest_url('knx/v1/driver-soft-push/prefs')); ?>,
           notificationTestUrl: <?php echo wp_json_encode(rest_url('knx/v1/driver-soft-push/test-ntfy')); ?>
         };

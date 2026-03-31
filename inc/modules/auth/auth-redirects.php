@@ -16,13 +16,25 @@ add_action('template_redirect', function() {
     $session = knx_get_session();
     $slug = is_object($post) ? $post->post_name : '';
 
+    // If slug is empty (non-standard routes or rewrites), fall back to first URI segment
+    if (empty($slug)) {
+        $uri = (string) ($_SERVER['REQUEST_URI'] ?? '');
+        $path = trim(parse_url($uri, PHP_URL_PATH) ?? '', '/');
+        if ($path !== '') {
+            $parts = explode('/', $path);
+            $slug = $parts[0];
+        }
+    }
+
     // Define route categories
     $public_pages     = ['home', 'about', 'contact', 'terms', 'privacy', 'login', 'register'];
+    // Add driver workspace routes to restricted pages so unauthenticated clicks
+    // from notifications redirect to login with a return URL.
     $restricted_pages = ['hubs', 'drivers', 'customers', 'cities', 'advanced-dashboard', 'dashboard',
                          'account-settings', 'knx-dashboard', 'live-orders', 'orders', 'view-order',
                          'fees', 'coupons', 'knx-cities', 'knx-edit-city', 'edit-hub',
                          'edit-hub-items', 'edit-item', 'edit-item-categories', 'drivers-admin',
-                         'menu-studio', 'capture'];
+                         'menu-studio', 'capture', 'driver-ops', 'driver-active-orders', 'driver-profile'];
     $studio_pages     = ['menu-studio', 'capture'];
     $dashboard_pages  = ['hubs', 'drivers', 'customers', 'cities', 'advanced-dashboard', 'dashboard',
                          'knx-dashboard', 'live-orders', 'orders', 'fees', 'coupons',
@@ -47,7 +59,10 @@ add_action('template_redirect', function() {
 
     // Redirect guests trying to access restricted pages
     if (!$session && in_array($slug, $restricted_pages)) {
-        wp_safe_redirect(site_url('/login'));
+        // Build full current URL and use wp_login_url to preserve redirect
+        $current = (is_ssl() ? 'https://' : 'http://') . ($_SERVER['HTTP_HOST'] ?? '') . ($_SERVER['REQUEST_URI'] ?? '/');
+        $login = function_exists('wp_login_url') ? wp_login_url($current) : site_url('/wp-login.php?redirect_to=' . rawurlencode($current));
+        wp_safe_redirect($login);
         exit;
     }
 

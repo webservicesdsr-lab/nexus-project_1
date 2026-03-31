@@ -102,6 +102,7 @@ if (!function_exists('knx_render_corporate_sidebar')) {
                 ['id' => 'live-orders', 'label' => 'Live Orders', 'route' => '/live-orders', 'icon' => 'bolt', 'roles' => ['super_admin'], 'active_slugs' => ['live-orders']],
                 ['id' => 'orders', 'label' => 'Orders', 'route' => '/orders', 'icon' => 'receipt', 'roles' => ['super_admin'], 'active_slugs' => ['orders']],
                 ['id' => 'hubs', 'label' => 'Hubs', 'route' => '/hubs', 'icon' => 'store', 'roles' => ['super_admin'], 'active_slugs' => ['hubs']],
+                ['id' => 'hub-categories', 'label' => 'Hub Categories', 'route' => '/hub-categories', 'icon' => 'tags', 'roles' => ['super_admin'], 'active_slugs' => ['hub-categories']],
                 ['id' => 'cities', 'label' => 'Cities', 'route' => '/knx-cities', 'icon' => 'city', 'roles' => ['super_admin'], 'active_slugs' => ['knx-cities']],
                 ['id' => 'customers', 'label' => 'Customers', 'route' => '/customers', 'icon' => 'users', 'roles' => ['super_admin'], 'active_slugs' => ['customers']],
                 ['id' => 'drivers', 'label' => 'Drivers', 'route' => '/drivers', 'icon' => 'truck', 'roles' => ['super_admin'], 'active_slugs' => ['drivers']],
@@ -130,8 +131,17 @@ if (!function_exists('knx_render_corporate_sidebar')) {
                 <button id="knxExpandMobile" class="knx-expand-btn" aria-label="Toggle Sidebar">
                     <i class="fas fa-angles-right"></i>
                 </button>
-                <a href="<?php echo esc_url(site_url('/dashboard')); ?>" class="knx-corporate-sidebar__logo" title="Dashboard">
-                    🍃
+                <?php
+                    $site_name = get_bloginfo('name');
+                    $site_root = esc_url(home_url('/'));
+                    $site_logo = get_option('knx_site_logo', '');
+                ?>
+                <a href="<?php echo $site_root; ?>" class="knx-corporate-sidebar__logo" title="<?php echo esc_attr($site_name); ?>">
+                    <?php if (!empty($site_logo)): ?>
+                        <img src="<?php echo esc_url($site_logo); ?>" alt="<?php echo esc_attr($site_name); ?>" class="knx-corporate-sidebar__logo-img" />
+                    <?php else: ?>
+                        🍃
+                    <?php endif; ?>
                 </a>
             </div>
 

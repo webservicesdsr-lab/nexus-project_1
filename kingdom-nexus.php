@@ -162,6 +162,7 @@ add_action('plugins_loaded', function() {
     knx_require('inc/core/resources/knx-profile/api-get-profile.php');
     knx_require('inc/core/resources/knx-profile/api-update-profile.php');
     knx_require('inc/core/resources/knx-profile/api-change-password.php');
+    knx_require('inc/core/resources/knx-profile/api-change-username.php');
 
     /* ======================================================
      * RESOURCES — KNX CUSTOMERS
