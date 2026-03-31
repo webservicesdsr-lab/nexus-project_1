@@ -36,7 +36,7 @@ function knx_api_get_hub_v40(WP_REST_Request $r) {
         ], 400);
     }
 
-    /** Fetch hub data */
+    /** Fetch hub data (single-category fallback for backward compatibility) */
         $hub = $wpdb->get_row($wpdb->prepare(
             "
             SELECT h.*, c.name AS city_name, cat.name AS category_name
@@ -48,6 +48,24 @@ function knx_api_get_hub_v40(WP_REST_Request $r) {
             ",
             $hub_id
         ));
+
+    // Attempt to load multiple categories from pivot table if present
+    $map_table = $wpdb->prefix . 'knx_hubs_categories';
+    $categories_for_hub = [];
+    if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $wpdb->esc_like($wpdb->prefix . 'knx_hubs_categories'))) ) {
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT c.id, c.name FROM {$wpdb->prefix}knx_hub_categories c
+             JOIN {$map_table} m ON m.category_id = c.id
+             WHERE m.hub_id = %d
+             ORDER BY m.sort_order ASC, c.name ASC",
+            $hub_id
+        ));
+        if ($rows) {
+            foreach ($rows as $r) {
+                $categories_for_hub[] = ['id' => intval($r->id), 'name' => $r->name];
+            }
+        }
+    }
 
     if (!$hub) {
         return new WP_REST_Response([
@@ -83,6 +101,12 @@ function knx_api_get_hub_v40(WP_REST_Request $r) {
     }
 
     /** Normalize response */
+    // If pivot categories exist, expose them as `category_ids` and `categories`.
+    $category_ids = [];
+    if (!empty($categories_for_hub)) {
+        foreach ($categories_for_hub as $c) $category_ids[] = intval($c['id']);
+    }
+
     $response = [
         'id'                 => intval($hub->id),
         'name'               => stripslashes($hub->name),
@@ -95,8 +119,12 @@ function knx_api_get_hub_v40(WP_REST_Request $r) {
         'lat'                => floatval($hub->latitude ?? 0),
         'lng'                => floatval($hub->longitude ?? 0),
         'logo_url'           => $hub->logo_url,
+        // Backwards-compatible single category
         'category_id'        => intval($hub->category_id ?? 0),
         'category_name'      => $hub->category_name ?? '',
+        // Multiple categories (if pivot exists)
+        'category_ids'       => $category_ids,
+        'categories'         => $categories_for_hub,
         'delivery_radius'    => floatval($hub->delivery_radius ?? 3),
         'delivery_zone_type' => $hub->delivery_zone_type ?? 'radius',
         'delivery_zones'     => $zones_formatted,

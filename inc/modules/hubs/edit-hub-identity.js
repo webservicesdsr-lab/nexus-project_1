@@ -25,6 +25,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const statusSelect = document.getElementById("hubStatus");
   const citySelect = document.getElementById("hubCity");
   const categorySelect = document.getElementById("hubCategory");
+  const categoriesSelect = document.getElementById("hubCategories");
   const featuredToggle = document.getElementById("hubFeatured");
   const featuredStatusText = document.getElementById("featured-status-text");
   const featuredCountBadge = document.getElementById("featured-count");
@@ -110,7 +111,16 @@ document.addEventListener("DOMContentLoaded", () => {
         statusSelect.value = hub.status || "active";
 
         if (citySelect && hub.city_id) citySelect.value = hub.city_id;
-        if (categorySelect && hub.category_id) categorySelect.value = hub.category_id;
+        // Support multiple categories if API returns `category_ids`
+        if (categoriesSelect && Array.isArray(hub.category_ids) && hub.category_ids.length > 0) {
+          // Clear selection then select items
+          for (let i = 0; i < categoriesSelect.options.length; i++) {
+            const opt = categoriesSelect.options[i];
+            opt.selected = hub.category_ids.indexOf(parseInt(opt.value)) !== -1;
+          }
+        } else if (categorySelect && hub.category_id) {
+          categorySelect.value = hub.category_id;
+        }
         if (featuredToggle) featuredToggle.checked = hub.is_featured == 1;
         if (featuredStatusText) featuredStatusText.textContent = hub.is_featured == 1 ? 'Featured' : 'Not Featured';
       } else {
@@ -131,10 +141,16 @@ document.addEventListener("DOMContentLoaded", () => {
    * ----------------------------------------------------------
    */
   saveBtn.addEventListener("click", async () => {
+    // Ensure multiselect widget has synced selections into the hidden select
+    if (window.knx_multiselect_categories_sync) {
+      try { window.knx_multiselect_categories_sync(); } catch (e) { console.warn('multiselect sync failed', e); }
+    }
     const payload = {
       hub_id: parseInt(hubId),
       city_id: citySelect ? parseInt(citySelect.value) || 0 : 0,
-      category_id: categorySelect ? parseInt(categorySelect.value) || 0 : 0,
+      // Send `category_ids` when using the multi-select, otherwise fallback to `category_id`
+      category_ids: categoriesSelect ? Array.from(categoriesSelect.selectedOptions).map(o => parseInt(o.value)) : null,
+      category_id: (categoriesSelect && categoriesSelect.selectedOptions.length > 0) ? parseInt(categoriesSelect.selectedOptions[0].value) : (categorySelect ? parseInt(categorySelect.value) || 0 : 0),
       email: emailInput.value.trim(),
       phone: phoneInput.value.trim(),
       status: statusSelect.value,

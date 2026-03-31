@@ -73,7 +73,16 @@ add_shortcode('knx_edit_hub', function () {
       WHERE status = 'active'
       ORDER BY sort_order ASC, name ASC
     ");
-
+    
+      // Determine if pivot mapping table exists and load selected category ids for this hub
+      $hub_category_ids = [];
+      $map_table = $wpdb->prefix . 'knx_hubs_categories';
+      if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $wpdb->esc_like($map_table)))) {
+        $rows = $wpdb->get_results($wpdb->prepare("SELECT category_id FROM {$map_table} WHERE hub_id = %d ORDER BY sort_order ASC", $hub_id));
+        if ($rows) {
+          foreach ($rows as $r) $hub_category_ids[] = intval($r->category_id);
+        }
+      }
     /** Nonces and REST root */
     $nonce    = wp_create_nonce('knx_edit_hub_nonce');
     $wp_nonce = wp_create_nonce('wp_rest');
@@ -507,16 +516,154 @@ add_shortcode('knx_edit_hub', function () {
         </div>
 
         <div class="knx-form-group">
-          <label>Category</label>
-          <select id="hubCategory">
-            <option value="">— Select Category —</option>
+          <label>Categories</label>
+
+          <?php
+            // Prepare selected ids (pivot first, fallback to legacy single column)
+            $selected_ids = !empty($hub_category_ids) ? $hub_category_ids : [];
+            if (empty($selected_ids) && !empty($hub->category_id)) {
+              $selected_ids = [intval($hub->category_id)];
+            }
+          ?>
+
+          <!-- Hidden select kept for compatibility with existing JS -->
+          <select id="hubCategories" name="hubCategories[]" multiple style="display:none;">
             <?php if (!empty($categories)) : foreach ($categories as $cat) : ?>
-              <option value="<?php echo esc_attr($cat->id); ?>" <?php selected(intval($hub->category_id), intval($cat->id)); ?>>
-                <?php echo esc_html($cat->name); ?>
-              </option>
+              <option value="<?php echo esc_attr($cat->id); ?>" <?php echo in_array(intval($cat->id), $selected_ids) ? 'selected' : ''; ?>><?php echo esc_html($cat->name); ?></option>
             <?php endforeach; endif; ?>
           </select>
-        </div>
+
+          <!-- Visible tags input -->
+          <div class="knx-tags-input" id="knxTagsCategories">
+            <div class="knx-tags-list">
+              <?php if (!empty($selected_ids) && !empty($categories)) :
+                foreach ($categories as $c) {
+                  if (in_array(intval($c->id), $selected_ids)) {
+                    echo '<span class="knx-tag" data-id="' . esc_attr($c->id) . '"><button type="button" class="knx-tag-remove" aria-label="Remove">&times;</button>' . esc_html($c->name) . '</span>';
+                  }
+                }
+              endif; ?>
+              <input type="text" class="knx-tags-search" placeholder="Add categories..." aria-label="Add categories" />
+            </div>
+
+            <div class="knx-tags-dropdown" hidden>
+              <input type="search" class="knx-tags-filter" placeholder="Search categories..." aria-label="Search categories">
+              <div class="knx-tags-options" role="listbox">
+                <?php if (!empty($categories)) : foreach ($categories as $cat) : ?>
+                  <?php $is_sel = in_array(intval($cat->id), $selected_ids); ?>
+                  <label class="knx-tags-option <?php echo $is_sel ? 'selected' : ''; ?>" data-id="<?php echo esc_attr($cat->id); ?>" tabindex="0" role="option" aria-selected="<?php echo $is_sel ? 'true' : 'false'; ?>">
+                    <span class="knx-tags-option-label"><?php echo esc_html($cat->name); ?></span>
+                  </label>
+                <?php endforeach; endif; ?>
+              </div>
+            </div>
+
+            <!-- Styles for tags multiselect moved to `inc/modules/hubs/edit-hub-style.css` -->
+
+            <script>
+              (function(){
+                const widget = document.getElementById('knxTagsCategories');
+                if (!widget) return;
+                const hidden = document.getElementById('hubCategories');
+                const searchInput = widget.querySelector('.knx-tags-search');
+                const dropdown = widget.querySelector('.knx-tags-dropdown');
+                const filter = widget.querySelector('.knx-tags-filter');
+                const options = widget.querySelector('.knx-tags-options');
+                const chipsContainer = widget.querySelector('.knx-tags-list');
+
+                function openDropdown(){ dropdown.hidden = false; filter.focus(); }
+                function closeDropdown(){ dropdown.hidden = true; }
+
+                // Render chips from hidden select
+                function renderChips(){
+                  // remove existing chips except input
+                  const inputs = chipsContainer.querySelector('.knx-tags-search');
+                  Array.from(chipsContainer.querySelectorAll('.knx-tag')).forEach(e => e.remove());
+                  Array.from(hidden.selectedOptions).forEach(opt => {
+                    const id = opt.value; const label = opt.textContent;
+                    const chip = document.createElement('span'); chip.className = 'knx-tag'; chip.setAttribute('data-id', id);
+                    const btn = document.createElement('button'); btn.type='button'; btn.className='knx-tag-remove'; btn.innerHTML='&times;'; btn.setAttribute('aria-label','Remove');
+                    chip.appendChild(btn); chip.appendChild(document.createTextNode(label));
+                    chipsContainer.insertBefore(chip, inputs);
+                  });
+                }
+
+                // Sync hidden select from options list
+                function syncHidden(){
+                  Array.from(hidden.options).forEach(o=>o.selected=false);
+                  Array.from(widget.querySelectorAll('.knx-tags-option')).forEach(opt=>{
+                    const id = opt.dataset.id;
+                    const checked = opt.classList.contains('selected');
+                    const hopt = hidden.querySelector('option[value="'+id+'"]');
+                    if (hopt) hopt.selected = checked;
+                  });
+                  hidden.dispatchEvent(new Event('change',{bubbles:true}));
+                }
+
+                // Toggle option (click)
+                options.addEventListener('click', function(e){
+                  const label = e.target.closest('.knx-tags-option');
+                  if (!label) return;
+                  label.classList.toggle('selected');
+                  label.setAttribute('aria-selected', label.classList.contains('selected') ? 'true' : 'false');
+                  syncHidden(); renderChips();
+                });
+
+                // Toggle option (keyboard: Enter / Space) for accessibility
+                options.addEventListener('keydown', function(e){
+                  if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+                  const label = e.target.closest('.knx-tags-option');
+                  if (!label) return;
+                  e.preventDefault();
+                  label.classList.toggle('selected');
+                  label.setAttribute('aria-selected', label.classList.contains('selected') ? 'true' : 'false');
+                  syncHidden(); renderChips();
+                });
+
+                // Remove chip
+                chipsContainer.addEventListener('click', function(e){
+                  if (e.target.classList.contains('knx-tag-remove')){
+                    const chip = e.target.closest('.knx-tag');
+                    const id = chip.dataset.id;
+                    const optLabel = widget.querySelector('.knx-tags-option[data-id="'+id+'"]');
+                    if (optLabel){ optLabel.classList.remove('selected'); optLabel.setAttribute('aria-selected','false'); }
+                    const hopt = hidden.querySelector('option[value="'+id+'"]'); if (hopt) hopt.selected=false;
+                    chip.remove(); hidden.dispatchEvent(new Event('change',{bubbles:true}));
+                  } else {
+                    // focus opens dropdown
+                    searchInput.focus(); openDropdown();
+                  }
+                });
+
+                // Filter
+                filter.addEventListener('input', function(){ const q=this.value.trim().toLowerCase(); Array.from(options.children).forEach(o=>{ const lbl=o.querySelector('.knx-tags-option-label').textContent.toLowerCase(); o.style.display = lbl.indexOf(q)===-1 ? 'none' : ''; }); });
+
+                // Search input focuses dropdown
+                searchInput.addEventListener('focus', openDropdown);
+                searchInput.addEventListener('input', function(){ const q=this.value.trim().toLowerCase(); Array.from(options.children).forEach(o=>{ const lbl=o.querySelector('.knx-tags-option-label').textContent.toLowerCase(); o.style.display = lbl.indexOf(q)===-1 ? 'none' : ''; }); });
+
+                // Close when clicking outside
+                document.addEventListener('click', function(e){ if (!widget.contains(e.target)) closeDropdown(); });
+
+                // expose sync function
+                window.knx_multiselect_categories_sync = function(){ syncHidden(); renderChips(); };
+
+                // initial render: mark options based on hidden select
+                Array.from(widget.querySelectorAll('.knx-tags-option')).forEach(o=>{
+                  const id = o.dataset.id;
+                  const h = hidden.querySelector('option[value="'+id+'"]');
+                  if (h && h.selected){
+                    o.classList.add('selected');
+                    o.setAttribute('aria-selected','true');
+                  } else {
+                    o.classList.remove('selected');
+                    o.setAttribute('aria-selected','false');
+                  }
+                });
+                renderChips();
+              })();
+            </script>
+          </div>
 
         <div class="knx-form-group">
           <label>Phone</label>

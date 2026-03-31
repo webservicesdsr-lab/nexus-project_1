@@ -27,6 +27,7 @@ function knx_update_hub_identity_v45(WP_REST_Request $request) {
     $table_hubs   = $wpdb->prefix . 'knx_hubs';
     $table_cities = $wpdb->prefix . 'knx_cities';
     $table_cats   = $wpdb->prefix . 'knx_hub_categories';
+    $map_table    = $wpdb->prefix . 'knx_hubs_categories';
 
     $data = json_decode($request->get_body(), true);
 
@@ -34,9 +35,10 @@ function knx_update_hub_identity_v45(WP_REST_Request $request) {
         return new WP_REST_Response(['success' => false, 'error' => 'invalid_nonce'], 403);
     }
 
-    $hub_id      = intval($data['hub_id'] ?? 0);
-    $city_id     = intval($data['city_id'] ?? 0);
-    $category_id = intval($data['category_id'] ?? 0);
+    $hub_id       = intval($data['hub_id'] ?? 0);
+    $city_id      = intval($data['city_id'] ?? 0);
+    $category_id  = intval($data['category_id'] ?? 0);
+    $category_ids = is_array($data['category_ids']) ? array_map('intval', $data['category_ids']) : null;
     $email       = sanitize_email($data['email'] ?? '');
     $phone       = sanitize_text_field($data['phone'] ?? '');
     $status      = in_array($data['status'] ?? 'active', ['active', 'inactive'])
@@ -57,6 +59,7 @@ function knx_update_hub_identity_v45(WP_REST_Request $request) {
         }
     }
 
+    // Validate single category if provided
     if ($category_id > 0) {
         $cat_exists = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$table_cats} WHERE id = %d AND status = 'active'",
@@ -67,27 +70,75 @@ function knx_update_hub_identity_v45(WP_REST_Request $request) {
         }
     }
 
+    // Validate multiple category ids if provided
+    if (is_array($category_ids)) {
+        foreach ($category_ids as $cid) {
+            if ($cid <= 0) continue;
+            $exists = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$table_cats} WHERE id = %d AND status = 'active'",
+                $cid
+            ));
+            if (!$exists) {
+                return new WP_REST_Response(['success' => false, 'error' => 'invalid_category'], 404);
+            }
+        }
+    }
+
     $city_id     = $city_id     > 0 ? $city_id     : null;
     $category_id = $category_id > 0 ? $category_id : null;
 
+    // If the pivot table for hub<->categories exists and category_ids was provided,
+    // we will sync the mapping table. Otherwise, we update the legacy `category_id` field.
     $update_data = [
-        'email'       => $email,
-        'phone'       => $phone,
-        'status'      => $status,
-        'city_id'     => $city_id,
-        'category_id' => $category_id,
-        'updated_at'  => current_time('mysql')
+        'email'      => $email,
+        'phone'      => $phone,
+        'status'     => $status,
+        'city_id'    => $city_id,
+        'updated_at' => current_time('mysql')
     ];
 
-    $formats = ['%s', '%s', '%s', '%d', '%d', '%s'];
+    // If no pivot table, preserve legacy single-column update
+    $use_pivot = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $wpdb->esc_like($map_table)) );
+    if (!$use_pivot) {
+        $update_data['category_id'] = $category_id;
+        $formats = ['%s', '%s', '%s', '%d', '%d', '%s'];
+        $updated = $wpdb->update(
+            $table_hubs,
+            $update_data,
+            ['id' => $hub_id],
+            $formats,
+            ['%d']
+        );
+    } else {
+        // When using pivot, set legacy field to null (optional) and update other hub fields
+        $update_data['category_id'] = null;
+        $formats = ['%s', '%s', '%s', '%d', '%s'];
+        $updated = $wpdb->update(
+            $table_hubs,
+            $update_data,
+            ['id' => $hub_id],
+            $formats,
+            ['%d']
+        );
 
-    $updated = $wpdb->update(
-        $table_hubs,
-        $update_data,
-        ['id' => $hub_id],
-        $formats,
-        ['%d']
-    );
+        // Sync pivot if category_ids present
+        if (is_array($category_ids)) {
+            // Delete existing mappings for hub
+            $wpdb->delete($map_table, ['hub_id' => $hub_id], ['%d']);
+
+            // Insert new mappings
+            $i = 0;
+            foreach ($category_ids as $cid) {
+                if ($cid <= 0) continue;
+                $wpdb->insert($map_table, [
+                    'hub_id' => $hub_id,
+                    'category_id' => $cid,
+                    'sort_order' => $i
+                ], ['%d', '%d', '%d']);
+                $i++;
+            }
+        }
+    }
 
     if ($updated === false) {
         return new WP_REST_Response([

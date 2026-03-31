@@ -109,10 +109,52 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!data.success) throw new Error(data.error || "Failed to load items");
 
       renderItems(data.items || []);
+      // After rendering, try to restore scroll/position if requested
+      restoreScrollState();
     } catch (err) {
       console.error(err);
       grid.innerHTML = "<p style='text-align:center;color:red;'>Error loading items</p>";
     }
+  }
+
+  // Save/restore helpers using sessionStorage so we survive full page reloads
+  function saveScrollState(targetCatId){
+    try{
+      sessionStorage.setItem(`knx_items_scroll_${hubId}`, String(window.scrollY || 0));
+      if(targetCatId) sessionStorage.setItem(`knx_items_target_cat_${hubId}`, String(targetCatId));
+    }catch(e){/* noop */}
+  }
+
+  function restoreScrollState(){
+    try{
+      const targetCat = sessionStorage.getItem(`knx_items_target_cat_${hubId}`) || null;
+      const savedY = sessionStorage.getItem(`knx_items_scroll_${hubId}`);
+      if(targetCat){
+        // try to locate category block
+        const block = document.querySelector(`.knx-category-block[data-cat-id="${targetCat}"]`);
+        if(block){
+          const top = block.getBoundingClientRect().top + window.scrollY - 80;
+          window.scrollTo({ top, behavior: 'smooth' });
+        }
+        sessionStorage.removeItem(`knx_items_target_cat_${hubId}`);
+        sessionStorage.removeItem(`knx_items_scroll_${hubId}`);
+        return;
+      }
+      if(savedY){
+        const y = parseInt(savedY,10) || 0;
+        window.scrollTo({ top: y, behavior: 'auto' });
+        sessionStorage.removeItem(`knx_items_scroll_${hubId}`);
+      } else {
+        // fallback: support URL hash like #cat-123
+        if(location.hash && location.hash.startsWith('#cat-')){
+          const cid = location.hash.replace('#cat-','');
+          const block = document.querySelector(`.knx-category-block[data-cat-id="${cid}"]`);
+          if(block){ const top = block.getBoundingClientRect().top + window.scrollY - 80; window.scrollTo({ top, behavior:'auto' }); }
+          // remove hash so back-button behavior is clean
+          history.replaceState(null, document.title, location.pathname + location.search);
+        }
+      }
+    }catch(e){/* noop */}
   }
 
   /* ==========================================================
@@ -136,6 +178,7 @@ document.addEventListener("DOMContentLoaded", () => {
     Object.keys(grouped).forEach((catId) => {
       const categoryBlock = document.createElement("div");
       categoryBlock.className = "knx-category-block";
+      categoryBlock.dataset.catId = catId;
 
       const catName =
         items.find((i) => i.category_id == catId)?.category_name || "Uncategorized";
@@ -197,6 +240,8 @@ document.addEventListener("DOMContentLoaded", () => {
      4. Modal controls
   ========================================================== */
   addBtn.addEventListener("click", () => {
+    // save current scroll so if the list is reloaded we can restore position
+    saveScrollState();
     modal.classList.add("active");
     loadCategories();
   });
@@ -254,6 +299,8 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".knx-category-add-btn").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const catId = btn.dataset.catId;
+        // save scroll + requested target category so we can restore after reload
+        saveScrollState(catId);
         modal.classList.add("active");
         await loadCategories();
         // Pre-select the category
@@ -524,4 +571,67 @@ document.addEventListener("DOMContentLoaded", () => {
       exportCsvModal.classList.remove("active");
     });
   }
+  
+  // Allow pasting images from clipboard into the Add Item modal's file input/preview.
+  // Targets `#knxAddItemModal` when active; falls back to any visible `.knx-modal.active`.
+  document.addEventListener('paste', async (ev) => {
+    try {
+      const cb = ev.clipboardData || window.clipboardData;
+      if (!cb || !cb.items) return;
+      for (const it of cb.items) {
+        if (!it.type) continue;
+        if (it.type.indexOf('image') === 0) {
+          const blob = it.getAsFile ? it.getAsFile() : null;
+          if (!blob) continue;
+          const ext = (blob.type && blob.type.split('/')[1]) ? blob.type.split('/')[1] : 'png';
+          const fileName = `pasted-image-${Date.now()}.${ext}`;
+          const file = new File([blob], fileName, { type: blob.type });
+
+          // Prefer the Add Item modal if it's active, else any visible .knx-modal.active
+          let targetModal = document.getElementById('knxAddItemModal');
+          if (!targetModal || !targetModal.classList.contains('active')) {
+            const visible = document.querySelector('.knx-modal.active');
+            if (visible) targetModal = visible;
+          }
+
+          // Look for the file input inside the modal (this page uses #knxItemImageInput)
+          let imgInput = null;
+          let previewEl = null;
+          if (targetModal) {
+            imgInput = targetModal.querySelector('input[type="file"]#knxItemImageInput') || targetModal.querySelector('input[type="file"][name="item_image"]') || targetModal.querySelector('input[type="file"]');
+            previewEl = targetModal.querySelector('#knxItemPreview') || targetModal.querySelector('.knx-item-preview');
+          }
+
+          // fallback to document-level selectors
+          if (!imgInput) imgInput = document.getElementById('knxItemImageInput') || document.querySelector('input[type="file"][name="item_image"]');
+          if (!previewEl) previewEl = document.getElementById('knxItemPreview') || document.querySelector('.knx-item-preview');
+
+          if (imgInput) {
+            try {
+              const dt = new DataTransfer();
+              dt.items.add(file);
+              imgInput.files = dt.files;
+            } catch (e) { /* ignore if browser forbids setting files */ }
+          }
+
+          // If there's no preview element, create one next to the file input
+          try {
+            const url = URL.createObjectURL(file);
+            if (previewEl) {
+              previewEl.innerHTML = `<img src="${url}" alt="Item image">`;
+            } else if (imgInput && imgInput.parentElement) {
+              const p = document.createElement('div');
+              p.className = 'knx-item-preview';
+              p.innerHTML = `<img src="${url}" alt="Item image">`;
+              imgInput.parentElement.appendChild(p);
+            }
+          } catch (e) { /* noop */ }
+
+          if (typeof knxToast === 'function') knxToast('Image pasted from clipboard', 'success');
+          ev.preventDefault();
+          return;
+        }
+      }
+    } catch (e) { /* noop */ }
+  });
 });

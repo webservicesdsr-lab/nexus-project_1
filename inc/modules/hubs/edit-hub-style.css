@@ -206,3 +206,82 @@
   font-size: 10px;
 }
 
+/* ===== Tags multiselect widget (moved from template) ===== */
+.knx-tags-input { position: relative; max-width: 640px; }
+
+/* Compact tag list: reduce vertical space while keeping touch target */
+.knx-tags-list {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 8px;
+  border:1px solid #d1d5db;
+  border-radius:8px;
+  min-height:40px;
+  flex-wrap:wrap;
+  background:#fff;
+}
+
+/* Chips / tags styling (compact) */
+.knx-tag {
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  border-radius:999px;
+  background:#f3f4f6;
+  border:1px solid #d1d5db;
+  color:#0b1220;
+  font-weight:600;
+  font-size:13px;
+}
+.knx-tag-remove {
+  background:transparent;
+  border:none;
+  padding:0 6px;
+  color:#7c858e;
+  font-weight:700;
+  cursor:pointer;
+  font-size:14px;
+  line-height:1;
+}
+.knx-tags-search { border:0; outline:none; min-width:120px; font-size:14px; padding:6px; background:transparent; }
+
+/* Dropdown panel */
+.knx-tags-dropdown { position:absolute;left:0;right:0;margin-top:8px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 14px 40px rgba(2,6,23,0.06);z-index:1200;padding:10px; }
+.knx-tags-filter { width:100%;padding:10px;border:1px solid #eef2f7;border-radius:8px;margin-bottom:8px;font-size:14px; }
+
+/* Options list: compact rows, clear hierarchy */
+.knx-tags-options { max-height:220px; overflow:auto;padding:4px; }
+.knx-tags-option {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:8px 12px;
+  border-radius:8px;
+  cursor:pointer;
+  min-height:40px;
+}
+.knx-tags-option:hover { background:#fbfdff; }
+.knx-tags-option.selected { background:#f0fdf4;border:1px solid #bbf7d0; }
+
+/* Label left, checkbox right (inline). Avoid forcing justify-content: space-between to prevent layout stacking */
+.knx-tags-option-label { display:block; flex:1; font-weight:600; color:#0b1220; font-size:15px; }
+
+/* Keep the checkbox in the DOM for accessibility/JS but hide it visually.
+   This preserves keyboard focusability while removing the visible control. */
+.knx-tags-option:focus-within { box-shadow: 0 0 0 3px rgba(11,121,58,0.06); border-radius:8px; }
+
+/* Subtle scrollbar */
+.knx-tags-options::-webkit-scrollbar { width: 10px; }
+.knx-tags-options::-webkit-scrollbar-thumb { background: rgba(11,17,32,0.06); border-radius: 8px; }
+
+/* Mobile tweaks: slightly larger hit areas */
+@media (max-width: 520px) {
+  .knx-tags-list { padding:8px; min-height:44px; }
+  .knx-tags-option { padding:12px; min-height:48px; }
+  .knx-tags-option-label { font-size:14px; }
+}
+
+/* End tags multiselect */
+
