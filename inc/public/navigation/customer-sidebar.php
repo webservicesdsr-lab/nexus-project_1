@@ -42,8 +42,8 @@ if ($session) {
 }
 $role = $session ? $session->role : 'guest';
 
-// Only render for logged customers
-if (!$is_logged || in_array($role, ['super_admin', 'manager', 'hub_owner', 'hub_staff', 'menu_uploader', 'driver'], true)) {
+// Only render for logged customers (hub_management has its own bottom nav)
+if (!$is_logged || in_array($role, ['super_admin', 'manager', 'hub_owner', 'hub_staff', 'hub_management', 'menu_uploader', 'driver'], true)) {
     return;
 }
 

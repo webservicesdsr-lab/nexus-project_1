@@ -16,6 +16,7 @@
         if (!wrap) return;
 
         var hubId     = wrap.dataset.hubId;
+        var hubName   = wrap.dataset.hubName || '';
         var nonce     = wrap.dataset.nonce;
         var wpNonce   = wrap.dataset.wpNonce;
         var apiOrders = wrap.dataset.apiOrders;
@@ -168,7 +169,7 @@
                 return '<div class="knx-ho-card ' + cardClass + '" data-order-id="' + o.order_id + '">' +
                     '<div class="knx-ho-card__top">' +
                         '<div>' +
-                            '<div class="knx-ho-card__id">#' + esc(String(o.order_id)) + (o.order_number ? ' · ' + esc(o.order_number) : '') + '</div>' +
+                            '<div class="knx-ho-card__id">#' + esc(String(o.order_id)) + (hubName ? ' ' + esc(hubName) : '') + '</div>' +
                             '<div class="knx-ho-card__customer">' + esc(o.customer_name || 'Customer') + '</div>' +
                             (o.customer_phone ? '<div class="knx-ho-card__phone"><i class="fas fa-phone"></i> ' + esc(o.customer_phone) + '</div>' : '') +
                             '<div class="knx-ho-card__time">' + esc(ago) + '</div>' +

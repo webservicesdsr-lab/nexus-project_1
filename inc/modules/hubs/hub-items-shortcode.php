@@ -59,6 +59,18 @@ add_shortcode('knx_hub_items', function () {
 .knx-days-checkboxes input { display: none; }
 </style>
 
+<!-- Logout button (top-right, hub_management) -->
+<form method="post" class="knx-hm-logout" style="position:fixed;top:12px;right:16px;z-index:900;">
+  <?php wp_nonce_field('knx_logout_action', 'knx_logout_nonce'); ?>
+  <button type="submit" name="knx_logout" aria-label="Logout"
+          style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;font-size:13px;font-weight:600;color:#374151;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.06);transition:all .12s ease;"
+          onmouseover="this.style.background='#fef2f2';this.style.color='#dc2626';this.style.borderColor='#fecaca';"
+          onmouseout="this.style.background='#fff';this.style.color='#374151';this.style.borderColor='#e5e7eb';">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+    Logout
+  </button>
+</form>
+
 <div class="knx-content knx-with-sidebar">
 
   <div class="knx-items-wrapper"
