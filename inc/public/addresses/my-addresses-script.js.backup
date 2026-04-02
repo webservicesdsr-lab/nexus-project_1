@@ -1,21 +1,20 @@
 /**
  * ════════════════════════════════════════════════════════════════
- * MY ADDRESSES — Client Script v5.0 (FT-Inspired Modal)
+ * MY ADDRESSES — Client Script v4.0 (Shared Page + Checkout)
  * ════════════════════════════════════════════════════════════════
  *
  * Supports:
  * - Full My Addresses page
  * - Checkout embedded addresses block
  *
- * v5.0 Changes (inspired by Food Truck modal):
- * - Simplified modal: Search → Map → Delivery Details
- * - Autocomplete + map = single source of truth for address/coords
- * - Structured fields (line1, city, state, zip, country) are hidden
- *   and auto-populated by reverse geocode
- * - User fills: Label, Apt/Unit #, Delivery Instructions
- * - All three delivery detail fields are required
- * - Reverse geocode populates search bar + hidden fields
- * - Same CRUD endpoints, same toast notifications
+ * UX Improvements:
+ * - Auto-detect location on modal open (GPS → IP fallback)
+ * - Reverse geocoding fills city/state/zip automatically
+ * - Shared modal for page + checkout
+ * - Search suggestions with Nominatim
+ * - Toast notifications (no alert())
+ * - Defensive modal mounting to <body>
+ * - Defensive Leaflet lifecycle
  * ════════════════════════════════════════════════════════════════
  */
 
@@ -82,20 +81,20 @@
     search: document.getElementById('knxAddrSearch'),
     suggestions: document.getElementById('knxAddrSuggestions'),
     labelChips: document.getElementById('knxAddrLabelChips'),
+    aptToggle: document.getElementById('knxAddrAptToggle'),
+    aptWrap: document.getElementById('knxAddrAptWrap'),
     geoBtn: document.getElementById('knxAddrGeoBtn'),
+    searchMap: document.getElementById('knxAddrSearchMapBtn'),
     mapHint: document.getElementById('knxAddrMapHint'),
     toast:
       document.getElementById('knxAddrToast') ||
       document.getElementById('knxCheckoutAddrToast'),
 
-    // Visible delivery-detail fields
+    // Fields
     id: document.getElementById('knxAddrId'),
     label: document.getElementById('knxAddrLabel'),
-    line2: document.getElementById('knxAddrLine2'),
-    instructions: document.getElementById('knxAddrInstructions'),
-
-    // Hidden structured fields (populated by geocode)
     line1: document.getElementById('knxAddrLine1'),
+    line2: document.getElementById('knxAddrLine2'),
     city: document.getElementById('knxAddrCity'),
     state: document.getElementById('knxAddrState'),
     zip: document.getElementById('knxAddrZip'),
@@ -121,7 +120,6 @@
   let searchTimer = null;
   let cachedLocation = null;
   let checkoutCollapsed = false;
-  let selectedDisplayAddress = ''; // full display_name from geocode
 
   /* ════════ INIT ════════ */
   function init() {
@@ -199,7 +197,14 @@
       dom.label.value = chip.dataset.label || '';
     });
 
+    dom.aptToggle?.addEventListener('click', function () {
+      dom.aptWrap.style.display = 'block';
+      dom.aptToggle.style.display = 'none';
+      dom.line2?.focus();
+    });
+
     dom.geoBtn?.addEventListener('click', detectAndApplyLocation);
+    dom.searchMap?.addEventListener('click', geocodeFromFields);
   }
 
   function updateCheckoutCollapse() {
@@ -316,10 +321,9 @@
       panMap(loc.lat, loc.lng);
 
       if (loc.source === 'ip') {
-        // Fill hidden fields from IP data
-        if (loc.city)    dom.city.value = loc.city;
-        if (loc.state)   dom.state.value = loc.state;
-        if (loc.zip)     dom.zip.value = loc.zip;
+        if (loc.city && !dom.city.value) dom.city.value = loc.city;
+        if (loc.state && !dom.state.value) dom.state.value = loc.state;
+        if (loc.zip && !dom.zip.value) dom.zip.value = loc.zip;
         if (loc.country) dom.country.value = loc.country;
         toast('Location detected via IP — adjust pin for exact address', 'success');
       } else {
@@ -335,10 +339,6 @@
     }
   }
 
-  /**
-   * Reverse geocode: fills hidden structured fields + updates search bar display.
-   * User never sees or edits structured fields directly.
-   */
   async function reverseGeocode(lat, lng) {
     try {
       const res = await fetch(
@@ -350,22 +350,18 @@
         const addr = data.address;
 
         const street = [addr.house_number, addr.road].filter(Boolean).join(' ');
-        if (street) dom.line1.value = street;
+        if (street && !dom.line1.value) dom.line1.value = street;
 
         const city = addr.city || addr.town || addr.village || addr.municipality || '';
-        if (city) dom.city.value = city;
+        if (city && !dom.city.value) dom.city.value = city;
 
         const state = addr.state || addr.region || '';
-        if (state) dom.state.value = abbreviateState(state);
+        if (state && !dom.state.value) {
+          dom.state.value = abbreviateState(state);
+        }
 
-        if (addr.postcode) dom.zip.value = addr.postcode;
-        if (addr.country)  dom.country.value = addr.country;
-      }
-
-      // Update search bar with full display name
-      if (data && data.display_name) {
-        selectedDisplayAddress = data.display_name;
-        dom.search.value = selectedDisplayAddress;
+        if (addr.postcode && !dom.zip.value) dom.zip.value = addr.postcode;
+        if (addr.country && !dom.country.value) dom.country.value = addr.country;
       }
     } catch (err) {
       console.log('[Addr] Reverse geocode failed:', err);
@@ -479,44 +475,16 @@
 
       const newId = data.data?.address_id || null;
 
-      const wasEditing = !!editingId;
-      const editedId = editingId;
-
-      toast(wasEditing ? 'Address updated ✓' : 'Address added ✓', 'success');
+      toast(editingId ? 'Address updated ✓' : 'Address added ✓', 'success');
       closeModal();
 
       await loadAddresses();
 
-      if (!wasEditing && newId) {
-        // New address: auto-select it (which dispatches event + re-quotes)
+      if (!editingId && newId) {
         try {
           await selectAddress(newId);
         } catch (e) {
           console.warn('[Addr] Auto-select failed:', e && e.message ? e.message : e);
-        }
-      } else if (wasEditing && isCheckout) {
-        // Edited an existing address while on checkout.
-        // If this address is the currently selected one, the delivery fee
-        // may now be stale (different coords). Force a re-quote.
-        try {
-          const rootEl = document.getElementById('knx-checkout');
-          const selectedId = rootEl
-            ? parseInt(rootEl.getAttribute('data-selected-address-id') || '0', 10)
-            : 0;
-
-          if (selectedId === editedId) {
-            // Dispatch the canonical event that checkout-script listens for.
-            // This updates the SSOT and calls fetchQuote() which recalculates
-            // the delivery fee server-side from the address's new coordinates.
-            document.dispatchEvent(new CustomEvent('knx:address:changed', {
-              detail: { address_id: editedId },
-            }));
-          }
-        } catch (e) {
-          // Fail-safe: if event dispatch fails, force a full page reload
-          // so the user cannot proceed with a stale delivery fee.
-          console.warn('[Addr] Could not dispatch address change event, reloading', e);
-          setTimeout(function () { window.location.reload(); }, 400);
         }
       }
     } catch (err) {
@@ -649,10 +617,6 @@
       parts.push(esc([cityState, addr.postal_code].filter(Boolean).join(' ')));
     }
 
-    const instructionsHtml = addr.delivery_instructions
-      ? `<p class="knx-addr__card-instructions">📋 ${esc(addr.delivery_instructions)}</p>`
-      : '';
-
     return `
       <div class="knx-addr__card ${isPrimary ? 'knx-addr__card--primary' : ''}">
         <div class="knx-addr__card-body">
@@ -664,7 +628,6 @@
             </span>
           </div>
           <p class="knx-addr__card-text">${parts.join('<br>')}</p>
-          ${instructionsHtml}
         </div>
         <div class="knx-addr__card-actions">
           <button type="button" class="knx-addr__card-btn knx-addr__card-btn--select" data-select="${addr.id}" title="Use for delivery">
@@ -700,10 +663,6 @@
       parts.push(esc([cityState, addr.postal_code].filter(Boolean).join(' ')));
     }
 
-    const instrLine = addr.delivery_instructions
-      ? `<div class="knx-co-address-row__instructions">📋 ${esc(addr.delivery_instructions)}</div>`
-      : '';
-
     return `
       <div class="knx-co-address-row">
         <div class="knx-co-address-row__left">
@@ -713,7 +672,6 @@
             ${isSelected ? ' · Selected' : ''}
           </div>
           <div class="knx-co-address-row__line">${parts.join(', ')}</div>
-          ${instrLine}
         </div>
         <div class="knx-co-address-row__right" style="display:flex;gap:8px;flex-wrap:wrap;">
           <button type="button" class="knx-co-btn knx-co-btn--small" data-select="${addr.id}">
@@ -767,17 +725,12 @@
     editingId = id || null;
     dom.form.reset();
     dom.country.value = 'USA';
-    dom.line1.value = '';
-    dom.city.value = '';
-    dom.state.value = '';
-    dom.zip.value = '';
     dom.lat.value = '';
     dom.lng.value = '';
-    dom.search.value = '';
-    dom.line2.value = '';
-    if (dom.instructions) dom.instructions.value = '';
-    selectedDisplayAddress = '';
     closeSuggestions();
+
+    dom.aptToggle.style.display = 'block';
+    dom.aptWrap.style.display = 'none';
 
     dom.labelChips
       .querySelectorAll('.knx-addr-form__chip')
@@ -821,9 +774,9 @@
       panMap(cachedLocation.lat, cachedLocation.lng);
 
       if (cachedLocation.source === 'ip') {
-        if (cachedLocation.city)    dom.city.value = cachedLocation.city;
-        if (cachedLocation.state)   dom.state.value = cachedLocation.state;
-        if (cachedLocation.zip)     dom.zip.value = cachedLocation.zip;
+        if (cachedLocation.city) dom.city.value = cachedLocation.city;
+        if (cachedLocation.state) dom.state.value = cachedLocation.state;
+        if (cachedLocation.zip) dom.zip.value = cachedLocation.zip;
         if (cachedLocation.country) dom.country.value = cachedLocation.country;
       } else {
         await reverseGeocode(cachedLocation.lat, cachedLocation.lng);
@@ -841,9 +794,9 @@
         panMap(loc.lat, loc.lng);
 
         if (loc.source === 'ip') {
-          if (loc.city)    dom.city.value = loc.city;
-          if (loc.state)   dom.state.value = loc.state;
-          if (loc.zip)     dom.zip.value = loc.zip;
+          if (loc.city) dom.city.value = loc.city;
+          if (loc.state) dom.state.value = loc.state;
+          if (loc.zip) dom.zip.value = loc.zip;
           if (loc.country) dom.country.value = loc.country;
         } else {
           await reverseGeocode(loc.lat, loc.lng);
@@ -865,29 +818,24 @@
     dom.modal.style.opacity = '';
     document.body.style.overflow = '';
     editingId = null;
-    selectedDisplayAddress = '';
     destroyMap();
   }
 
   function populateForm(addr) {
     dom.label.value = addr.label || '';
-    dom.line2.value = addr.line2 || '';
-    if (dom.instructions) dom.instructions.value = addr.delivery_instructions || '';
-    dom.lat.value = addr.latitude || '';
-    dom.lng.value = addr.longitude || '';
-
-    // Hidden structured fields
     dom.line1.value = addr.line1 || '';
     dom.city.value = addr.city || '';
     dom.state.value = addr.state || '';
     dom.zip.value = addr.postal_code || '';
     dom.country.value = addr.country || 'USA';
+    dom.lat.value = addr.latitude || '';
+    dom.lng.value = addr.longitude || '';
 
-    // Build display address for search bar (what user sees)
-    const parts = [addr.line1, addr.city, addr.state, addr.postal_code].filter(Boolean);
-    const displayAddr = parts.join(', ') || '';
-    dom.search.value = displayAddr;
-    selectedDisplayAddress = displayAddr;
+    if (addr.line2) {
+      dom.line2.value = addr.line2;
+      dom.aptToggle.style.display = 'none';
+      dom.aptWrap.style.display = 'block';
+    }
 
     const chipMatch = dom.labelChips.querySelector(`[data-label="${addr.label}"]`);
     if (chipMatch) chipMatch.classList.add('is-active');
@@ -905,71 +853,21 @@
     const lng = parseFloat(dom.lng.value);
 
     if (!lat || !lng) {
-      toast('Please set a location on the map', 'error');
+      toast('Please set location on map', 'error');
       return;
-    }
-
-    // Validate delivery detail fields
-    const label = dom.label.value.trim();
-    const line2 = dom.line2.value.trim();
-    const instructions = dom.instructions ? dom.instructions.value.trim() : '';
-
-    if (!label) {
-      toast('Please add a label (Home, Work, etc.)', 'error');
-      dom.label.focus();
-      return;
-    }
-
-    if (!line2) {
-      toast('Please enter your apt, suite or unit number', 'error');
-      dom.line2.focus();
-      return;
-    }
-
-    if (!instructions) {
-      toast('Please add delivery instructions', 'error');
-      dom.instructions.focus();
-      return;
-    }
-
-    // If hidden line1 is empty (user skipped autocomplete and just pinned),
-    // use reverse-geocoded address or the search bar value
-    let line1 = dom.line1.value.trim();
-    if (!line1) {
-      line1 = selectedDisplayAddress || dom.search.value.trim() || 'Pin location';
-    }
-
-    // If city is empty, try to extract from display address
-    let city = dom.city.value.trim();
-    if (!city) {
-      city = extractCityFromDisplay(selectedDisplayAddress);
     }
 
     saveAddress({
-      label: label,
-      line1: line1,
-      line2: line2,
-      city: city,
+      label: dom.label.value.trim(),
+      line1: dom.line1.value.trim(),
+      line2: (dom.line2?.value || '').trim(),
+      city: dom.city.value.trim(),
       state: dom.state.value.trim(),
       postal_code: dom.zip.value.trim(),
-      country: dom.country.value.trim() || 'USA',
+      country: dom.country.value.trim(),
       latitude: lat,
       longitude: lng,
-      delivery_instructions: instructions,
     });
-  }
-
-  /**
-   * Best-effort city extraction from a display_name string
-   * Format is typically: "123 Main St, Springfield, IL 62701, USA"
-   */
-  function extractCityFromDisplay(displayName) {
-    if (!displayName) return '';
-    const parts = displayName.split(',').map(function (s) { return s.trim(); });
-    // City is usually the 2nd-to-last or 3rd-to-last part
-    if (parts.length >= 3) return parts[parts.length - 3] || parts[1] || '';
-    if (parts.length >= 2) return parts[1] || '';
-    return '';
   }
 
   /* ════════ MAP (Leaflet) ════════ */
@@ -1008,13 +906,11 @@
     marker.on('dragend', function () {
       const pos = marker.getLatLng();
       setCoords(pos.lat, pos.lng);
-      reverseGeocode(pos.lat, pos.lng);
     });
 
     map.on('click', function (e) {
       marker.setLatLng(e.latlng);
       setCoords(e.latlng.lat, e.latlng.lng);
-      reverseGeocode(e.latlng.lat, e.latlng.lng);
     });
 
     setTimeout(function () {
@@ -1066,6 +962,20 @@
 
   /* ════════ SEARCH ════════ */
 
+  function geocodeFromFields() {
+    const q = [dom.line1.value, dom.city.value, dom.state.value]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+
+    if (!q) {
+      toast('Enter an address first', 'error');
+      return;
+    }
+
+    geocode(q);
+  }
+
   async function searchNominatim(query) {
     try {
       const res = await fetch(
@@ -1098,19 +1008,15 @@
 
   function applySuggestion(li, result) {
     closeSuggestions();
+    dom.search.value = '';
 
-    // Set the search bar to the full display name (user sees this)
-    selectedDisplayAddress = result.display_name || '';
-    dom.search.value = selectedDisplayAddress;
-
-    // Parse structured fields into hidden inputs
     const parts = result.display_name.split(',').map(function (s) {
       return s.trim();
     });
 
     if (parts.length >= 1) dom.line1.value = parts[0];
-    if (parts.length >= 3) dom.city.value = parts[parts.length - 3] || parts[1] || '';
-    if (parts.length >= 2) dom.state.value = parts[parts.length - 2] || '';
+    if (parts.length >= 2) dom.city.value = parts[parts.length - 3] || parts[1] || '';
+    if (parts.length >= 3) dom.state.value = parts[parts.length - 2] || '';
 
     const lat = parseFloat(result.lat);
     const lng = parseFloat(result.lon);
@@ -1184,14 +1090,10 @@
         const lat = place.geometry.location.lat();
         const lng = place.geometry.location.lng();
 
-        // Set display address in search bar
         if (place.formatted_address) {
-          selectedDisplayAddress = place.formatted_address;
-          dom.search.value = selectedDisplayAddress;
           dom.line1.value = place.formatted_address;
         }
 
-        // Fill hidden structured fields
         const comps = place.address_components || [];
         comps.forEach(function (c) {
           if (c.types.indexOf('locality') !== -1) {

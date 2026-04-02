@@ -58,6 +58,7 @@ if (!function_exists('knx_render_corporate_sidebar')) {
             'hubs',
             'menus',
             'hub-categories',
+            'hub-managers',
             'drivers-admin',
             'drivers',
             'customers',
@@ -103,6 +104,7 @@ if (!function_exists('knx_render_corporate_sidebar')) {
                 ['id' => 'orders', 'label' => 'Orders', 'route' => '/orders', 'icon' => 'receipt', 'roles' => ['super_admin'], 'active_slugs' => ['orders']],
                 ['id' => 'hubs', 'label' => 'Hubs', 'route' => '/hubs', 'icon' => 'store', 'roles' => ['super_admin'], 'active_slugs' => ['hubs']],
                 ['id' => 'hub-categories', 'label' => 'Hub Categories', 'route' => '/hub-categories', 'icon' => 'tags', 'roles' => ['super_admin'], 'active_slugs' => ['hub-categories']],
+                ['id' => 'hub-managers', 'label' => 'Hub Managers', 'route' => '/hub-managers', 'icon' => 'user-cog', 'roles' => ['super_admin'], 'active_slugs' => ['hub-managers']],
                 ['id' => 'cities', 'label' => 'Cities', 'route' => '/knx-cities', 'icon' => 'city', 'roles' => ['super_admin'], 'active_slugs' => ['knx-cities']],
                 ['id' => 'customers', 'label' => 'Customers', 'route' => '/customers', 'icon' => 'users', 'roles' => ['super_admin'], 'active_slugs' => ['customers']],
                 ['id' => 'drivers', 'label' => 'Drivers', 'route' => '/drivers', 'icon' => 'truck', 'roles' => ['super_admin'], 'active_slugs' => ['drivers']],
@@ -187,7 +189,7 @@ function knx_should_render_corporate_sidebar() {
     $slug = isset($context['current_slug']) ? $context['current_slug'] : '';
 
     $private_pages = [
-        'dashboard', 'knx-dashboard', 'hubs', 'menus', 'hub-categories', 'drivers-admin', 'drivers',
+        'dashboard', 'knx-dashboard', 'hubs', 'menus', 'hub-categories', 'hub-managers', 'drivers-admin', 'drivers',
         'customers', 'knx-cities', 'knx-edit-city', 'settings',
         'edit-item-categories', 'edit-hub', 'live-orders', 'orders',
     ];

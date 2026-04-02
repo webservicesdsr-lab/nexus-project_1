@@ -45,6 +45,70 @@ CREATE TABLE `y05_knx_users` (
   `updated_at` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
 
+
+-- =========================================================
+-- HUBS
+-- Clean canonical schema block (no data)
+-- =========================================================
+
+DROP TABLE IF EXISTS `y05_knx_hubs`;
+
+CREATE TABLE `y05_knx_hubs` (
+  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci NOT NULL,
+  `slug` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'SEO-friendly URL slug',
+  `tagline` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL,
+  `city_id` bigint UNSIGNED DEFAULT NULL,
+  `category_id` bigint UNSIGNED DEFAULT NULL,
+  `address` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci,
+  `latitude` decimal(10,7) DEFAULT NULL,
+  `longitude` decimal(10,7) DEFAULT NULL,
+  `delivery_radius` decimal(5,2) DEFAULT '5.00',
+  `delivery_zone_type` enum('radius','polygon') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT 'radius',
+  `delivery_available` tinyint(1) DEFAULT '1',
+  `pickup_available` tinyint(1) DEFAULT '1',
+  `phone` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL,
+  `email` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL,
+  `logo_url` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL,
+  `hero_img` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL,
+  `type` enum('Restaurant','Food Truck','Cottage Food') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT 'Restaurant',
+  `rating` decimal(2,1) DEFAULT '4.5',
+  `cuisines` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci,
+  `status` enum('active','inactive') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT 'active',
+  `hours_monday` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL,
+  `hours_tuesday` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL,
+  `hours_wednesday` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL,
+  `hours_thursday` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL,
+  `hours_friday` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL,
+  `hours_saturday` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL,
+  `hours_sunday` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL,
+  `closure_start` date DEFAULT NULL,
+  `closure_until` datetime DEFAULT NULL,
+  `closure_reason` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci,
+  `timezone` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT 'America/Chicago',
+  `currency` varchar(3) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT 'USD',
+  `tax_rate` decimal(5,2) DEFAULT '0.00',
+  `min_order` decimal(10,2) DEFAULT '0.00',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  `is_featured` tinyint(1) DEFAULT '0',
+  `closure_end` date DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `city_id` (`city_id`),
+  KEY `category_id` (`category_id`),
+  KEY `status` (`status`),
+  KEY `name` (`name`),
+  KEY `rating` (`rating`),
+  KEY `delivery_zone_type` (`delivery_zone_type`),
+  KEY `idx_hub_slug` (`slug`),
+  KEY `is_featured` (`is_featured`),
+  KEY `slug` (`slug`),
+  CONSTRAINT `y05_knx_hubs_ibfk_1` FOREIGN KEY (`city_id`) REFERENCES `y05_knx_cities` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `y05_knx_hubs_ibfk_2` FOREIGN KEY (`category_id`) REFERENCES `y05_knx_hub_categories` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
+
+
+-- =========================================================
 --
 -- Estructura de tabla para la tabla `y05_knx_driver_ops`
 --
@@ -294,6 +358,12 @@ CREATE TABLE `y05_knx_hub_items` (
   `image_url` varchar(500) DEFAULT NULL,
   `status` enum('active','inactive') DEFAULT 'active',
   `sort_order` int UNSIGNED DEFAULT '0',
+  `availability_type` enum('regular','daily','seasonal') NOT NULL DEFAULT 'regular',
+  `daily_day_of_week` varchar(20) DEFAULT NULL COMMENT 'Comma-separated day numbers: 1=Mon..7=Sun',
+  `daily_start_time` time DEFAULT NULL,
+  `daily_end_time` time DEFAULT NULL,
+  `seasonal_starts_at` datetime DEFAULT NULL,
+  `seasonal_ends_at` datetime DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -301,6 +371,7 @@ CREATE TABLE `y05_knx_hub_items` (
   KEY `idx_category_id` (`category_id`),
   KEY `idx_hub_category_sort` (`hub_id`,`category_id`,`sort_order`),
   KEY `idx_status` (`status`),
+  KEY `idx_availability` (`hub_id`,`availability_type`,`status`),
   CONSTRAINT `fk_hub_items_hub` FOREIGN KEY (`hub_id`) REFERENCES `y05_knx_hubs` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_hub_items_category` FOREIGN KEY (`category_id`) REFERENCES `y05_knx_items_categories` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -588,10 +659,11 @@ CREATE TABLE `y05_knx_sessions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 /* =========================================================
-   SETTINGS
+   HUB MANAGEMENT SETTINGS
+   Key/value store for hub-management operational config
    ========================================================= */
-DROP TABLE IF EXISTS `y05_knx_settings`;
-CREATE TABLE `y05_knx_settings` (
+DROP TABLE IF EXISTS `y05_knx_hub_management_settings`;
+CREATE TABLE `y05_knx_hub_management_settings` (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `setting_key` varchar(100) NOT NULL,
   `setting_value` longtext,
@@ -1109,6 +1181,23 @@ CREATE TABLE `y05_knx_driver_notifications` (
   CONSTRAINT `fk_driver_notifications_order` FOREIGN KEY (`order_id`) REFERENCES `y05_knx_orders` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_driver_notifications_driver` FOREIGN KEY (`driver_id`) REFERENCES `y05_knx_drivers` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_driver_notifications_city` FOREIGN KEY (`city_id`) REFERENCES `y05_knx_cities` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/* =========================================================
+   HUB MANAGERS — Canonical hub ↔ user ownership mapping
+   ========================================================= */
+DROP TABLE IF EXISTS `y05_knx_hub_managers`;
+CREATE TABLE `y05_knx_hub_managers` (
+  `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
+  `hub_id` bigint UNSIGNED NOT NULL,
+  `user_id` bigint UNSIGNED NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_hub_user` (`hub_id`,`user_id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_hub_id` (`hub_id`),
+  CONSTRAINT `fk_hub_managers_hub` FOREIGN KEY (`hub_id`) REFERENCES `y05_knx_hubs` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_hub_managers_user` FOREIGN KEY (`user_id`) REFERENCES `y05_knx_users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 /* =========================================================

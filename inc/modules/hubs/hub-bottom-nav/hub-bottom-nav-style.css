@@ -1,0 +1,106 @@
+:root{
+  --nxs-primary:#0b793a;
+  --nxs-text:#0b1220;
+  --nxs-muted:#6b7280;
+  --nxs-card:#fff;
+  --nxs-border:rgba(11,18,32,.10);
+  --nxs-shadow-soft:0 10px 22px rgba(11,18,32,.06);
+  --nxs-radius:16px;
+  --nxs-font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial;
+}
+
+/* Fixed bottom navbar (mobile app style) — Hub Management */
+.knx-hbn{
+  position:fixed;
+  left:12px;
+  right:12px;
+  bottom:12px;
+  z-index:9998;
+  background:rgba(255,255,255,.95);
+  border:1px solid var(--nxs-border);
+  border-radius:var(--nxs-radius);
+  box-shadow:0 -2px 20px rgba(11,18,32,.12), var(--nxs-shadow-soft);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:6px;
+  padding:8px;
+  font-family:var(--nxs-font);
+}
+
+.knx-hbn__item{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  padding:10px 6px;
+  border-radius:14px;
+  text-decoration:none;
+  color:var(--nxs-muted);
+  font-weight:600;
+  transition:all .2s cubic-bezier(.4,0,.2,1);
+  -webkit-tap-highlight-color:transparent;
+  user-select:none;
+}
+
+.knx-hbn__item:hover,
+.knx-hbn__item:focus{
+  background:rgba(11,121,58,.08);
+  transform:translateY(-2px);
+  color:var(--nxs-primary);
+  outline:none;
+}
+
+.knx-hbn__item:active{
+  transform:scale(.96);
+}
+
+.knx-hbn__item.is-active{
+  background:rgba(11,121,58,.14);
+  color:var(--nxs-primary);
+}
+
+.knx-hbn__icon{
+  font-size:18px;
+  line-height:1;
+  filter:drop-shadow(0 1px 2px rgba(11,18,32,.1));
+}
+
+.knx-hbn__label{
+  font-size:11px;
+  line-height:1;
+  font-weight:600;
+  letter-spacing:.02em;
+}
+
+/* Safe area padding for content */
+body.knx-has-hub-nav{
+  padding-bottom:90px!important;
+}
+
+/* Desktop optimization */
+@media (min-width:768px){
+  .knx-hbn{
+    max-width:420px;
+    margin:0 auto;
+    left:50%;
+    right:auto;
+    transform:translateX(-50%);
+  }
+
+  body.knx-has-hub-nav{
+    padding-bottom:95px!important;
+  }
+}
+
+/* Desktop with sidebar: shift right */
+@media (min-width:1024px){
+  body.knx-has-corporate-sidebar .knx-hbn{
+    left:calc(230px + 12px);
+    right:12px;
+    max-width:none;
+    transform:none;
+  }
+}

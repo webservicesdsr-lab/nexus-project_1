@@ -55,6 +55,7 @@ add_shortcode('knx_driver_active_orders', function () {
 
     // Canon API
     $api_active = rest_url('knx/v2/driver/orders/active');
+    $api_signals = rest_url('knx/v1/hub-management/orders/signals');
 
     // View order URL (page route; uses query param order_id)
     $view_order_url = site_url('/driver-view-order');
@@ -125,6 +126,7 @@ add_shortcode('knx_driver_active_orders', function () {
     <script>
       window.KNX_DRIVER_ACTIVE_CONFIG = {
         apiActive: <?php echo wp_json_encode($api_active); ?>,
+        apiSignals: <?php echo wp_json_encode($api_signals); ?>,
         viewOrderUrl: <?php echo wp_json_encode($view_order_url); ?>,
         knxNonce: <?php echo wp_json_encode($knx_nonce); ?>,
         wpRestNonce: <?php echo wp_json_encode($wp_rest_nonce); ?>,

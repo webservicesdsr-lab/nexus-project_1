@@ -111,6 +111,9 @@ add_action('plugins_loaded', function() {
     // Navigation
     knx_require('inc/functions/navigation-engine.php');
 
+    // Hub Management ownership helpers
+    knx_require('inc/functions/hub-ownership.php');
+
     /* ======================================================
      * REST INFRASTRUCTURE
      * ====================================================== */
@@ -144,6 +147,11 @@ add_action('plugins_loaded', function() {
     knx_require('inc/core/resources/knx-hubs/api-delete-hub.php');
     knx_require('inc/core/resources/knx-hubs/api-update-settings.php');
     knx_require('inc/core/resources/knx-hubs/api-time-slots.php');
+    knx_require('inc/core/resources/knx-hubs/api-hub-dashboard.php');
+    knx_require('inc/core/resources/knx-hubs/api-hub-management-settings.php');
+    knx_require('inc/modules/hubs/api-ft-locations.php');
+    knx_require('inc/core/resources/knx-hubs/api-hub-managers.php');
+    knx_require('inc/core/resources/knx-hubs/api-hub-orders.php');
     knx_require('inc/core/resources/knx-settings/api-brand-logo-upload.php');
 
     /* ======================================================
@@ -347,6 +355,12 @@ add_action('plugins_loaded', function() {
      * MODULES — LEGACY
      * ====================================================== */
     knx_require('inc/modules/hubs/hubs-shortcode.php');
+    knx_require('inc/modules/hubs/hub-dashboard-shortcode.php');
+    knx_require('inc/modules/hubs/hub-settings-shortcode.php');
+    knx_require('inc/modules/hubs/hub-items-shortcode.php');
+    knx_require('inc/modules/hubs/hub-managers-shortcode.php');
+    knx_require('inc/modules/hubs/hub-orders-shortcode.php');
+    knx_require('inc/modules/hubs/hub-bottom-nav/hub-bottom-nav.php');
     knx_require('inc/modules/hubs/edit-hub-template.php');
     knx_require('inc/modules/hubs/edit-hub-identity.php');
 

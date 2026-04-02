@@ -838,13 +838,48 @@ add_shortcode('knx_edit_hub', function () {
       </div>
 
       <!-- =========================
-           Location & Delivery (v5.0 CANONICAL)
+           Food Truck Mode Toggle
       ========================== -->
-      <div class="knx-card" id="locationBlock">
+      <div class="knx-card" id="foodTruckModeBlock">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div>
+            <h2 style="margin:0;">🚚 Food Truck Mode</h2>
+            <p style="margin:4px 0 0;color:#6b7280;font-size:14px;">
+              Enable if this hub operates as a mobile food truck with variable locations.
+            </p>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <label class="knx-toggle">
+              <input type="checkbox" id="foodTruckModeToggle" <?php echo ($hub->type === 'Food Truck') ? 'checked' : ''; ?>>
+              <span class="knx-toggle-slider"></span>
+            </label>
+            <span id="foodTruckModeLabel" style="font-weight:600;color:<?php echo ($hub->type === 'Food Truck') ? '#fb923c' : '#6b7280'; ?>;">
+              <?php echo ($hub->type === 'Food Truck') ? 'Active' : 'Inactive'; ?>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- =========================
+           Location & Delivery (v5.0 CANONICAL)
+           Hidden when Food Truck Mode is ON
+      ========================== -->
+      <div class="knx-card" id="locationBlock" <?php echo ($hub->type === 'Food Truck') ? 'style="display:none"' : ''; ?>>
         <?php 
         // Make $hub available to the included file
         $GLOBALS['knx_current_hub'] = $hub;
         require KNX_PATH . 'inc/modules/hubs/hub-location-ui.php'; 
+        ?>
+      </div>
+
+      <!-- =========================
+           Food Truck Delivery Coverage
+           Visible only when Food Truck Mode is ON
+      ========================== -->
+      <div class="knx-card" id="foodTruckCoverageBlock" <?php echo ($hub->type === 'Food Truck') ? '' : 'style="display:none"'; ?>>
+        <?php
+        $GLOBALS['knx_current_hub'] = $hub;
+        require KNX_PATH . 'inc/modules/hubs/food-truck-coverage-ui.php';
         ?>
       </div>
 
@@ -1323,7 +1358,51 @@ add_shortcode('knx_edit_hub', function () {
 
     <script src="<?php echo esc_url(KNX_URL . 'inc/modules/hubs/edit-hub-hours.js'); ?>"></script>
     <script src="<?php echo esc_url(KNX_URL . 'inc/modules/hubs/edit-hub-closure.js'); ?>"></script>
-    
+
+    <!-- Food Truck Mode Toggle Logic -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const ftToggle       = document.getElementById('foodTruckModeToggle');
+        const ftLabel        = document.getElementById('foodTruckModeLabel');
+        const locationBlock  = document.getElementById('locationBlock');
+        const ftCoverageBlock= document.getElementById('foodTruckCoverageBlock');
+        if (!ftToggle) return;
+
+        ftToggle.addEventListener('change', function() {
+            const isOn = ftToggle.checked;
+            // Toggle visibility
+            locationBlock.style.display  = isOn ? 'none' : '';
+            ftCoverageBlock.style.display = isOn ? '' : 'none';
+            // Update label
+            ftLabel.textContent = isOn ? 'Active' : 'Inactive';
+            ftLabel.style.color = isOn ? '#fb923c' : '#6b7280';
+
+            // Persist hub type change via REST
+            fetch(knx_api.root + 'knx/v1/update-hub-identity', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': knx_edit_hub.wp_nonce
+                },
+                body: JSON.stringify({
+                    hub_id:    knx_edit_hub.hub_id,
+                    knx_nonce: knx_edit_hub.nonce,
+                    type:      isOn ? 'Food Truck' : 'Restaurant'
+                })
+            })
+            .then(function(r){ return r.json(); })
+            .then(function(data){
+                if (data.success) {
+                    knxToast(isOn ? 'Food Truck mode enabled' : 'Food Truck mode disabled', 'success');
+                } else {
+                    knxToast(data.message || 'Failed to update mode', 'error');
+                }
+            })
+            .catch(function(){ knxToast('Network error', 'error'); });
+        });
+    });
+    </script>
+
     <!-- Slug and Delete Hub functionality -->
     <script>
     document.addEventListener('DOMContentLoaded', function() {

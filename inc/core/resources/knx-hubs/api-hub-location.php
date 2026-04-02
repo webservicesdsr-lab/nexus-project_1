@@ -223,16 +223,91 @@ function knx_api_update_hub_location_v5(WP_REST_Request $r) {
     // Determine effective address to validate: prefer address_label when provided
     $effective_address = !empty($address_label) ? $address_label : $address;
 
+    if (!in_array($zone_type, ['radius', 'polygon'], true)) {
+        $zone_type = 'radius';
+    }
+
+    // ── COVERAGE-ONLY FAST PATH (Food Truck mode) ──────────────
+    // When a food truck admin saves ONLY the delivery coverage polygon/radius
+    // there is no address or lat/lng to save — the hub may not have a fixed
+    // location yet. Allow this ONLY when:
+    //   1. coverage_only=true is explicitly set
+    //   2. hub exists and is a Food Truck
+    // Fail-closed: does NOT modify hub lat/lng/address.
+    $coverage_only = filter_var($r->get_param('coverage_only'), FILTER_VALIDATE_BOOLEAN);
+
+    if ($coverage_only) {
+        $table_hubs  = $wpdb->prefix . 'knx_hubs';
+        $hub_row = $wpdb->get_row($wpdb->prepare(
+            "SELECT id, type FROM {$table_hubs} WHERE id = %d LIMIT 1",
+            $hub_id
+        ));
+
+        if (!$hub_row || $hub_row->type !== 'Food Truck') {
+            return new WP_REST_Response([
+                'success' => false,
+                'error'   => 'coverage_only_not_allowed',
+                'message' => 'Coverage-only save is restricted to Food Truck hubs'
+            ], 403);
+        }
+
+        // Update ONLY delivery_radius and delivery_zone_type
+        $wpdb->update(
+            $table_hubs,
+            [
+                'delivery_radius'    => $radius,
+                'delivery_zone_type' => $zone_type,
+                'updated_at'         => current_time('mysql'),
+            ],
+            ['id' => $hub_id],
+            ['%f', '%s', '%s'],
+            ['%d']
+        );
+
+        // Handle polygon zones (same logic as below)
+        $table_zones = $wpdb->prefix . 'knx_delivery_zones';
+
+        if ($zone_type === 'polygon' && is_array($polygon_points) && count($polygon_points) >= 3) {
+            $wpdb->delete($table_zones, ['hub_id' => $hub_id], ['%d']);
+            $wpdb->insert(
+                $table_zones,
+                [
+                    'hub_id'         => $hub_id,
+                    'zone_name'      => 'Food Truck Delivery Area',
+                    'polygon_points' => json_encode($polygon_points),
+                    'fill_color'     => '#fb923c',
+                    'fill_opacity'   => 0.25,
+                    'stroke_color'   => '#fb923c',
+                    'stroke_weight'  => 2,
+                    'is_active'      => 1,
+                    'created_at'     => current_time('mysql'),
+                ],
+                ['%d', '%s', '%s', '%s', '%f', '%s', '%d', '%d', '%s']
+            );
+        } elseif ($zone_type === 'radius') {
+            $wpdb->delete($table_zones, ['hub_id' => $hub_id], ['%d']);
+        }
+
+        return new WP_REST_Response([
+            'success' => true,
+            'message' => 'Food truck delivery coverage saved',
+            'data'    => [
+                'hub_id'             => $hub_id,
+                'delivery_radius'    => $radius,
+                'delivery_zone_type' => $zone_type,
+                'polygon_saved'      => ($zone_type === 'polygon'),
+                'coverage_only'      => true,
+            ]
+        ], 200);
+    }
+    // ── END COVERAGE-ONLY FAST PATH ─────────────────────────────
+
     if (empty($effective_address) || $lat === 0.0 || $lng === 0.0) {
         return new WP_REST_Response([
             'success' => false,
             'error' => 'missing_required_fields',
             'message' => 'Address, latitude, and longitude are required'
         ], 400);
-    }
-
-    if (!in_array($zone_type, ['radius', 'polygon'], true)) {
-        $zone_type = 'radius';
     }
 
     // Update hub location

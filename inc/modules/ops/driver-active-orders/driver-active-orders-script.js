@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   var cfg = (window.KNX_DRIVER_ACTIVE_CONFIG || {});
   var apiActive = root.dataset.apiActive || cfg.apiActive || '';
+  var apiSignals = cfg.apiSignals || '';
   var viewOrderUrl = root.dataset.viewOrderUrl || cfg.viewOrderUrl || '/driver-view-order';
   var wpRestNonce = root.dataset.wpRestNonce || cfg.wpRestNonce || '';
   var pollMs = parseInt(root.dataset.pollMs || cfg.pollMs, 10) || 15000;
@@ -32,6 +33,7 @@ document.addEventListener('DOMContentLoaded', function () {
     loading: false,
     orders: [],
     filtered: [],
+    signaledIds: {},
     pollTimer: null,
     aborter: null,
     showArchived: false
@@ -296,6 +298,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             '<div class="knx-aocard__right">' +
               '<div class="knx-aocard__chip ' + escHtml(stClass) + '">' + escHtml(stLabel) + '</div>' +
+              (state.signaledIds[id] ? '<div class="knx-aocard__chip is-signal" style="background:#fef3c7;color:#92400e;border:1px solid #fbbf24;font-size:0.75rem;margin-top:4px;">🔔 Restaurant says Ready</div>' : '') +
               '<div class="knx-aocard__total">' + escHtml(total) + '</div>' +
             '</div>' +
           '</div>' +
@@ -369,9 +372,51 @@ document.addEventListener('DOMContentLoaded', function () {
     applyFilter();
     renderList();
 
+    // Fetch hub "ready for pickup" signals for visible orders
+    fetchSignals();
+
     if (!opts || !opts.silent) {
       if (opts && opts.showCompleted) toast('Loaded ' + state.filtered.length + ' completed order(s) (today).', 'success');
       else toast('Loaded ' + state.filtered.length + ' active order(s).', 'success');
+    }
+  }
+
+  /**
+   * Fetch hub "Ready for Pickup" signals for visible orders.
+   * Updates state.signaledIds and re-renders if any new signals found.
+   */
+  async function fetchSignals() {
+    if (!apiSignals || !state.orders.length) return;
+
+    var ids = state.orders.map(function(o) {
+      return parseInt(o.id || o.order_id, 10) || 0;
+    }).filter(function(id) { return id > 0; });
+
+    if (!ids.length) return;
+
+    try {
+      var url = apiSignals + '?order_ids=' + ids.join(',');
+      var out = await fetchJson(url, {
+        method: 'GET',
+        headers: wpRestNonce ? { 'X-WP-Nonce': wpRestNonce } : {}
+      });
+
+      if (out.ok && out.data && out.data.success && out.data.data && out.data.data.signals) {
+        var signals = out.data.data.signals;
+        var changed = false;
+        Object.keys(signals).forEach(function(oid) {
+          if (signals[oid] && !state.signaledIds[oid]) {
+            state.signaledIds[oid] = true;
+            changed = true;
+          }
+        });
+        if (changed) {
+          applyFilter();
+          renderList();
+        }
+      }
+    } catch (e) {
+      // Fail silently — signal chips are an enhancement only
     }
   }
 

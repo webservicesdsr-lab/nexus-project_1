@@ -102,11 +102,6 @@
     grid-template-columns: minmax(360px, 1fr) minmax(480px, 1.2fr);
     gap:18px;
   }
-
-  .knx-edit-right{
-    position:sticky;
-    top:18px;
-  }
 }
 
 @media (min-width: 1280px){
@@ -451,19 +446,13 @@
   .knx-panel-choices{
     display:flex;
     flex-direction:column;
-    min-height:calc(100vh - 90px);
-    max-height:calc(100vh - 90px);
   }
 
   .knx-modifiers-shell{
     flex:1 1 auto;
-    min-height:0;
-    overflow:hidden;
   }
 
   .knx-modifiers-list{
-    height:100%;
-    overflow:auto;
     padding-right:4px;
   }
 }

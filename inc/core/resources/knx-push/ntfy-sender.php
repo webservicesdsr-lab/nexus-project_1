@@ -40,9 +40,20 @@ function knx_dn_ntfy_send($row) {
         $topic = (string)$row->user_ntfy_id;
     } else {
         global $wpdb;
-        $drivers_table = $wpdb->prefix . 'y05_knx_drivers';
+        $drivers_table = $wpdb->prefix . 'knx_drivers';
+
+        // Defensive: detect whether the user link column is user_id or driver_user_id
+        $user_col = 'user_id';
+        $cols_raw = $wpdb->get_results("SHOW COLUMNS FROM {$drivers_table}", ARRAY_A);
+        if (is_array($cols_raw)) {
+            $col_names = array_map(function ($c) { return $c['Field']; }, $cols_raw);
+            if (in_array('driver_user_id', $col_names, true)) {
+                $user_col = 'driver_user_id';
+            }
+        }
+
         $user_id = $wpdb->get_var($wpdb->prepare(
-            "SELECT user_id FROM {$drivers_table} WHERE id = %d LIMIT 1",
+            "SELECT {$user_col} FROM {$drivers_table} WHERE id = %d LIMIT 1",
             (int)$row->driver_id
         ));
 

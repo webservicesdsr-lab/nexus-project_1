@@ -85,11 +85,11 @@ function knx_render_checkout_page() {
                 $subtotal = max(0.00, round($subtotal, 2));
             }
 
-            // Hub basic info
+            // Hub basic info (include lat/lng for delivery availability check)
             if (!empty($cart->hub_id)) {
                 $hub = $wpdb->get_row(
                     $wpdb->prepare(
-                        "SELECT id, name, address, phone, logo_url
+                        "SELECT id, name, address, phone, logo_url, latitude, longitude
                          FROM {$table_hubs}
                          WHERE id = %d",
                         $cart->hub_id
@@ -272,11 +272,23 @@ function knx_render_checkout_page() {
 <script src="<?php echo esc_url(KNX_URL . 'inc/public/checkout/checkout-script.js?v=' . KNX_VERSION); ?>" defer></script>
 <script src="<?php echo esc_url(KNX_URL . 'inc/public/checkout/checkout-payment-flow.js?v=' . KNX_VERSION); ?>" defer></script>
 
+<?php
+    // Delivery availability: hub must have valid coordinates
+    $hub_lat = $hub ? (float) ($hub->latitude ?? 0) : 0.0;
+    $hub_lng = $hub ? (float) ($hub->longitude ?? 0) : 0.0;
+    $delivery_available = ($hub_lat != 0.0 && $hub_lng != 0.0);
+
+    // If delivery is not available, force pickup regardless of address selection
+    $effective_fulfillment = $delivery_available
+        ? ($selected_address_id > 0 ? 'delivery' : 'pickup')
+        : 'pickup';
+?>
 <div id="knx-checkout"
     data-cart-id="<?php echo esc_attr($cart ? (int) $cart->id : 0); ?>"
     data-hub-id="<?php echo esc_attr($cart ? (int) $cart->hub_id : 0); ?>"
     data-selected-address-id="<?php echo esc_attr(isset($selected_address_id) ? (int) $selected_address_id : 0); ?>"
-    data-fulfillment="<?php echo esc_attr($selected_address_id > 0 ? 'delivery' : 'pickup'); ?>"
+    data-delivery-available="<?php echo $delivery_available ? '1' : '0'; ?>"
+    data-fulfillment="<?php echo esc_attr($effective_fulfillment); ?>"
     data-quote-url="<?php echo esc_attr($quote_url); ?>"
     data-create-intent-url="<?php echo esc_attr($create_intent_url); ?>"
     data-payment-status-url="<?php echo esc_attr($payment_status_url); ?>"
@@ -408,10 +420,11 @@ function knx_render_checkout_page() {
                 <div class="knx-co-card__body">
                     <div class="knx-fulfillment-toggle" role="radiogroup" aria-label="Fulfillment type">
                         <button type="button"
-                                class="knx-fulfillment-chip<?php echo ($selected_address_id > 0) ? ' is-active' : ''; ?>"
+                                class="knx-fulfillment-chip<?php echo ($delivery_available && $selected_address_id > 0) ? ' is-active' : ''; ?><?php echo !$delivery_available ? ' is-disabled' : ''; ?>"
                                 data-fulfillment-value="delivery"
                                 role="radio"
-                                aria-checked="<?php echo ($selected_address_id > 0) ? 'true' : 'false'; ?>">
+                                aria-checked="<?php echo ($delivery_available && $selected_address_id > 0) ? 'true' : 'false'; ?>"
+                                <?php echo !$delivery_available ? 'aria-disabled="true"' : ''; ?>>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
                                 <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
@@ -419,10 +432,10 @@ function knx_render_checkout_page() {
                             <span>Delivery</span>
                         </button>
                         <button type="button"
-                                class="knx-fulfillment-chip<?php echo ($selected_address_id <= 0) ? ' is-active' : ''; ?>"
+                                class="knx-fulfillment-chip<?php echo (!$delivery_available || $selected_address_id <= 0) ? ' is-active' : ''; ?>"
                                 data-fulfillment-value="pickup"
                                 role="radio"
-                                aria-checked="<?php echo ($selected_address_id <= 0) ? 'true' : 'false'; ?>">
+                                aria-checked="<?php echo (!$delivery_available || $selected_address_id <= 0) ? 'true' : 'false'; ?>">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
                                 <line x1="3" y1="6" x2="21" y2="6"/>
@@ -431,16 +444,23 @@ function knx_render_checkout_page() {
                             <span>Pickup</span>
                         </button>
                     </div>
+                    <?php if (!$delivery_available): ?>
+                    <p class="knx-co-helptext knx-co-helptext--error" id="knxFulfillmentHint" style="color:#dc2626;font-weight:600;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-2px;margin-right:4px;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                        Delivery is currently unavailable for this restaurant. Please choose Pickup.
+                    </p>
+                    <?php else: ?>
                     <p class="knx-co-helptext" id="knxFulfillmentHint">
                         <?php echo ($selected_address_id > 0)
                             ? 'Your order will be delivered to your address.'
                             : 'Pick up your order directly at the restaurant.'; ?>
                     </p>
+                    <?php endif; ?>
                 </div>
             </div>
 
-            <!-- DELIVERY-ONLY CARDS (hidden when pickup) -->
-            <div id="knxDeliveryCards"<?php echo ($selected_address_id <= 0) ? ' hidden' : ''; ?>>
+            <!-- DELIVERY-ONLY CARDS (hidden when pickup or delivery unavailable) -->
+            <div id="knxDeliveryCards"<?php echo (!$delivery_available || $selected_address_id <= 0) ? ' hidden' : ''; ?>>
 
             <!-- DELIVERY ADDRESS CARD (Phase 4.2 Address Book Integration) -->
             <?php

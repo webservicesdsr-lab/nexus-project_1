@@ -561,6 +561,12 @@
       var rootEl = document.getElementById('knx-checkout');
       if (!rootEl) return;
 
+      // Fail-closed: if delivery is not available, force pickup
+      var deliveryAvailable = rootEl.getAttribute('data-delivery-available') !== '0';
+      if (mode === 'delivery' && !deliveryAvailable) {
+        mode = 'pickup';
+      }
+
       rootEl.setAttribute('data-fulfillment', mode);
 
       // Update chip active states
@@ -573,6 +579,11 @@
           chip.classList.remove('is-active');
           chip.setAttribute('aria-checked', 'false');
         }
+        // Disable delivery chip visually when unavailable
+        if (val === 'delivery' && !deliveryAvailable) {
+          chip.classList.add('is-disabled');
+          chip.setAttribute('aria-disabled', 'true');
+        }
       });
 
       // Show/hide delivery-specific cards
@@ -584,8 +595,8 @@
         }
       }
 
-      // Update hint text
-      if (fulfillmentHint) {
+      // Update hint text (only if delivery is available — don't overwrite fail-closed message)
+      if (fulfillmentHint && deliveryAvailable) {
         fulfillmentHint.textContent = (mode === 'delivery')
           ? 'Your order will be delivered to your address.'
           : 'Pick up your order directly at the restaurant.';
@@ -620,8 +631,10 @@
         if (!addrId) return;
         var rootEl = document.getElementById('knx-checkout');
         if (!rootEl) return;
+        // Fail-closed: do not auto-switch to delivery if hub has no coords
+        var canDeliver = rootEl.getAttribute('data-delivery-available') !== '0';
         rootEl.setAttribute('data-selected-address-id', String(addrId));
-        rootEl.setAttribute('data-fulfillment', 'delivery');
+        rootEl.setAttribute('data-fulfillment', canDeliver ? 'delivery' : 'pickup');
         // Ensure delivery cards visible
         var deliveryCards = document.getElementById('knxDeliveryCards');
         if (deliveryCards) deliveryCards.removeAttribute('hidden');
@@ -639,8 +652,9 @@
         if (!addrId) return;
         var rootEl = document.getElementById('knx-checkout');
         if (!rootEl) return;
+        var canDeliver = rootEl.getAttribute('data-delivery-available') !== '0';
         rootEl.setAttribute('data-selected-address-id', String(addrId));
-        rootEl.setAttribute('data-fulfillment', 'delivery');
+        rootEl.setAttribute('data-fulfillment', canDeliver ? 'delivery' : 'pickup');
         var deliveryCards = document.getElementById('knxDeliveryCards');
         if (deliveryCards) deliveryCards.removeAttribute('hidden');
         if (typeof fetchQuote === 'function') fetchQuote();

@@ -129,18 +129,39 @@ function knx_api_add_hub_item(WP_REST_Request $r) {
         }
     }
 
-    $wpdb->insert($table_items, [
-        'hub_id'       => $hub_id,
-        'category_id'  => $category_id,
-        'name'         => $name,
-        'description'  => $desc,
-        'price'        => $price,
-        'image_url'    => esc_url_raw($image_url),
-        'status'       => 'available',
-        'sort_order'   => time(),
-        'created_at'   => current_time('mysql'),
-        'updated_at'   => current_time('mysql'),
-    ], ['%d','%d','%s','%s','%f','%s','%s','%d','%s','%s']);
+    // ── Availability columns (optional — hub-management Add Item) ──
+    $avail_type = sanitize_text_field($r->get_param('availability_type'));
+    if (!in_array($avail_type, ['regular','daily','seasonal'], true)) {
+        $avail_type = 'regular';
+    }
+
+    $insert_data = [
+        'hub_id'            => $hub_id,
+        'category_id'       => $category_id,
+        'name'              => $name,
+        'description'       => $desc,
+        'price'             => $price,
+        'image_url'         => esc_url_raw($image_url),
+        'status'            => 'available',
+        'sort_order'        => time(),
+        'availability_type' => $avail_type,
+        'created_at'        => current_time('mysql'),
+        'updated_at'        => current_time('mysql'),
+    ];
+    $insert_fmt = ['%d','%d','%s','%s','%f','%s','%s','%d','%s','%s','%s'];
+
+    if ($avail_type === 'daily') {
+        $insert_data['daily_day_of_week'] = sanitize_text_field($r->get_param('daily_day_of_week'));
+        $insert_data['daily_start_time']  = sanitize_text_field($r->get_param('daily_start_time'));
+        $insert_data['daily_end_time']    = sanitize_text_field($r->get_param('daily_end_time'));
+        $insert_fmt[] = '%s'; $insert_fmt[] = '%s'; $insert_fmt[] = '%s';
+    } elseif ($avail_type === 'seasonal') {
+        $insert_data['seasonal_starts_at'] = sanitize_text_field($r->get_param('seasonal_starts_at'));
+        $insert_data['seasonal_ends_at']   = sanitize_text_field($r->get_param('seasonal_ends_at'));
+        $insert_fmt[] = '%s'; $insert_fmt[] = '%s';
+    }
+
+    $wpdb->insert($table_items, $insert_data, $insert_fmt);
 
     return new WP_REST_Response([
         'success' => true,

@@ -299,8 +299,13 @@ function knx_dn_dispatch($channel, $recipient, $event_type, $template_vars) {
  * Runtime-aligned:
  * - knx_drivers
  * - knx_driver_cities pivot
- * - d.status = 'active'
- * - d.deleted_at IS NULL
+ * - active check: status = 'active' OR is_active = 1 (defensive)
+ * - deleted_at IS NULL
+ *
+ * The drivers table may have a varchar `status` column ('active'/'inactive')
+ * or a tinyint `is_active` column (1/0), depending on the migration state.
+ * This function detects the available column and filters accordingly,
+ * matching the defensive pattern used by knx_ops_get_drivers.
  *
  * @param int $city_id
  * @return array
@@ -314,14 +319,40 @@ function knx_dn_get_drivers_for_city($city_id) {
     $drivers_table       = $wpdb->prefix . 'knx_drivers';
     $driver_cities_table = $wpdb->prefix . 'knx_driver_cities';
 
+    // ── Detect which active-status column exists at runtime ──
+    $cols_raw = $wpdb->get_results("SHOW COLUMNS FROM {$drivers_table}", ARRAY_A);
+    $col_names = is_array($cols_raw)
+        ? array_map(function ($c) { return $c['Field']; }, $cols_raw)
+        : [];
+
+    $active_sql = '1=1'; // fail-open only if NO status column found (should not happen)
+    if (in_array('status', $col_names, true)) {
+        $active_sql = "d.status = 'active'";
+    } elseif (in_array('is_active', $col_names, true)) {
+        $active_sql = 'd.is_active = 1';
+    } elseif (in_array('active', $col_names, true)) {
+        $active_sql = 'd.active = 1';
+    }
+
+    // ── Detect user-link column (user_id vs driver_user_id) ──
+    $user_col = 'user_id';
+    if (in_array('driver_user_id', $col_names, true)) {
+        $user_col = 'driver_user_id';
+    }
+
+    $deleted_sql = '';
+    if (in_array('deleted_at', $col_names, true)) {
+        $deleted_sql = 'AND d.deleted_at IS NULL';
+    }
+
     $rows = $wpdb->get_results($wpdb->prepare(
-        "SELECT d.id, d.user_id, d.full_name, d.phone, d.email
+        "SELECT d.id, d.{$user_col} AS user_id, d.full_name, d.phone, d.email
          FROM {$drivers_table} d
          INNER JOIN {$driver_cities_table} dc
             ON dc.driver_id = d.id
          WHERE dc.city_id = %d
-           AND d.status = 'active'
-           AND d.deleted_at IS NULL
+           AND {$active_sql}
+           {$deleted_sql}
          ORDER BY d.id ASC",
         $city_id
     ));

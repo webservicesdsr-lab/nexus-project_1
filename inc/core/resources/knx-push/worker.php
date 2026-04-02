@@ -130,6 +130,29 @@ function knx_dn_worker_process_once() {
         knx_dn_increment_attempts((int) $row->id);
     }
 
+    // ── Gate: skip dispatch if driver is no longer active ──
+    // The driver may have been deactivated after the notification was enqueued.
+    // Respect CRUD active/inactive status and mark row as failed immediately.
+    if (!empty($row->driver_id) && function_exists('knx_dn_is_driver_active')) {
+        if (!knx_dn_is_driver_active((int) $row->driver_id)) {
+            if (function_exists('knx_dn_update_status')) {
+                knx_dn_update_status((int) $row->id, 'failed', false);
+            } else {
+                $wpdb->update(
+                    $table,
+                    ['status' => 'failed'],
+                    ['id' => (int) $row->id],
+                    ['%s'],
+                    ['%d']
+                );
+            }
+            if (function_exists('knx_dn_set_last_error')) {
+                knx_dn_set_last_error((int) $row->id, 'driver_inactive');
+            }
+            return 1; // consumed, not retried
+        }
+    }
+
     // Process by channel
     if ($channel === 'ntfy') {
         $result = knx_dn_push_process_ntfy_row($row);

@@ -45,8 +45,24 @@ function knx_update_hub_identity_v45(WP_REST_Request $request) {
                     ? $data['status']
                     : 'active';
 
-    if (!$hub_id || empty($email)) {
+    // Type-only update (e.g. Food Truck toggle) — skip full validation
+    $is_type_only = !empty($data['type']) && in_array($data['type'], ['Restaurant', 'Food Truck', 'Cottage Food'], true)
+                    && empty($email) && empty($phone);
+
+    if (!$hub_id || (!$is_type_only && empty($email))) {
         return new WP_REST_Response(['success' => false, 'error' => 'missing_fields'], 400);
+    }
+
+    // Fast path: type-only update
+    if ($is_type_only) {
+        $wpdb->update(
+            $table_hubs,
+            ['type' => $data['type'], 'updated_at' => current_time('mysql')],
+            ['id' => $hub_id],
+            ['%s', '%s'],
+            ['%d']
+        );
+        return knx_rest_response(true, 'Hub type updated');
     }
 
     if ($city_id > 0) {
@@ -96,6 +112,12 @@ function knx_update_hub_identity_v45(WP_REST_Request $request) {
         'city_id'    => $city_id,
         'updated_at' => current_time('mysql')
     ];
+
+    // Update hub type if provided (Food Truck toggle)
+    $allowed_types = ['Restaurant', 'Food Truck', 'Cottage Food'];
+    if (!empty($data['type']) && in_array($data['type'], $allowed_types, true)) {
+        $update_data['type'] = $data['type'];
+    }
 
     // If no pivot table, preserve legacy single-column update
     $use_pivot = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $wpdb->esc_like($map_table)) );

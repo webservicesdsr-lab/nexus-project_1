@@ -74,6 +74,11 @@ if (!function_exists('knx_install_pages')) {
 
             // Administrative / management pages
             ['title' => 'Hubs', 'slug' => 'hubs', 'content' => '[knx_hubs]'],
+            ['title' => 'Hub Dashboard', 'slug' => 'hub-dashboard', 'content' => '[knx_hub_dashboard]'],
+            ['title' => 'Hub Settings', 'slug' => 'hub-settings', 'content' => '[knx_hub_settings]'],
+            ['title' => 'Hub Items', 'slug' => 'hub-items', 'content' => '[knx_hub_items]'],
+            ['title' => 'Hub Managers', 'slug' => 'hub-managers', 'content' => '[knx_hub_managers]'],
+            ['title' => 'Hub Orders', 'slug' => 'hub-orders', 'content' => '[knx_hub_orders]'],
             ['title' => 'Hub Categories', 'slug' => 'hub-categories', 'content' => '[knx_hub_categories]'],
             ['title' => 'Cities (Admin)', 'slug' => 'knx-cities', 'content' => '[knx_cities_signed]'],
             ['title' => 'Edit City', 'slug' => 'knx-edit-city', 'content' => '[knx_edit_city]'],

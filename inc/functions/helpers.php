@@ -362,6 +362,11 @@ function knx_get_driver_context() {
         return false;
     }
 
+    // Defensive: also check is_active tinyint column (schema may use either)
+    if (isset($driver_row->is_active) && (int)$driver_row->is_active !== 1) {
+        return false;
+    }
+
     // Minimal hubs resolution: map via canonical mapping table if present.
     $hub_ids = [];
     // Resolve hubs: try multiple common column linkages in a robust order.

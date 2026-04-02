@@ -54,9 +54,25 @@ function knx_update_hub_identity_v44(WP_REST_Request $request) {
     $phone   = sanitize_text_field($data['phone'] ?? '');
     $status  = in_array($data['status'] ?? 'active', ['active', 'inactive']) ? $data['status'] : 'active';
 
+    /** Type-only update (e.g. Food Truck toggle) — skip full validation */
+    $is_type_only = !empty($data['type']) && in_array($data['type'], ['Restaurant', 'Food Truck', 'Cottage Food'], true)
+                    && empty($email) && empty($phone);
+
     /** Required fields */
-    if (!$hub_id || empty($email)) {
+    if (!$hub_id || (!$is_type_only && empty($email))) {
         return new WP_REST_Response(['success' => false, 'error' => 'missing_fields'], 400);
+    }
+
+    /** Fast path: type-only update */
+    if ($is_type_only) {
+        $wpdb->update(
+            $table_hubs,
+            ['type' => $data['type'], 'updated_at' => current_time('mysql')],
+            ['id' => $hub_id],
+            ['%s', '%s'],
+            ['%d']
+        );
+        return new WP_REST_Response(['success' => true, 'message' => 'Hub type updated']);
     }
 
     /** Validate city_id if provided */
@@ -90,11 +106,19 @@ function knx_update_hub_identity_v44(WP_REST_Request $request) {
         'category_id' => $category_id ?: null
     ];
 
+    /** Update hub type if provided (Food Truck toggle) */
+    $allowed_types = ['Restaurant', 'Food Truck', 'Cottage Food'];
+    if (!empty($data['type']) && in_array($data['type'], $allowed_types, true)) {
+        $update_data['type'] = $data['type'];
+    }
+
     /** Prepare formats dynamically (prevents SQL mismatch) */
     $formats = [];
     foreach ($update_data as $key => $val) {
         if ($key === 'city_id' || $key === 'category_id') {
             $formats[] = is_null($val) ? 'NULL' : '%d';
+        } elseif ($key === 'type') {
+            $formats[] = '%s';
         } else {
             $formats[] = '%s';
         }

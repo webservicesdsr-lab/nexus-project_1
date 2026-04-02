@@ -228,6 +228,7 @@ function knx_api_addresses_add($request) {
     $state       = knx_addresses_trim($body['state'] ?? '', 50);
     $postal_code = knx_addresses_trim($body['postal_code'] ?? '', 20);
     $country     = knx_addresses_trim($body['country'] ?? 'USA', 100);
+    $delivery_instructions = knx_addresses_trim($body['delivery_instructions'] ?? '', 500);
 
     $table = knx_addresses_table();
 
@@ -243,6 +244,7 @@ function knx_api_addresses_add($request) {
         'country'      => $country,
         'latitude'     => $lat,
         'longitude'    => $lng,
+        'delivery_instructions' => $delivery_instructions,
         // New addresses should be marked default so they become the canonical default
         // and the UI can auto-select them (SSOT fallback). Selection for checkout
         // still goes through the select endpoint which enforces coverage.
@@ -263,6 +265,7 @@ function knx_api_addresses_add($request) {
     $formats[] = '%s'; // country
     $formats[] = '%f'; // latitude
     $formats[] = '%f'; // longitude
+    $formats[] = '%s'; // delivery_instructions
 
     // Optional schema-aware fields
     if (function_exists('knx_addresses_has_col') && knx_addresses_has_col('reference_notes')) {
@@ -401,6 +404,7 @@ function knx_api_addresses_update($request) {
     $state       = knx_addresses_trim($body['state'] ?? '', 50);
     $postal_code = knx_addresses_trim($body['postal_code'] ?? '', 20);
     $country     = knx_addresses_trim($body['country'] ?? 'USA', 100);
+    $delivery_instructions = knx_addresses_trim($body['delivery_instructions'] ?? '', 500);
 
     $table = knx_addresses_table();
 
@@ -418,6 +422,7 @@ function knx_api_addresses_update($request) {
         'country'    => $country,
         'latitude'   => $lat,
         'longitude'  => $lng,
+        'delivery_instructions' => $delivery_instructions,
         'updated_at' => knx_addresses_now_mysql(),
     ];
 
@@ -431,6 +436,7 @@ function knx_api_addresses_update($request) {
         '%s', // country
         '%f', // latitude
         '%f', // longitude
+        '%s', // delivery_instructions
         '%s', // updated_at
     ];
 

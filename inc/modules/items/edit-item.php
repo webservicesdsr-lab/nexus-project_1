@@ -25,8 +25,25 @@ add_shortcode('knx_edit_item', function () {
     return;
   }
 
+  // Ownership guard: hub_management can only edit items in their assigned hubs
+  if ($session->role === 'hub_management') {
+      $managed_ids = function_exists('knx_get_managed_hub_ids')
+          ? knx_get_managed_hub_ids((int) $session->user_id)
+          : [];
+      if (!in_array($hub_id, $managed_ids, true)) {
+          wp_safe_redirect(site_url('/hub-dashboard'));
+          exit;
+      }
+  }
+
   $nonce = wp_create_nonce('knx_edit_hub_nonce');
-  $back_to_items = esc_url(add_query_arg(['id' => $hub_id], site_url('/edit-hub-items')));
+
+  // Role-aware back link: hub_management → /hub-items, others → /edit-hub-items
+  if ($session->role === 'hub_management') {
+      $back_to_items = esc_url(add_query_arg(['hub_id' => $hub_id], site_url('/hub-items')));
+  } else {
+      $back_to_items = esc_url(add_query_arg(['id' => $hub_id], site_url('/edit-hub-items')));
+  }
 
   ob_start();
   ?>

@@ -170,7 +170,7 @@ if (!function_exists('knx_get_nav_items')) {
                         'label' => 'Dashboard',
                         'route' => '/dashboard',
                         'icon' => 'chart-line',
-                        'roles' => ['super_admin', 'manager', 'hub_management', 'menu_uploader'],
+                        'roles' => ['super_admin', 'manager', 'menu_uploader'],
                         'area' => 'admin',
                         'active_slugs' => ['dashboard'],
                     ],
@@ -179,7 +179,7 @@ if (!function_exists('knx_get_nav_items')) {
                         'label' => 'Hubs',
                         'route' => '/hubs',
                         'icon' => 'store',
-                        'roles' => ['super_admin', 'manager', 'hub_management'],
+                        'roles' => ['super_admin', 'manager'],
                         'area' => 'admin',
                         'active_slugs' => ['hubs', 'edit-hub', 'edit-hub-items', 'edit-item-categories'],
                     ],
@@ -201,6 +201,15 @@ if (!function_exists('knx_get_nav_items')) {
                         'area' => 'admin',
                         'active_slugs' => ['hub-categories'],
                     ],
+                        [
+                            'id' => 'hub-managers',
+                            'label' => 'Hub Managers',
+                            'route' => '/hub-managers',
+                            'icon' => 'user-cog',
+                            'roles' => ['super_admin', 'manager'],
+                            'area' => 'admin',
+                            'active_slugs' => ['hub-managers'],
+                        ],
                     [
                         'id' => 'drivers',
                         'label' => 'Drivers',
@@ -240,6 +249,57 @@ if (!function_exists('knx_get_nav_items')) {
                 ];
                 break;
                 
+            case 'hub_management':
+                // Hub Management navigation (own hub scope)
+                $items = [
+                    [
+                        'id' => 'hub-dashboard',
+                        'label' => 'Dashboard',
+                        'route' => '/hub-dashboard',
+                        'icon' => 'chart-line',
+                        'roles' => ['hub_management'],
+                        'area' => 'hub_management',
+                        'active_slugs' => ['hub-dashboard'],
+                    ],
+                    [
+                        'id' => 'hub-items',
+                        'label' => 'Menu Items',
+                        'route' => '/hub-items',
+                        'icon' => 'utensils',
+                        'roles' => ['hub_management'],
+                        'area' => 'hub_management',
+                        'active_slugs' => ['hub-items', 'edit-item', 'edit-item-categories'],
+                    ],
+                    [
+                        'id' => 'hub-orders',
+                        'label' => 'Orders',
+                        'route' => '/hub-orders',
+                        'icon' => 'receipt',
+                        'roles' => ['hub_management'],
+                        'area' => 'hub_management',
+                        'active_slugs' => ['hub-orders'],
+                    ],
+                    [
+                        'id' => 'hub-settings',
+                        'label' => 'Settings',
+                        'route' => '/hub-settings',
+                        'icon' => 'cog',
+                        'roles' => ['hub_management'],
+                        'area' => 'hub_management',
+                        'active_slugs' => ['hub-settings'],
+                    ],
+                    [
+                        'id' => 'profile',
+                        'label' => 'Profile',
+                        'route' => '/profile',
+                        'icon' => 'user',
+                        'roles' => ['hub_management'],
+                        'area' => 'hub_management',
+                        'active_slugs' => ['profile'],
+                    ],
+                ];
+                break;
+
             case 'driver':
                 // Driver navigation (future-safe)
                 $items = [
@@ -392,6 +452,17 @@ if (!function_exists('knx_get_navigation_layout')) {
             ];
         }
         
+        // Hub management pages: sidebar
+        $hub_mgmt_slugs = ['hub-dashboard', 'hub-settings', 'hub-items'];
+        if (in_array($slug, $hub_mgmt_slugs, true) && $context['role'] === 'hub_management') {
+            return [
+                'render_navbar' => false,
+                'render_sidebar' => true,
+                'navbar_area' => null,
+                'sidebar_area' => 'hub_management',
+            ];
+        }
+
         // Driver pages: sidebar (future-safe)
         $driver_slugs = ['driver-dashboard', 'my-deliveries'];
         if (in_array($slug, $driver_slugs, true) && $context['is_driver']) {

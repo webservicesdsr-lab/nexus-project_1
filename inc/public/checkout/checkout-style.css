@@ -1644,6 +1644,27 @@
   stroke: #fb7306;
 }
 
+/* Disabled delivery chip (hub has no coordinates / delivery unavailable) */
+.knx-fulfillment-chip.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+  color: #9ca3af;
+}
+.knx-fulfillment-chip.is-disabled svg {
+  stroke: #9ca3af;
+}
+
+/* Error hint for fulfillment */
+.knx-co-helptext--error {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 13px;
+}
+
 /* Delivery cards wrapper — hidden for pickup */
 #knxDeliveryCards[hidden] {
   display: none;

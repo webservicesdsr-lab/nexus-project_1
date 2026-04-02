@@ -23,6 +23,59 @@ function knx_dn_table_exists_live() {
     return ($found === $table);
 }
 
+/**
+ * Check whether a driver is currently active in the knx_drivers table.
+ *
+ * Defensive: supports `status` varchar ('active'/'inactive')
+ * OR `is_active` tinyint (1/0) columns, matching the
+ * defensive pattern used throughout the codebase.
+ *
+ * Used by the worker to skip dispatch for drivers that were
+ * deactivated after their notification row was enqueued.
+ *
+ * @param int $driver_id  PK of knx_drivers
+ * @return bool
+ */
+function knx_dn_is_driver_active($driver_id) {
+    global $wpdb;
+
+    $driver_id = (int) $driver_id;
+    if ($driver_id <= 0) return false;
+
+    $drivers_table = $wpdb->prefix . 'knx_drivers';
+
+    $cols_raw = $wpdb->get_results("SHOW COLUMNS FROM {$drivers_table}", ARRAY_A);
+    $col_names = is_array($cols_raw)
+        ? array_map(function ($c) { return $c['Field']; }, $cols_raw)
+        : [];
+
+    // Build active-check SQL
+    $active_sql = '1=1';
+    if (in_array('status', $col_names, true)) {
+        $active_sql = "status = 'active'";
+    } elseif (in_array('is_active', $col_names, true)) {
+        $active_sql = 'is_active = 1';
+    } elseif (in_array('active', $col_names, true)) {
+        $active_sql = 'active = 1';
+    }
+
+    $deleted_sql = '';
+    if (in_array('deleted_at', $col_names, true)) {
+        $deleted_sql = 'AND deleted_at IS NULL';
+    }
+
+    $found = $wpdb->get_var($wpdb->prepare(
+        "SELECT id FROM {$drivers_table}
+         WHERE id = %d
+           AND {$active_sql}
+           {$deleted_sql}
+         LIMIT 1",
+        $driver_id
+    ));
+
+    return !empty($found);
+}
+
 function knx_dn_check_idempotency($order_id, $driver_id, $event_type) {
     global $wpdb;
     $table = knx_dn_table_name();

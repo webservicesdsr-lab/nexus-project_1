@@ -284,6 +284,8 @@ add_action('init', function () {
             } elseif ($role === 'driver') {
                 // Drivers should land on the ops dashboard (driver-ops)
                 $redirect_url = site_url('/driver-ops');
+            } elseif ($role === 'hub_management') {
+                $redirect_url = site_url('/hub-dashboard');
             } elseif (in_array($role, ['manager', 'super_admin'])) {
                 $redirect_url = site_url('/live-orders');
             }

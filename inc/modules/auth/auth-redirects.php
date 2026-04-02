@@ -34,7 +34,8 @@ add_action('template_redirect', function() {
                          'account-settings', 'knx-dashboard', 'live-orders', 'orders', 'view-order',
                          'fees', 'coupons', 'knx-cities', 'knx-edit-city', 'edit-hub',
                          'edit-hub-items', 'edit-item', 'edit-item-categories', 'drivers-admin',
-                         'menu-studio', 'capture', 'driver-ops', 'driver-active-orders', 'driver-profile'];
+                         'menu-studio', 'capture', 'driver-ops', 'driver-active-orders', 'driver-profile',
+                         'hub-dashboard', 'hub-settings', 'hub-items', 'hub-managers', 'hub-orders'];
     $studio_pages     = ['menu-studio', 'capture'];
     $dashboard_pages  = ['hubs', 'drivers', 'customers', 'cities', 'advanced-dashboard', 'dashboard',
                          'knx-dashboard', 'live-orders', 'orders', 'fees', 'coupons',
@@ -48,6 +49,8 @@ add_action('template_redirect', function() {
         $role = $session->role ?? '';
         if (in_array($role, ['super_admin', 'manager'], true)) {
             wp_safe_redirect(site_url('/knx-dashboard'));
+        } elseif ($role === 'hub_management') {
+            wp_safe_redirect(site_url('/hub-dashboard'));
         } elseif ($role === 'driver') {
             // Drivers should land on the driver-ops screen after login
             wp_safe_redirect(site_url('/driver-ops'));
@@ -59,9 +62,9 @@ add_action('template_redirect', function() {
 
     // Redirect guests trying to access restricted pages
     if (!$session && in_array($slug, $restricted_pages)) {
-        // Build full current URL and use wp_login_url to preserve redirect
+        // Build full current URL and redirect to KNX login page (not WP login)
         $current = (is_ssl() ? 'https://' : 'http://') . ($_SERVER['HTTP_HOST'] ?? '') . ($_SERVER['REQUEST_URI'] ?? '/');
-        $login = function_exists('wp_login_url') ? wp_login_url($current) : site_url('/wp-login.php?redirect_to=' . rawurlencode($current));
+        $login = site_url('/login') . '?redirect_to=' . rawurlencode($current);
         wp_safe_redirect($login);
         exit;
     }
@@ -86,6 +89,20 @@ add_action('template_redirect', function() {
         if ($role === 'manager' && $slug === 'advanced-dashboard') {
             wp_safe_redirect(site_url('/hubs'));
             exit;
+        }
+
+        // Hub management cannot access admin-only pages
+        if ($role === 'hub_management') {
+            $hub_blocked_pages = [
+                'hubs', 'edit-hub', 'edit-hub-items', 'drivers', 'drivers-admin',
+                'customers', 'cities', 'knx-cities', 'knx-edit-city', 'knx-dashboard',
+                'dashboard', 'advanced-dashboard', 'live-orders', 'orders',
+                'view-order', 'fees', 'coupons', 'hub-categories', 'hub-managers',
+            ];
+            if (in_array($slug, $hub_blocked_pages, true)) {
+                wp_safe_redirect(site_url('/hub-dashboard'));
+                exit;
+            }
         }
 
         // Drivers cannot access hubs or admin dashboards

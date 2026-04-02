@@ -427,6 +427,73 @@ function knx_api_create_order_mvp(WP_REST_Request $req) {
                 'message' => 'Delivery snapshot does not match quoted fee. Please re-quote your order.',
             ], 409);
         }
+
+        /* ==========================================================
+         * ANTI-TAMPER: Re-verify delivery fee against CURRENT address
+         * ----------------------------------------------------------
+         * The snapshot was sealed at quote time, but the customer may
+         * have edited their address (changed coordinates) AFTER the
+         * quote was generated without re-quoting. This would let them
+         * lock in a low delivery fee for a nearby address, then switch
+         * to a farther location.
+         *
+         * Defense: re-read the address from DB, recalculate distance +
+         * fee, and reject if it differs from the sealed snapshot by
+         * more than $0.01.
+         * ========================================================== */
+        $snap_address_id = isset($addr_snap['address_id']) ? (int) $addr_snap['address_id'] : 0;
+
+        if (
+            $snap_address_id > 0 &&
+            function_exists('knx_get_address_by_id') &&
+            function_exists('knx_calculate_delivery_distance') &&
+            function_exists('knx_calculate_delivery_fee')
+        ) {
+            $current_addr = knx_get_address_by_id($snap_address_id, $user_id);
+
+            if ($current_addr) {
+                $cur_lat = (float) ($current_addr->latitude ?? 0);
+                $cur_lng = (float) ($current_addr->longitude ?? 0);
+                $snap_lat = (float) ($addr_snap['lat'] ?? 0);
+                $snap_lng = (float) ($addr_snap['lng'] ?? 0);
+
+                // Check if coordinates drifted (> ~11m tolerance ≈ 0.0001°)
+                $coords_drifted = (abs($cur_lat - $snap_lat) > 0.0001 || abs($cur_lng - $snap_lng) > 0.0001);
+
+                if ($coords_drifted) {
+                    // Recalculate from current coords
+                    $recalc_dist = knx_calculate_delivery_distance($hub_id, $cur_lat, $cur_lng);
+
+                    if (!empty($recalc_dist['ok'])) {
+                        $recalc_km = (float) ($recalc_dist['distance_km'] ?? 0.0);
+                        $cart_subtotal_for_fee = $subtotal; // already validated above
+                        $recalc_fee_result = knx_calculate_delivery_fee($hub_id, $recalc_km, $cart_subtotal_for_fee);
+
+                        if (!empty($recalc_fee_result['ok'])) {
+                            $recalc_fee = round((float) ($recalc_fee_result['fee'] ?? 0.0), 2);
+
+                            if (abs($recalc_fee - $ds_fee) > 0.01) {
+                                error_log(sprintf(
+                                    '[KNX-ORDER] DELIVERY_FEE_STALE addr_id=%d snap_fee=%.2f recalc_fee=%.2f snap_lat=%.6f snap_lng=%.6f cur_lat=%.6f cur_lng=%.6f',
+                                    $snap_address_id, $ds_fee, $recalc_fee, $snap_lat, $snap_lng, $cur_lat, $cur_lng
+                                ));
+
+                                return new WP_REST_Response([
+                                    'success' => false,
+                                    'reason'  => 'DELIVERY_FEE_STALE',
+                                    'message' => 'Your delivery address has changed since the quote. Please go back and confirm your order totals.',
+                                ], 409);
+                            }
+                        }
+                        // If fee engine fails on recalc, allow order through
+                        // (fail-open here since we already have a valid sealed snapshot)
+                    }
+                    // If distance engine fails on recalc, allow order through (fail-open)
+                }
+            }
+            // If address not found in DB (deleted), the order will still reference
+            // the snapshot address — acceptable for historical integrity.
+        }
     }
 
     // --------------------------------------------------
