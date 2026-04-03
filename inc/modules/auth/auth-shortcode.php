@@ -26,7 +26,7 @@ add_shortcode('knx_auth', function () {
             <div class="knx-auth-mode" data-mode="login">
                 <h1>Login</h1>
                 <p class="knx-auth-sub">
-                    Enter your email and password to access your account.
+                    Enter your username or email and password to access your account.
                 </p>
 
                 <?php
@@ -110,8 +110,8 @@ add_shortcode('knx_auth', function () {
                         <input type="hidden" name="knx_hp_ts" value="<?php echo time(); ?>">
                     </div>
 
-                    <label>Email</label>
-                    <input type="text" name="knx_login" required autofocus>
+                    <label>Username or Email</label>
+                    <input type="text" name="knx_login" placeholder="" required autofocus>
 
 
                     <label>Password</label>

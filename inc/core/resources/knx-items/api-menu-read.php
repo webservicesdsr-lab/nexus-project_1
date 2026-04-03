@@ -297,12 +297,14 @@ function knx_api_get_menu( WP_REST_Request $req ) {
       if (is_array($decision)) {
         // TASK 03: Use complete availability object from engine
         $availability = [
-          'can_order'  => isset($decision['can_order']) ? (bool)$decision['can_order'] : false,
-          'reason'     => isset($decision['reason']) ? $decision['reason'] : 'UNKNOWN',
-          'message'    => isset($decision['message']) ? $decision['message'] : 'Status unavailable.',
-          'reopen_at'  => isset($decision['reopen_at']) ? $decision['reopen_at'] : null,
-          'source'     => isset($decision['source']) ? $decision['source'] : 'unknown',
-          'severity'   => 'soft' // Always soft in Menu (hard gates in checkout/orders)
+          'can_order'    => isset($decision['can_order']) ? (bool)$decision['can_order'] : false,
+          'reason'       => isset($decision['reason']) ? $decision['reason'] : 'UNKNOWN',
+          'message'      => isset($decision['message']) ? $decision['message'] : 'Status unavailable.',
+          'reopen_at'    => isset($decision['reopen_at']) ? $decision['reopen_at'] : null,
+          'source'       => isset($decision['source']) ? $decision['source'] : 'unknown',
+          'severity'     => 'soft', // Always soft in Menu (hard gates in checkout/orders)
+          'is_preorder'  => isset($decision['is_preorder']) ? (bool)$decision['is_preorder'] : false,
+          'opens_at'     => isset($decision['opens_at']) ? $decision['opens_at'] : null,
         ];
       }
     } catch (Exception $e) {

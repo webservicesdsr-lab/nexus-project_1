@@ -101,9 +101,7 @@ add_shortcode('knx_edit_hub', function () {
     /** Internal navigation urls */
     $back_url       = esc_url(site_url('/hubs'));
     $edit_items_url = esc_url(add_query_arg('id', $hub_id, site_url('/edit-hub-items')));
-    $preview_url    = esc_url(function_exists('knx_get_hub_public_url')
-                        ? knx_get_hub_public_url($hub_id)
-                        : home_url('/hub/?id=' . $hub_id));
+    $preview_url    = esc_url(home_url('/menu/' . ($hub->slug ?? $hub_id)));
     ?>
 
     <!-- Core styles -->

@@ -130,6 +130,22 @@ function knx_cart_page_render_html($cart_row, $items, $subtotal, $hub_name = nul
             <div class="knx-cart-availability-banner" style="background:#fef3c7; border:1px solid #fbbf24; padding:12px 16px; border-radius:8px; margin-bottom:20px; text-align:center; color:#92400e; font-size:0.9rem;">
                 <?php echo esc_html($message); ?>
             </div>
+        <?php elseif (!empty($availability) && !empty($availability['is_preorder'])) : ?>
+            <?php
+            $preorder_opens = '';
+            if (!empty($availability['opens_at'])) {
+                try {
+                    $po_dt = new DateTime($availability['opens_at']);
+                    $preorder_opens = $po_dt->format('g:i A');
+                } catch (Exception $e) {
+                    $preorder_opens = '';
+                }
+            }
+            ?>
+            <div class="knx-cart-preorder-banner" style="background:#eff6ff; border:1px solid #3b82f6; padding:12px 16px; border-radius:8px; margin-bottom:20px; text-align:center; color:#1e40af; font-size:0.9rem;">
+                <strong>📋 Pre-order</strong> — This restaurant hasn't opened yet.
+                Your order will be queued for when they open<?php echo $preorder_opens ? ' at <strong>' . esc_html($preorder_opens) . '</strong>' : ' today'; ?>.
+            </div>
         <?php endif; ?>
 
         <?php if (empty($items)) : ?>

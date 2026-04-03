@@ -125,6 +125,8 @@
                 return;
             }
 
+            var viewOrderBase = window.location.origin + '/hub-view-order';
+
             var html = filtered.map(function(o) {
                 var cardClass = getCardClass(o.status);
                 var statusClass = 'st-' + o.status;
@@ -132,7 +134,9 @@
                 var total = money(o.total);
                 var ago = relTime(o.created_at);
                 var isActive = ['confirmed', 'accepted_by_driver', 'accepted_by_hub', 'preparing', 'prepared'].indexOf(o.status) !== -1;
+                var viewUrl = viewOrderBase + '?order_id=' + o.order_id;
 
+                // Fulfillment badge
                 var fulfillmentHtml = '';
                 if (o.fulfillment_type === 'pickup') {
                     fulfillmentHtml = '<span class="knx-ho-fulfillment is-pickup"><i class="fas fa-shopping-bag"></i> Pickup</span>';
@@ -140,9 +144,24 @@
                     fulfillmentHtml = '<span class="knx-ho-fulfillment is-delivery"><i class="fas fa-motorcycle"></i> Delivery</span>';
                 }
 
-                var addressHtml = '';
-                if (o.fulfillment_type === 'delivery' && o.delivery_address) {
-                    addressHtml = '<div class="knx-ho-card__address"><i class="fas fa-map-marker-alt"></i> ' + esc(o.delivery_address) + '</div>';
+                // Driver name for delivery
+                var driverHtml = '';
+                if (o.fulfillment_type === 'delivery' && o.driver_name) {
+                    driverHtml = '<div class="knx-ho-card__driver"><i class="fas fa-user-shield"></i> ' + esc(o.driver_name) + '</div>';
+                } else if (o.fulfillment_type === 'delivery' && !o.driver_name) {
+                    driverHtml = '<div class="knx-ho-card__driver knx-ho-card__driver--pending"><i class="fas fa-clock"></i> Awaiting driver</div>';
+                }
+
+                // Items preview (first 3 items as chips)
+                var itemsHtml = '';
+                if (o.items && o.items.length) {
+                    var chips = o.items.slice(0, 3).map(function(it) {
+                        return '<span>' + esc(it.quantity + 'x ' + it.name) + '</span>';
+                    }).join('');
+                    if (o.items.length > 3) {
+                        chips += '<span class="knx-ho-card__items-more">+' + (o.items.length - 3) + ' more</span>';
+                    }
+                    itemsHtml = '<div class="knx-ho-card__items">' + chips + '</div>';
                 }
 
                 var notesHtml = '';
@@ -166,31 +185,34 @@
                     }
                 }
 
-                return '<div class="knx-ho-card ' + cardClass + '" data-order-id="' + o.order_id + '">' +
-                    '<div class="knx-ho-card__top">' +
-                        '<div>' +
-                            '<div class="knx-ho-card__id">#' + esc(String(o.order_id)) + (hubName ? ' ' + esc(hubName) : '') + '</div>' +
-                            '<div class="knx-ho-card__customer">' + esc(o.customer_name || 'Customer') + '</div>' +
-                            (o.customer_phone ? '<div class="knx-ho-card__phone"><i class="fas fa-phone"></i> ' + esc(o.customer_phone) + '</div>' : '') +
-                            '<div class="knx-ho-card__time">' + esc(ago) + '</div>' +
+                return '<a href="' + esc(viewUrl) + '" class="knx-ho-card-link">' +
+                    '<div class="knx-ho-card ' + cardClass + '" data-order-id="' + o.order_id + '">' +
+                        '<div class="knx-ho-card__top">' +
+                            '<div>' +
+                                '<div class="knx-ho-card__id">#' + esc(String(o.order_id)) + ' ' + esc(o.customer_name || 'Customer') + '</div>' +
+                                '<div class="knx-ho-card__time">' + esc(ago) + '</div>' +
+                            '</div>' +
+                            '<div class="knx-ho-card__right">' +
+                                '<span class="knx-ho-status ' + statusClass + '">' + esc(label) + '</span>' +
+                                fulfillmentHtml +
+                                '<div class="knx-ho-card__total">' + esc(total) + '</div>' +
+                            '</div>' +
                         '</div>' +
-                        '<div class="knx-ho-card__right">' +
-                            '<span class="knx-ho-status ' + statusClass + '">' + esc(label) + '</span>' +
-                            fulfillmentHtml +
-                            '<div class="knx-ho-card__total">' + esc(total) + '</div>' +
-                        '</div>' +
+                        driverHtml +
+                        itemsHtml +
+                        notesHtml +
+                        actionsHtml +
                     '</div>' +
-                    addressHtml +
-                    notesHtml +
-                    actionsHtml +
-                '</div>';
+                '</a>';
             }).join('');
 
             listEl.innerHTML = html;
 
-            // Attach signal handlers
+            // Attach signal handlers (prevent link navigation on button click)
             listEl.querySelectorAll('.knx-ho-ready-btn').forEach(function(btn) {
-                btn.addEventListener('click', function() {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
                     sendSignal(btn);
                 });
             });

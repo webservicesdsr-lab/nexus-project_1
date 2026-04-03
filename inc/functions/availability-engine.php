@@ -3,7 +3,7 @@ if (!defined('ABSPATH')) exit;
 
 /**
  * ==========================================================
- * Kingdom Nexus - Availability Engine (SEALED v2.0)
+ * Kingdom Nexus - Availability Engine (SEALED v2.1)
  * ----------------------------------------------------------
  * Single canonical source of truth for Hub order availability.
  *
@@ -15,6 +15,12 @@ if (!defined('ABSPATH')) exit;
  * - No overnight support (all hours same calendar day)
  * - 15-minute closing cutoff (hard-coded)
  *
+ * PRE-ORDER SUPPORT (v2.1):
+ * - Hubs with allow_preorder=1 accept orders before opening (same day only)
+ * - Returns reason=HUB_PREORDER with can_order=true, is_preorder=true
+ * - Pre-orders only when hub has valid hours TODAY and current time is BEFORE first open
+ * - opens_at key: ISO 8601 of today's first opening time (for UX)
+ *
  * AVAILABILITY BLOCK CONTRACT (TASK 01):
  * - Standardized error response for checkout/orders
  * - success=false, error="availability_block", HTTP 409
@@ -23,8 +29,8 @@ if (!defined('ABSPATH')) exit;
  *
  * Implements Phase 1.5.A Availability Authority Design.
  * Implements Phase 1.6.C Closing Cutoff Rule.
+ * Implements Phase 2.1 Pre-Order Before Opening.
  * ==========================================================
- */
 
 /**
  * TASK 02: Helper to build standardized availability block response.
@@ -56,24 +62,26 @@ if (!function_exists('knx_rest_availability_block')) {
  *
  * @param int $hub_id Required. Hub ID to evaluate.
  *
- * @return array Availability decision (exact 6 keys, strict contract):
+ * @return array Availability decision (strict contract):
  *   [
- *     'can_order' => bool,
- *     'reason'    => string,      // ENUM (see cascade below)
- *     'message'   => string,      // Status descriptor (stable, generic)
- *     'reopen_at' => string|null, // ISO 8601 ONLY for HUB_TEMP_CLOSED, else null
- *     'source'    => string,      // city|hub|hours
- *     'severity'  => string       // always 'hard'
+ *     'can_order'   => bool,
+ *     'reason'      => string,      // ENUM (see cascade below)
+ *     'message'     => string,      // Status descriptor (stable, generic)
+ *     'reopen_at'   => string|null, // ISO 8601 ONLY for HUB_TEMP_CLOSED, else null
+ *     'source'      => string,      // city|hub|hours
+ *     'severity'    => string,      // always 'hard'
+ *     'is_preorder' => bool,        // true ONLY for HUB_PREORDER (v2.1)
+ *     'opens_at'    => string|null, // ISO 8601 of today's opening time (v2.1, HUB_PREORDER only)
  *   ]
  *
- * Priority Cascade (SEALED - do not modify):
+ * Priority Cascade:
  *   1. CITY_NOT_OPERATIONAL
  *   2. CITY_INACTIVE
  *   3. HUB_INACTIVE
  *   4. HUB_CLOSED_INDEFINITELY
  *   5. HUB_TEMP_CLOSED
  *   6. HUB_NO_HOURS_SET
- *   7. HUB_OUTSIDE_HOURS
+ *   7. HUB_OUTSIDE_HOURS → or HUB_PREORDER if allow_preorder=1 & opens later today
  *   8. HUB_CLOSING_SOON
  *   9. AVAILABLE
  */
@@ -84,14 +92,16 @@ function knx_availability_decision($hub_id) {
     // Local helper: create a contract-compliant response
     // (Anonymous closure to avoid introducing extra functions)
     // ------------------------------------------------------
-    $resp = function($can_order, $reason, $message, $reopen_at, $source) {
+    $resp = function($can_order, $reason, $message, $reopen_at, $source, $is_preorder = false, $opens_at = null) {
         return [
-            'can_order' => (bool) $can_order,
-            'reason'    => (string) $reason,
-            'message'   => (string) $message,
-            'reopen_at' => $reopen_at === null ? null : (string) $reopen_at,
-            'source'    => (string) $source,
-            'severity'  => 'hard',
+            'can_order'   => (bool) $can_order,
+            'reason'      => (string) $reason,
+            'message'     => (string) $message,
+            'reopen_at'   => $reopen_at === null ? null : (string) $reopen_at,
+            'source'      => (string) $source,
+            'severity'    => 'hard',
+            'is_preorder' => (bool) $is_preorder,
+            'opens_at'    => $opens_at === null ? null : (string) $opens_at,
         ];
     };
 
@@ -108,7 +118,7 @@ function knx_availability_decision($hub_id) {
     $hub = $wpdb->get_row($wpdb->prepare(
         "SELECT id, status, city_id, timezone, closure_until, closure_reason,
                 hours_monday, hours_tuesday, hours_wednesday, hours_thursday,
-                hours_friday, hours_saturday, hours_sunday
+                hours_friday, hours_saturday, hours_sunday, allow_preorder
          FROM {$table_hubs}
          WHERE id = %d
          LIMIT 1",
@@ -268,6 +278,44 @@ function knx_availability_decision($hub_id) {
     }
 
     if (!$is_open_now) {
+        // ======================================================
+        // PRE-ORDER CHECK (v2.1): If hub allows pre-orders and
+        // the current time is BEFORE the first opening interval
+        // today, allow ordering with is_preorder=true.
+        // Only same-day, only before opening (not after closing).
+        // ======================================================
+        $allow_preorder = isset($hub->allow_preorder) ? (int) $hub->allow_preorder : 0;
+
+        if ($allow_preorder === 1) {
+            // Find today's first opening time
+            $first_open = null;
+            foreach ($intervals as $intv) {
+                if ($first_open === null || $intv['open'] < $first_open) {
+                    $first_open = $intv['open'];
+                }
+            }
+
+            // Pre-order only if current time is BEFORE the first opening
+            if ($first_open !== null && $current_time < $first_open) {
+                try {
+                    $opens_at_dt = new DateTime($now->format('Y-m-d') . ' ' . $first_open, $tz);
+                    $opens_at_iso = $opens_at_dt->format(DATE_ATOM);
+                } catch (Exception $e) {
+                    $opens_at_iso = null;
+                }
+
+                return $resp(
+                    true,
+                    'HUB_PREORDER',
+                    'Pre-order available for today.',
+                    null,
+                    'hours',
+                    true,
+                    $opens_at_iso
+                );
+            }
+        }
+
         return $resp(false, 'HUB_OUTSIDE_HOURS', 'Closed now.', null, 'hours');
     }
 

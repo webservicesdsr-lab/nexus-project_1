@@ -137,12 +137,16 @@ function knx_hub_orders_list_handler(WP_REST_Request $request) {
             o.notes,
             o.created_at,
             o.updated_at,
+            o.driver_id,
+            d.full_name AS driver_name,
             s.id AS signal_id,
             s.signal_type,
             s.created_at AS signaled_at
          FROM {$orders_table} o
          LEFT JOIN {$signals_table} s
             ON s.order_id = o.id AND s.signal_type = 'ready_for_pickup'
+         LEFT JOIN {$wpdb->prefix}knx_drivers d
+            ON d.id = o.driver_id
          WHERE o.hub_id = %d
            AND o.payment_status = 'paid'
            AND o.status IN ({$ph})
@@ -154,10 +158,36 @@ function knx_hub_orders_list_handler(WP_REST_Request $request) {
         ...$params
     ));
 
+    // Fetch items for all returned orders in a single query
+    $order_ids = array_map(function($r) { return (int) $r->order_id; }, $rows);
+    $items_by_order = [];
+    if (!empty($order_ids)) {
+        $order_items_table = $wpdb->prefix . 'knx_order_items';
+        $id_placeholders = implode(',', array_fill(0, count($order_ids), '%d'));
+        $item_rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT order_id, name_snapshot, quantity, unit_price, line_total
+             FROM {$order_items_table}
+             WHERE order_id IN ({$id_placeholders})
+             ORDER BY id ASC",
+            ...$order_ids
+        ));
+        foreach ($item_rows as $ir) {
+            $oid = (int) $ir->order_id;
+            if (!isset($items_by_order[$oid])) $items_by_order[$oid] = [];
+            $items_by_order[$oid][] = [
+                'name'       => $ir->name_snapshot,
+                'quantity'   => (int) $ir->quantity,
+                'unit_price' => (float) $ir->unit_price,
+                'line_total' => (float) $ir->line_total,
+            ];
+        }
+    }
+
     $orders = [];
     foreach ($rows as $r) {
+        $oid = (int) $r->order_id;
         $orders[] = [
-            'order_id'         => (int) $r->order_id,
+            'order_id'         => $oid,
             'order_number'     => $r->order_number,
             'customer_name'    => $r->customer_name,
             'customer_phone'   => $r->customer_phone,
@@ -171,8 +201,11 @@ function knx_hub_orders_list_handler(WP_REST_Request $request) {
             'notes'            => $r->notes,
             'created_at'       => $r->created_at,
             'updated_at'       => $r->updated_at,
+            'driver_id'        => $r->driver_id ? (int) $r->driver_id : null,
+            'driver_name'      => $r->driver_name ?: null,
             'hub_signaled_ready' => !empty($r->signal_id),
             'signaled_at'        => $r->signaled_at,
+            'items'            => isset($items_by_order[$oid]) ? $items_by_order[$oid] : [],
         ];
     }
 

@@ -110,9 +110,11 @@ function knx_render_checkout_page() {
 
     // Availability check (soft gate)
     $availability = null;
+    $is_preorder = false;
     if (function_exists('knx_availability_decision') && !empty($cart->hub_id)) {
         $availability = knx_availability_decision((int) $cart->hub_id);
         $can_order = !empty($availability['can_order']);
+        $is_preorder = !empty($availability['is_preorder']);
 
         if (!$can_order) {
             $message = !empty($availability['message']) ? $availability['message'] : 'Restaurant unavailable';
@@ -122,6 +124,27 @@ function knx_render_checkout_page() {
                 <a href="' . esc_url(site_url('/cart')) . '" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#10b981;color:white;border-radius:8px;text-decoration:none;">Return to Cart</a>
             </div>';
         }
+    }
+
+    // Pre-order info banner (v2.1)
+    $preorder_banner = '';
+    if ($is_preorder && !empty($availability)) {
+        $po_opens = '';
+        if (!empty($availability['opens_at'])) {
+            try {
+                $po_dt = new DateTime($availability['opens_at']);
+                $po_opens = $po_dt->format('g:i A');
+            } catch (Exception $e) {
+                $po_opens = '';
+            }
+        }
+        $preorder_banner = '
+            <div style="background:#eff6ff;border:1px solid #3b82f6;padding:16px;margin:0 0 20px 0;border-radius:10px;text-align:center;color:#1e40af;font-size:0.9rem;">
+                <strong>📋 Pre-order</strong> — This restaurant hasn\'t opened yet.
+                Your order will be queued and processed when they open' . ($po_opens ? ' at <strong>' . esc_html($po_opens) . '</strong>' : ' today') . '.
+                Please select a delivery time slot below.
+            </div>
+        ';
     }
 
     // Current WP user (for header display only)
@@ -295,6 +318,7 @@ function knx_render_checkout_page() {
     data-payments-ready="<?php echo esc_attr($payments_ready ? '1' : '0'); ?>">
 
     <?php echo $profile_incomplete_banner; ?>
+    <?php echo $preorder_banner; ?>
 
     <!-- RESTAURANT INFO HEADER (New modern design) -->
     <?php if ($hub): ?>

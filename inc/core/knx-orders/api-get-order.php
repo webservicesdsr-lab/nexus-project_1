@@ -92,9 +92,20 @@ function knx_api_get_order(WP_REST_Request $req) {
     if ($role === 'super_admin') {
         // Full access - no restrictions
     }
+    // Hub management: scoped to their assigned hubs only
+    elseif (preg_match('/\bhub(?:[_\-\s]?(?:management|owner|staff|manager))\b/i', $role)) {
+        $managed_ids = function_exists('knx_get_managed_hub_ids')
+            ? knx_get_managed_hub_ids((int) $session->user_id)
+            : [];
+        if (!in_array((int) $order->hub_id, $managed_ids, true)) {
+            return new WP_REST_Response([
+                'success' => false,
+                'error'   => 'order-not-found'
+            ], 404);
+        }
+    }
     // Manager: city-scoped access via hub → city relationship
     elseif ($role === 'manager') {
-        // NOTE: Manager scope is city-based by design
         // Managers can only access orders from hubs in cities they manage
         // TODO: Full city-scoping requires knx_users.managed_cities or similar
         // For now, we enforce hub-level validation as best-effort restriction
@@ -369,6 +380,21 @@ function knx_api_get_order(WP_REST_Request $req) {
         ];
     }
 
+    // ── Resolve driver info (if delivery + driver assigned) ──
+    $driver_name  = null;
+    $driver_phone = null;
+    if (!empty($order->driver_id)) {
+        $table_drivers = $wpdb->prefix . 'knx_drivers';
+        $driver_row = $wpdb->get_row($wpdb->prepare(
+            "SELECT full_name, phone FROM {$table_drivers} WHERE id = %d LIMIT 1",
+            (int) $order->driver_id
+        ));
+        if ($driver_row) {
+            $driver_name  = $driver_row->full_name ? (string) $driver_row->full_name : null;
+            $driver_phone = $driver_row->phone     ? (string) $driver_row->phone     : null;
+        }
+    }
+
     // Build response
     return new WP_REST_Response([
         'success' => true,
@@ -381,6 +407,11 @@ function knx_api_get_order(WP_REST_Request $req) {
             'created_at'       => $order->created_at,
             'created_at_iso'   => $order->created_at ? date('c', strtotime($order->created_at)) : null,
 
+            'customer' => [
+                'name'  => isset($order->customer_name)  ? (string) $order->customer_name  : null,
+                'phone' => isset($order->customer_phone) ? (string) $order->customer_phone : null,
+            ],
+
             'restaurant' => [
                 'name'     => $hub_name,
                 'address'  => $hub_address,
@@ -392,6 +423,12 @@ function knx_api_get_order(WP_REST_Request $req) {
                 'address' => isset($order->delivery_address) ? (string)$order->delivery_address : null,
                 'lat'     => isset($order->delivery_lat) ? (float)$order->delivery_lat : null,
                 'lng'     => isset($order->delivery_lng) ? (float)$order->delivery_lng : null,
+            ],
+
+            'driver' => [
+                'id'    => !empty($order->driver_id) ? (int) $order->driver_id : null,
+                'name'  => $driver_name,
+                'phone' => $driver_phone,
             ],
 
             'payment' => [
@@ -408,6 +445,8 @@ function knx_api_get_order(WP_REST_Request $req) {
                 'discount_amount' => (float)($order->discount_amount ?? 0),
                 'total'           => (float)($order->total ?? 0),
             ],
+
+            'notes' => isset($order->notes) ? (string) $order->notes : null,
 
             'items' => $items,
 

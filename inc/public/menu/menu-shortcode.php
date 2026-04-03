@@ -170,12 +170,26 @@ function knx_render_menu_page() {
 		? (bool) $availability['can_order']
 		: true; // Fail-open for header display if engine missing; Add-to-cart will still guard in JS if availability is present.
 
+	$is_preorder = is_array($availability) && !empty($availability['is_preorder']);
+
 	$now_ts      = current_time('timestamp');
 	$status_text = 'Closed';
 
 	if (!$can_order) {
 		// IMPORTANT: Any block (temp closed, indefinite, city paused, closing soon, etc.) => CLOSED only.
 		$status_text = 'CLOSED';
+	} else if ($is_preorder) {
+		// Pre-order mode (v2.1): Hub is not yet open but accepts advance orders for today.
+		$opens_at_display = '';
+		if (!empty($availability['opens_at'])) {
+			try {
+				$opens_dt = new DateTime($availability['opens_at']);
+				$opens_at_display = ' · Opens at ' . $opens_dt->format('g:i A');
+			} catch (Exception $e) {
+				$opens_at_display = '';
+			}
+		}
+		$status_text = 'Pre-order for today' . $opens_at_display;
 	} else {
 		// Preserve your existing "Open until X" behavior when within hours.
 		$weekday = strtolower(date_i18n('l', $now_ts));

@@ -164,11 +164,7 @@ add_shortcode('knx_hub_orders', function () {
     padding: 16px 20px;
     margin-bottom: 12px;
     border-left: 4px solid #e5e7eb;
-    transition: box-shadow 0.12s ease;
-}
-
-.knx-ho-card:hover {
-    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    transition: box-shadow 0.12s ease, transform 0.12s ease;
 }
 
 .knx-ho-card.is-new { border-left-color: #3b82f6; }
@@ -264,17 +260,35 @@ add_shortcode('knx_hub_orders', function () {
     margin-top: 8px;
 }
 
-/* Delivery address */
-.knx-ho-card__address {
+/* Clickable card link */
+.knx-ho-card-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.knx-ho-card-link:hover .knx-ho-card {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+}
+
+/* Driver info */
+.knx-ho-card__driver {
     font-size: 13px;
-    color: #6b7280;
-    margin-top: 4px;
+    color: #1e40af;
+    font-weight: 600;
+    margin-top: 6px;
     display: flex;
     align-items: center;
     gap: 6px;
 }
 
-.knx-ho-card__address i { font-size: 12px; color: #9ca3af; }
+.knx-ho-card__driver i { font-size: 12px; }
+
+.knx-ho-card__driver--pending {
+    color: #9ca3af;
+    font-weight: 500;
+}
 
 /* Ready button */
 .knx-ho-card__actions {
@@ -359,6 +373,12 @@ add_shortcode('knx_hub_orders', function () {
     border-radius: 6px;
     margin: 2px 4px 2px 0;
     font-size: 12px;
+}
+
+.knx-ho-card__items-more {
+    background: #e5e7eb !important;
+    color: #6b7280;
+    font-weight: 600;
 }
 
 @media (max-width: 600px) {

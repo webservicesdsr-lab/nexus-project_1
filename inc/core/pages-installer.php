@@ -79,6 +79,7 @@ if (!function_exists('knx_install_pages')) {
             ['title' => 'Hub Items', 'slug' => 'hub-items', 'content' => '[knx_hub_items]'],
             ['title' => 'Hub Managers', 'slug' => 'hub-managers', 'content' => '[knx_hub_managers]'],
             ['title' => 'Hub Orders', 'slug' => 'hub-orders', 'content' => '[knx_hub_orders]'],
+            ['title' => 'Hub View Order', 'slug' => 'hub-view-order', 'content' => '[knx_hub_view_order]'],
             ['title' => 'Hub Categories', 'slug' => 'hub-categories', 'content' => '[knx_hub_categories]'],
             ['title' => 'Cities (Admin)', 'slug' => 'knx-cities', 'content' => '[knx_cities_signed]'],
             ['title' => 'Edit City', 'slug' => 'knx-edit-city', 'content' => '[knx_edit_city]'],

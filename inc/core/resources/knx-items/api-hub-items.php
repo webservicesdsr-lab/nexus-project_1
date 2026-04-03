@@ -142,7 +142,7 @@ function knx_api_add_hub_item(WP_REST_Request $r) {
         'description'       => $desc,
         'price'             => $price,
         'image_url'         => esc_url_raw($image_url),
-        'status'            => 'available',
+        'status'            => 'active',
         'sort_order'        => time(),
         'availability_type' => $avail_type,
         'created_at'        => current_time('mysql'),

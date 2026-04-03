@@ -360,6 +360,7 @@ add_action('plugins_loaded', function() {
     knx_require('inc/modules/hubs/hub-items-shortcode.php');
     knx_require('inc/modules/hubs/hub-managers-shortcode.php');
     knx_require('inc/modules/hubs/hub-orders-shortcode.php');
+    knx_require('inc/modules/hubs/hub-view-order-shortcode.php');
     knx_require('inc/modules/hubs/hub-bottom-nav/hub-bottom-nav.php');
     knx_require('inc/modules/hubs/edit-hub-template.php');
     knx_require('inc/modules/hubs/edit-hub-identity.php');

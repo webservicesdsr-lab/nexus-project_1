@@ -453,7 +453,7 @@ if (!function_exists('knx_get_navigation_layout')) {
         }
         
         // Hub management pages: sidebar
-        $hub_mgmt_slugs = ['hub-dashboard', 'hub-settings', 'hub-items', 'hub-orders'];
+        $hub_mgmt_slugs = ['hub-dashboard', 'hub-settings', 'hub-items', 'hub-orders', 'hub-view-order'];
         if (in_array($slug, $hub_mgmt_slugs, true) && $context['role'] === 'hub_management') {
             return [
                 'render_navbar' => false,

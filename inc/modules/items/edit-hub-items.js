@@ -169,13 +169,17 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const grouped = {};
+    const catOrder = [];   // preserve API sort_order for categories
     items.forEach((item) => {
       const catId = item.category_id || 0;
-      if (!grouped[catId]) grouped[catId] = [];
+      if (!grouped[catId]) {
+        grouped[catId] = [];
+        catOrder.push(catId);  // first occurrence keeps API order
+      }
       grouped[catId].push(item);
     });
 
-    Object.keys(grouped).forEach((catId) => {
+    catOrder.forEach((catId) => {
       const categoryBlock = document.createElement("div");
       categoryBlock.className = "knx-category-block";
       categoryBlock.dataset.catId = catId;

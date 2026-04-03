@@ -82,6 +82,7 @@ CREATE TABLE `y05_knx_hubs` (
   `hours_friday` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL,
   `hours_saturday` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL,
   `hours_sunday` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci DEFAULT NULL,
+  `allow_preorder` tinyint(1) NOT NULL DEFAULT '0' COMMENT 'Allow customers to place pre-orders before hub opens (same day only)',
   `closure_start` date DEFAULT NULL,
   `closure_until` datetime DEFAULT NULL,
   `closure_reason` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci,

@@ -516,8 +516,37 @@ function knx_hours_generate_time_slots($hub_id, $eta_minutes = 0) {
     $travel        = max(0, (int) $eta_minutes);
     $buffer        = $prep_minutes + $travel;
 
-    $earliest = clone $now;
-    $earliest->modify("+{$buffer} minutes");
+    // Pre-order mode detection (v2.1):
+    // If we are before today's first opening time, start slots from the opening
+    // time + buffer instead of from now + buffer. This lets customers place
+    // orders before the hub opens and pick a slot for after it opens.
+    $is_preorder_window = false;
+    $first_open_time = null;
+    foreach ($intervals as $_intv) {
+        if ($first_open_time === null || $_intv['open'] < $first_open_time) {
+            $first_open_time = $_intv['open'];
+        }
+    }
+
+    $current_time_check = $now->format('H:i');
+    if ($first_open_time !== null && $current_time_check < $first_open_time) {
+        $is_preorder_window = true;
+    }
+
+    if ($is_preorder_window && $first_open_time !== null) {
+        // In pre-order mode: earliest slot = first opening time + buffer, rounded up
+        try {
+            $earliest = new DateTime($now->format('Y-m-d') . ' ' . $first_open_time, $tz);
+            $earliest->modify("+{$buffer} minutes");
+        } catch (Exception $e) {
+            $earliest = clone $now;
+            $earliest->modify("+{$buffer} minutes");
+        }
+    } else {
+        $earliest = clone $now;
+        $earliest->modify("+{$buffer} minutes");
+    }
+
     $min = (int) $earliest->format('i');
     if ($min === 0 || $min === 30) {
         // already on a clean boundary — no adjustment needed
