@@ -372,28 +372,43 @@ document.addEventListener('DOMContentLoaded', function () {
         }, 1500);
     }
 
+    let lastRandomPickId = null;
+
     function showRandomWinner() {
+        // Pool = ALL vendors (open + closed) so the randomizer actually rotates.
+        // Prioritize orderable hubs, but fall back to every hub if ≤ 1 is open.
         let pool = state.vendors.filter(v => canOrder(v));
-        if (!pool.length) pool = state.spotlights.filter(v => canOrder(v));
+        if (pool.length <= 1) pool = state.vendors.slice();
+        if (!pool.length) pool = state.spotlights.slice();
         if (!pool.length) return showNoWinner();
 
+        // Avoid recommending the same hub twice in a row
+        if (pool.length > 1) {
+            pool = pool.filter(v => v.id !== lastRandomPickId);
+        }
+
         const pick = pool[Math.floor(Math.random()*pool.length)];
+        lastRandomPickId = pick.id;
         const img = pick.image || pick.hero_img || pick.logo_url;
         const slug = pick.slug;
+        const isOpen = canOrder(pick);
 
         const box = $.surpWinner.querySelector('.aspect-16x9');
         const body = $.surpWinner.querySelector('.winner-body');
 
         box.innerHTML = `<img src="${escapeAttr(img)}" style="width:100%;height:100%;object-fit:cover;" alt="">`;
 
+        const closedHint = isOpen ? '' : '<span style="display:inline-block;margin-top:6px;font-size:13px;color:#ef4444;"><i class="fas fa-clock"></i> Currently closed</span>';
+
         body.innerHTML = `
             <span class="win-medal">🎉</span>
             <h3>${escapeHtml(pick.name || '')}</h3>
             <p>${escapeHtml(pick.tagline || 'Your lucky pick!')}</p>
+            ${closedHint}
 
             <div class="win-actions">
                 <a class="btn btn-amber" href="/${escapeAttr(slug)}">
-                    <i class="fas fa-utensils"></i> Open Menu
+                    <i class="fas fa-utensils"></i> ${isOpen ? 'Open Menu' : 'View Menu'}
                 </a>
 
                 <button class="btn btn-amber" id="try-random-again">Try Again</button>
