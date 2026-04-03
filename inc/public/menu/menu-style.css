@@ -314,6 +314,25 @@
   overflow: hidden;
 }
 
+/* ---- availability badges (daily / seasonal) ---- */
+#olc-menu .knx-menu__avail-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  line-height: 1.4;
+  color: #fff;
+  pointer-events: none;
+}
+#olc-menu .knx-menu__avail-badge--daily    { background: #f59e0b; }
+#olc-menu .knx-menu__avail-badge--seasonal { background: #8b5cf6; }
+
 #olc-menu .knx-menu__card-image {
   position: absolute;
   inset: 0;

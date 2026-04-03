@@ -193,6 +193,9 @@ document.addEventListener("DOMContentLoaded", () => {
       priceInput.value = item.price || "0.00";
       statusSelect.value = item.status || "active";
 
+      // ── Availability fields ─────────────────────────────
+      _loadAvailability(item);
+
       setPreview(item.image_url || "https://via.placeholder.com/640x360?text=No+Image");
       updatePreviewStatus(item.status || "active");
 
@@ -428,6 +431,75 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* =========================
+     Availability helpers
+  ========================= */
+  const availSelect   = document.getElementById("knxItemAvailability");
+  const dailyBlock    = document.getElementById("knxAvailDaily");
+  const seasonalBlock = document.getElementById("knxAvailSeasonal");
+
+  function _toggleAvail() {
+    if (!availSelect) return;
+    const v = availSelect.value;
+    if (dailyBlock)    dailyBlock.style.display   = v === "daily" ? "" : "none";
+    if (seasonalBlock) seasonalBlock.style.display = v === "seasonal" ? "" : "none";
+  }
+
+  if (availSelect) {
+    availSelect.addEventListener("change", _toggleAvail);
+    _toggleAvail();
+  }
+
+  function _loadAvailability(item) {
+    if (!availSelect) return;
+    const type = item.availability_type || "regular";
+    availSelect.value = type;
+    _toggleAvail();
+
+    if (type === "daily") {
+      const days = (item.daily_day_of_week || "").split(",").filter(Boolean);
+      document.querySelectorAll('input[name="daily_days[]"]').forEach((cb) => {
+        cb.checked = days.includes(cb.value);
+      });
+      const startEl = document.getElementById("knxDailyStart");
+      const endEl   = document.getElementById("knxDailyEnd");
+      if (startEl) startEl.value = item.daily_start_time || "";
+      if (endEl)   endEl.value   = item.daily_end_time || "";
+    }
+
+    if (type === "seasonal") {
+      const startEl = document.getElementById("knxSeasonalStart");
+      const endEl   = document.getElementById("knxSeasonalEnd");
+      // Convert "2026-04-01 00:00:00" → "2026-04-01T00:00" for datetime-local
+      if (startEl) startEl.value = (item.seasonal_starts_at || "").replace(" ", "T").slice(0, 16);
+      if (endEl)   endEl.value   = (item.seasonal_ends_at || "").replace(" ", "T").slice(0, 16);
+    }
+  }
+
+  function _collectAvailability(formData) {
+    if (!availSelect) return;
+    const type = availSelect.value || "regular";
+    formData.append("availability_type", type);
+
+    if (type === "daily") {
+      const checked = [];
+      document.querySelectorAll('input[name="daily_days[]"]:checked')
+        .forEach((cb) => checked.push(cb.value));
+      formData.append("daily_day_of_week", checked.join(","));
+      formData.append("daily_start_time",
+        document.getElementById("knxDailyStart")?.value || "");
+      formData.append("daily_end_time",
+        document.getElementById("knxDailyEnd")?.value || "");
+    }
+
+    if (type === "seasonal") {
+      formData.append("seasonal_starts_at",
+        document.getElementById("knxSeasonalStart")?.value || "");
+      formData.append("seasonal_ends_at",
+        document.getElementById("knxSeasonalEnd")?.value || "");
+    }
+  }
+
+  /* =========================
      Item image + save
   ========================= */
   imageInput.addEventListener("change", (event) => {
@@ -493,6 +565,9 @@ document.addEventListener("DOMContentLoaded", () => {
     formData.append("price", priceInput.value.trim());
     formData.append("status", statusSelect.value);
     formData.append("knx_nonce", state.nonce);
+
+    // Availability columns
+    _collectAvailability(formData);
 
     if (imageInput.files.length) {
       formData.append("item_image", imageInput.files[0]);
@@ -1205,164 +1280,209 @@ document.addEventListener("DOMContentLoaded", () => {
       const response = await fetch(`${api.globals}?hub_id=${state.hubId}`);
       const json = await response.json();
 
-      const content = (!json.success || !json.modifiers || !json.modifiers.length)
-        ? `
-          <div class="knx-global-empty" style="padding:24px;text-align:center;color:#6b7280">
-            <i class="fas fa-box-open fa-2x" style="color:#9ca3af;margin-bottom:10px;"></i>
-            <div>No global groups yet</div>
-          </div>
-        `
-        : `
-          <input
-            id="knxGlobalSearch"
-            class="knx-global-search"
-            placeholder="Search groups…"
-            style="margin:10px 14px 0;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;width:calc(100% - 28px);"
-          >
+      const allModifiers = (json.success && json.modifiers && json.modifiers.length) ? json.modifiers : [];
 
-          <div class="knx-global-library-list" style="padding-top:10px;">
-            ${json.modifiers.map((modifier) => `
-              <div class="knx-global-item" data-id="${modifier.id}">
-                <div class="knx-global-head">
-                  <div class="knx-global-title">
-                    <h4>${esc(modifier.name)}</h4>
-                    <div class="knx-global-meta">
-                      ${esc(metaTextPlain(modifier))} • Used in ${modifier.usage_count || 0} item${(modifier.usage_count || 0) === 1 ? "" : "s"}
-                    </div>
-                  </div>
-
-                  <div class="knx-global-actions">
-                    <button class="knx-icon-btn" data-act="edit" title="Edit">
-                      <i class="fas fa-pen"></i>
-                    </button>
-
-                    <button class="knx-icon-btn danger" data-act="delete" title="Delete">
-                      <i class="fas fa-trash"></i>
-                    </button>
-
-                    <button class="knx-btn knx-btn-sm" data-act="add" style="padding:8px 14px;height:38px;">
-                      <i class="fas fa-plus"></i> Add
-                    </button>
-                  </div>
-                </div>
-
-                ${(modifier.options && modifier.options.length)
-                  ? `
-                    <div class="knx-global-options">
-                      ${modifier.options.map((option) => `
-                        <div class="knx-global-line">
-                          <span>${esc(option.name)}</span>
-                          <span>${priceTextUSD(option.price_adjustment)}</span>
-                        </div>
-                      `).join("")}
-                    </div>
-                  `
-                  : ""}
-              </div>
-            `).join("")}
-          </div>
-        `;
-
+      // ── Build modal skeleton ──────────────────────────────
       const modal = document.createElement("div");
       modal.className = "knx-modal-overlay";
       modal.innerHTML = `
         <div class="knx-modal-content knx-modal-lg">
           <div class="knx-modal-header">
-            <h3><i class="fas fa-globe"></i> Global library</h3>
+            <h3><i class="fas fa-globe"></i> Global library
+              <span id="knxGlibCount" style="font-size:.8rem;font-weight:600;color:#6b7280;margin-left:8px;"></span>
+            </h3>
             <button class="knx-modal-close" aria-label="Close">&times;</button>
           </div>
-          ${content}
+
+          ${allModifiers.length ? `
+            <div class="knx-global-search-wrap">
+              <input
+                id="knxGlobalSearch"
+                class="knx-global-search"
+                placeholder="Search groups…"
+                style="padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;width:100%;box-sizing:border-box;"
+              >
+            </div>
+          ` : ""}
+
+          <div class="knx-modal-body">
+            ${!allModifiers.length ? `
+              <div class="knx-global-empty" style="padding:40px 24px;text-align:center;color:#6b7280">
+                <i class="fas fa-box-open fa-2x" style="color:#9ca3af;display:block;margin-bottom:10px;"></i>
+                <div>No global groups yet</div>
+              </div>
+            ` : `<div class="knx-global-library-list" id="knxGlibList"></div>`}
+          </div>
+
+          ${allModifiers.length ? `
+            <div class="knx-global-pagination" id="knxGlibPagination">
+              <button id="knxGlibPrev"><i class="fas fa-chevron-left"></i></button>
+              <span class="knx-global-pagination__info" id="knxGlibPageInfo"></span>
+              <button id="knxGlibNext"><i class="fas fa-chevron-right"></i></button>
+            </div>
+          ` : ""}
         </div>
       `;
 
       document.body.appendChild(modal);
 
-      const close = () => modal.remove();
-
-      modal.addEventListener("click", (event) => {
-        if (event.target === modal) close();
-      });
-
+      const close = () => { modal.remove(); };
+      modal.addEventListener("click", (event) => { if (event.target === modal) close(); });
       modal.querySelector(".knx-modal-close").addEventListener("click", close);
 
-      modal.querySelector("#knxGlobalSearch")?.addEventListener("input", (event) => {
-        const query = event.target.value.toLowerCase();
+      if (!allModifiers.length) return;
 
-        modal.querySelectorAll(".knx-global-item").forEach((item) => {
-          const name = item.querySelector("h4")?.textContent.toLowerCase() || "";
-          item.style.display = name.includes(query) ? "" : "none";
-        });
-      });
+      // ── Pagination state ──────────────────────────────────
+      const PAGE_SIZE = 8;
+      let currentPage = 1;
+      let filtered = allModifiers.slice();
 
-      modal.querySelectorAll(".knx-global-item").forEach((item) => {
-        const id = parseInt(item.dataset.id, 10);
+      const listEl    = modal.querySelector("#knxGlibList");
+      const countEl   = modal.querySelector("#knxGlibCount");
+      const pageInfo  = modal.querySelector("#knxGlibPageInfo");
+      const prevBtn   = modal.querySelector("#knxGlibPrev");
+      const nextBtn   = modal.querySelector("#knxGlibNext");
+      const searchEl  = modal.querySelector("#knxGlobalSearch");
 
-        item.querySelector('[data-act="add"]')?.addEventListener("click", async () => {
-          const button = item.querySelector('[data-act="add"]');
-          button.disabled = true;
-          button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding…';
+      function buildItemHTML(modifier) {
+        return `
+          <div class="knx-global-item" data-id="${modifier.id}">
+            <div class="knx-global-head">
+              <div class="knx-global-title">
+                <h4>${esc(modifier.name)}</h4>
+                <div class="knx-global-meta">
+                  ${esc(metaTextPlain(modifier))} &bull; Used in ${modifier.usage_count || 0} item${(modifier.usage_count || 0) === 1 ? "" : "s"}
+                </div>
+              </div>
+              <div class="knx-global-actions">
+                <button class="knx-icon-btn" data-act="edit" title="Edit"><i class="fas fa-pen"></i></button>
+                <button class="knx-icon-btn danger" data-act="delete" title="Delete"><i class="fas fa-trash"></i></button>
+                <button class="knx-btn knx-btn-sm" data-act="add" style="padding:8px 14px;height:38px;">
+                  <i class="fas fa-plus"></i> Add
+                </button>
+              </div>
+            </div>
+            ${(modifier.options && modifier.options.length) ? `
+              <div class="knx-global-options">
+                ${modifier.options.map((opt) => `
+                  <div class="knx-global-line">
+                    <span>${esc(opt.name)}</span>
+                    <span>${priceTextUSD(opt.price_adjustment)}</span>
+                  </div>
+                `).join("")}
+              </div>
+            ` : ""}
+          </div>
+        `;
+      }
 
-          try {
-            const response = await fetch(api.clone, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                global_modifier_id: id,
-                item_id: state.itemId,
-                knx_nonce: state.nonce,
-              }),
-            });
+      function renderPage() {
+        const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+        currentPage = Math.min(currentPage, totalPages);
 
-            const result = await response.json();
+        const start = (currentPage - 1) * PAGE_SIZE;
+        const slice = filtered.slice(start, start + PAGE_SIZE);
 
-            if (result.success) {
-              toast("Group added to this item");
-              close();
-              loadModifiers();
-            } else if (result.error === "already_cloned") {
-              toast("This group already exists in this item", "warning");
-            } else {
-              toast(result.error || "Error adding group", "error");
-            }
-          } catch (error) {
-            toast("Network error", "error");
-          }
+        listEl.innerHTML = slice.map(buildItemHTML).join("");
 
-          button.disabled = false;
-          button.innerHTML = '<i class="fas fa-plus"></i> Add';
-        });
+        // Update pagination controls
+        countEl.textContent = `(${filtered.length})`;
+        pageInfo.textContent = `Page ${currentPage} / ${totalPages}`;
+        prevBtn.disabled = currentPage <= 1;
+        nextBtn.disabled = currentPage >= totalPages;
 
-        item.querySelector('[data-act="edit"]')?.addEventListener("click", () => {
-          const modifier = (json.modifiers || []).find((entry) => parseInt(entry.id, 10) === id);
-          openModifierModal(modifier);
-        });
+        // Scroll body to top when page changes
+        const bodyEl = modal.querySelector(".knx-modal-body");
+        if (bodyEl) bodyEl.scrollTop = 0;
 
-        item.querySelector('[data-act="delete"]')?.addEventListener("click", () => {
-          knxConfirm("Delete this global group?", "This will remove it from library.", async () => {
+        // Wire item buttons for this page slice
+        listEl.querySelectorAll(".knx-global-item").forEach((itemEl) => {
+          const id = parseInt(itemEl.dataset.id, 10);
+          const modifier = allModifiers.find((m) => parseInt(m.id, 10) === id);
+
+          itemEl.querySelector('[data-act="add"]')?.addEventListener("click", async () => {
+            const btn = itemEl.querySelector('[data-act="add"]');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding…';
+
             try {
-              const response = await fetch(api.delMod, {
+              const res = await fetch(api.clone, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  id,
+                  global_modifier_id: id,
+                  item_id: state.itemId,
                   knx_nonce: state.nonce,
                 }),
               });
-
-              const result = await response.json();
-
+              const result = await res.json();
               if (result.success) {
-                toast("Global group deleted");
-                item.remove();
+                toast("Group added to this item");
+                close();
+                loadModifiers();
+              } else if (result.error === "already_cloned") {
+                toast("This group already exists in this item", "warning");
               } else {
-                toast(result.error || "Error deleting", "error");
+                toast(result.error || "Error adding group", "error");
               }
-            } catch (error) {
+            } catch {
               toast("Network error", "error");
             }
+
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-plus"></i> Add';
+          });
+
+          itemEl.querySelector('[data-act="edit"]')?.addEventListener("click", () => {
+            if (modifier) openModifierModal(modifier);
+          });
+
+          itemEl.querySelector('[data-act="delete"]')?.addEventListener("click", () => {
+            knxConfirm("Delete this global group?", "This will remove it from library.", async () => {
+              try {
+                const res = await fetch(api.delMod, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ id, knx_nonce: state.nonce }),
+                });
+                const result = await res.json();
+                if (result.success) {
+                  toast("Global group deleted");
+                  // Remove from both arrays and re-render
+                  const idx = allModifiers.findIndex((m) => parseInt(m.id, 10) === id);
+                  if (idx !== -1) allModifiers.splice(idx, 1);
+                  filtered = filtered.filter((m) => parseInt(m.id, 10) !== id);
+                  renderPage();
+                } else {
+                  toast(result.error || "Error deleting", "error");
+                }
+              } catch {
+                toast("Network error", "error");
+              }
+            });
           });
         });
+      }
+
+      // ── Search ─────────────────────────────────────────────
+      searchEl.addEventListener("input", () => {
+        const q = searchEl.value.trim().toLowerCase();
+        filtered = q
+          ? allModifiers.filter((m) => m.name.toLowerCase().includes(q))
+          : allModifiers.slice();
+        currentPage = 1;
+        renderPage();
       });
+
+      // ── Pagination buttons ──────────────────────────────────
+      prevBtn.addEventListener("click", () => { if (currentPage > 1) { currentPage--; renderPage(); } });
+      nextBtn.addEventListener("click", () => {
+        const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+        if (currentPage < totalPages) { currentPage++; renderPage(); }
+      });
+
+      renderPage();
+
     } catch (error) {
       toast("Error loading global library", "error");
     }

@@ -120,19 +120,43 @@ function knx_api_update_item(WP_REST_Request $r) {
         }
     }
 
+    // ── Availability columns ───────────────────────────────
+    $avail_type = sanitize_text_field($r->get_param('availability_type'));
+    if (!in_array($avail_type, ['regular', 'daily', 'seasonal'], true)) {
+        $avail_type = $current->availability_type ?: 'regular';
+    }
+
+    $update_data = [
+        'name'              => $name,
+        'description'       => $desc,
+        'category_id'       => $category_id,
+        'price'             => $price,
+        'status'            => in_array($status, ['active', 'inactive']) ? $status : 'active',
+        'image_url'         => esc_url_raw($image_url),
+        'availability_type' => $avail_type,
+        'daily_day_of_week' => null,
+        'daily_start_time'  => null,
+        'daily_end_time'    => null,
+        'seasonal_starts_at'=> null,
+        'seasonal_ends_at'  => null,
+        'updated_at'        => current_time('mysql'),
+    ];
+    $update_fmt = ['%s', '%s', '%d', '%f', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s'];
+
+    if ($avail_type === 'daily') {
+        $update_data['daily_day_of_week'] = sanitize_text_field($r->get_param('daily_day_of_week'));
+        $update_data['daily_start_time']  = sanitize_text_field($r->get_param('daily_start_time'));
+        $update_data['daily_end_time']    = sanitize_text_field($r->get_param('daily_end_time'));
+    } elseif ($avail_type === 'seasonal') {
+        $update_data['seasonal_starts_at'] = sanitize_text_field($r->get_param('seasonal_starts_at'));
+        $update_data['seasonal_ends_at']   = sanitize_text_field($r->get_param('seasonal_ends_at'));
+    }
+
     $updated = $wpdb->update(
         $table,
-        [
-            'name'        => $name,
-            'description' => $desc,
-            'category_id' => $category_id,
-            'price'       => $price,
-            'status'      => in_array($status, ['active', 'inactive']) ? $status : 'active',
-            'image_url'   => esc_url_raw($image_url),
-            'updated_at'  => current_time('mysql'),
-        ],
+        $update_data,
         ['id' => $id, 'hub_id' => $hub_id],
-        ['%s', '%s', '%d', '%f', '%s', '%s', '%s'],
+        $update_fmt,
         ['%d', '%d']
     );
 

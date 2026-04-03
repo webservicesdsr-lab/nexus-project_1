@@ -393,12 +393,15 @@
 #knx-settings .knx-modal__panel{
   position: relative;
   width: min(760px, calc(100% - 20px));
-  margin: 7vh auto 0;
+  margin: 5vh auto 0;
   background: #fff;
   border-radius: 18px;
   border: 1px solid rgba(255,255,255,0.08);
   box-shadow: 0 26px 70px rgba(2,6,23,0.38);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
 }
 
 #knx-settings .knx-modal__head{
@@ -408,6 +411,7 @@
   gap: 12px;
   padding: 14px 16px;
   border-bottom: 1px solid var(--knx-border-2);
+  flex-shrink: 0;
 }
 
 #knx-settings .knx-modal__head h3{
@@ -435,6 +439,9 @@
 
 #knx-settings .knx-modal__body{
   padding: 14px 16px 16px;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* Cropper */
@@ -455,9 +462,13 @@
   border: 1px solid var(--knx-border-2);
   border-radius: 16px;
   padding: 14px;
-  min-height: 220px;
-  display: grid;
-  place-items: center;
+  /* use auto height but at least enough for small frames */
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* overflow visible so the frame isn't clipped before it renders */
+  overflow: hidden;
 }
 
 #knx-settings .knx-cropper__frame{
@@ -467,6 +478,10 @@
   background: #fff;
   border: 1px solid rgba(11,18,32,0.10);
   box-shadow: 0 12px 26px rgba(11,18,32,0.08);
+  /* Ensure the frame never overflows its mask on small screens */
+  max-width: 100%;
+  /* JS sets explicit width/height; CSS max-width caps it */
+  flex-shrink: 0;
 
   /* controlled by JS */
   --knx-logo-scale: 1;
@@ -488,10 +503,14 @@
     scale(var(--knx-logo-scale));
   user-select: none;
   pointer-events: none;
+  /* fill the frame without distorting: use the larger of the two dimensions */
   width: auto;
   height: auto;
+  max-width: none;
+  max-height: none;
   min-width: 100%;
   min-height: 100%;
+  object-fit: cover;
 }
 
 #knx-settings .knx-cropper__controls{

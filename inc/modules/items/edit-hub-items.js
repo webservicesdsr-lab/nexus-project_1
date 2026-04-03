@@ -383,6 +383,128 @@ document.addEventListener("DOMContentLoaded", () => {
      Initialize
   ========================================================== */
   loadItems();
+
+  /* ==========================================================
+     Availability — toggle fields + inject hidden inputs + badges
+     (canonical — works for both admin and hub-management)
+  ========================================================== */
+  const availSelect   = document.getElementById("knxItemAvailability");
+  const dailyBlock    = document.getElementById("knxAvailDaily");
+  const seasonalBlock = document.getElementById("knxAvailSeasonal");
+
+  function toggleAvailFields() {
+    if (!availSelect) return;
+    const v = availSelect.value;
+    if (dailyBlock)    dailyBlock.style.display    = v === "daily" ? "" : "none";
+    if (seasonalBlock) seasonalBlock.style.display  = v === "seasonal" ? "" : "none";
+  }
+
+  if (availSelect) {
+    availSelect.addEventListener("change", toggleAvailFields);
+    toggleAvailFields();
+
+    // Inject availability hidden inputs on Add-Item form submit (capture phase)
+    if (form) {
+      form.addEventListener("submit", function () {
+        const type = availSelect.value || "regular";
+        _injectHidden(form, "availability_type", type);
+
+        if (type === "daily") {
+          const checked = [];
+          form.querySelectorAll('input[name="daily_days[]"]:checked')
+            .forEach((cb) => checked.push(cb.value));
+          _injectHidden(form, "daily_day_of_week", checked.join(","));
+          _injectHidden(form, "daily_start_time",
+            document.getElementById("knxDailyStart")?.value || "");
+          _injectHidden(form, "daily_end_time",
+            document.getElementById("knxDailyEnd")?.value || "");
+        }
+
+        if (type === "seasonal") {
+          _injectHidden(form, "seasonal_starts_at",
+            document.getElementById("knxSeasonalStart")?.value || "");
+          _injectHidden(form, "seasonal_ends_at",
+            document.getElementById("knxSeasonalEnd")?.value || "");
+        }
+      }, true);
+    }
+  }
+
+  function _injectHidden(f, name, value) {
+    let el = f.querySelector(`input[type="hidden"][name="${name}"]`);
+    if (!el) {
+      el = document.createElement("input");
+      el.type = "hidden";
+      el.name = name;
+      f.appendChild(el);
+    }
+    el.value = value;
+  }
+
+  /* Availability badges on item cards — observe grid for re-renders */
+  if (grid) {
+    let _availMap = null;
+    let _availFetching = false;
+
+    const _badgeObserver = new MutationObserver(() => {
+      if (_availFetching) return;
+      _decorateCards();
+    });
+    _badgeObserver.observe(grid, { childList: true, subtree: true });
+
+    async function _fetchAvailMap() {
+      if (_availMap) return _availMap;
+      _availFetching = true;
+      try {
+        const res = await fetch(`${apiGet}?hub_id=${hubId}`);
+        const data = await res.json();
+        _availMap = {};
+        if (data.success && data.items) {
+          data.items.forEach((it) => {
+            if (it.availability_type && it.availability_type !== "regular") {
+              _availMap[it.id] = it.availability_type;
+            }
+          });
+        }
+      } catch { _availMap = {}; }
+      _availFetching = false;
+      return _availMap;
+    }
+
+    async function _decorateCards() {
+      const map = await _fetchAvailMap();
+      document.querySelectorAll(".knx-item-card").forEach((card) => {
+        if (card.dataset.availDecorated) return;
+        card.dataset.availDecorated = "1";
+
+        const editLink = card.querySelector("a[href*='item_id=']");
+        if (!editLink) return;
+        const m = editLink.href.match(/item_id=(\d+)/);
+        if (!m) return;
+
+        const type = map[m[1]];
+        if (!type) return;
+
+        const badge = document.createElement("span");
+        badge.className = "knx-avail-badge " + type;
+        badge.textContent = type === "daily" ? "Daily" : "Seasonal";
+
+        const imgWrap = card.querySelector(".knx-item-card__img-wrap");
+        if (imgWrap) {
+          imgWrap.style.position = "relative";
+          imgWrap.appendChild(badge);
+        }
+      });
+    }
+
+    // Reset map on grid clear so it refetches on next render
+    const _clearObserver = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        if (m.removedNodes.length > 0) { _availMap = null; break; }
+      }
+    });
+    _clearObserver.observe(grid, { childList: true });
+  }
   
   /* ==========================================================
      7. CSV Upload flow (v2.0 — dual format + conflict mode)

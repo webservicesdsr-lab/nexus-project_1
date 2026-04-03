@@ -39,6 +39,29 @@ add_shortcode('knx_edit_hub_items', function() {
     ob_start(); ?>
 
 <link rel="stylesheet" href="<?php echo esc_url(KNX_URL . 'inc/modules/items/edit-hub-items.css?v=' . KNX_VERSION); ?>">
+<style>
+/* Availability fields */
+.knx-avail-fields { margin-top: 10px; }
+.knx-avail-fields .knx-form-group { margin-bottom: 8px; }
+.knx-avail-fields label { font-size: 13px; color: #6b7280; }
+.knx-days-checkboxes { display: flex; gap: 6px; flex-wrap: wrap; }
+.knx-days-checkboxes label {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;
+    font-size: 12px; cursor: pointer; transition: all 0.1s ease;
+}
+.knx-days-checkboxes label:has(input:checked) {
+    background: #0b793a; color: #fff; border-color: #0b793a;
+}
+.knx-days-checkboxes input { display: none; }
+.knx-avail-badge {
+    position: absolute; top: 6px; left: 6px;
+    padding: 2px 8px; border-radius: 10px;
+    font-size: 11px; font-weight: 600; z-index: 2; pointer-events: none;
+}
+.knx-avail-badge.daily  { background: #3b82f6; color: #fff; }
+.knx-avail-badge.seasonal { background: #f59e0b; color: #fff; }
+</style>
 
 <div class="knx-content knx-with-sidebar">
 
@@ -125,6 +148,50 @@ add_shortcode('knx_edit_hub_items', function() {
       <div class="knx-form-group">
         <label for="knxItemImageInput">Image</label>
         <input type="file" id="knxItemImageInput" name="item_image" accept="image/*" required>
+      </div>
+
+      <!-- Availability -->
+      <div class="knx-form-group">
+        <label for="knxItemAvailability">Availability</label>
+        <select id="knxItemAvailability" name="availability_type">
+          <option value="regular">Regular (always visible)</option>
+          <option value="daily">Daily (specific days/times)</option>
+          <option value="seasonal">Seasonal (date range)</option>
+        </select>
+      </div>
+
+      <div class="knx-avail-fields" id="knxAvailDaily" style="display:none;">
+        <div class="knx-form-group">
+          <label>Days of Week</label>
+          <div class="knx-days-checkboxes">
+            <label><input type="checkbox" name="daily_days[]" value="1"> Mon</label>
+            <label><input type="checkbox" name="daily_days[]" value="2"> Tue</label>
+            <label><input type="checkbox" name="daily_days[]" value="3"> Wed</label>
+            <label><input type="checkbox" name="daily_days[]" value="4"> Thu</label>
+            <label><input type="checkbox" name="daily_days[]" value="5"> Fri</label>
+            <label><input type="checkbox" name="daily_days[]" value="6"> Sat</label>
+            <label><input type="checkbox" name="daily_days[]" value="7"> Sun</label>
+          </div>
+        </div>
+        <div class="knx-form-group">
+          <label>Time Range (optional)</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="time" name="daily_start_time" id="knxDailyStart">
+            <span>—</span>
+            <input type="time" name="daily_end_time" id="knxDailyEnd">
+          </div>
+        </div>
+      </div>
+
+      <div class="knx-avail-fields" id="knxAvailSeasonal" style="display:none;">
+        <div class="knx-form-group">
+          <label>Starts At</label>
+          <input type="datetime-local" name="seasonal_starts_at" id="knxSeasonalStart">
+        </div>
+        <div class="knx-form-group">
+          <label>Ends At</label>
+          <input type="datetime-local" name="seasonal_ends_at" id="knxSeasonalEnd">
+        </div>
       </div>
 
       <div class="knx-modal-actions">

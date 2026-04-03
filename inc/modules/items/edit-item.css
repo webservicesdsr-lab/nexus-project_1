@@ -738,8 +738,11 @@
   border-radius:16px;
   width:100%;
   max-width:720px;
+  /* flex-column so header sticks and body scrolls */
+  display:flex;
+  flex-direction:column;
   max-height:88vh;
-  overflow:auto;
+  overflow:hidden;
   box-shadow:var(--shadow-md);
 }
 
@@ -759,6 +762,14 @@
   padding:12px 14px;
   border-bottom:1px solid var(--line);
   background:var(--surface-soft);
+  flex-shrink:0;
+}
+
+/* Scrollable body inside any modal */
+.knx-modal-body{
+  flex:1 1 auto;
+  overflow-y:auto;
+  overscroll-behavior:contain;
 }
 
 .knx-modal-header h3{
@@ -774,6 +785,14 @@
   color:#6b7280;
   font-size:22px;
   cursor:pointer;
+}
+
+/* form and generic body containers inside modal are scrollable flex children */
+.knx-modal-content form,
+.knx-modal-content > div:not(.knx-modal-header):not(.knx-modal-body):not(.knx-global-search-wrap):not(.knx-global-pagination){
+  flex:1 1 auto;
+  overflow-y:auto;
+  overscroll-behavior:contain;
 }
 
 .knx-modal-content form{
@@ -906,13 +925,60 @@
 /* ==========================================================
    Global library list
    ========================================================== */
+
+/* search bar — doesn't scroll away */
+.knx-global-search-wrap{
+  padding:10px 14px 0;
+  flex-shrink:0;
+}
+
 .knx-global-library-list{
-  max-height:70vh;
-  overflow:auto;
+  /* height managed by .knx-modal-body — no extra overflow needed */
   padding:12px 14px;
   display:flex;
   flex-direction:column;
   gap:10px;
+}
+
+/* Pagination row */
+.knx-global-pagination{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  padding:12px 14px;
+  border-top:1px solid var(--line);
+  flex-shrink:0;
+}
+
+.knx-global-pagination button{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:6px 14px;
+  border-radius:8px;
+  border:1px solid var(--line);
+  background:#fff;
+  font-weight:700;
+  font-size:13px;
+  cursor:pointer;
+  transition:background .12s ease;
+}
+
+.knx-global-pagination button:hover:not(:disabled){
+  background:var(--surface-soft);
+}
+
+.knx-global-pagination button:disabled{
+  opacity:.4;
+  cursor:not-allowed;
+}
+
+.knx-global-pagination__info{
+  font-size:13px;
+  color:#6b7280;
+  font-weight:600;
+  white-space:nowrap;
 }
 
 .knx-global-item{

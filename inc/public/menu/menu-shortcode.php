@@ -44,13 +44,51 @@ function knx_render_menu_page() {
 	========================================================== */
 	$table_items = $wpdb->prefix . 'knx_hub_items';
 
+	/*
+	 * Availability-aware query:
+	 * - regular  → always visible
+	 * - daily    → only on matching day-of-week (1=Mon..7=Sun) and within time range
+	 * - seasonal → only within the date range (starts_at ≤ NOW ≤ ends_at)
+	 */
+	$now_mysql    = current_time('mysql');
+	$current_dow  = (int) current_time('N'); // 1=Mon … 7=Sun (ISO-8601)
+	$current_time = current_time('H:i:s');
+
 	$menu_items_raw = $wpdb->get_results($wpdb->prepare(
 		"SELECT i.*, c.name as category_name
 		 FROM {$table_items} i
 		 LEFT JOIN {$table_categories} c ON i.category_id = c.id
 		 WHERE i.hub_id = %d AND i.status = 'active'
+		   AND (
+		       i.availability_type = 'regular'
+		    OR i.availability_type IS NULL
+		    OR (
+		       i.availability_type = 'daily'
+		       AND FIND_IN_SET(%s, i.daily_day_of_week)
+		       AND (
+		           (i.daily_start_time IS NULL AND i.daily_end_time IS NULL)
+		        OR (i.daily_start_time IS NOT NULL AND i.daily_end_time IS NOT NULL
+		            AND %s BETWEEN i.daily_start_time AND i.daily_end_time)
+		        OR (i.daily_start_time IS NOT NULL AND i.daily_end_time IS NULL
+		            AND %s >= i.daily_start_time)
+		        OR (i.daily_start_time IS NULL AND i.daily_end_time IS NOT NULL
+		            AND %s <= i.daily_end_time)
+		       )
+		    )
+		    OR (
+		       i.availability_type = 'seasonal'
+		       AND (i.seasonal_starts_at IS NULL OR i.seasonal_starts_at <= %s)
+		       AND (i.seasonal_ends_at   IS NULL OR i.seasonal_ends_at   >= %s)
+		    )
+		   )
 		 ORDER BY i.sort_order ASC, i.name ASC",
-		$restaurant->id
+		$restaurant->id,
+		$current_dow,
+		$current_time,
+		$current_time,
+		$current_time,
+		$now_mysql,
+		$now_mysql
 	));
 
 	$menu_items = [];
@@ -98,14 +136,15 @@ function knx_render_menu_page() {
 		}
 
 		$menu_items[] = [
-			'id'          => (int) $item->id,
-			'name'        => $item->name,
-			'description' => $item->description ?: '',
-			'price'       => (float) $item->price,
-			'image'       => $item->image_url ?: '',
-			'category'    => $item->category_name ?: 'Uncategorized',
-			'category_id' => (int) $item->category_id,
-			'modifiers'   => $modifiers,
+			'id'                => (int) $item->id,
+			'name'              => $item->name,
+			'description'       => $item->description ?: '',
+			'price'             => (float) $item->price,
+			'image'             => $item->image_url ?: '',
+			'category'          => $item->category_name ?: 'Uncategorized',
+			'category_id'       => (int) $item->category_id,
+			'availability_type' => $item->availability_type ?: 'regular',
+			'modifiers'         => $modifiers,
 		];
 	}
 
@@ -309,9 +348,15 @@ function knx_render_menu_page() {
 									data-item-image="<?php echo esc_url($item['image']); ?>"
 									data-item-desc="<?php echo esc_attr($item['description']); ?>"
 									data-item-modifiers='<?php echo esc_attr($mods_json); ?>'
+									data-availability="<?php echo esc_attr($item['availability_type']); ?>"
 								>
 
 									<div class="knx-menu__card-img-wrap">
+										<?php if ($item['availability_type'] === 'daily'): ?>
+											<span class="knx-menu__avail-badge knx-menu__avail-badge--daily">Daily</span>
+										<?php elseif ($item['availability_type'] === 'seasonal'): ?>
+											<span class="knx-menu__avail-badge knx-menu__avail-badge--seasonal">Seasonal</span>
+										<?php endif; ?>
 										<?php if ($item['image']): ?>
 											<img src="<?php echo esc_url($item['image']); ?>" class="knx-menu__card-image" loading="lazy">
 										<?php else: ?>
