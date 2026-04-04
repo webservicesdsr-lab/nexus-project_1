@@ -40,7 +40,7 @@ function knx_render_my_orders_page($atts = array()) {
                 <div class="knx-mo__auth-icon">🔒</div>
                 <h2 class="knx-mo__auth-title">Login Required</h2>
                 <p class="knx-mo__auth-text">Sign in to view your order history.</p>
-                <a class="knx-mo__btn knx-mo__btn--primary" href="<?php echo esc_url(site_url('/login')); ?>">Sign In</a>
+                <a class="knx-mo__btn knx-mo__btn--primary" href="<?php echo esc_url(site_url('/login') . '?redirect_to=' . rawurlencode('/my-orders')); ?>">Sign In</a>
             </div>
         </div>
         <?php

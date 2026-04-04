@@ -54,17 +54,22 @@ class KNX_Auth_Toast {
     // Default canonical messages (i18n-ready keys can be used later)
     private static function message_for($code, $type) {
         $map = [
-            'verify_sent'   => 'Account created successfully. Your account is not active yet. Please check your email to activate your account.',
-            'inactive'      => 'Account not active. Your account exists but hasn\'t been activated yet. Please check your email for the activation link.',
-            'auth_failed'   => 'Invalid credentials. Please try again.',
-            'locked'        => 'Too many attempts. Please try again later.',
-            'reset_sent'    => 'If an account exists, a reset link has been sent.',
-            'reset_success' => 'Your password has been updated successfully.',
-            'verify_success'=> 'Your account has been activated.',
-            'verify_invalid'=> 'Invalid activation token.',
-            'verify_expired'=> 'Activation token has expired.',
-            'verify_send_failed' => 'We could not send a verification email. Please contact support.',
-            'logout'        => 'You have been logged out.',
+            'verify_sent'       => 'Account created successfully. Your account is not active yet. Please check your email to activate your account.',
+            'inactive'          => 'Account not active. Your account exists but hasn\'t been activated yet. Please check your email for the activation link.',
+            'auth_failed'       => 'Invalid credentials. Please try again.',
+            'locked'            => 'Too many attempts. Please try again later.',
+            'reset_sent'        => 'If an account exists, a reset link has been sent.',
+            'reset_success'     => 'Your password has been updated successfully.',
+            'reset_invalid'     => 'This password reset link is invalid or has expired.',
+            'verify_success'    => 'Your account has been activated.',
+            'verify_invalid'    => 'Invalid activation token.',
+            'verify_expired'    => 'Activation token has expired.',
+            'verify_send_failed'=> 'We could not send a verification email. Please contact support.',
+            'logout'            => 'You have been logged out.',
+            'register_success'  => 'Welcome! Your account has been created successfully.',
+            'password_too_short'=> 'Password must be at least 8 characters long.',
+            'password_mismatch' => 'Passwords do not match. Please try again.',
+            'reset_db_error'    => 'Unable to update password. Please try again or contact support.',
         ];
 
         return isset($map[$code]) ? $map[$code] : '';

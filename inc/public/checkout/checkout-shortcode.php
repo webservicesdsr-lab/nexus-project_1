@@ -34,7 +34,7 @@ function knx_render_checkout_page() {
         return '<div style="padding:40px;text-align:center;">
             <h2>Please login to continue</h2>
             <p>You need to be logged in to access checkout.</p>
-            <a href="' . esc_url(site_url('/login')) . '" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#10b981;color:white;border-radius:8px;text-decoration:none;">Login</a>
+            <a href="' . esc_url(site_url('/login') . '?redirect_to=' . rawurlencode('/checkout')) . '" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#10b981;color:white;border-radius:8px;text-decoration:none;">Login</a>
         </div>';
     }
 

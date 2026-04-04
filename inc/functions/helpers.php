@@ -69,14 +69,70 @@ function knx_require_role($role = 'user') {
 }
 
 /**
+ * Validate a redirect_to URL for safe post-auth redirection.
+ *
+ * Rules:
+ *   1. Must be same-origin (relative path or matching host).
+ *   2. Must NOT be /login or /register (avoid loops).
+ *   3. Sanitised through esc_url_raw().
+ *
+ * Returns a safe absolute URL or empty string on failure.
+ */
+function knx_validate_redirect_to($url) {
+    if (empty($url) || !is_string($url)) return '';
+
+    $url = trim($url);
+
+    // Accept relative paths — normalise to absolute
+    if (str_starts_with($url, '/')) {
+        $url = site_url($url);
+    }
+
+    // Must be same host
+    $site_host = wp_parse_url(site_url(), PHP_URL_HOST);
+    $target_host = wp_parse_url($url, PHP_URL_HOST);
+    if (!$target_host || strcasecmp($target_host, $site_host) !== 0) return '';
+
+    // Reject /login and /register to prevent loops
+    $path = trim(wp_parse_url($url, PHP_URL_PATH) ?? '', '/');
+    $first_segment = explode('/', $path)[0] ?? '';
+    if (in_array($first_segment, ['login', 'register'], true)) return '';
+
+    return esc_url_raw($url);
+}
+
+/**
+ * Get the role-based default landing URL after login.
+ */
+function knx_role_landing_url($role) {
+    switch ($role) {
+        case 'driver':
+            return site_url('/driver-ops');
+        case 'hub_management':
+            return site_url('/hub-dashboard');
+        case 'manager':
+        case 'super_admin':
+            return site_url('/live-orders');
+        case 'customer':
+        default:
+            return site_url('/');
+    }
+}
+
+/**
  * Guard a restricted page or shortcode.
- * If unauthorized, redirect safely to the login page.
+ * If unauthorized, redirect safely to the login page with redirect_to.
  */
 function knx_guard($required_role = 'user') {
     $session = knx_require_role($required_role);
 
     if (!$session) {
-        wp_safe_redirect(site_url('/login'));
+        $current_uri = isset($_SERVER['REQUEST_URI']) ? sanitize_text_field($_SERVER['REQUEST_URI']) : '';
+        $login_url   = site_url('/login');
+        if ($current_uri !== '' && $current_uri !== '/login') {
+            $login_url = add_query_arg('redirect_to', rawurlencode($current_uri), $login_url);
+        }
+        wp_safe_redirect($login_url);
         exit;
     }
 

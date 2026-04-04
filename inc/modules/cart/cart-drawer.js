@@ -342,11 +342,18 @@ document.addEventListener("DOMContentLoaded", () => {
     reviewBtn.textContent = 'Review Cart';
     footer.appendChild(reviewBtn);
 
-    // Botón Checkout
+    // Botón Checkout — auth-aware (Phase 2: guest cart visibility)
+    const isLogged = drawer && drawer.getAttribute('data-knx-logged') === '1';
     const checkoutBtn = document.createElement('a');
-    checkoutBtn.href = '/checkout';
-    checkoutBtn.className = 'knx-cart-drawer__checkout';
-    checkoutBtn.textContent = 'Checkout';
+    if (isLogged) {
+      checkoutBtn.href = '/checkout';
+      checkoutBtn.className = 'knx-cart-drawer__checkout';
+      checkoutBtn.textContent = 'Checkout';
+    } else {
+      checkoutBtn.href = '/login?redirect_to=' + encodeURIComponent('/cart');
+      checkoutBtn.className = 'knx-cart-drawer__checkout';
+      checkoutBtn.textContent = 'Login to Checkout';
+    }
     footer.appendChild(checkoutBtn);
   }
 

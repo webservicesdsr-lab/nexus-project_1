@@ -24,10 +24,12 @@ if (!function_exists('knx_render_navbar')) {
         echo '<link rel="stylesheet" href="' . esc_url(KNX_URL . 'inc/public/navigation/navigation-style.css?v=' . KNX_VERSION) . '">';
         echo '<script src="' . esc_url(KNX_URL . 'inc/public/navigation/navigation-script.js?v=' . KNX_VERSION) . '" defer></script>';
 
-        if ($context['is_logged']) {
-            echo '<link rel="stylesheet" href="' . esc_url(KNX_URL . 'inc/modules/cart/cart-drawer.css?v=' . KNX_VERSION) . '">';
-            echo '<script src="' . esc_url(KNX_URL . 'inc/modules/cart/cart-drawer.js?v=' . KNX_VERSION) . '" defer></script>';
+        // Cart drawer assets load for ALL visitors (guests + logged) — Phase 2: guest cart visibility
+        echo '<link rel="stylesheet" href="' . esc_url(KNX_URL . 'inc/modules/cart/cart-drawer.css?v=' . KNX_VERSION) . '">';
+        echo '<script src="' . esc_url(KNX_URL . 'inc/modules/cart/cart-drawer.js?v=' . KNX_VERSION) . '" defer></script>';
 
+        if ($context['is_logged']) {
+            // Customer sidebar is account navigation — stays logged-only
             echo '<link rel="stylesheet" href="' . esc_url(KNX_URL . 'inc/public/navigation/customer-sidebar.css?v=' . KNX_VERSION) . '">';
             echo '<script src="' . esc_url(KNX_URL . 'inc/public/navigation/customer-sidebar.js?v=' . KNX_VERSION) . '" defer></script>';
         }
@@ -110,16 +112,15 @@ if (!function_exists('knx_render_navbar')) {
                 <?php endif; ?>
 
                 <div class="knx-nav__actions">
-                    <?php if ($context['is_logged']): ?>
-                        <a href="#" class="knx-nav__cart" id="knxCartToggle" role="button"
-                           aria-haspopup="dialog" aria-controls="knxCartDrawer" aria-expanded="false">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-                            </svg>
-                            <span>Cart</span>
-                            <span class="knx-nav__cart-badge" id="knxCartBadge">0</span>
-                        </a>
-                    <?php endif; ?>
+                    <!-- Cart toggle visible to ALL visitors (Phase 2: guest cart visibility) -->
+                    <a href="#" class="knx-nav__cart" id="knxCartToggle" role="button"
+                       aria-haspopup="dialog" aria-controls="knxCartDrawer" aria-expanded="false">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                        </svg>
+                        <span>Cart</span>
+                        <span class="knx-nav__cart-badge" id="knxCartBadge">0</span>
+                    </a>
 
                     <?php if ($context['is_logged']):
                         $nav_display = $context['name'] ?: $context['email'] ?: $context['username'] ?: 'Guest';
@@ -139,8 +140,15 @@ if (!function_exists('knx_render_navbar')) {
                                 <span>Logout</span>
                             </button>
                         </form>
-                    <?php else: ?>
-                        <a href="<?php echo esc_url(site_url('/login')); ?>" class="knx-nav__login">
+                    <?php else:
+                        // Phase 3: Include current URI as redirect_to on login link
+                        $current_uri = isset($_SERVER['REQUEST_URI']) ? sanitize_text_field($_SERVER['REQUEST_URI']) : '/';
+                        $nav_login_url = site_url('/login');
+                        if ($current_uri !== '/' && $current_uri !== '/login' && $current_uri !== '/register') {
+                            $nav_login_url = add_query_arg('redirect_to', rawurlencode($current_uri), $nav_login_url);
+                        }
+                    ?>
+                        <a href="<?php echo esc_url($nav_login_url); ?>" class="knx-nav__login">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
                                 <polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
@@ -152,27 +160,31 @@ if (!function_exists('knx_render_navbar')) {
             </div>
         </nav>
 
-        <?php if ($context['is_logged']): ?>
-            <aside class="knx-cart-drawer" id="knxCartDrawer" role="dialog" aria-modal="true" aria-labelledby="knxCartTitle">
-                <header class="knx-cart-drawer__header">
-                    <h3 id="knxCartTitle">Your Cart</h3>
-                    <button type="button" class="knx-cart-drawer__close" id="knxCartClose" aria-label="Close cart">×</button>
-                </header>
-                <div class="knx-cart-drawer__body" id="knxCartItems"></div>
-                <footer class="knx-cart-drawer__footer">
-                    <div class="knx-cart-drawer__total">
-                        <span>Subtotal:</span>
-                        <strong id="knxCartTotal">$0.00</strong>
-                    </div>
-                    <a class="knx-cart-drawer__review-btn" href="<?php echo esc_url(site_url('/cart')); ?>">
-                        Review cart
-                    </a>
-                    <div id="knxCartCheckoutBtn"></div>
-                </footer>
-            </aside>
-        <?php endif; ?>
+        <?php
+        // Cart drawer renders for ALL visitors — JS uses data-knx-logged for contextual CTA
+        $is_logged_attr = $context['is_logged'] ? '1' : '0';
+        ?>
+        <aside class="knx-cart-drawer" id="knxCartDrawer" role="dialog" aria-modal="true" aria-labelledby="knxCartTitle"
+               data-knx-logged="<?php echo esc_attr($is_logged_attr); ?>">
+            <header class="knx-cart-drawer__header">
+                <h3 id="knxCartTitle">Your Cart</h3>
+                <button type="button" class="knx-cart-drawer__close" id="knxCartClose" aria-label="Close cart">×</button>
+            </header>
+            <div class="knx-cart-drawer__body" id="knxCartItems"></div>
+            <footer class="knx-cart-drawer__footer">
+                <div class="knx-cart-drawer__total">
+                    <span>Subtotal:</span>
+                    <strong id="knxCartTotal">$0.00</strong>
+                </div>
+                <a class="knx-cart-drawer__review-btn" href="<?php echo esc_url(site_url('/cart')); ?>">
+                    Review cart
+                </a>
+                <div id="knxCartCheckoutBtn"></div>
+            </footer>
+        </aside>
 
         <?php
+        // Customer sidebar stays behind auth gate — it's account navigation
         if ($context['is_logged']) {
             include KNX_PATH . 'inc/public/navigation/customer-sidebar.php';
         }

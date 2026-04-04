@@ -100,21 +100,72 @@ function knx_render_cart_page() {
  * @return string
  */
 function knx_cart_page_render_html($cart_row, $items, $subtotal, $hub_name = null, $availability = null) {
+
+    // Checkout readiness context (needed for CTA regardless of render mode)
+    $session      = function_exists('knx_get_session') ? knx_get_session() : null;
+    $is_logged_in = !empty($session);
+    $can_order    = empty($availability) || !empty($availability['can_order']);
+
+    // Build CTA config for JS
+    $profile_page_exists = (bool) get_page_by_path('profile');
+    $cta_href   = '#';
+    $cta_text   = '';
+    $cta_disabled = false;
+
+    if (!$is_logged_in) {
+        $cta_text = esc_html__('Login to checkout', 'kingdom-nexus');
+        $cta_href = site_url('/login') . '?redirect_to=' . rawurlencode('/cart');
+    } else {
+        $profile_complete = true;
+        $schema_missing   = false;
+
+        if (function_exists('knx_profile_status')) {
+            $ps = knx_profile_status((int) $session->user_id);
+            $profile_complete = !empty($ps['complete']);
+            $schema_missing   = !empty($ps['schema_missing']);
+        }
+
+        if ($schema_missing) {
+            $cta_text     = esc_html__('Profile system needs setup', 'kingdom-nexus');
+            $cta_disabled = true;
+        } else if (!$profile_complete) {
+            if ($profile_page_exists) {
+                $cta_text = esc_html__('Complete profile to checkout', 'kingdom-nexus');
+                $cta_href = site_url('/profile');
+            } else {
+                $cta_text     = esc_html__('Profile required (page missing)', 'kingdom-nexus');
+                $cta_disabled = true;
+            }
+        } else if ($can_order) {
+            $cta_text = esc_html__('Proceed to checkout', 'kingdom-nexus');
+            $cta_href = site_url('/checkout');
+        } else {
+            $cta_text     = esc_html__('Restaurant unavailable', 'kingdom-nexus');
+            $cta_disabled = true;
+        }
+    }
+
     ob_start();
     ?>
     <link rel="stylesheet"
           href="<?php echo esc_url(KNX_URL . 'inc/public/cart/cart-style.css?v=' . KNX_VERSION); ?>">
 
-    <div id="knx-cart-page">
+    <div id="knx-cart-page"
+         data-logged="<?php echo $is_logged_in ? '1' : '0'; ?>"
+         data-cta-href="<?php echo esc_attr($cta_href); ?>"
+         data-cta-text="<?php echo esc_attr($cta_text); ?>"
+         data-cta-disabled="<?php echo $cta_disabled ? '1' : '0'; ?>"
+         data-addresses-url="<?php echo esc_url(site_url('/my-addresses?return_to=/cart')); ?>"
+         data-explore-url="<?php echo esc_url(site_url('/explore-hubs')); ?>">
+
         <h1 class="knx-cart-page__title">
             <?php echo esc_html__('Your cart', 'kingdom-nexus'); ?>
         </h1>
 
         <?php if (!empty($hub_name)) : ?>
-            <p style="text-align:center; margin-top:-14px; margin-bottom:22px; font-size:0.9rem; color:#6b7280;">
+            <p class="knx-cart-page__hub" style="text-align:center; margin-top:-14px; margin-bottom:22px; font-size:0.9rem; color:#6b7280;">
                 <?php
                 printf(
-                    /* translators: %s is hub name */
                     esc_html__('Ordering from %s', 'kingdom-nexus'),
                     '<strong>' . esc_html($hub_name) . '</strong>'
                 );
@@ -148,174 +199,46 @@ function knx_cart_page_render_html($cart_row, $items, $subtotal, $hub_name = nul
             </div>
         <?php endif; ?>
 
-        <?php if (empty($items)) : ?>
-            <div class="knx-cart-empty">
-                <i class="fas fa-shopping-basket" aria-hidden="true"></i>
-                <p><?php echo esc_html__('Your cart is empty right now.', 'kingdom-nexus'); ?></p>
-                <a href="<?php echo esc_url(site_url('/explore-hubs')); ?>"
-                   class="knx-cart-empty__btn">
-                    <?php echo esc_html__('Browse restaurants', 'kingdom-nexus'); ?>
+        <!-- JS-driven interactive cart items -->
+        <div id="knxCartPageItems" class="knx-cart-items"></div>
+
+        <!-- Empty state (shown/hidden by JS) -->
+        <div id="knxCartPageEmpty" class="knx-cart-empty" style="display:none;">
+            <i class="fas fa-shopping-basket" aria-hidden="true"></i>
+            <p><?php echo esc_html__('Your cart is empty right now.', 'kingdom-nexus'); ?></p>
+            <a href="<?php echo esc_url(site_url('/explore-hubs')); ?>"
+               class="knx-cart-empty__btn">
+                <?php echo esc_html__('Browse restaurants', 'kingdom-nexus'); ?>
+            </a>
+        </div>
+
+        <!-- Summary (shown/hidden by JS) -->
+        <div id="knxCartPageSummary" class="knx-cart-summary" style="display:none;">
+            <div class="knx-cart-summary__line">
+                <span><?php echo esc_html__('Items subtotal', 'kingdom-nexus'); ?></span>
+                <strong id="knxCartPageSubtotal">$0.00</strong>
+            </div>
+
+            <a id="knxCartPageCta"
+               href="<?php echo esc_url($cta_href); ?>"
+               class="knx-cart-summary__checkout"
+               <?php echo $cta_disabled ? 'disabled="disabled" style="opacity:0.5; cursor:not-allowed; pointer-events:none;"' : ''; ?>
+               title="<?php echo $can_order ? '' : esc_attr__('This restaurant is currently unavailable for orders', 'kingdom-nexus'); ?>">
+                <?php echo $cta_text; ?>
+            </a>
+
+            <?php if ($is_logged_in) : ?>
+                <a href="<?php echo esc_url(site_url('/my-addresses?return_to=/cart')); ?>"
+                   class="knx-cart-addresses-link"
+                   style="display:block; text-align:center; margin-top:16px; font-size:0.9rem; color:#0b793a; text-decoration:none;">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <?php echo esc_html__('Manage delivery addresses', 'kingdom-nexus'); ?>
                 </a>
-            </div>
-        <?php else : ?>
-
-            <div class="knx-cart-items">
-                <?php foreach ($items as $item) : ?>
-                    <?php
-                    $name     = (string) ($item->name_snapshot ?? '');
-                    $img      = (string) ($item->image_snapshot ?? '');
-                    $qty      = (int) ($item->quantity ?? 1);
-                    $line     = (float) ($item->line_total ?? 0.0);
-                    $mods_raw = $item->modifiers_json ?? null;
-
-                    if ($qty < 1) $qty = 1;
-
-                    // Display fallback only for the line (subtotal is SSOT from carts table)
-                    if ($line < 0) {
-                        $unit = (float) ($item->unit_price ?? 0.0);
-                        $line = $unit * $qty;
-                    }
-
-                    $mods_text = '';
-                    if (!empty($mods_raw)) {
-                        $decoded = json_decode($mods_raw, true);
-                        if (is_array($decoded) && !empty($decoded)) {
-                            $parts = [];
-                            foreach ($decoded as $mod) {
-                                if (empty($mod['name']) || empty($mod['options']) || !is_array($mod['options'])) continue;
-
-                                $opt_labels = [];
-                                foreach ($mod['options'] as $opt) {
-                                    if (empty($opt['name'])) continue;
-                                    if (isset($opt['option_action']) && $opt['option_action'] === 'remove') {
-                                        $opt_labels[] = '<span class="knx-mod-remove">No ' . esc_html($opt['name']) . '</span>';
-                                    } else {
-                                        $opt_labels[] = esc_html($opt['name']);
-                                    }
-                                }
-
-                                if ($opt_labels) {
-                                    $parts[] = esc_html($mod['name']) . ': ' . implode(', ', $opt_labels);
-                                }
-                            }
-                            if ($parts) $mods_text = implode(' &bull; ', $parts);
-                        }
-                    }
-                    ?>
-                    <div class="knx-cart-item">
-                        <?php if (!empty($img)) : ?>
-                            <div class="knx-cart-item__img">
-                                <img src="<?php echo esc_url($img); ?>"
-                                     alt="<?php echo esc_attr($name); ?>">
-                            </div>
-                        <?php endif; ?>
-
-                        <div class="knx-cart-item__body">
-                            <div class="knx-cart-item__title">
-                                <?php echo esc_html($name); ?>
-                            </div>
-
-                            <?php if ($mods_text) : ?>
-                                <div class="knx-cart-item__mods">
-                                    <?php echo wp_kses_post($mods_text); ?>
-                                </div>
-                            <?php endif; ?>
-                        </div>
-
-                        <div class="knx-cart-item__meta">
-                            <div class="knx-cart-item__price">
-                                <?php echo esc_html('$' . number_format_i18n($line, 2)); ?>
-                            </div>
-                            <div class="knx-cart-item__qty">
-                                <?php
-                                printf(
-                                    /* translators: %d is quantity */
-                                    esc_html__('%d×', 'kingdom-nexus'),
-                                    $qty
-                                );
-                                ?>
-                            </div>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-
-            <div class="knx-cart-summary">
-                <div class="knx-cart-summary__line">
-                    <span><?php echo esc_html__('Items subtotal', 'kingdom-nexus'); ?></span>
-                    <strong><?php echo esc_html('$' . number_format_i18n((float) $subtotal, 2)); ?></strong>
-                </div>
-
-                <?php
-                // Checkout readiness (SOFT): session + profile + availability
-                $session      = function_exists('knx_get_session') ? knx_get_session() : null;
-                $is_logged_in = !empty($session);
-                $can_order    = empty($availability) || !empty($availability['can_order']);
-
-                $profile_page_exists = (bool) get_page_by_path('profile');
-
-                $button_text   = '';
-                $button_href   = '#';
-                $disabled_attr = '';
-
-                if (!$is_logged_in) {
-                    $button_text = esc_html__('Login to checkout', 'kingdom-nexus');
-                    $button_href = site_url('/login');
-                } else {
-                    $profile_complete = true;
-                    $schema_missing   = false;
-
-                    if (function_exists('knx_profile_status')) {
-                        $ps = knx_profile_status((int) $session->user_id);
-                        $profile_complete = !empty($ps['complete']);
-                        $schema_missing   = !empty($ps['schema_missing']);
-                    }
-
-                    if ($schema_missing) {
-                        $button_text   = esc_html__('Profile system needs setup', 'kingdom-nexus');
-                        $button_href   = '#';
-                        $disabled_attr = 'disabled="disabled" style="opacity:0.5; cursor:not-allowed; pointer-events:none;"';
-                    } else if (!$profile_complete) {
-                        if ($profile_page_exists) {
-                            $button_text = esc_html__('Complete profile to checkout', 'kingdom-nexus');
-                            $button_href = site_url('/profile');
-                        } else {
-                            $button_text   = esc_html__('Profile required (page missing)', 'kingdom-nexus');
-                            $button_href   = '#';
-                            $disabled_attr = 'disabled="disabled" style="opacity:0.5; cursor:not-allowed; pointer-events:none;"';
-                        }
-                    } else if ($can_order) {
-                        $button_text = esc_html__('Proceed to checkout', 'kingdom-nexus');
-                        $button_href = site_url('/checkout');
-                    } else {
-                        $button_text   = esc_html__('Restaurant unavailable', 'kingdom-nexus');
-                        $button_href   = '#';
-                        $disabled_attr = 'disabled="disabled" style="opacity:0.5; cursor:not-allowed; pointer-events:none;"';
-                    }
-                }
-                ?>
-                <a href="<?php echo esc_url($button_href); ?>"
-                   class="knx-cart-summary__checkout"
-                   <?php echo $disabled_attr; ?>
-                   title="<?php echo $can_order ? '' : esc_attr__('This restaurant is currently unavailable for orders', 'kingdom-nexus'); ?>">
-                    <?php echo $button_text; ?>
-                </a>
-
-                <?php
-                // v1.8 Addresses CTA (simple link, no logic in cart)
-                if ($is_logged_in) :
-                ?>
-                    <a href="<?php echo esc_url(site_url('/my-addresses?return_to=/cart')); ?>"
-                       class="knx-cart-addresses-link"
-                       style="display:block; text-align:center; margin-top:16px; font-size:0.9rem; color:#0b793a; text-decoration:none;">
-                        <i class="fas fa-map-marker-alt"></i>
-                        <?php echo esc_html__('Manage delivery addresses', 'kingdom-nexus'); ?>
-                    </a>
-                <?php endif; ?>
-            </div>
-
-        <?php endif; ?>
+            <?php endif; ?>
+        </div>
     </div>
+
+    <script src="<?php echo esc_url(KNX_URL . 'inc/public/cart/cart-page.js?v=' . KNX_VERSION); ?>" defer></script>
     <?php
 
     return ob_get_clean();

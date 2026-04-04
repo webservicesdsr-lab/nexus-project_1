@@ -38,7 +38,7 @@ add_shortcode('knx_my_addresses', function () {
             </svg>
             <h3 style="margin:0 0 .5rem;font-size:1.25rem;color:#1f2937;">Login Required</h3>
             <p style="color:#6b7280;margin:0 0 1.5rem;">Please log in to manage your delivery addresses.</p>
-            <a href="/login" style="display:inline-flex;align-items:center;gap:.5rem;padding:.75rem 1.5rem;background:#225638;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">Log In</a>
+            <a href="/login?redirect_to=%2Fmy-addresses" style="display:inline-flex;align-items:center;gap:.5rem;padding:.75rem 1.5rem;background:#225638;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">Log In</a>
         </div>';
     }
 

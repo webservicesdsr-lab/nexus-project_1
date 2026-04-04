@@ -90,16 +90,30 @@ add_action('init', function () {
     ) {
         $raw = sanitize_text_field($_GET['token']);
 
+        // Capture redirect_to from verification link for forwarding to login
+        $_verify_redirect_to = isset($_GET['redirect_to']) ? sanitize_text_field(wp_unslash($_GET['redirect_to'])) : '';
+        $_verify_login_url = site_url('/login');
+        if ($_verify_redirect_to && function_exists('knx_validate_redirect_to')) {
+            $validated = knx_validate_redirect_to($_verify_redirect_to);
+            if ($validated) {
+                // Convert back to relative path for the query param
+                $rel_path = wp_parse_url($validated, PHP_URL_PATH);
+                $rel_query = wp_parse_url($validated, PHP_URL_QUERY);
+                $rel = $rel_path . ($rel_query ? '?' . $rel_query : '');
+                $_verify_login_url = add_query_arg('redirect_to', rawurlencode($rel), $_verify_login_url);
+            }
+        }
+
         if (!preg_match('/^[0-9a-f]{64}$/i', $raw)) {
             KNX_Auth_Toast::push('error', 'verify_invalid');
-            wp_safe_redirect(site_url('/login'));
+            wp_safe_redirect($_verify_login_url);
             exit;
         }
 
         $row = knx_get_email_verification_by_token($raw);
         if (!$row) {
             KNX_Auth_Toast::push('error', 'verify_invalid');
-            wp_safe_redirect(site_url('/login'));
+            wp_safe_redirect($_verify_login_url);
             exit;
         }
 
@@ -114,7 +128,7 @@ add_action('init', function () {
         );
 
         KNX_Auth_Toast::push('success', 'verify_success');
-        wp_safe_redirect(site_url('/login'));
+        wp_safe_redirect($_verify_login_url);
         exit;
     }
 
@@ -195,19 +209,33 @@ add_action('init', function () {
         $pass  = trim($_POST['knx_reset_password'] ?? '');
         $pass2 = trim($_POST['knx_reset_password_confirm'] ?? '');
 
-        if ($pass === '' || $pass !== $pass2 || strlen($pass) < 8) {
-            KNX_Auth_Toast::push('error', 'auth_failed');
-            wp_safe_redirect(site_url('/login'));
+        if ($pass === '' || strlen($pass) < 8) {
+            KNX_Auth_Toast::push('error', 'password_too_short');
+            wp_safe_redirect(site_url('/reset-password?token=' . urlencode($token)));
             exit;
         }
 
-        $wpdb->update(
+        if ($pass !== $pass2) {
+            KNX_Auth_Toast::push('error', 'password_mismatch');
+            wp_safe_redirect(site_url('/reset-password?token=' . urlencode($token)));
+            exit;
+        }
+
+        // Update password in database
+        $update_result = $wpdb->update(
             $users_table,
             ['password' => password_hash($pass, PASSWORD_DEFAULT)],
             ['id' => (int)$row->user_id],
             ['%s'],
             ['%d']
         );
+
+        // Verify update succeeded
+        if ($update_result === false || $update_result === 0) {
+            KNX_Auth_Toast::push('error', 'reset_db_error');
+            wp_safe_redirect(site_url('/reset-password?token=' . urlencode($token)));
+            exit;
+        }
 
         knx_mark_password_reset_used((int)$row->id);
         knx_invalidate_password_resets_for_user((int)$row->user_id);
@@ -229,10 +257,17 @@ add_action('init', function () {
         $ip    = knx_get_client_ip();
         $login = sanitize_text_field($_POST['knx_login'] ?? '');
 
+        // Preserve redirect_to across failed-login retries
+        $_login_redirect_to = isset($_POST['knx_redirect_to']) ? sanitize_text_field(wp_unslash($_POST['knx_redirect_to'])) : '';
+        $_login_fail_url = site_url('/login');
+        if ($_login_redirect_to) {
+            $_login_fail_url = add_query_arg('redirect_to', rawurlencode($_login_redirect_to), $_login_fail_url);
+        }
+
         if (!knx_check_honeypot($_POST)) {
             knx_record_failed_login($ip, $login);
             KNX_Auth_Toast::push('error', 'auth_failed');
-            wp_safe_redirect(site_url('/login'));
+            wp_safe_redirect($_login_fail_url);
             exit;
         }
 
@@ -244,13 +279,13 @@ add_action('init', function () {
             $minutes = (int) ceil($remaining / MINUTE_IN_SECONDS);
             $msg = 'Too many attempts. Try again in ' . $minutes . ' minute' . ($minutes > 1 ? 's' : '') . '.';
             KNX_Auth_Toast::push('error', 'locked', $msg);
-            wp_safe_redirect(site_url('/login'));
+            wp_safe_redirect($_login_fail_url);
             exit;
         }
 
         if (!isset($_POST['knx_nonce']) || !knx_verify_nonce($_POST['knx_nonce'], 'login')) {
             KNX_Auth_Toast::push('error', 'auth_failed');
-            wp_safe_redirect(site_url('/login'));
+            wp_safe_redirect($_login_fail_url);
             exit;
         }
 
@@ -263,32 +298,33 @@ add_action('init', function () {
         if (!$user || !password_verify($_POST['knx_password'] ?? '', $user->password)) {
             knx_record_failed_login($ip, $login);
             KNX_Auth_Toast::push('error', 'auth_failed');
-            wp_safe_redirect(site_url('/login'));
+            wp_safe_redirect($_login_fail_url);
             exit;
         }
 
         if ($user->status !== 'active') {
             KNX_Auth_Toast::push('warning', 'inactive');
-            wp_safe_redirect(site_url('/login'));
+            wp_safe_redirect($_login_fail_url);
             exit;
         }
 
         knx_auto_login_user_by_id((int)$user->id, !empty($_POST['knx_remember']));
 
-        // Redirect users to role-specific landing pages after login
-        $redirect_url = site_url('/cart');
-        if (isset($user->role)) {
-            $role = $user->role;
-            if ($role === 'customer') {
-                $redirect_url = site_url('/');
-            } elseif ($role === 'driver') {
-                // Drivers should land on the ops dashboard (driver-ops)
-                $redirect_url = site_url('/driver-ops');
-            } elseif ($role === 'hub_management') {
-                $redirect_url = site_url('/hub-dashboard');
-            } elseif (in_array($role, ['manager', 'super_admin'])) {
-                $redirect_url = site_url('/live-orders');
-            }
+        // ── Phase 1: Consume redirect_to if present and valid ──
+        $redirect_url = '';
+        $posted_redirect = isset($_POST['knx_redirect_to']) ? sanitize_text_field(wp_unslash($_POST['knx_redirect_to'])) : '';
+        $query_redirect  = isset($_GET['redirect_to']) ? sanitize_text_field(wp_unslash($_GET['redirect_to'])) : '';
+        $raw_redirect    = $posted_redirect ?: $query_redirect;
+
+        if ($raw_redirect && function_exists('knx_validate_redirect_to')) {
+            $redirect_url = knx_validate_redirect_to($raw_redirect);
+        }
+
+        // Fallback: role-based landing
+        if (empty($redirect_url)) {
+            $redirect_url = function_exists('knx_role_landing_url')
+                ? knx_role_landing_url($user->role ?? 'customer')
+                : site_url('/');
         }
 
         wp_safe_redirect($redirect_url);
@@ -300,16 +336,23 @@ add_action('init', function () {
     // =====================================================
     if (isset($_POST['knx_register_btn'])) {
 
+        // Preserve redirect_to across register error retries
+        $_register_redirect_to = isset($_POST['knx_redirect_to']) ? sanitize_text_field(wp_unslash($_POST['knx_redirect_to'])) : '';
+        $_register_fail_url = site_url('/login');
+        if ($_register_redirect_to) {
+            $_register_fail_url = add_query_arg('redirect_to', rawurlencode($_register_redirect_to), $_register_fail_url);
+        }
+
         // Honeypot check (reject early to block bots)
         if (!knx_check_honeypot($_POST)) {
             KNX_Auth_Toast::push('error', 'auth_failed');
-            wp_safe_redirect(site_url('/login'));
+            wp_safe_redirect($_register_fail_url);
             exit;
         }
 
         if (!isset($_POST['knx_register_nonce']) || !knx_verify_nonce($_POST['knx_register_nonce'], 'register')) {
             KNX_Auth_Toast::push('error', 'auth_failed');
-            wp_safe_redirect(site_url('/login'));
+            wp_safe_redirect($_register_fail_url);
             exit;
         }
 
@@ -327,14 +370,14 @@ add_action('init', function () {
         // Validate full name: at least 2 chars
         if (strlen($fullname) < 2) {
             KNX_Auth_Toast::push('error', 'auth_failed');
-            wp_safe_redirect(site_url('/login'));
+            wp_safe_redirect($_register_fail_url);
             exit;
         }
 
         // Basic validation for email/password
         if (!is_email($email) || $pass !== $pass2 || strlen($pass) < 8) {
             KNX_Auth_Toast::push('error', 'auth_failed');
-            wp_safe_redirect(site_url('/login'));
+            wp_safe_redirect($_register_fail_url);
             exit;
         }
 
@@ -344,7 +387,7 @@ add_action('init', function () {
             $email
         ))) {
             KNX_Auth_Toast::push('error', 'auth_failed');
-            wp_safe_redirect(site_url('/login'));
+            wp_safe_redirect($_register_fail_url);
             exit;
         }
 
@@ -353,7 +396,7 @@ add_action('init', function () {
         // Validate phone: at least 7 digits
         if (strlen($phone_digits) < 7) {
             KNX_Auth_Toast::push('error', 'auth_failed');
-            wp_safe_redirect(site_url('/login'));
+            wp_safe_redirect($_register_fail_url);
             exit;
         }
 
@@ -407,18 +450,23 @@ add_action('init', function () {
         $user_id = (int)$wpdb->insert_id;
 
         if ($require_verification === '1') {
+            // Email verification ENABLED: send verification email and redirect to login
             $raw = knx_create_email_verification_token($user_id);
 
             if ($raw) {
-                $url = site_url('/verify-email?token=' . urlencode($raw));
+                // Include redirect_to in verification URL so it survives the full flow
+                $verify_url = site_url('/verify-email?token=' . urlencode($raw));
+                if ($_register_redirect_to) {
+                    $verify_url = add_query_arg('redirect_to', rawurlencode($_register_redirect_to), $verify_url);
+                }
                 $headers = ['Content-Type: text/html; charset=UTF-8'];
                 // Build branded activation email
                 if (function_exists('knx_get_account_activation_email')) {
-                    $mail = knx_get_account_activation_email($url, $email);
+                    $mail = knx_get_account_activation_email($verify_url, $email);
                 } else {
                     $mail = [
                         'subject' => 'Verify your account',
-                        'html'    => '<p><a href="' . esc_url($url) . '">Activate your account</a></p>',
+                        'html'    => '<p><a href="' . esc_url($verify_url) . '">Activate your account</a></p>',
                     ];
                 }
                 // queue verification mail to be sent on shutdown
@@ -427,14 +475,46 @@ add_action('init', function () {
             } else {
                 KNX_Auth_Toast::push('error', 'verify_send_failed');
             }
-        } else {
-            // Verification disabled: activate account immediately
-            KNX_Auth_Toast::push('success', 'verify_success');
-        }
 
-        // queue redirect so mail is sent first on shutdown
-        knx_queue_redirect(site_url('/login'));
-        exit;
+            // queue redirect so mail is sent first on shutdown
+            // Carry redirect_to forward so the user can continue after verifying + logging in
+            $register_login_url = site_url('/login');
+            if ($_register_redirect_to) {
+                $register_login_url = add_query_arg('redirect_to', rawurlencode($_register_redirect_to), $register_login_url);
+            }
+            knx_queue_redirect($register_login_url);
+            exit;
+
+        } else {
+            // Email verification DISABLED: auto-login and redirect to destination
+            $remember = !empty($_POST['knx_remember']);
+            $auto_logged = knx_auto_login_user_by_id($user_id, $remember);
+
+            if ($auto_logged) {
+                KNX_Auth_Toast::push('success', 'register_success');
+
+                // Determine redirect destination (same logic as login)
+                $redirect_url = '';
+                if ($_register_redirect_to) {
+                    $redirect_url = knx_validate_redirect_to($_register_redirect_to);
+                }
+                if (!$redirect_url) {
+                    $redirect_url = knx_role_landing_url('customer');
+                }
+
+                wp_safe_redirect($redirect_url);
+                exit;
+            } else {
+                // Auto-login failed (rare) — fallback to login page
+                KNX_Auth_Toast::push('success', 'verify_success');
+                $register_login_url = site_url('/login');
+                if ($_register_redirect_to) {
+                    $register_login_url = add_query_arg('redirect_to', rawurlencode($_register_redirect_to), $register_login_url);
+                }
+                knx_queue_redirect($register_login_url);
+                exit;
+            }
+        }
     }
 
     // =====================================================

@@ -5,8 +5,26 @@ add_shortcode('knx_auth', function () {
 
     $session = knx_get_session();
     if ($session) {
-        wp_safe_redirect(site_url('/cart'));
+        $landing = function_exists('knx_role_landing_url')
+            ? knx_role_landing_url($session->role ?? 'customer')
+            : site_url('/');
+        wp_safe_redirect($landing);
         exit;
+    }
+
+    // Capture redirect_to from query string for forwarding through forms
+    $redirect_to_raw = isset($_GET['redirect_to']) ? sanitize_text_field(wp_unslash($_GET['redirect_to'])) : '';
+    $redirect_to_safe = '';
+    if ($redirect_to_raw && function_exists('knx_validate_redirect_to')) {
+        $redirect_to_safe = knx_validate_redirect_to($redirect_to_raw);
+    }
+    // If validation returned a full URL, convert to relative path for the hidden field
+    if ($redirect_to_safe) {
+        $parsed_path = wp_parse_url($redirect_to_safe, PHP_URL_PATH);
+        $parsed_query = wp_parse_url($redirect_to_safe, PHP_URL_QUERY);
+        $redirect_to_value = $parsed_path . ($parsed_query ? '?' . $parsed_query : '');
+    } else {
+        $redirect_to_value = '';
     }
 
     ob_start(); ?>
@@ -107,8 +125,12 @@ add_shortcode('knx_auth', function () {
 
                     <div class="knx-hp">
                         <input type="text" name="knx_hp">
-                        <input type="hidden" name="knx_hp_ts" value="<?php echo time(); ?>">
+                        <input type="hidden" name="knx_hp_ts" value="" class="knx-hp-ts">
                     </div>
+
+                    <?php if ($redirect_to_value): ?>
+                        <input type="hidden" name="knx_redirect_to" value="<?php echo esc_attr($redirect_to_value); ?>">
+                    <?php endif; ?>
 
                     <label>Username or Email</label>
                     <input type="text" name="knx_login" placeholder="" required autofocus>
@@ -153,8 +175,12 @@ add_shortcode('knx_auth', function () {
 
                     <div class="knx-hp">
                         <input type="text" name="knx_hp">
-                        <input type="hidden" name="knx_hp_ts" value="<?php echo time(); ?>">
+                        <input type="hidden" name="knx_hp_ts" value="" class="knx-hp-ts">
                     </div>
+
+                    <?php if ($redirect_to_value): ?>
+                        <input type="hidden" name="knx_redirect_to" value="<?php echo esc_attr($redirect_to_value); ?>">
+                    <?php endif; ?>
 
                     <label>Username</label>
                     <input type="text" name="knx_register_fullname" required autofocus placeholder="your.username">
@@ -202,7 +228,7 @@ add_shortcode('knx_auth', function () {
 
                     <div class="knx-hp">
                         <input type="text" name="knx_hp">
-                        <input type="hidden" name="knx_hp_ts" value="<?php echo time(); ?>">
+                        <input type="hidden" name="knx_hp_ts" value="" class="knx-hp-ts">
                     </div>
 
                     <label>Email</label>
@@ -224,6 +250,10 @@ add_shortcode('knx_auth', function () {
     <script>
     (function(){
         const shell = document.querySelector('.knx-auth-shell');
+        if (!shell) return;
+
+        // Set honeypot timestamps on page load to avoid cache issues
+        shell.querySelectorAll('.knx-hp-ts').forEach(el => el.value = Math.floor(Date.now() / 1000));
 
         shell.addEventListener('click', e => {
             if (e.target.dataset.switch) {

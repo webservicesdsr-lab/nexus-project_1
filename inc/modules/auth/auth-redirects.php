@@ -47,16 +47,10 @@ add_action('template_redirect', function() {
     // Redirect logged-in users away from login/register
     if ($session && in_array($slug, ['login', 'register'])) {
         $role = $session->role ?? '';
-        if (in_array($role, ['super_admin', 'manager'], true)) {
-            wp_safe_redirect(site_url('/knx-dashboard'));
-        } elseif ($role === 'hub_management') {
-            wp_safe_redirect(site_url('/hub-dashboard'));
-        } elseif ($role === 'driver') {
-            // Drivers should land on the driver-ops screen after login
-            wp_safe_redirect(site_url('/driver-ops'));
-        } else {
-            wp_safe_redirect(site_url('/cart'));
-        }
+        $landing = function_exists('knx_role_landing_url')
+            ? knx_role_landing_url($role)
+            : site_url('/');
+        wp_safe_redirect($landing);
         exit;
     }
 
@@ -75,7 +69,7 @@ add_action('template_redirect', function() {
 
         // Customers cannot access dashboards
         if ($role === 'customer' && in_array($slug, $dashboard_pages)) {
-            wp_safe_redirect(site_url('/cart'));
+            wp_safe_redirect(knx_role_landing_url('customer'));
             exit;
         }
 
@@ -115,7 +109,7 @@ add_action('template_redirect', function() {
         // Menu Studio: only allowed roles
         $studio_allowed = ['super_admin', 'manager', 'hub_management', 'menu_uploader'];
         if (in_array($slug, $studio_pages) && !in_array($role, $studio_allowed, true)) {
-            wp_safe_redirect(site_url('/'));
+            wp_safe_redirect(knx_role_landing_url($role));
             exit;
         }
     }
