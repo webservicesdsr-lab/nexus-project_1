@@ -218,12 +218,20 @@ button.knx-nav__username:focus {
   outline: none;
 }
 
+/* UX override: hide location chip when feature removed */
+.knx-loc-chip { display: none !important; visibility: hidden !important; }
+
 .knx-nav__username-text {
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 150px;
+}
+
+.knx-nav__username-icon {
+  display: none;
+  font-size: 1.125rem;
 }
 
 /* Logout */
@@ -288,6 +296,8 @@ button.knx-nav__username:focus {
   .knx-nav__username-text,
   .knx-nav__logout-btn span,
   .knx-nav__login span { display: none; }
+
+  .knx-nav__username-icon { display: inline-block; }
 
   .knx-nav__actions { gap: 0.5rem; }
 

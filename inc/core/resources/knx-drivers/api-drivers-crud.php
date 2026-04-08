@@ -350,7 +350,7 @@ function knx_v2_drivers_email_exists($email, $exclude_driver_id = 0) {
 }
 
 function knx_v2_make_username_base($email, $full_name) {
-    $email = is_string($email) ? trim($email) : '';
+    $email = is_string($email) ? strtolower(trim($email)) : '';
     $full_name = is_string($full_name) ? trim($full_name) : '';
 
     $base = '';
@@ -363,7 +363,7 @@ function knx_v2_make_username_base($email, $full_name) {
 
     $base = preg_replace('/[^a-zA-Z0-9_]/', '', (string)$base);
     if ($base === '') $base = 'driver';
-    return substr($base, 0, 32);
+    return strtolower(substr($base, 0, 32));
 }
 
 function knx_v2_unique_username($email, $full_name) {
@@ -554,7 +554,7 @@ function knx_v2_drivers_create(WP_REST_Request $req) {
     $tD = knx_v2_table_drivers();
 
     $full_name = isset($body['full_name']) ? trim(sanitize_text_field((string)$body['full_name'])) : '';
-    $email     = isset($body['email']) ? trim(sanitize_email((string)$body['email'])) : '';
+    $email     = isset($body['email']) ? strtolower(trim(sanitize_email((string)$body['email']))) : '';
     $phone     = isset($body['phone']) ? trim(sanitize_text_field((string)$body['phone'])) : '';
     $vehicle   = isset($body['vehicle_info']) ? trim(sanitize_text_field((string)$body['vehicle_info'])) : '';
     $status    = (isset($body['status']) && in_array($body['status'], ['active','inactive'], true)) ? (string)$body['status'] : 'active';
@@ -812,7 +812,7 @@ function knx_v2_drivers_update(WP_REST_Request $req) {
     }
 
     if (isset($body['email'])) {
-        $v = trim(sanitize_email((string)$body['email']));
+        $v = strtolower(trim(sanitize_email((string)$body['email'])));
         if ($v === '' || !is_email($v)) return knx_v2_drivers_resp(false, 'Valid email required.', null, 400);
 
         // uniqueness across both tables excluding current records

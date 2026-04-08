@@ -11,12 +11,27 @@
 /* Slightly larger base type for the menu and default centering for menu areas */
 #olc-menu {
   font-size: 16px;
-  overflow-x: hidden; /* prevent any child from causing horizontal scroll */
-  width: 100%;        /* never exceed the page width */
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+#olc-menu *,
+#olc-menu *::before,
+#olc-menu *::after {
+  box-sizing: border-box;
 }
 
 #olc-menu button {
   /* font removed to inherit theme typography */
+}
+
+#olc-menu img,
+#olc-menu input,
+#olc-menu button,
+#olc-menu textarea {
+  max-width: 100%;
 }
 
 /* ==========================================================
@@ -24,6 +39,9 @@
 ========================================================== */
 #olc-menu .knx-header {
   position: relative;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 #olc-menu .knx-header-back {
@@ -50,9 +68,17 @@
 /* ==========================================================
    MOBILE HEADER
 ========================================================== */
+#olc-menu .knx-header-mobile {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 #olc-menu .knx-header-mobile-banner {
   height: 252px;
   overflow: hidden;
+  width: 100%;
+  max-width: 100%;
 }
 
 #olc-menu .knx-header-mobile-banner img {
@@ -60,11 +86,15 @@
   height: 100%;
   object-fit: cover;
   object-position: 100% 80%;
+  display: block;
 }
 
 #olc-menu .knx-header-mobile-info {
   padding: 16px;
   text-align: center;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 #olc-menu .knx-header-title {
@@ -152,53 +182,122 @@
 }
 
 /* ==========================================================
-   MOBILE SEARCH (Compact + Includes Button)
+   MOBILE SEARCH
 ========================================================== */
-
 #olc-menu .knx-mobile-search {
   width: 100%;
-  padding: 0 16px;
-  margin: 5px;
-  max-width: 862px;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0;
+  margin: 8px 0 0;
+  overflow: hidden;
 }
 
 #olc-menu .knx-mobile-search-wrapper {
-  display: flex;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
   align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 100%;
   background: #f3f4f6;
   padding: 10px 12px;
   border-radius: 14px;
-  gap: 10px;
+  overflow: hidden;
 }
 
 #olc-menu .knx-mobile-search-icon {
   color: #9ca3af;
   font-size: 1rem;
+  width: 22px;
+  min-width: 22px;
+  text-align: center;
+  line-height: 1;
 }
 
 #olc-menu .knx-mobile-search-input {
-  flex: 1;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   border: none;
   outline: none;
   background: transparent;
-  font-size: 0.95rem;
+  font-size: 16px; /* prevent iOS auto-zoom when focusing */
+  line-height: 1.2;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+  box-shadow: none;
+}
+
+#olc-menu .knx-mobile-search-input::placeholder {
+  color: #9ca3af;
+  opacity: 1;
 }
 
 #olc-menu .knx-mobile-search-btn {
-  background: #f97316;
+  appearance: none;
+  -webkit-appearance: none;
   border: none;
+  outline: none;
+  box-shadow: 0 2px 5px rgba(249,115,22,0.35);
+  background: #f97316;
   color: #fff;
-  padding: 8px 14px;
+  padding: 8px 12px;
+  margin: 0;
+  min-width: 0;
+  max-width: 100%;
   border-radius: 10px;
   font-size: 0.82rem;
+  line-height: 1;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 2px 5px rgba(249,115,22,0.35);
   white-space: nowrap;
+  flex: none;
+  justify-self: end;
 }
 
 #olc-menu .knx-mobile-search-btn:active {
   transform: scale(0.96);
+}
+
+@media (max-width: 420px) {
+  #olc-menu .knx-mobile-search-wrapper {
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    gap: 6px;
+    padding: 10px;
+  }
+
+  #olc-menu .knx-mobile-search-icon {
+    width: 20px;
+    min-width: 20px;
+    font-size: 0.95rem;
+  }
+
+  #olc-menu .knx-mobile-search-input {
+    font-size: 16px;
+  }
+
+  #olc-menu .knx-mobile-search-btn {
+    padding: 8px 10px;
+    font-size: 0.76rem;
+  }
+}
+
+@media (max-width: 360px) {
+  #olc-menu .knx-mobile-search-wrapper {
+    gap: 5px;
+    padding: 9px;
+  }
+
+  #olc-menu .knx-mobile-search-btn {
+    padding: 7px 9px;
+    font-size: 0.72rem;
+  }
 }
 
 @media (min-width:900px) {
@@ -211,20 +310,19 @@
    CATEGORY CHIPS
 ========================================================== */
 #olc-menu .knx-menu__categories {
-  max-width: 100%;         /* never wider than the menu */
+  max-width: 100%;
   margin: 18px 0 20px;
   padding: 0 16px;
   display: flex;
   gap: 10px;
-  /* scroll horizontally on small screens instead of overflowing */
   overflow-x: auto;
   overflow-y: visible;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;   /* hide scrollbar Firefox */
+  scrollbar-width: none;
 }
 
 #olc-menu .knx-menu__categories::-webkit-scrollbar {
-  display: none;           /* hide scrollbar Chrome/Safari */
+  display: none;
 }
 
 @media (min-width:900px) {
@@ -265,8 +363,8 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0,1fr));
   gap: 16px;
-  width: 100%;      /* never exceed the container */
-  min-width: 0;     /* prevent grid blowout */
+  width: 100%;
+  min-width: 0;
   box-sizing: border-box;
 }
 
@@ -281,7 +379,7 @@
   font-weight: 800;
   color: #000000;
   text-align: center;
-  padding: 8px 0; /* vertical spacing to make titles breathe */
+  padding: 8px 0;
 }
 
 @media (min-width:900px) {
@@ -349,7 +447,6 @@
   position: relative;
   padding: 28px 14px 16px;
   text-align: center;
-  /* ensure readable, slightly larger copy */
   font-size: 1rem;
 }
 
@@ -370,20 +467,22 @@
 
 #olc-menu .knx-menu__card-title {
   margin: 6px 0 4px;
-  font-size: 1.15rem;
+  font-size: .9rem;
   font-weight: 800;
   text-align: center;
+  line-height: 1.15;
 }
 
 #olc-menu .knx-menu__card-desc {
   margin: 0;
-  font-size: 1rem;
+  font-size: .9rem;
   color: #4b5563;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-align: center;
+  line-height: 1.15;
 }
 
 /* ==========================================================
@@ -554,23 +653,78 @@
 
 #olc-menu .knx-modal-group-header {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  margin: 12px 26px;
+  justify-content: center;
+  gap: 6px;
+  margin: 0 0 12px 0;
+  padding: 0 4px;
+  text-align: center;
 }
 
 #olc-menu .knx-modal-group-title {
-  font-weight: 600;
+  font-size: 1.15rem;
+  font-weight: 800;
+  font-style: italic;
   color: #f97316;
+  line-height: 1.3;
 }
 
 #olc-menu .knx-modal-group-required {
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  padding: 4px 8px;
+  padding: 4px 12px;
   border-radius: 6px;
   background: #dbeafe;
   color: #1d4ed8;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+@media (min-width: 900px) {
+  #olc-menu .knx-modal-group-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    text-align: left;
+  }
+
+  #olc-menu .knx-modal-group-title {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  #olc-menu .knx-modal-group-required {
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 899px) {
+  /* Compact modal group header on small screens */
+  #olc-menu .knx-modal-group {
+    padding: 12px 10px 10px;
+  }
+
+  #olc-menu .knx-modal-group-header {
+    gap: 2px;
+    margin: 0 0 6px 0;
+    padding: 0 6px;
+    text-align: center;
+  }
+
+  #olc-menu .knx-modal-group-title {
+    font-size: 1.1rem;
+    line-height: 1.08;
+    margin: 5px 0px;
+    padding: 0;
+  }
+
+  #olc-menu .knx-modal-group-required {
+    font-size: 0.77rem;
+    padding: 5px 8px;
+    line-height: 1.1;
+    margin-bottom: 5px;
+  }
 }
 
 /* ==========================================================
@@ -603,23 +757,26 @@
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 1px;
   transition: 0.15s;
 }
 
 #olc-menu .knx-modal-option-label {
+  font-size: .8rem;
   font-weight: 700;
   color: #111827;
+  line-height: 1.3;
 }
 
 #olc-menu .knx-modal-option-cta {
-  margin-top: 2px;
-  padding: 8px 6px;
-  border-radius: 999px;
+  margin-top: 4px;
+  padding: 4px 12px;
+  border-radius: 12px;
   background: #f97316;
   color: #fff;
-  font-size: 0.82rem;
+  font-size: 0.77rem;
   font-weight: 700;
+  line-height: 1.35;
 }
 
 #olc-menu .knx-modal-option.is-selected {
@@ -694,7 +851,6 @@
 #olc-menu .knx-modal-qty-btn {
   font-weight: 700;
   font-size: 1.2rem;
-
   border-radius: 6px;
   border: 1px solid #d1d5db;
   background: #fff;
@@ -813,6 +969,7 @@
 
   #olc-menu .knx-desktop-hero-search-input {
     flex: 1;
+    min-width: 0;
     border: none;
     outline: none;
     font-size: 1rem;
@@ -827,6 +984,7 @@
     border-radius: 8px;
     font-size: 0.95rem;
     font-weight: 700;
+    white-space: nowrap;
   }
 
   #olc-menu .knx-menu__search,
@@ -859,7 +1017,6 @@
 /* ==========================================================
    NEXUS AVAILABILITY MODAL (Menu)
 ========================================================== */
-
 #olc-menu .knx-avail {
   position: fixed;
   inset: 0;

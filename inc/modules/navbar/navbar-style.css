@@ -218,6 +218,9 @@
   transition:color 0.2s;
 }
 
+/* UX override: hide the location chip site-wide when feature is disabled */
+.knx-loc-chip { display: none !important; visibility: hidden !important; }
+
 .knx-nav__logout button:hover svg{
   color:#fff;
 }

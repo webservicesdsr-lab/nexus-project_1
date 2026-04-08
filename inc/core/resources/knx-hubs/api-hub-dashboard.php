@@ -3,13 +3,12 @@ if (!defined('ABSPATH')) exit;
 
 /**
  * ==========================================================
- * KNX Hub Management — Dashboard REST Endpoint (v1.0)
+ * KNX Hub Management — Dashboard REST Endpoint (v1.1)
  * ----------------------------------------------------------
  * GET /wp-json/knx/v1/hub-management/dashboard
  *
  * Returns hub-scoped analytics for the hub-management role:
- *  - 3 KPI cards (30-day: orders, sales_volume, avg_ticket)
- *  - Monthly sales series (last 7 months)
+ *  - 1 KPI card (30-day: orders count)
  *  - Monthly orders series (last 7 months)
  *
  * Security: session + role + ownership (fail-closed)
@@ -39,8 +38,7 @@ function knx_hub_management_dashboard_handler(WP_REST_Request $request) {
 
     $kpi = $wpdb->get_row($wpdb->prepare(
         "SELECT
-            COUNT(*)                        AS order_count,
-            COALESCE(SUM(o.total), 0)       AS sales_volume
+            COUNT(*) AS order_count
          FROM {$orders_table} o
          WHERE o.hub_id = %d
            AND o.status NOT IN ('pending_payment','cancelled')
@@ -48,14 +46,10 @@ function knx_hub_management_dashboard_handler(WP_REST_Request $request) {
         $hub_id, $thirty_days_ago
     ));
 
-    $order_count  = (int)   ($kpi->order_count ?? 0);
-    $sales_volume = (float) ($kpi->sales_volume ?? 0);
-    $avg_ticket   = $order_count > 0 ? round($sales_volume / $order_count, 2) : 0;
+    $order_count = (int) ($kpi->order_count ?? 0);
 
     $cards = [
-        'orders'       => $order_count,
-        'sales_volume' => round($sales_volume, 2),
-        'avg_ticket'   => $avg_ticket,
+        'orders' => $order_count,
     ];
 
     // ── Monthly series (last 7 months) ────────────────────
@@ -65,8 +59,7 @@ function knx_hub_management_dashboard_handler(WP_REST_Request $request) {
         "SELECT
             DATE_FORMAT(o.created_at, '%%Y-%%m') AS month_key,
             DATE_FORMAT(o.created_at, '%%b')     AS month_label,
-            COUNT(*)                              AS order_count,
-            COALESCE(SUM(o.total), 0)             AS sales_total
+            COUNT(*)                              AS order_count
          FROM {$orders_table} o
          WHERE o.hub_id = %d
            AND o.status NOT IN ('pending_payment','cancelled')
@@ -81,7 +74,6 @@ function knx_hub_management_dashboard_handler(WP_REST_Request $request) {
         $month_map[$row->month_key] = $row;
     }
 
-    $sales_series  = [];
     $orders_series = [];
 
     for ($i = 6; $i >= 0; $i--) {
@@ -89,10 +81,6 @@ function knx_hub_management_dashboard_handler(WP_REST_Request $request) {
         $label = date('M', strtotime("-{$i} months"));
         $row   = $month_map[$key] ?? null;
 
-        $sales_series[] = [
-            'month' => $label,
-            'value' => $row ? round(floatval($row->sales_total), 2) : 0,
-        ];
         $orders_series[] = [
             'month' => $label,
             'value' => $row ? (int) $row->order_count : 0,
@@ -101,7 +89,6 @@ function knx_hub_management_dashboard_handler(WP_REST_Request $request) {
 
     return knx_rest_response(true, 'OK', [
         'cards'         => $cards,
-        'sales_series'  => $sales_series,
         'orders_series' => $orders_series,
         'meta'          => [
             'hub_id'       => $hub_id,

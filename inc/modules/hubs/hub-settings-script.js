@@ -109,6 +109,90 @@
             });
         }
 
+        // ── Notification Preferences ──────────────────────
+        const hnPrefsBlock = document.getElementById('notificationPrefsBlock');
+        if (hnPrefsBlock) {
+            const hnApiBase = '/wp-json/knx/v1/hub-notifications/prefs';
+            const hnTestApi = '/wp-json/knx/v1/hub-notifications/test-ntfy';
+
+            const hnNtfyEnabled  = document.getElementById('hnNtfyEnabled');
+            const hnNtfyTopic    = document.getElementById('hnNtfyTopic');
+            const hnEmailEnabled = document.getElementById('hnEmailEnabled');
+            const hnEmailTo      = document.getElementById('hnEmailTo');
+            const hnSaveBtn      = document.getElementById('hnSavePrefsBtn');
+            const hnSavedMsg     = document.getElementById('hnPrefsSavedMsg');
+            const hnTestBtn      = document.getElementById('hnTestNtfyBtn');
+
+            // Load current prefs on page load
+            (async () => {
+                try {
+                    const res = await fetch(hnApiBase, {
+                        headers: { 'X-WP-Nonce': wpNonce },
+                        credentials: 'same-origin',
+                    });
+                    const json = await res.json();
+                    if (json.success && json.data) {
+                        const d = json.data;
+                        if (hnNtfyEnabled)  hnNtfyEnabled.checked = (d.ntfy_enabled === '1' || d.ntfy_enabled === 1 || d.ntfy_enabled === true);
+                        if (hnNtfyTopic)    hnNtfyTopic.value = d.ntfy_topic || '';
+                        if (hnEmailEnabled) hnEmailEnabled.checked = (d.email_enabled === '1' || d.email_enabled === 1 || d.email_enabled === true);
+                        if (hnEmailTo)      hnEmailTo.value = d.email_to || '';
+                    }
+                } catch (e) { /* silent */ }
+            })();
+
+            // Save prefs
+            if (hnSaveBtn) {
+                hnSaveBtn.addEventListener('click', async () => {
+                    hnSaveBtn.disabled = true;
+                    if (hnSavedMsg) hnSavedMsg.style.display = 'none';
+                    try {
+                        const res = await postJSON(hnApiBase, {
+                            ntfy_enabled:  hnNtfyEnabled?.checked ? 1 : 0,
+                            ntfy_topic:    hnNtfyTopic?.value.trim() || '',
+                            email_enabled: hnEmailEnabled?.checked ? 1 : 0,
+                            email_to:      hnEmailTo?.value.trim() || '',
+                        }, wpNonce);
+                        if (res.success) {
+                            toast('success', 'Notification settings saved');
+                            if (hnSavedMsg) {
+                                hnSavedMsg.style.display = 'inline';
+                                setTimeout(() => { hnSavedMsg.style.display = 'none'; }, 3000);
+                            }
+                        } else {
+                            toast('error', res.message || 'Save failed');
+                        }
+                    } catch (e) {
+                        toast('error', 'Network error');
+                    }
+                    hnSaveBtn.disabled = false;
+                });
+            }
+
+            // Test ntfy button
+            if (hnTestBtn) {
+                hnTestBtn.addEventListener('click', async () => {
+                    const topic = hnNtfyTopic?.value.trim();
+                    if (!topic) {
+                        toast('error', 'Enter a ntfy topic first');
+                        return;
+                    }
+                    hnTestBtn.disabled = true;
+                    try {
+                        const res = await postJSON(hnTestApi, {}, wpNonce);
+                        if (res.success) {
+                            toast('success', 'Test notification sent! Check your ntfy app.');
+                        } else {
+                            toast('error', res.message || 'Test failed');
+                        }
+                    } catch (e) {
+                        toast('error', 'Network error');
+                    }
+                    hnTestBtn.disabled = false;
+                });
+            }
+        }
+
     }
 
     // ── Helpers ────────────────────────────────────────────

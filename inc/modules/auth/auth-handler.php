@@ -151,7 +151,7 @@ add_action('init', function () {
             exit;
         }
 
-        $email = sanitize_email($_POST['knx_forgot_email'] ?? '');
+        $email = strtolower(trim(sanitize_email($_POST['knx_forgot_email'] ?? '')));
         if (is_email($email)) {
             $user = $wpdb->get_row($wpdb->prepare(
                 "SELECT id FROM {$users_table} WHERE email = %s LIMIT 1",
@@ -255,7 +255,7 @@ add_action('init', function () {
     if (isset($_POST['knx_login_btn'])) {
 
         $ip    = knx_get_client_ip();
-        $login = sanitize_text_field($_POST['knx_login'] ?? '');
+        $login = strtolower(trim(sanitize_text_field($_POST['knx_login'] ?? '')));
 
         // Preserve redirect_to across failed-login retries
         $_login_redirect_to = isset($_POST['knx_redirect_to']) ? sanitize_text_field(wp_unslash($_POST['knx_redirect_to'])) : '';
@@ -358,7 +358,7 @@ add_action('init', function () {
 
         // Read and sanitize inputs
         $fullname = sanitize_text_field($_POST['knx_register_fullname'] ?? '');
-        $email    = sanitize_email($_POST['knx_register_email'] ?? '');
+        $email    = strtolower(trim(sanitize_email($_POST['knx_register_email'] ?? '')));
         $phone_raw = sanitize_text_field($_POST['knx_register_phone'] ?? '');
         $pass     = $_POST['knx_register_password'] ?? '';
         $pass2    = $_POST['knx_register_password_confirm'] ?? '';

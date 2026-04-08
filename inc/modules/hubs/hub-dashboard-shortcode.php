@@ -8,8 +8,7 @@ if (!defined('ABSPATH')) exit;
  * Visual clone of [knx_ops_dashboard] reduced to hub-only scope.
  *
  * Structure: 1:1 clone of inc/modules/ops/dashboard/dashboard-shortcode.php
- * - 3 KPI cards (orders, sales volume, avg ticket)
- * - Sales value line chart (Chart.js)
+ * - 1 KPI card (orders count — 30 days)
  * - Total orders bar chart (Chart.js)
  * - Action shortcuts to hub-settings, hub-items
  *
@@ -146,8 +145,8 @@ function knx_hub_dashboard_shortcode($atts = []) {
             </span>
         </div>
 
-        <!-- ── KPI Cards (3 columns) ──────────────────────── -->
-        <div class="knx-dash__cards" style="grid-template-columns: repeat(3, 1fr);">
+        <!-- ── KPI Card (single — orders only) ────────────── -->
+        <div class="knx-dash__cards" style="grid-template-columns: 1fr; max-width: 360px;">
             <div class="knx-dash__card" data-card="orders">
                 <div class="knx-dash__card-body">
                     <span class="knx-dash__card-label">ORDERS ( 30 DAYS )</span>
@@ -157,40 +156,10 @@ function knx_hub_dashboard_shortcode($atts = []) {
                     <i class="fas fa-shopping-bag"></i>
                 </div>
             </div>
-
-            <div class="knx-dash__card" data-card="sales_volume">
-                <div class="knx-dash__card-body">
-                    <span class="knx-dash__card-label">SALES VOLUME ( 30 DAYS )</span>
-                    <span class="knx-dash__card-value knx-dash__card-value--loading" id="knxHubDashSalesVol">—</span>
-                </div>
-                <div class="knx-dash__card-icon knx-dash__card-icon--red">
-                    <i class="fas fa-chart-line"></i>
-                </div>
-            </div>
-
-            <div class="knx-dash__card" data-card="avg_ticket">
-                <div class="knx-dash__card-body">
-                    <span class="knx-dash__card-label">AVG TICKET</span>
-                    <span class="knx-dash__card-value knx-dash__card-value--loading" id="knxHubDashAvgTicket">—</span>
-                </div>
-                <div class="knx-dash__card-icon knx-dash__card-icon--orange">
-                    <i class="fas fa-receipt"></i>
-                </div>
-            </div>
         </div>
 
-        <!-- ── Charts Row ──────────────────────────────────── -->
-        <div class="knx-dash__charts">
-            <div class="knx-dash__chart-card knx-dash__chart-card--sales">
-                <div class="knx-dash__chart-header">
-                    <span class="knx-dash__chart-overtitle">OVERVIEW</span>
-                    <span class="knx-dash__chart-title">Sales value</span>
-                </div>
-                <div class="knx-dash__chart-canvas-wrap">
-                    <canvas id="knxHubDashSalesChart"></canvas>
-                </div>
-            </div>
-
+        <!-- ── Chart (orders bar only) ─────────────────────── -->
+        <div class="knx-dash__charts" style="grid-template-columns: 1fr;">
             <div class="knx-dash__chart-card knx-dash__chart-card--orders">
                 <div class="knx-dash__chart-header">
                     <span class="knx-dash__chart-overtitle">PERFORMANCE</span>
@@ -259,7 +228,6 @@ function knx_hub_dashboard_shortcode($atts = []) {
 
                 const data = json.data || {};
                 renderCards(data.cards || {});
-                renderSalesChart(data.sales_series || []);
                 renderOrdersChart(data.orders_series || []);
 
             } catch (e) {
@@ -269,9 +237,7 @@ function knx_hub_dashboard_shortcode($atts = []) {
 
         function renderCards(cards) {
             setCardLoading(false);
-            setVal('knxHubDashOrders',    formatInt(cards.orders));
-            setVal('knxHubDashSalesVol',  '$' + formatMoney(cards.sales_volume));
-            setVal('knxHubDashAvgTicket', '$' + formatMoney(cards.avg_ticket));
+            setVal('knxHubDashOrders', formatInt(cards.orders));
         }
 
         function setVal(id, text) {
@@ -287,30 +253,6 @@ function knx_hub_dashboard_shortcode($atts = []) {
                 } else {
                     v.classList.remove('knx-dash__card-value--loading');
                 }
-            });
-        }
-
-        function renderSalesChart(series) {
-            const ctx = document.getElementById('knxHubDashSalesChart');
-            if (!ctx || typeof Chart === 'undefined') return;
-
-            const labels = series.map(s => s.month);
-            const values = series.map(s => s.value);
-
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Sales value',
-                        data: values,
-                        borderColor: '#1E6FF0',
-                        backgroundColor: createGradient(ctx, 'rgba(30,111,240,0.25)', 'rgba(30,111,240,0)'),
-                        fill: true, tension: 0.4, pointRadius: 0,
-                        pointHoverRadius: 5, pointHoverBackgroundColor: '#1E6FF0', borderWidth: 3,
-                    }],
-                },
-                options: chartOpts('line'),
             });
         }
 
@@ -333,12 +275,11 @@ function knx_hub_dashboard_shortcode($atts = []) {
                         barPercentage: 0.55, categoryPercentage: 0.7,
                     }],
                 },
-                options: chartOpts('bar'),
+                options: chartOpts(),
             });
         }
 
-        function chartOpts(type) {
-            const isLine = type === 'line';
+        function chartOpts() {
             return {
                 responsive: true, maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
@@ -348,21 +289,18 @@ function knx_hub_dashboard_shortcode($atts = []) {
                         backgroundColor: '#1e293b', titleColor: '#94a3b8',
                         bodyColor: '#f8fafc', bodyFont: { weight: '600' },
                         padding: 12, cornerRadius: 10,
-                        callbacks: isLine ? {
-                            label: function (c) { return '$' + formatMoney(c.parsed.y); }
-                        } : {},
                     },
                 },
                 scales: {
                     x: {
                         grid: { display: false },
-                        ticks: { color: isLine ? 'rgba(255,255,255,0.45)' : '#6b7280', font: { size: 12 } },
+                        ticks: { color: '#6b7280', font: { size: 12 } },
                         border: { display: false },
                     },
                     y: {
-                        grid: { color: isLine ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' },
+                        grid: { color: 'rgba(0,0,0,0.05)' },
                         ticks: {
-                            color: isLine ? 'rgba(255,255,255,0.45)' : '#6b7280',
+                            color: '#6b7280',
                             font: { size: 11 },
                             callback: function (v) { return formatCompact(v); },
                         },
@@ -372,21 +310,12 @@ function knx_hub_dashboard_shortcode($atts = []) {
             };
         }
 
-        function createGradient(canvas, from, to) {
-            const ctx2d = canvas.getContext ? canvas.getContext('2d') : canvas;
-            if (!ctx2d || !ctx2d.createLinearGradient) return from;
-            const g = ctx2d.createLinearGradient(0, 0, 0, 300);
-            g.addColorStop(0, from); g.addColorStop(1, to);
-            return g;
-        }
-
         function showError(msg) {
             const app = document.getElementById('knxHubDashboardApp');
             if (app) app.innerHTML = '<div style="padding:2rem;text-align:center;color:#ef4444;">' + msg + '</div>';
         }
 
         function formatInt(n)    { return (parseInt(n) || 0).toLocaleString('en-US'); }
-        function formatMoney(n)  { return (parseFloat(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
         function formatCompact(n) {
             if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
             if (n >= 1000)    return (n / 1000).toFixed(1) + 'k';

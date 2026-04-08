@@ -127,6 +127,7 @@ if (!function_exists('knx_render_navbar')) {
                         ?>
                         <button type="button" class="knx-nav__username" id="knxUserMenuToggle"
                                 aria-controls="knxSidebar" aria-expanded="false" aria-label="Open user menu">
+                            <i class="fas fa-bars knx-nav__username-icon"></i>
                             <span class="knx-nav__username-text"><?php echo esc_html($nav_display); ?></span>
                         </button>
 

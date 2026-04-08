@@ -299,6 +299,24 @@ add_shortcode('knx_auth', function () {
             } catch (e) {
                 // noop
             }
+
+            // Email normalization: convert to lowercase in real-time (login, register, forgot)
+            try {
+                const emailInputs = document.querySelectorAll('input[name="knx_login"], input[name="knx_register_email"], input[name="knx_forgot_email"]');
+                emailInputs.forEach(input => {
+                    input.addEventListener('input', function (e) {
+                        const before = this.value;
+                        const normalized = before.toLowerCase();
+                        if (normalized !== before) {
+                            const pos = this.selectionStart;
+                            this.value = normalized;
+                            try { this.setSelectionRange(pos, pos); } catch (err) {}
+                        }
+                    }, { passive: true });
+                });
+            } catch (e) {
+                // noop
+            }
     })();
     </script>
 

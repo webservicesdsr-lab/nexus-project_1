@@ -172,8 +172,21 @@ function knx_render_menu_page() {
 
 	$is_preorder = is_array($availability) && !empty($availability['is_preorder']);
 
-	$now_ts      = current_time('timestamp');
 	$status_text = 'Closed';
+
+	/*
+	 * Use the HUB timezone for the "Open until …" text — must match
+	 * the same clock knx_availability_decision() uses. WordPress'
+	 * current_time() uses the WP Settings timezone, which may differ.
+	 */
+	$hub_tz_name = !empty($restaurant->timezone) ? trim((string) $restaurant->timezone) : 'America/Chicago';
+	try {
+		$hub_tz  = new DateTimeZone($hub_tz_name);
+		$hub_now = new DateTime('now', $hub_tz);
+	} catch (Exception $e) {
+		$hub_tz  = new DateTimeZone('UTC');
+		$hub_now = new DateTime('now', $hub_tz);
+	}
 
 	if (!$can_order) {
 		// IMPORTANT: Any block (temp closed, indefinite, city paused, closing soon, etc.) => CLOSED only.
@@ -191,16 +204,17 @@ function knx_render_menu_page() {
 		}
 		$status_text = 'Pre-order for today' . $opens_at_display;
 	} else {
-		// Preserve your existing "Open until X" behavior when within hours.
-		$weekday = strtolower(date_i18n('l', $now_ts));
+		// Calculate "Open until X" using the HUB timezone (same clock as availability engine).
+		$weekday     = strtolower($hub_now->format('l'));
 		$hours_field = 'hours_' . $weekday;
-		$hours_json = $restaurant->$hours_field ?? '';
+		$hours_json  = $restaurant->$hours_field ?? '';
 
 		if ($hours_json) {
 			$slots = json_decode($hours_json, true);
 			if (is_array($slots)) {
-				$is_open_now = false;
-				$close_ts_for_text = null;
+				$is_open_now       = false;
+				$close_display     = null;
+				$hub_current_time  = $hub_now->format('H:i');
 
 				foreach ($slots as $slot) {
 
@@ -209,23 +223,33 @@ function knx_render_menu_page() {
 
 					if (!$open || !$close || $open === 'closed') continue;
 
-					$base_date = date_i18n('Y-m-d', $now_ts);
-					$open_ts   = strtotime("$base_date $open");
-					$close_ts  = strtotime("$base_date $close");
+					$is_overnight = ($close < $open);
 
-					if ($close_ts <= $open_ts) {
-						$close_ts += DAY_IN_SECONDS;
-					}
-
-					if ($now_ts >= $open_ts && $now_ts <= $close_ts) {
-						$is_open_now = true;
-						$close_ts_for_text = $close_ts;
-						break;
+					if ($is_overnight) {
+						// Overnight: open if current >= open OR current <= close
+						if ($hub_current_time >= $open || $hub_current_time <= $close) {
+							$is_open_now   = true;
+							$close_display = $close;
+							break;
+						}
+					} else {
+						if ($hub_current_time >= $open && $hub_current_time <= $close) {
+							$is_open_now   = true;
+							$close_display = $close;
+							break;
+						}
 					}
 				}
 
-				if ($is_open_now && $close_ts_for_text) {
-					$status_text = 'Open until ' . date_i18n('g:i A', $close_ts_for_text);
+				if ($is_open_now && $close_display) {
+					try {
+						$close_dt = DateTime::createFromFormat('H:i', $close_display);
+						if ($close_dt) {
+							$status_text = 'Open until ' . $close_dt->format('g:i A');
+						}
+					} catch (Exception $e) {
+						$status_text = 'Open now';
+					}
 				}
 			}
 		}

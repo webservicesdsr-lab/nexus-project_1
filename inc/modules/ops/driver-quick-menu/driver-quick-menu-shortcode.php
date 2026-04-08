@@ -45,10 +45,10 @@ add_shortcode('knx_driver_quick_menu', function ($atts = []) {
                 <div class="knx-dqm__sub">Current order</div>
             </a>
 
-            <a class="knx-dqm__tile" href="<?php echo esc_url($past_url); ?>">
+            <div class="knx-dqm__tile is-disabled" role="button" tabindex="0" aria-disabled="true" title="Past orders temporarily disabled">
                 <div class="knx-dqm__title">Past</div>
                 <div class="knx-dqm__sub">History</div>
-            </a>
+            </div>
 
             <a class="knx-dqm__tile" href="<?php echo esc_url($profile_url); ?>">
                 <div class="knx-dqm__title">Profile</div>

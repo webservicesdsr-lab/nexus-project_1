@@ -324,6 +324,11 @@ add_action('plugins_loaded', function() {
     knx_require('inc/modules/driver-notifications/driver-notifications-bootstrap.php');
 
     /* ======================================================
+     * MODULES — HUB NOTIFICATIONS
+     * ====================================================== */
+    knx_require('inc/modules/hub-notifications/hub-notifications-bootstrap.php');
+
+    /* ======================================================
      * MODULES — SYSTEM EMAILS
      * ====================================================== */
     knx_require('inc/modules/system-emails/system-emails-bootstrap.php');

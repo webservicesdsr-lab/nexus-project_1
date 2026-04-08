@@ -318,3 +318,152 @@ function knx_dn_worker_run_scheduled($limit = 10) {
 }
 
 add_action('knx_dn_worker_cron', 'knx_dn_worker_run_scheduled');
+
+// ──────────────────────────────────────────────────────────
+// Hub Notifications Worker (ntfy + email dispatch)
+// Runs on same cron, separate lock, same patterns.
+// ──────────────────────────────────────────────────────────
+
+/**
+ * Process one pending hub notification row (ntfy or email).
+ *
+ * @return int  0 = nothing to process, 1 = processed one row.
+ */
+function knx_hn_worker_process_once() {
+    global $wpdb;
+
+    if (!function_exists('knx_hn_table_exists_live') || !knx_hn_table_exists_live()) {
+        return 0;
+    }
+
+    $table = knx_hn_table_name();
+
+    // Try ntfy first, then email. Soft-push is handled by browser polling.
+    $row = null;
+    foreach (['ntfy', 'email'] as $ch) {
+        $row = $wpdb->get_row($wpdb->prepare(
+            "SELECT id, hub_id, channel, payload_json, status, available_at
+             FROM {$table}
+             WHERE channel = %s
+               AND status = 'pending'
+               AND (available_at IS NULL OR available_at <= NOW())
+             ORDER BY created_at ASC
+             LIMIT 1",
+            $ch
+        ));
+        if ($row) break;
+    }
+
+    if (!$row || empty($row->id) || empty($row->channel)) {
+        return 0;
+    }
+
+    // Claim atomically
+    $updated = $wpdb->update(
+        $table,
+        ['status' => 'processing'],
+        ['id' => (int) $row->id, 'status' => 'pending'],
+        ['%s'],
+        ['%d', '%s']
+    );
+
+    if ($updated === false || $updated === 0) {
+        return 0;
+    }
+
+    knx_hn_increment_attempts((int) $row->id);
+
+    // Dispatch by channel
+    $channel = (string) $row->channel;
+    $ok = false;
+    $err = '';
+
+    if ($channel === 'ntfy' && function_exists('knx_hn_ntfy_send')) {
+        $res = knx_hn_ntfy_send($row);
+        if ($res === true) {
+            $ok = true;
+        } else {
+            $err = is_wp_error($res) ? $res->get_error_message() : 'ntfy_unknown_error';
+        }
+    } elseif ($channel === 'email' && function_exists('knx_hn_send_email_notification')) {
+        $res = knx_hn_send_email_notification($row);
+        if ($res === true) {
+            $ok = true;
+        } else {
+            $err = is_wp_error($res) ? $res->get_error_message() : 'email_unknown_error';
+        }
+    } else {
+        $err = 'unsupported_channel';
+    }
+
+    if ($ok) {
+        knx_hn_update_status((int) $row->id, 'delivered', true);
+        knx_hn_clear_available_at((int) $row->id);
+        return 1;
+    }
+
+    // Failure: record error and retry or fail
+    knx_hn_set_last_error((int) $row->id, $err);
+
+    $MAX_ATTEMPTS = 3;
+    $BACKOFF_BASE = 30;
+
+    $attempts_row = $wpdb->get_var($wpdb->prepare(
+        "SELECT attempts FROM {$table} WHERE id = %d LIMIT 1",
+        (int) $row->id
+    ));
+    $attempts = ($attempts_row !== null) ? (int) $attempts_row : 0;
+
+    if ($attempts >= $MAX_ATTEMPTS) {
+        knx_hn_update_status((int) $row->id, 'failed', false);
+        knx_hn_clear_available_at((int) $row->id);
+        return 1;
+    }
+
+    // Requeue with backoff
+    $exp = pow(2, max(0, $attempts - 1));
+    $backoff = min($BACKOFF_BASE * $exp, 3600);
+    $available_mysql = date('Y-m-d H:i:s', current_time('timestamp') + $backoff);
+
+    $wpdb->update(
+        $table,
+        ['status' => 'pending', 'available_at' => $available_mysql],
+        ['id' => (int) $row->id],
+        ['%s', '%s'],
+        ['%d']
+    );
+
+    return 1;
+}
+
+/**
+ * Run hub notification worker for up to $limit rows.
+ */
+function knx_hn_worker_run($limit = 10) {
+    $processed = 0;
+    for ($i = 0; $i < $limit; $i++) {
+        if (knx_hn_worker_process_once() === 0) break;
+        $processed++;
+    }
+    return $processed;
+}
+
+/**
+ * Scheduled wrapper for hub notification worker.
+ */
+function knx_hn_worker_run_scheduled($limit = 10) {
+    if (get_transient('knx_hn_worker_lock')) return 0;
+
+    set_transient('knx_hn_worker_lock', 1, 300);
+
+    try {
+        $count = knx_hn_worker_run($limit);
+        delete_transient('knx_hn_worker_lock');
+        return $count;
+    } catch (\Exception $e) {
+        delete_transient('knx_hn_worker_lock');
+        return 0;
+    }
+}
+
+add_action('knx_dn_worker_cron', 'knx_hn_worker_run_scheduled');

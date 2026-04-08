@@ -193,6 +193,75 @@ add_shortcode('knx_hub_settings', function () {
         </div>
       </div>
 
+      <!-- =========================
+           Notification Preferences
+      ========================== -->
+      <div class="knx-card" id="notificationPrefsBlock" style="border-left:4px solid #6366f1;">
+        <h2><i class="fas fa-bell" style="color:#6366f1;"></i> Order Notifications</h2>
+        <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">
+          Get notified when a new order arrives. Browser notifications are always active.
+          Configure additional channels below.
+        </p>
+
+        <!-- ntfy push channel -->
+        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <i class="fas fa-mobile-alt" style="color:#6366f1;font-size:16px;"></i>
+              <strong style="font-size:14px;">ntfy Push Notifications</strong>
+            </div>
+            <label class="knx-toggle" style="margin:0;">
+              <input type="checkbox" id="hnNtfyEnabled">
+              <span class="knx-toggle-slider"></span>
+            </label>
+          </div>
+          <p style="margin:0 0 10px;color:#6b7280;font-size:13px;">
+            Receive instant push via <a href="https://ntfy.sh" target="_blank" rel="noopener" style="color:#6366f1;">ntfy.sh</a>.
+            Install the ntfy app and subscribe to your topic below.
+          </p>
+          <div class="knx-form-group" style="margin-bottom:8px;">
+            <label style="font-size:13px;">ntfy Topic</label>
+            <div style="display:flex;gap:8px;">
+              <input type="text" id="hnNtfyTopic" placeholder="e.g. localbites-myhub-orders" style="flex:1;font-size:14px;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;">
+              <button type="button" class="knx-btn" id="hnTestNtfyBtn" style="background:#6366f1;color:#fff;border-color:#6366f1;font-size:13px;white-space:nowrap;">
+                <i class="fas fa-paper-plane"></i> Test
+              </button>
+            </div>
+            <p style="margin:4px 0 0;font-size:12px;color:#9ca3af;">
+              Choose a unique, hard-to-guess topic name. Anyone with the topic can receive notifications.
+            </p>
+          </div>
+        </div>
+
+        <!-- Email channel -->
+        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <i class="fas fa-envelope" style="color:#6366f1;font-size:16px;"></i>
+              <strong style="font-size:14px;">Email Notifications</strong>
+            </div>
+            <label class="knx-toggle" style="margin:0;">
+              <input type="checkbox" id="hnEmailEnabled">
+              <span class="knx-toggle-slider"></span>
+            </label>
+          </div>
+          <div class="knx-form-group" style="margin-bottom:0;">
+            <label style="font-size:13px;">Recipients (comma-separated)</label>
+            <input type="text" id="hnEmailTo" placeholder="owner@example.com, manager@example.com" style="font-size:14px;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;width:100%;">
+          </div>
+        </div>
+
+        <!-- Save button -->
+        <div class="knx-form-actions" style="margin-top:12px;">
+          <button type="button" class="knx-btn" id="hnSavePrefsBtn" style="background:#6366f1;color:#fff;border-color:#6366f1;">
+            <i class="fas fa-save"></i> Save Notification Settings
+          </button>
+          <span id="hnPrefsSavedMsg" style="display:none;color:#059669;font-weight:600;font-size:13px;margin-left:10px;">
+            <i class="fas fa-check-circle"></i> Saved
+          </span>
+        </div>
+      </div>
+
       <?php if ($is_food_truck) : ?>
       <!-- =========================
            Food Truck — Saved Locations CRUD
