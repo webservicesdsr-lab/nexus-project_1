@@ -129,31 +129,85 @@ add_shortcode('knx_hub_orders', function () {
     font-weight: 600;
 }
 
+/* Auto-refresh toggle */
+.knx-ho-auto-refresh {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    user-select: none;
+}
+
+.knx-ho-auto-refresh:hover {
+    background: #f3f4f6;
+}
+
+.knx-ho-auto-refresh.active {
+    background: #dcfce7;
+    border-color: #10b981;
+    color: #065f46;
+}
+
+.knx-ho-auto-refresh input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.knx-ho-countdown {
+    font-size: 12px;
+    color: #9ca3af;
+    font-weight: 500;
+}
+
 /* Filter tabs */
 .knx-ho-tabs {
     display: flex;
-    gap: 6px;
-    margin-bottom: 16px;
+    gap: 8px;
+    margin-bottom: 20px;
     flex-wrap: wrap;
 }
 
 .knx-ho-tab {
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 600;
-    border: 1px solid #d1d5db;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 18px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    border: 2px solid #e5e7eb;
     background: #fff;
     color: #6b7280;
     cursor: pointer;
-    transition: all 0.12s ease;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
-.knx-ho-tab:hover { background: #f9fafb; }
-.knx-ho-tab.active {
-    background: #0b793a;
-    color: #fff;
+.knx-ho-tab:hover {
+    background: #f9fafb;
     border-color: #0b793a;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(11, 121, 58, 0.1);
+}
+
+.knx-ho-tab.active {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #fff;
+    border-color: #059669;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    transform: translateY(-1px);
+}
+
+.knx-ho-tab i {
+    font-size: 13px;
 }
 
 /* Order card */
@@ -386,6 +440,28 @@ add_shortcode('knx_hub_orders', function () {
     .knx-ho-card { padding: 14px; }
     .knx-ho-card__top { flex-direction: column; }
     .knx-ho-card__right { align-items: flex-start; flex-direction: row; gap: 8px; }
+    .knx-ho-header { flex-direction: column; align-items: stretch; }
+    .knx-ho-controls {
+        flex-wrap: wrap;
+        justify-content: space-between;
+    }
+    .knx-ho-countdown {
+        width: 100%;
+        text-align: center;
+    }
+    .knx-ho-tabs {
+        gap: 6px;
+    }
+    .knx-ho-tab {
+        flex: 1 1 auto;
+        min-width: fit-content;
+        font-size: 12px;
+        padding: 8px 12px;
+        justify-content: center;
+    }
+    .knx-ho-tab i {
+        font-size: 11px;
+    }
 }
 </style>
 
@@ -414,6 +490,11 @@ add_shortcode('knx_hub_orders', function () {
         <h1><i class="fas fa-receipt"></i> Orders — <?php echo $hub_name; ?></h1>
         <div class="knx-ho-controls">
             <span class="knx-ho-count" id="hoOrderCount"></span>
+            <span class="knx-ho-countdown" id="hoCountdown"></span>
+            <label class="knx-ho-auto-refresh" id="hoAutoRefreshLabel">
+                <input type="checkbox" id="hoAutoRefresh">
+                <span>Auto-refresh</span>
+            </label>
             <button type="button" class="knx-ho-refresh" id="hoRefreshBtn">
                 <i class="fas fa-sync-alt"></i> Refresh
             </button>
@@ -422,11 +503,21 @@ add_shortcode('knx_hub_orders', function () {
 
     <!-- Filter Tabs -->
     <div class="knx-ho-tabs" id="hoTabs">
-        <button class="knx-ho-tab active" data-filter="active">Active</button>
-        <button class="knx-ho-tab" data-filter="new">New</button>
-        <button class="knx-ho-tab" data-filter="in-progress">In Progress</button>
-        <button class="knx-ho-tab" data-filter="ready">Ready</button>
-        <button class="knx-ho-tab" data-filter="completed">Completed</button>
+        <button class="knx-ho-tab active" data-filter="active">
+            <i class="fas fa-clock"></i> Active
+        </button>
+        <button class="knx-ho-tab" data-filter="new">
+            <i class="fas fa-star"></i> New
+        </button>
+        <button class="knx-ho-tab" data-filter="in-progress">
+            <i class="fas fa-spinner"></i> In Progress
+        </button>
+        <button class="knx-ho-tab" data-filter="ready">
+            <i class="fas fa-check-circle"></i> Ready
+        </button>
+        <button class="knx-ho-tab" data-filter="completed">
+            <i class="fas fa-check-double"></i> Completed
+        </button>
     </div>
 
     <!-- Orders List -->

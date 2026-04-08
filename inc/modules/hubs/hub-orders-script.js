@@ -26,11 +26,18 @@
         var countEl   = document.getElementById('hoOrderCount');
         var refreshBtn = document.getElementById('hoRefreshBtn');
         var tabsEl    = document.getElementById('hoTabs');
+        var autoRefreshCheckbox = document.getElementById('hoAutoRefresh');
+        var autoRefreshLabel = document.getElementById('hoAutoRefreshLabel');
+        var countdownEl = document.getElementById('hoCountdown');
 
         var state = {
             orders: [],
             filter: 'active',
             loading: false,
+            autoRefresh: false,
+            countdown: 30,
+            intervalId: null,
+            countdownId: null,
         };
 
         var STATUS_LABELS = {
@@ -286,6 +293,55 @@
         refreshBtn.addEventListener('click', function() {
             loadOrders();
         });
+
+        // ── Auto-refresh toggle ───────────────────────────
+        autoRefreshCheckbox.addEventListener('change', function() {
+            state.autoRefresh = autoRefreshCheckbox.checked;
+            if (state.autoRefresh) {
+                autoRefreshLabel.classList.add('active');
+                startAutoRefresh();
+            } else {
+                autoRefreshLabel.classList.remove('active');
+                stopAutoRefresh();
+            }
+        });
+
+        function startAutoRefresh() {
+            stopAutoRefresh(); // Clear any existing intervals
+            state.countdown = 30;
+            updateCountdown();
+
+            state.intervalId = setInterval(function() {
+                loadOrders();
+                state.countdown = 30;
+            }, 30000); // 30 seconds
+
+            state.countdownId = setInterval(function() {
+                state.countdown--;
+                if (state.countdown < 0) state.countdown = 30;
+                updateCountdown();
+            }, 1000);
+        }
+
+        function stopAutoRefresh() {
+            if (state.intervalId) {
+                clearInterval(state.intervalId);
+                state.intervalId = null;
+            }
+            if (state.countdownId) {
+                clearInterval(state.countdownId);
+                state.countdownId = null;
+            }
+            countdownEl.textContent = '';
+        }
+
+        function updateCountdown() {
+            if (state.autoRefresh) {
+                countdownEl.textContent = 'Next refresh: ' + state.countdown + 's';
+            } else {
+                countdownEl.textContent = '';
+            }
+        }
 
         // ── Helpers ───────────────────────────────────────
         function getCardClass(status) {
